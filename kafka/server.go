@@ -156,12 +156,12 @@ func (s *Server) Start(ctx context.Context) error {
 		err = s.handler(s.baseCtx, m.Topic, string(m.Key), m.Value)
 		if err != nil {
 			s.err = err
-			log.Fatal("message handling exception:", err)
+			s.log.Fatal("message handling exception:", err)
 		}
 
 		if err := s.Reader.CommitMessages(ctx, m); err != nil {
 			s.err = err
-			log.Fatal("failed to commit messages:", err)
+			s.log.Fatal("failed to commit messages:", err)
 		}
 	}
 	return nil

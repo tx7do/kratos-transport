@@ -27,7 +27,7 @@ func TestServer(t *testing.T) {
 	}
 }
 
-func receive(_ context.Context, topic string, key string, value []byte) error {
-	fmt.Println("topic: ", topic, " key: ", key, " value: ", string(value))
+func receive(_ context.Context, topic string, payload []byte) error {
+	fmt.Println("Topic: ", topic, " Payload: ", string(payload))
 	return nil
 }

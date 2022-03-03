@@ -3,6 +3,8 @@ package mqtt
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
+	"math/rand"
 	"net/url"
 	"time"
 
@@ -17,7 +19,7 @@ var (
 	_ transport.Endpointer = (*Server)(nil)
 )
 
-type Handler func(context.Context, string, string, []byte) error
+type Handler func(context.Context, string, []byte) error
 type TopicHandler func(context.Context, string, []byte) error
 
 type subscribeMap map[string]byte
@@ -117,6 +119,14 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.mqttOpts.AddBroker(srv.address)
 
+	// setup tls
+	if srv.tlsConf != nil {
+		srv.mqttOpts.SetTLSConfig(srv.tlsConf)
+	}
+
+	srv.mqttOpts.SetClientID(fmt.Sprintf("%d%d", time.Now().UnixNano(), rand.Intn(10)))
+	srv.mqttOpts.SetCleanSession(false)
+
 	srv.mqttOpts.SetKeepAlive(60 * time.Second)
 	srv.mqttOpts.SetPingTimeout(1 * time.Second)
 
@@ -179,7 +189,7 @@ func (s *Server) receive(_ mqtt.Client, msg mqtt.Message) {
 	//fmt.Printf("TOPIC: %s\n", msg.Topic())
 	//fmt.Printf("MSG: %s\n", msg.Payload())
 
-	err := s.handler(s.baseCtx, msg.Topic(), "", msg.Payload())
+	err := s.handler(s.baseCtx, msg.Topic(), msg.Payload())
 	if err != nil {
 		log.Fatal("message handling exception:", err)
 	}
