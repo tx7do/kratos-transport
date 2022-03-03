@@ -9,3 +9,5 @@
 - [RabbitMQ](https://www.rabbitmq.com/)
 - [RocketMQ](https://rocketmq.apache.org/)
 - [MQTT](https://mqtt.org/)
+- [Redis](https://redis.io/)
+- [WebSocket](https://zh.wikipedia.org/zh-hant/WebSocket)
