@@ -5,9 +5,11 @@ go 1.17
 require (
 	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/go-kratos/kratos/v2 v2.2.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/segmentio/kafka-go v0.4.29
+	github.com/streadway/amqp v1.0.0
 )
 
 require (
