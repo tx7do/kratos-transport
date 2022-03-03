@@ -3,6 +3,7 @@ package mqtt
 import (
 	"context"
 	"fmt"
+	"github.com/tx7do/kratos-transport/common"
 	"testing"
 	"time"
 )
@@ -11,14 +12,18 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		Address("tcp://emqx:public@broker.emqx.io:1883"),
-		Topic("topic/bobo/#", 0),
-		Handle(receive),
+		common.Addrs("tcp://emqx:public@broker.emqx.io:1883"),
+		common.OptionContext(ctx),
 	)
 
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
 	}
+
+	_ = srv.RegisterSubscriber("topic/bobo/#", receive,
+		common.SubscribeContext(ctx),
+		common.Queue("test_topic"),
+	)
 
 	time.Sleep(time.Second * 60)
 
@@ -27,7 +32,7 @@ func TestServer(t *testing.T) {
 	}
 }
 
-func receive(_ context.Context, topic string, payload []byte) error {
-	fmt.Println("Topic: ", topic, " Payload: ", string(payload))
+func receive(event common.Event) error {
+	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	return nil
 }

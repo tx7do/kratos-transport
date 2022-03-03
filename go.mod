@@ -5,16 +5,17 @@ go 1.17
 require (
 	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/go-kratos/kratos/v2 v2.2.0
+	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
+	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/segmentio/kafka-go v0.4.29
 	github.com/streadway/amqp v1.0.0
 )
 
 require (
 	github.com/go-playground/form/v4 v4.2.0 // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/klauspost/compress v1.14.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect

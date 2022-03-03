@@ -16,16 +16,16 @@ func TestServer(t *testing.T) {
 		common.OptionContext(ctx),
 	)
 
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
 	_ = srv.RegisterSubscriber("test_topic", receive,
 		common.SubscribeContext(ctx),
 		common.Queue("test_topic"),
 		//common.DisableAutoAck(),
 		DurableQueue(),
 	)
-
-	if err := srv.Start(ctx); err != nil {
-		panic(err)
-	}
 
 	time.Sleep(time.Minute * 60)
 

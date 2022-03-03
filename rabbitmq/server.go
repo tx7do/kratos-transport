@@ -19,7 +19,6 @@ type Server struct {
 	common.Broker
 
 	subscribers map[string]common.Subscriber
-	handlers    map[string]common.Handler
 
 	exit chan chan error
 	sync.RWMutex
@@ -40,11 +39,6 @@ func NewServer(opts ...common.Option) *Server {
 		subscribers: map[string]common.Subscriber{},
 	}
 
-	srv.err = srv.Connect()
-	if srv.err != nil {
-		return srv
-	}
-
 	return srv
 }
 
@@ -57,6 +51,11 @@ func (s *Server) Start(ctx context.Context) error {
 	s.baseCtx = ctx
 
 	s.log.Infof("[rabbitmq] server listening on: %s", s.Address())
+
+	s.err = s.Connect()
+	if s.err != nil {
+		return s.err
+	}
 
 	return nil
 }
