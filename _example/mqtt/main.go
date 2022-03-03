@@ -4,15 +4,26 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kratos/kratos/v2"
+	"github.com/tx7do/kratos-transport/common"
 	"github.com/tx7do/kratos-transport/mqtt"
 	"log"
 )
 
 func main() {
+	ctx := context.Background()
+
 	mqttSrv := mqtt.NewServer(
-		mqtt.Address("tcp://emqx:public@broker.emqx.io:1883"),
-		mqtt.Topic("topic/bobo/#", 0),
-		mqtt.Handle(receive),
+		common.Addrs("tcp://emqx:public@broker.emqx.io:1883"),
+		common.OptionContext(ctx),
+	)
+
+	if err := mqttSrv.Connect(); err != nil {
+		panic(err)
+	}
+
+	_ = mqttSrv.RegisterSubscriber("topic/bobo/#", receive,
+		common.SubscribeContext(ctx),
+		common.Queue("topic/bobo/#"),
 	)
 
 	app := kratos.New(
@@ -26,7 +37,7 @@ func main() {
 	}
 }
 
-func receive(_ context.Context, topic string, payload []byte) error {
-	fmt.Println("Topic: ", topic, " Payload: ", string(payload))
+func receive(event common.Event) error {
+	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	return nil
 }

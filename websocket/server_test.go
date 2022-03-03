@@ -15,12 +15,9 @@ func TestServer(t *testing.T) {
 		Handle("/ws", receive),
 	)
 
-	//go func() {
-	// start server
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
 	}
-	//}()
 
 	time.Sleep(time.Second)
 

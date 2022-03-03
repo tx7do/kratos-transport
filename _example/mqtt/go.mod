@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/go-kratos/kratos/v2 v2.2.0
-	github.com/tx7do/kratos-transport v0.0.0-20220303091046-760e6b9d6b7a
+	github.com/tx7do/kratos-transport v0.0.0-20220303193228-3e76820f9a7f
 )
 
 require (
@@ -13,7 +13,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	google.golang.org/genproto v0.0.0-20220126215142-9970aeb2e350 // indirect
 	google.golang.org/grpc v1.44.0 // indirect

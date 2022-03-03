@@ -22,6 +22,7 @@ type Server struct {
 	baseCtx context.Context
 	log     *log.Helper
 	err     error
+	started bool
 }
 
 // NewServer creates a mqtt server by options.
@@ -31,6 +32,7 @@ func NewServer(opts ...common.Option) *Server {
 		log:         log.NewHelper(log.GetLogger()),
 		Broker:      NewBroker(opts...),
 		subscribers: map[string]common.Subscriber{},
+		started:     false,
 	}
 
 	return srv
@@ -52,14 +54,14 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	s.baseCtx = ctx
+	if s.started {
+		return nil
+	}
 
 	s.log.Infof("[mqtt] server listening on: %s", s.Address())
 
-	s.err = s.Connect()
-	if s.err != nil {
-		return s.err
-	}
+	s.baseCtx = ctx
+	s.started = true
 
 	return nil
 }
@@ -67,6 +69,7 @@ func (s *Server) Start(ctx context.Context) error {
 // Stop the mqtt server.
 func (s *Server) Stop(_ context.Context) error {
 	s.log.Info("[mqtt] server stopping")
+	s.started = false
 	return s.Disconnect()
 }
 

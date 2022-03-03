@@ -4,16 +4,25 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kratos/kratos/v2"
+	"github.com/tx7do/kratos-transport/common"
 	"github.com/tx7do/kratos-transport/kafka"
 	"log"
 )
 
 func main() {
+	ctx := context.Background()
+
 	kafkaSrv := kafka.NewServer(
-		kafka.Address("localhost:9092"),
-		kafka.GroupID("a-group"),
-		kafka.Topics([]string{"test_topic"}),
-		kafka.Handle(receive),
+		common.OptionContext(ctx),
+		common.Addrs("localhost:9092"),
+	)
+
+	if err := kafkaSrv.Connect(); err != nil {
+		panic(err)
+	}
+
+	_ = kafkaSrv.RegisterSubscriber("test_topic", receive,
+		common.SubscribeContext(ctx),
 	)
 
 	app := kratos.New(
@@ -27,7 +36,7 @@ func main() {
 	}
 }
 
-func receive(_ context.Context, topic string, key string, value []byte) error {
-	fmt.Println("topic: ", topic, " key: ", key, " value: ", string(value))
+func receive(event common.Event) error {
+	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	return nil
 }

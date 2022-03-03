@@ -21,6 +21,7 @@ type Server struct {
 	baseCtx     context.Context
 	err         error
 	log         *log.Helper
+	started     bool
 }
 
 // NewServer creates a NATS server by options.
@@ -30,6 +31,7 @@ func NewServer(opts ...common.Option) *Server {
 		log:         log.NewHelper(log.GetLogger()),
 		Broker:      NewBroker(opts...),
 		subscribers: map[string]common.Subscriber{},
+		started:     false,
 	}
 
 	return srv
@@ -48,14 +50,15 @@ func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
 	}
-	s.baseCtx = ctx
 
-	s.err = s.Connect()
-	if s.err != nil {
-		return s.err
+	if s.started {
+		return nil
 	}
 
 	s.log.Infof("[nats] server listening on: %s", s.Address())
+
+	s.baseCtx = ctx
+	s.started = true
 
 	return nil
 }
@@ -63,6 +66,7 @@ func (s *Server) Start(ctx context.Context) error {
 // Stop the NATS server.
 func (s *Server) Stop(_ context.Context) error {
 	s.log.Info("[nats] server stopping")
+	s.started = false
 	return s.Disconnect()
 }
 

@@ -16,6 +16,10 @@ func TestServer(t *testing.T) {
 		common.OptionContext(ctx),
 	)
 
+	if err := srv.Connect(); err != nil {
+		panic(err)
+	}
+
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
 	}
