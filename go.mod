@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
+	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c
 	github.com/segmentio/kafka-go v0.4.29
 	github.com/streadway/amqp v1.0.0
@@ -16,9 +17,13 @@ require (
 
 require (
 	github.com/go-playground/form/v4 v4.2.0 // indirect
-	github.com/klauspost/compress v1.14.2 // indirect
+	github.com/klauspost/compress v1.14.4 // indirect
+	github.com/nats-io/nats-server/v2 v2.7.3 // indirect
+	github.com/nats-io/nkeys v0.3.0 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
+	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	google.golang.org/genproto v0.0.0-20220126215142-9970aeb2e350 // indirect
 	google.golang.org/grpc v1.44.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
