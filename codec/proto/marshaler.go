@@ -2,10 +2,9 @@ package proto
 
 import (
 	"bytes"
-	"github.com/tx7do/kratos-transport/codec"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/oxtoacart/bpool"
+	"github.com/tx7do/kratos-transport/codec"
 )
 
 // create buffer pool with 16 instances each preallocated with 256 bytes

@@ -1,6 +1,8 @@
 package bytes
 
-import "github.com/tx7do/kratos-transport/codec"
+import (
+	"github.com/tx7do/kratos-transport/codec"
+)
 
 type Marshaler struct{}
 
