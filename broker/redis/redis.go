@@ -6,7 +6,6 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/codec"
-	"github.com/tx7do/kratos-transport/common"
 	"strings"
 	"time"
 )
@@ -40,7 +39,7 @@ type subscriber struct {
 	conn   *redis.PubSubConn
 	topic  string
 	handle broker.Handler
-	opts   common.SubscribeOptions
+	opts   broker.SubscribeOptions
 }
 
 func (s *subscriber) recv() {
@@ -93,7 +92,7 @@ func (s *subscriber) recv() {
 }
 
 // Options returns the subscriber options.
-func (s *subscriber) Options() common.SubscribeOptions {
+func (s *subscriber) Options() broker.SubscribeOptions {
 	return s.opts
 }
 
@@ -111,7 +110,7 @@ func (s *subscriber) Unsubscribe() error {
 type redisBroker struct {
 	addr  string
 	pool  *redis.Pool
-	opts  common.Options
+	opts  broker.Options
 	bopts *commonOptions
 }
 
@@ -119,7 +118,7 @@ func (b *redisBroker) String() string {
 	return "redis"
 }
 
-func (b *redisBroker) Options() common.Options {
+func (b *redisBroker) Options() broker.Options {
 	return b.opts
 }
 
@@ -128,7 +127,7 @@ func (b *redisBroker) Address() string {
 }
 
 // Init sets or overrides common options.
-func (b *redisBroker) Init(opts ...common.Option) error {
+func (b *redisBroker) Init(opts ...broker.Option) error {
 	if b.pool != nil {
 		return errors.New("redis: cannot init while connected")
 	}
@@ -191,7 +190,7 @@ func (b *redisBroker) Disconnect() error {
 }
 
 // Publish publishes a message.
-func (b *redisBroker) Publish(topic string, msg *broker.Message, _ ...common.PublishOption) error {
+func (b *redisBroker) Publish(topic string, msg *broker.Message, _ ...broker.PublishOption) error {
 	var err error
 	var data []byte
 	if b.opts.Codec != nil {
@@ -211,8 +210,8 @@ func (b *redisBroker) Publish(topic string, msg *broker.Message, _ ...common.Pub
 }
 
 // Subscribe returns a subscriber for the topic and handler.
-func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
-	var options common.SubscribeOptions
+func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	var options broker.SubscribeOptions
 	for _, o := range opts {
 		o(&options)
 	}
@@ -238,7 +237,7 @@ func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...co
 // NewBroker returns a new common implemented using the Redis pub/sub
 // protocol. The connection address may be a fully qualified IANA address such
 // as: redis://user:secret@localhost:6379/0?foo=bar&qux=baz
-func NewBroker(opts ...common.Option) broker.Broker {
+func NewBroker(opts ...broker.Option) broker.Broker {
 	// Default options.
 	bopts := &commonOptions{
 		maxIdle:        DefaultMaxIdle,
@@ -250,7 +249,7 @@ func NewBroker(opts ...common.Option) broker.Broker {
 	}
 
 	// Initialize with empty common options.
-	options := common.Options{
+	options := broker.Options{
 		//Codec:   json.Marshaler{},
 		Context: context.WithValue(context.Background(), optionsKey, bopts),
 	}

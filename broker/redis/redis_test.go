@@ -3,7 +3,6 @@ package redis
 import (
 	"fmt"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 	"os"
 	"reflect"
 	"sort"
@@ -36,7 +35,7 @@ func TestBroker(t *testing.T) {
 		t.Skip("REDIS_URL not defined")
 	}
 
-	b := NewBroker(common.Addrs(url))
+	b := NewBroker(broker.Addrs(url))
 
 	// Only setting options.
 	b.Init()

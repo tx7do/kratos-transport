@@ -17,10 +17,6 @@ func main() {
 		common.Addrs("localhost:9092"),
 	)
 
-	if err := kafkaSrv.Connect(); err != nil {
-		panic(err)
-	}
-
 	_ = kafkaSrv.RegisterSubscriber("test_topic", receive,
 		common.SubscribeContext(ctx),
 		common.Queue("a-group"),

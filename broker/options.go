@@ -1,9 +1,8 @@
-package common
+package broker
 
 import (
 	"context"
 	"crypto/tls"
-	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/codec"
 )
 
@@ -24,7 +23,7 @@ type Options struct {
 	Secure bool
 	Codec  codec.Marshaler
 
-	ErrorHandler broker.Handler
+	ErrorHandler Handler
 
 	TLSConfig *tls.Config
 	Context   context.Context
@@ -50,7 +49,7 @@ func Codec(c codec.Marshaler) Option {
 	}
 }
 
-func ErrorHandler(h broker.Handler) Option {
+func ErrorHandler(h Handler) Option {
 	return func(o *Options) {
 		o.ErrorHandler = h
 	}

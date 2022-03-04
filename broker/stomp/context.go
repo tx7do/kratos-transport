@@ -1,10 +1,23 @@
-package rabbitmq
+package stomp
 
 import (
 	"context"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 )
+
+type authKey struct{}
+type connectHeaderKey struct{}
+type connectTimeoutKey struct{}
+type durableQueueKey struct{}
+type receiptKey struct{}
+type subscribeHeaderKey struct{}
+type suppressContentLengthKey struct{}
+type vHostKey struct{}
+
+type authRecord struct {
+	username string
+	password string
+}
 
 func setSubscribeOption(k, v interface{}) broker.SubscribeOption {
 	return func(o *broker.SubscribeOptions) {
@@ -17,15 +30,6 @@ func setSubscribeOption(k, v interface{}) broker.SubscribeOption {
 
 func setBrokerOption(k, v interface{}) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		o.Context = context.WithValue(o.Context, k, v)
-	}
-}
-
-func setServerSubscriberOption(k, v interface{}) common.SubscriberOption {
-	return func(o *common.SubscriberOptions) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}

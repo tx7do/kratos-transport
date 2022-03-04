@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 	"sync"
 	"time"
 
@@ -15,7 +14,7 @@ import (
 type rcommon struct {
 	conn           *rabbitMQConn
 	addrs          []string
-	opts           common.Options
+	opts           broker.Options
 	prefetchCount  int
 	prefetchGlobal bool
 	mtx            sync.Mutex
@@ -25,7 +24,7 @@ type rcommon struct {
 type subscriber struct {
 	mtx          sync.Mutex
 	mayRun       bool
-	opts         common.SubscribeOptions
+	opts         broker.SubscribeOptions
 	topic        string
 	ch           *rabbitMQChannel
 	durableQueue bool
@@ -58,7 +57,7 @@ func (p *publication) Message() *broker.Message {
 	return p.m
 }
 
-func (s *subscriber) Options() common.SubscribeOptions {
+func (s *subscriber) Options() broker.SubscribeOptions {
 	return s.opts
 }
 
@@ -139,13 +138,13 @@ func (s *subscriber) resubscribe() {
 	}
 }
 
-func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...common.PublishOption) error {
+func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	m := amqp.Publishing{
 		Body:    msg.Body,
 		Headers: amqp.Table{},
 	}
 
-	options := common.PublishOptions{}
+	options := broker.PublishOptions{}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -212,14 +211,14 @@ func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...common.Publ
 	return r.conn.Publish(r.conn.exchange.Name, topic, m)
 }
 
-func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
+func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	var ackSuccess bool
 
 	if r.conn == nil {
 		return nil, errors.New("not connected")
 	}
 
-	opt := common.SubscribeOptions{
+	opt := broker.SubscribeOptions{
 		AutoAck: true,
 	}
 
@@ -284,7 +283,7 @@ func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...common
 	return sub, nil
 }
 
-func (r *rcommon) Options() common.Options {
+func (r *rcommon) Options() broker.Options {
 	return r.opts
 }
 
@@ -299,7 +298,7 @@ func (r *rcommon) Address() string {
 	return ""
 }
 
-func (r *rcommon) Init(opts ...common.Option) error {
+func (r *rcommon) Init(opts ...broker.Option) error {
 	for _, o := range opts {
 		o(&r.opts)
 	}
@@ -332,8 +331,8 @@ func (r *rcommon) Disconnect() error {
 	return ret
 }
 
-func NewBroker(opts ...common.Option) broker.Broker {
-	options := common.Options{
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.Options{
 		Context: context.Background(),
 	}
 

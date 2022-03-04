@@ -33,24 +33,20 @@ var (
 	_ transport.Endpointer = (*Server)(nil)
 )
 
-// ServerOption is kafka server option.
 type ServerOption func(o *Server)
 
-// Network with server network.
 func Network(network string) ServerOption {
 	return func(s *Server) {
 		s.network = network
 	}
 }
 
-// Address with server address.
 func Address(addr string) ServerOption {
 	return func(s *Server) {
 		s.address = addr
 	}
 }
 
-// Timeout with server timeout.
 func Timeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
 		s.timeout = timeout
@@ -64,37 +60,30 @@ func Handle(path string, h Handler) ServerOption {
 	}
 }
 
-// Logger with server logger.
 func Logger(logger log.Logger) ServerOption {
 	return func(s *Server) {
 		s.log = log.NewHelper(logger)
 	}
 }
 
-// TLSConfig with TLS config.
 func TLSConfig(c *tls.Config) ServerOption {
 	return func(o *Server) {
 		o.tlsConf = c
 	}
 }
 
-// StrictSlash is with mux's StrictSlash
-// If true, when the path pattern is "/path/", accessing "/path" will
-// redirect to the former and vice versa.
 func StrictSlash(strictSlash bool) ServerOption {
 	return func(o *Server) {
 		o.strictSlash = strictSlash
 	}
 }
 
-// Listener with server lis
 func Listener(lis net.Listener) ServerOption {
 	return func(s *Server) {
 		s.lis = lis
 	}
 }
 
-// Server is a kafka server wrapper.
 type Server struct {
 	*http.Server
 	lis         net.Listener
@@ -111,7 +100,6 @@ type Server struct {
 	path        string
 }
 
-// NewServer creates a kafka server by options.
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		network:     "tcp",
@@ -127,7 +115,7 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.router = mux.NewRouter().StrictSlash(srv.strictSlash)
 
-	srv.HandleFunc(srv.path, srv.WsHandler)
+	srv.HandleFunc(srv.path, srv.wsHandler)
 
 	srv.Server = &http.Server{
 		Handler:   srv.router,
@@ -141,17 +129,15 @@ func NewServer(opts ...ServerOption) *Server {
 	return srv
 }
 
-// Handle registers a new route with a matcher for the URL path.
 func (s *Server) Handle(path string, h http.Handler) {
 	s.router.Handle(path, h)
 }
 
-// HandleFunc registers a new route with a matcher for the URL path.
 func (s *Server) HandleFunc(path string, h http.HandlerFunc) {
 	s.router.HandleFunc(path, h)
 }
 
-func (s *Server) WsHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	c, err := upgrader.Upgrade(res, req, nil)
 	if err != nil {
 		s.log.Fatal("upgrade exception:", err)
@@ -188,9 +174,6 @@ func (s *Server) WsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// Endpoint return a real address to registry endpoint.
-// examples:
-//   http://127.0.0.1:8000?isSecure=false
 func (s *Server) Endpoint() (*url.URL, error) {
 	if s.err != nil {
 		return nil, s.err
@@ -198,7 +181,6 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return s.endpoint, nil
 }
 
-// Start the WS server.
 func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
@@ -219,7 +201,6 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop the WS server.
 func (s *Server) Stop(ctx context.Context) error {
 	s.log.Info("[WS] server stopping")
 	return s.Shutdown(ctx)

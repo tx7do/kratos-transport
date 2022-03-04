@@ -2,11 +2,12 @@ package kafka
 
 import (
 	"context"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 )
 
-func setSubscribeOption(k, v interface{}) common.SubscribeOption {
-	return func(o *common.SubscribeOptions) {
+func setSubscribeOption(k, v interface{}) broker.SubscribeOption {
+	return func(o *broker.SubscribeOptions) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}
@@ -14,8 +15,8 @@ func setSubscribeOption(k, v interface{}) common.SubscribeOption {
 	}
 }
 
-func setBrokerOption(k, v interface{}) common.Option {
-	return func(o *common.Options) {
+func setBrokerOption(k, v interface{}) broker.Option {
+	return func(o *broker.Options) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}
@@ -32,8 +33,8 @@ func setServerSubscriberOption(k, v interface{}) common.SubscriberOption {
 	}
 }
 
-func setPublishOption(k, v interface{}) common.PublishOption {
-	return func(o *common.PublishOptions) {
+func setPublishOption(k, v interface{}) broker.PublishOption {
+	return func(o *broker.PublishOptions) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}

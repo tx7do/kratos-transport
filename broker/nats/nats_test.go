@@ -3,7 +3,6 @@ package nats
 import (
 	"fmt"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 	"testing"
 
 	"github.com/nats-io/nats.go"
@@ -60,12 +59,12 @@ func TestInitAddrs(t *testing.T) {
 			switch tc.name {
 			case "commonOpts":
 				// we know that there are just two addrs in the dict
-				br = NewBroker(common.Addrs(addrs[0], addrs[1]))
+				br = NewBroker(broker.Addrs(addrs[0], addrs[1]))
 				_ = br.Init()
 			case "commonInit":
 				br = NewBroker()
 				// we know that there are just two addrs in the dict
-				_ = br.Init(common.Addrs(addrs[0], addrs[1]))
+				_ = br.Init(broker.Addrs(addrs[0], addrs[1]))
 			case "natsOpts":
 				nopts := nats.GetDefaultOptions()
 				nopts.Servers = addrs

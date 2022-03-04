@@ -1,7 +1,5 @@
 package broker
 
-import "github.com/tx7do/kratos-transport/common"
-
 type Handler func(Event) error
 
 type Message struct {
@@ -17,18 +15,18 @@ type Event interface {
 }
 
 type Subscriber interface {
-	Options() common.SubscribeOptions
+	Options() SubscribeOptions
 	Topic() string
 	Unsubscribe() error
 }
 
 type Broker interface {
-	Init(...common.Option) error
-	Options() common.Options
+	Init(...Option) error
+	Options() Options
 	Address() string
 	Connect() error
 	Disconnect() error
-	Publish(topic string, m *Message, opts ...common.PublishOption) error
-	Subscribe(topic string, h Handler, opts ...common.SubscribeOption) (Subscriber, error)
+	Publish(topic string, m *Message, opts ...PublishOption) error
+	Subscribe(topic string, h Handler, opts ...SubscribeOption) (Subscriber, error)
 	String() string
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 	"strings"
 	"sync"
 
@@ -20,7 +19,7 @@ type natsBroker struct {
 
 	addrs []string
 	conn  *nats.Conn
-	opts  common.Options
+	opts  broker.Options
 	nopts nats.Options
 
 	log *log.Helper
@@ -31,7 +30,7 @@ type natsBroker struct {
 
 type subscriber struct {
 	s    *nats.Subscription
-	opts common.SubscribeOptions
+	opts broker.SubscribeOptions
 }
 
 type publication struct {
@@ -56,7 +55,7 @@ func (p *publication) Error() error {
 	return p.err
 }
 
-func (s *subscriber) Options() common.SubscribeOptions {
+func (s *subscriber) Options() broker.SubscribeOptions {
 	return s.opts
 }
 
@@ -152,16 +151,16 @@ func (n *natsBroker) Disconnect() error {
 	return nil
 }
 
-func (n *natsBroker) Init(opts ...common.Option) error {
+func (n *natsBroker) Init(opts ...broker.Option) error {
 	n.setOption(opts...)
 	return nil
 }
 
-func (n *natsBroker) Options() common.Options {
+func (n *natsBroker) Options() broker.Options {
 	return n.opts
 }
 
-func (n *natsBroker) Publish(topic string, msg *broker.Message, _ ...common.PublishOption) error {
+func (n *natsBroker) Publish(topic string, msg *broker.Message, _ ...broker.PublishOption) error {
 	n.RLock()
 	defer n.RUnlock()
 
@@ -183,7 +182,7 @@ func (n *natsBroker) Publish(topic string, msg *broker.Message, _ ...common.Publ
 	return n.conn.Publish(topic, data)
 }
 
-func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
+func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	n.RLock()
 	if n.conn == nil {
 		n.RUnlock()
@@ -191,7 +190,7 @@ func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...com
 	}
 	n.RUnlock()
 
-	opt := common.SubscribeOptions{
+	opt := broker.SubscribeOptions{
 		AutoAck: true,
 		Context: context.Background(),
 	}
@@ -251,7 +250,7 @@ func (n *natsBroker) String() string {
 	return "nats"
 }
 
-func (n *natsBroker) setOption(opts ...common.Option) {
+func (n *natsBroker) setOption(opts ...broker.Option) {
 	for _, o := range opts {
 		o(&n.opts)
 	}
@@ -303,8 +302,8 @@ func (n *natsBroker) onDisconnectedError(_ *nats.Conn, err error) {
 	n.closeCh <- err
 }
 
-func NewBroker(opts ...common.Option) broker.Broker {
-	options := common.Options{
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.Options{
 		// Default codec
 		//Codec:    json.Marshaler{},
 		Context: context.Background(),

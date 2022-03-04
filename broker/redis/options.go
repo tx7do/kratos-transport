@@ -1,7 +1,7 @@
 package redis
 
 import (
-	"github.com/tx7do/kratos-transport/common"
+	"github.com/tx7do/kratos-transport/broker"
 	"time"
 )
 
@@ -28,43 +28,43 @@ type commonOptions struct {
 
 type optionsKeyType struct{}
 
-func ConnectTimeout(d time.Duration) common.Option {
-	return func(o *common.Options) {
+func ConnectTimeout(d time.Duration) broker.Option {
+	return func(o *broker.Options) {
 		bo := o.Context.Value(optionsKey).(*commonOptions)
 		bo.connectTimeout = d
 	}
 }
 
-func ReadTimeout(d time.Duration) common.Option {
-	return func(o *common.Options) {
+func ReadTimeout(d time.Duration) broker.Option {
+	return func(o *broker.Options) {
 		bo := o.Context.Value(optionsKey).(*commonOptions)
 		bo.readTimeout = d
 	}
 }
 
-func WriteTimeout(d time.Duration) common.Option {
-	return func(o *common.Options) {
+func WriteTimeout(d time.Duration) broker.Option {
+	return func(o *broker.Options) {
 		bo := o.Context.Value(optionsKey).(*commonOptions)
 		bo.writeTimeout = d
 	}
 }
 
-func MaxIdle(n int) common.Option {
-	return func(o *common.Options) {
+func MaxIdle(n int) broker.Option {
+	return func(o *broker.Options) {
 		bo := o.Context.Value(optionsKey).(*commonOptions)
 		bo.maxIdle = n
 	}
 }
 
-func MaxActive(n int) common.Option {
-	return func(o *common.Options) {
+func MaxActive(n int) broker.Option {
+	return func(o *broker.Options) {
 		bo := o.Context.Value(optionsKey).(*commonOptions)
 		bo.maxActive = n
 	}
 }
 
-func IdleTimeout(d time.Duration) common.Option {
-	return func(o *common.Options) {
+func IdleTimeout(d time.Duration) broker.Option {
+	return func(o *broker.Options) {
 		bo := o.Context.Value(optionsKey).(*commonOptions)
 		bo.idleTimeout = d
 	}

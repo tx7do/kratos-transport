@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rabbitmq"
-	"github.com/tx7do/kratos-transport/common"
 	"testing"
 	"time"
 )
@@ -14,24 +13,20 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		common.Addrs("amqp://user:bitnami@127.0.0.1:5672"),
-		common.OptionContext(ctx),
+		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672"),
+		broker.OptionContext(ctx),
 	)
 
-	if err := srv.Connect(); err != nil {
-		panic(err)
-	}
+	_ = srv.RegisterSubscriber("test_topic", receive,
+		broker.SubscribeContext(ctx),
+		broker.Queue("test_topic"),
+		//common.DisableAutoAck(),
+		rabbitmq.DurableQueue(),
+	)
 
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
 	}
-
-	_ = srv.RegisterSubscriber("test_topic", receive,
-		common.SubscribeContext(ctx),
-		common.Queue("test_topic"),
-		//common.DisableAutoAck(),
-		rabbitmq.DurableQueue(),
-	)
 
 	time.Sleep(time.Minute * 60)
 

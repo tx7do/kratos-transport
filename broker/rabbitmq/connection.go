@@ -13,16 +13,13 @@ import (
 
 var (
 	DefaultExchange = Exchange{
-		Name: "kratos",
+		Name: "",
 	}
 	DefaultRabbitURL      = "amqp://guest:guest@127.0.0.1:5672"
 	DefaultPrefetchCount  = 0
 	DefaultPrefetchGlobal = false
 	DefaultRequeueOnError = false
 
-	// The amqp library does not seem to set these when using amqp.DialConfig
-	// (even though it says so in the comments) so we set them manually to make
-	// sure to not brake any existing functionality
 	defaultHeartbeat = 10 * time.Second
 	defaultLocale    = "en_US"
 
@@ -30,10 +27,6 @@ var (
 		Heartbeat: defaultHeartbeat,
 		Locale:    defaultLocale,
 	}
-
-	dial       = amqp.Dial
-	dialTLS    = amqp.DialTLS
-	dialConfig = amqp.DialConfig
 )
 
 type rabbitMQConn struct {
@@ -54,11 +47,8 @@ type rabbitMQConn struct {
 	waitConnection chan struct{}
 }
 
-// Exchange is the rabbitmq exchange
 type Exchange struct {
-	// Name of the exchange
-	Name string
-	// Whether its persistent
+	Name    string
 	Durable bool
 }
 
@@ -78,46 +68,38 @@ func newRabbitMQConn(ex Exchange, urls []string, prefetchCount int, prefetchGlob
 		prefetchGlobal: prefetchGlobal,
 		close:          make(chan bool),
 		waitConnection: make(chan struct{}),
+		log:            log.NewHelper(log.GetLogger()),
 	}
-	// its bad case of nil == waitConnection, so close it at start
 	close(ret.waitConnection)
 	return ret
 }
 
 func (r *rabbitMQConn) connect(secure bool, config *amqp.Config) error {
-	// try connect
 	if err := r.tryConnect(secure, config); err != nil {
 		return err
 	}
 
-	// connected
 	r.Lock()
 	r.connected = true
 	r.Unlock()
 
-	// create reconnect loop
 	go r.reconnect(secure, config)
 	return nil
 }
 
 func (r *rabbitMQConn) reconnect(secure bool, config *amqp.Config) {
-	// skip first connect
 	var connect bool
 
 	for {
 		if connect {
-			// try reconnect
 			if err := r.tryConnect(secure, config); err != nil {
 				time.Sleep(1 * time.Second)
 				continue
 			}
 
-			// connected
 			r.Lock()
 			r.connected = true
 			r.Unlock()
-			//unblock resubscribe cycle - close channel
-			//at this point channel is created and unclosed - close it without any additional checks
 			close(r.waitConnection)
 		}
 
@@ -130,7 +112,6 @@ func (r *rabbitMQConn) reconnect(secure bool, config *amqp.Config) {
 		channelNotifyReturn := make(chan amqp.Return)
 		channel.NotifyReturn(channelNotifyReturn)
 
-		// block until closed
 		select {
 		case result, ok := <-channelNotifyReturn:
 			if !ok {
@@ -140,16 +121,12 @@ func (r *rabbitMQConn) reconnect(secure bool, config *amqp.Config) {
 			r.log.Errorf("notify error reason: %s, description: %s", result.ReplyText, result.Exchange)
 		case err := <-chanNotifyClose:
 			r.log.Error(err)
-			// block all resubscribe attempt - they are useless because there is no connection to rabbitmq
-			// create channel 'waitConnection' (at this point channel is nil or closed, create it without unnecessary checks)
 			r.Lock()
 			r.connected = false
 			r.waitConnection = make(chan struct{})
 			r.Unlock()
 		case err := <-notifyClose:
 			r.log.Error(err)
-			// block all resubscribe attempt - they are useless because there is no connection to rabbitmq
-			// create channel 'waitConnection' (at this point channel is nil or closed, create it without unnecessary checks)
 			r.Lock()
 			r.connected = false
 			r.waitConnection = make(chan struct{})
@@ -163,19 +140,15 @@ func (r *rabbitMQConn) reconnect(secure bool, config *amqp.Config) {
 func (r *rabbitMQConn) Connect(secure bool, config *amqp.Config) error {
 	r.Lock()
 
-	// already connected
 	if r.connected {
 		r.Unlock()
 		return nil
 	}
 
-	// check it was closed
 	select {
 	case <-r.close:
 		r.close = make(chan bool)
 	default:
-		// no op
-		// new conn
 	}
 
 	r.Unlock()
@@ -217,7 +190,7 @@ func (r *rabbitMQConn) tryConnect(secure bool, config *amqp.Config) error {
 		url = strings.Replace(r.url, "amqp://", "amqps://", 1)
 	}
 
-	r.Connection, err = dialConfig(url, *config)
+	r.Connection, err = amqp.DialConfig(url, *config)
 
 	if err != nil {
 		return err

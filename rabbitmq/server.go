@@ -6,7 +6,6 @@ import (
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rabbitmq"
-	"github.com/tx7do/kratos-transport/common"
 	"net/url"
 	"sync"
 )
@@ -16,55 +15,71 @@ var (
 	_ transport.Endpointer = (*Server)(nil)
 )
 
-// Server is a rabbitmq server wrapper.
+type SubscriberMap map[string]broker.Subscriber
+
+type SubscribeOption struct {
+	handler broker.Handler
+	opts    []broker.SubscribeOption
+}
+type SubscribeOptionMap map[string]*SubscribeOption
+
 type Server struct {
 	broker.Broker
 
-	subscribers map[string]broker.Subscriber
+	subscribers    SubscriberMap
+	subscriberOpts SubscribeOptionMap
 
-	exit chan chan error
 	sync.RWMutex
 	started bool
-	wg      *sync.WaitGroup
 
 	log     *log.Helper
 	baseCtx context.Context
 	err     error
 }
 
-// NewServer creates a rabbitmq server by options.
-func NewServer(opts ...common.Option) *Server {
+func NewServer(opts ...broker.Option) *Server {
 	srv := &Server{
-		baseCtx:     context.Background(),
-		log:         log.NewHelper(log.GetLogger()),
-		Broker:      rabbitmq.NewBroker(opts...),
-		subscribers: map[string]broker.Subscriber{},
+		baseCtx:        context.Background(),
+		log:            log.NewHelper(log.GetLogger()),
+		Broker:         rabbitmq.NewBroker(opts...),
+		subscribers:    SubscriberMap{},
+		subscriberOpts: SubscribeOptionMap{},
+		started:        false,
 	}
 
 	return srv
 }
 
-// Start the rabbitmq server.
 func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
 	}
 
-	s.baseCtx = ctx
-
-	s.log.Infof("[rabbitmq] server listening on: %s", s.Address())
+	if s.started {
+		return nil
+	}
 
 	s.err = s.Connect()
 	if s.err != nil {
 		return s.err
 	}
 
+	s.log.Infof("[rabbitmq] server listening on: %s", s.Address())
+
+	s.err = s.doRegisterSubscriberMap()
+	if s.err != nil {
+		return s.err
+	}
+
+	s.baseCtx = ctx
+	s.started = true
+
 	return nil
 }
 
-// Stop the rabbitmq server.
 func (s *Server) Stop(_ context.Context) error {
 	s.log.Info("[rabbitmq] server stopping")
+	s.started = false
 	return s.Disconnect()
 }
 
@@ -75,15 +90,19 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return url.Parse(s.Address())
 }
 
-func (s *Server) Handle(_ broker.Handler) error {
+func (s *Server) RegisterSubscriber(topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
 	s.Lock()
 	defer s.Unlock()
 
+	if s.started {
+		return s.doRegisterSubscriber(topic, h, opts...)
+	} else {
+		s.subscriberOpts[topic] = &SubscribeOption{handler: h, opts: opts}
+	}
 	return nil
 }
 
-// RegisterSubscriber is syntactic sugar for registering a subscriber
-func (s *Server) RegisterSubscriber(topic string, h broker.Handler, opts ...common.SubscribeOption) error {
+func (s *Server) doRegisterSubscriber(topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
 	sub, err := s.Subscribe(topic, h, opts...)
 	if err != nil {
 		return err
@@ -91,5 +110,13 @@ func (s *Server) RegisterSubscriber(topic string, h broker.Handler, opts ...comm
 
 	s.subscribers[topic] = sub
 
+	return nil
+}
+
+func (s *Server) doRegisterSubscriberMap() error {
+	for topic, opt := range s.subscriberOpts {
+		_ = s.doRegisterSubscriber(topic, opt.handler, opt.opts...)
+	}
+	s.subscriberOpts = SubscribeOptionMap{}
 	return nil
 }

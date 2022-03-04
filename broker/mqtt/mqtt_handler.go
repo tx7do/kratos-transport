@@ -3,7 +3,6 @@ package mqtt
 import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 )
 
 // mqttPub is a common.Event
@@ -15,7 +14,7 @@ type mqttPub struct {
 
 // mqttPub is a common.Subscriber
 type mqttSub struct {
-	opts   common.SubscribeOptions
+	opts   broker.SubscribeOptions
 	topic  string
 	client mqtt.Client
 }
@@ -36,7 +35,7 @@ func (m *mqttPub) Message() *broker.Message {
 	return m.msg
 }
 
-func (m *mqttSub) Options() common.SubscribeOptions {
+func (m *mqttSub) Options() broker.SubscribeOptions {
 	return m.opts
 }
 

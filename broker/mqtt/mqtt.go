@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -16,7 +15,7 @@ import (
 
 type mqttBroker struct {
 	addrs  []string
-	opts   common.Options
+	opts   broker.Options
 	client mqtt.Client
 }
 
@@ -92,7 +91,7 @@ func setAddrs(addrs []string) []string {
 	return cAddrs
 }
 
-func newClient(addrs []string, opts common.Options) mqtt.Client {
+func newClient(addrs []string, opts broker.Options) mqtt.Client {
 	// create opts
 	cOpts := mqtt.NewClientOptions()
 	cOpts.SetClientID(fmt.Sprintf("%d%d", time.Now().UnixNano(), rand.Intn(10)))
@@ -111,8 +110,8 @@ func newClient(addrs []string, opts common.Options) mqtt.Client {
 	return mqtt.NewClient(cOpts)
 }
 
-func newBroker(opts ...common.Option) broker.Broker {
-	options := common.Options{
+func newBroker(opts ...broker.Option) broker.Broker {
+	options := broker.Options{
 		//Codec: json.Marshaler{},
 	}
 
@@ -130,7 +129,7 @@ func newBroker(opts ...common.Option) broker.Broker {
 	}
 }
 
-func (m *mqttBroker) Options() common.Options {
+func (m *mqttBroker) Options() broker.Options {
 	return m.opts
 }
 
@@ -158,7 +157,7 @@ func (m *mqttBroker) Disconnect() error {
 	return nil
 }
 
-func (m *mqttBroker) Init(opts ...common.Option) error {
+func (m *mqttBroker) Init(opts ...broker.Option) error {
 	if m.client.IsConnected() {
 		return errors.New("cannot init while connected")
 	}
@@ -172,7 +171,7 @@ func (m *mqttBroker) Init(opts ...common.Option) error {
 	return nil
 }
 
-func (m *mqttBroker) Publish(topic string, msg *broker.Message, opts ...common.PublishOption) error {
+func (m *mqttBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	if !m.client.IsConnected() {
 		return errors.New("not connected")
 	}
@@ -192,12 +191,12 @@ func (m *mqttBroker) Publish(topic string, msg *broker.Message, opts ...common.P
 	return t.Error()
 }
 
-func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
+func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	if !m.client.IsConnected() {
 		return nil, errors.New("not connected")
 	}
 
-	var options common.SubscribeOptions
+	var options broker.SubscribeOptions
 	for _, o := range opts {
 		o(&options)
 	}
@@ -236,6 +235,6 @@ func (m *mqttBroker) String() string {
 	return "mqtt"
 }
 
-func NewBroker(opts ...common.Option) broker.Broker {
+func NewBroker(opts ...broker.Option) broker.Broker {
 	return newBroker(opts...)
 }

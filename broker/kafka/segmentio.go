@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 	"sync"
 	"time"
 
@@ -25,13 +24,13 @@ type kBroker struct {
 
 	connected bool
 	sync.RWMutex
-	opts common.Options
+	opts broker.Options
 }
 
 type subscriber struct {
 	k         *kBroker
 	topic     string
-	opts      common.SubscribeOptions
+	opts      broker.SubscribeOptions
 	offset    int64
 	gen       *kafka.Generation
 	partition int
@@ -39,8 +38,8 @@ type subscriber struct {
 	reader    *kafka.Reader
 	closed    bool
 	done      chan struct{}
-	group     *kafka.ConsumerGroup
-	cgcfg     kafka.ConsumerGroupConfig
+	cGroup    *kafka.ConsumerGroup
+	cGroupCfg kafka.ConsumerGroupConfig
 	sync.RWMutex
 }
 
@@ -71,7 +70,7 @@ func (p *publication) Error() error {
 	return p.err
 }
 
-func (s *subscriber) Options() common.SubscribeOptions {
+func (s *subscriber) Options() broker.SubscribeOptions {
 	return s.opts
 }
 
@@ -83,8 +82,8 @@ func (s *subscriber) Unsubscribe() error {
 	var err error
 	s.Lock()
 	defer s.Unlock()
-	if s.group != nil {
-		err = s.group.Close()
+	if s.cGroup != nil {
+		err = s.cGroup.Close()
 	}
 	s.closed = true
 	return err
@@ -153,7 +152,7 @@ func (k *kBroker) Disconnect() error {
 	return nil
 }
 
-func (k *kBroker) Init(opts ...common.Option) error {
+func (k *kBroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
 		o(&k.opts)
 	}
@@ -171,11 +170,11 @@ func (k *kBroker) Init(opts ...common.Option) error {
 	return nil
 }
 
-func (k *kBroker) Options() common.Options {
+func (k *kBroker) Options() broker.Options {
 	return k.opts
 }
 
-func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...common.PublishOption) error {
+func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	var cached bool
 
 	var buf []byte
@@ -211,18 +210,14 @@ func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...common.Publ
 	if err != nil {
 		switch cached {
 		case false:
-			// non cached case, we can try to wait on some errors, but not timeout
 			if kerr, ok := err.(kafka.Error); ok {
 				if kerr.Temporary() && !kerr.Timeout() {
-					// additional chanse to publish message
 					time.Sleep(200 * time.Millisecond)
 					err = writer.WriteMessages(k.opts.Context, kMsg)
 				}
 			}
 		case true:
-			// cached case, try to recreate writer and try again after that
 			k.Lock()
-			// close older writer to free memory
 			if err = writer.Close(); err != nil {
 				k.Unlock()
 				return err
@@ -247,8 +242,8 @@ func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...common.Publ
 	return err
 }
 
-func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
-	opt := common.SubscribeOptions{
+func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	opt := broker.SubscribeOptions{
 		AutoAck: true,
 		Queue:   uuid.New().String(),
 	}
@@ -256,23 +251,28 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...common
 		o(&opt)
 	}
 
-	cgcfg := kafka.ConsumerGroupConfig{
+	consumerGroupConfig := kafka.ConsumerGroupConfig{
 		ID:                    opt.Queue,
 		WatchPartitionChanges: true,
 		Brokers:               k.readerConfig.Brokers,
 		Topics:                []string{topic},
 		GroupBalancers:        []kafka.GroupBalancer{kafka.RangeGroupBalancer{}},
 	}
-	if err := cgcfg.Validate(); err != nil {
+	if err := consumerGroupConfig.Validate(); err != nil {
 		return nil, err
 	}
 
-	cgroup, err := kafka.NewConsumerGroup(cgcfg)
+	consumerGroup, err := kafka.NewConsumerGroup(consumerGroupConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	sub := &subscriber{opts: opt, topic: topic, group: cgroup, cgcfg: cgcfg}
+	sub := &subscriber{
+		opts:      opt,
+		topic:     topic,
+		cGroup:    consumerGroup,
+		cGroupCfg: consumerGroupConfig,
+	}
 
 	go func() {
 		for {
@@ -290,20 +290,19 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...common
 				return
 			default:
 				sub.RLock()
-				group := sub.group
+				group := sub.cGroup
 				sub.RUnlock()
 				generation, err := group.Next(k.opts.Context)
 				switch err {
 				case nil:
-					// normal execution
 				case kafka.ErrGroupClosed:
 					sub.RLock()
 					closed := sub.closed
 					sub.RUnlock()
 					if !closed {
-						k.log.Errorf("[segmentio] recreate consumer group, as it closed %v", k.opts.Context.Err())
+						k.log.Errorf("[segmentio] recreate consumer cGroup, as it closed %v", k.opts.Context.Err())
 						if err = group.Close(); err != nil {
-							k.log.Errorf("[segmentio] consumer group close error %v", err)
+							k.log.Errorf("[segmentio] consumer cGroup close error %v", err)
 						}
 						sub.createGroup(k.opts.Context)
 					}
@@ -313,16 +312,16 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...common
 					closed := sub.closed
 					sub.RUnlock()
 					if !closed {
-						k.log.Errorf("[segmentio] recreate consumer group, as unexpected consumer error %v", err)
+						k.log.Errorf("[segmentio] recreate consumer cGroup, as unexpected consumer error %v", err)
 					}
 					if err = group.Close(); err != nil {
-						k.log.Errorf("[segmentio] consumer group close error %v", err)
+						k.log.Errorf("[segmentio] consumer cGroup close error %v", err)
 					}
 					sub.createGroup(k.opts.Context)
 					continue
 				}
 
-				for _, t := range cgcfg.Topics {
+				for _, t := range consumerGroupConfig.Topics {
 					assignments := generation.Assignments[t]
 					for _, assignment := range assignments {
 						cfg := k.readerConfig
@@ -331,7 +330,14 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...common
 						cfg.GroupID = ""
 						reader := kafka.NewReader(cfg)
 						_ = reader.SetOffset(assignment.Offset)
-						cgh := &cgHandler{generation: generation, commonOpts: k.opts, subOpts: opt, reader: reader, handler: handler}
+						cgh := &cgHandler{
+							log:        log.NewHelper(log.GetLogger()),
+							generation: generation,
+							commonOpts: k.opts,
+							subOpts:    opt,
+							reader:     reader,
+							handler:    handler,
+						}
 						generation.Start(cgh.run)
 					}
 				}
@@ -346,8 +352,8 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...common
 type cgHandler struct {
 	topic      string
 	generation *kafka.Generation
-	commonOpts common.Options
-	subOpts    common.SubscribeOptions
+	commonOpts broker.Options
+	subOpts    broker.SubscribeOptions
 	reader     *kafka.Reader
 	handler    broker.Handler
 	log        *log.Helper
@@ -379,7 +385,12 @@ func (h *cgHandler) run(ctx context.Context) {
 				var m broker.Message
 				eh := h.commonOpts.ErrorHandler
 				offsets[msg.Topic][msg.Partition] = msg.Offset
-				p := &publication{topic: msg.Topic, generation: h.generation, m: &m, offsets: offsets}
+				p := &publication{
+					topic:      msg.Topic,
+					generation: h.generation,
+					m:          &m,
+					offsets:    offsets,
+				}
 
 				if h.commonOpts.Codec != nil {
 					if err := h.commonOpts.Codec.Unmarshal(msg.Value, &m); err != nil {
@@ -416,7 +427,7 @@ func (h *cgHandler) run(ctx context.Context) {
 
 func (s *subscriber) createGroup(ctx context.Context) {
 	s.RLock()
-	cgcfg := s.cgcfg
+	cgcfg := s.cGroupCfg
 	s.RUnlock()
 
 	for {
@@ -430,7 +441,7 @@ func (s *subscriber) createGroup(ctx context.Context) {
 				continue
 			}
 			s.Lock()
-			s.group = cGroup
+			s.cGroup = cGroup
 			s.Unlock()
 			// return
 			return
@@ -442,8 +453,8 @@ func (k *kBroker) String() string {
 	return "kafka"
 }
 
-func NewBroker(opts ...common.Option) broker.Broker {
-	options := common.Options{
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.Options{
 		//Codec:   json.Marshaler{},
 		Context: context.Background(),
 	}
@@ -487,5 +498,6 @@ func NewBroker(opts ...common.Option) broker.Broker {
 		writers:      make(map[string]*kafka.Writer),
 		addrs:        cAddrs,
 		opts:         options,
+		log:          log.NewHelper(log.GetLogger()),
 	}
 }

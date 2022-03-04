@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/common"
 	"testing"
 	"time"
 )
@@ -13,8 +12,8 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		common.Addrs("127.0.0.1:6379"),
-		common.OptionContext(ctx),
+		broker.Addrs("127.0.0.1:6379"),
+		broker.OptionContext(ctx),
 	)
 
 	if err := srv.Connect(); err != nil {
@@ -26,8 +25,8 @@ func TestServer(t *testing.T) {
 	}
 
 	_ = srv.RegisterSubscriber("test_topic", receive,
-		common.SubscribeContext(ctx),
-		common.Queue("test_topic"),
+		broker.SubscribeContext(ctx),
+		broker.Queue("test_topic"),
 	)
 
 	time.Sleep(time.Second * 60)

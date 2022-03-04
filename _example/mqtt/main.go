@@ -17,10 +17,6 @@ func main() {
 		common.OptionContext(ctx),
 	)
 
-	if err := mqttSrv.Connect(); err != nil {
-		panic(err)
-	}
-
 	_ = mqttSrv.RegisterSubscriber("topic/bobo/#", receive,
 		common.SubscribeContext(ctx),
 		common.Queue("topic/bobo/#"),
