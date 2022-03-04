@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/go-kratos/kratos/v2 v2.2.0
-	github.com/tx7do/kratos-transport v0.0.0-20220303193228-3e76820f9a7f
+	github.com/tx7do/kratos-transport v0.0.0-20220304064939-a40b7c3b8057
 )
 
 require (

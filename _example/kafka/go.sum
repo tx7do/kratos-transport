@@ -91,6 +91,8 @@ github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
 github.com/tx7do/kratos-transport v0.0.0-20220303193228-3e76820f9a7f h1:oWSsiqyDlkoypWihRjiZxYR4sQ/yYLy7Q0EwGZQ8MTM=
 github.com/tx7do/kratos-transport v0.0.0-20220303193228-3e76820f9a7f/go.mod h1:dHOB649mT1KQLHOgbIVkkU3IeUEZnVbXEK/AVaPrTX4=
+github.com/tx7do/kratos-transport v0.0.0-20220304064939-a40b7c3b8057 h1:bfD4S5maX06p9j1to/sje98aoncb2LPZvub9jQvVvus=
+github.com/tx7do/kratos-transport v0.0.0-20220304064939-a40b7c3b8057/go.mod h1:+prpeOLQZ6PktBpwofEfSmUOPdzEhTw01h9uBWTDGo4=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c h1:u40Z8hqBAAQyv+vATcGgV0YCnDjqSL7/q/JyPhhJSPk=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0 h1:d9X0esnoa3dFsV0FG35rAT0RIhYFlPq7MiP+DW89La0=
