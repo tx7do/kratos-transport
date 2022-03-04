@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
+	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/broker/rabbitmq"
 	"github.com/tx7do/kratos-transport/common"
 	"net/url"
 	"sync"
@@ -16,9 +18,9 @@ var (
 
 // Server is a rabbitmq server wrapper.
 type Server struct {
-	common.Broker
+	broker.Broker
 
-	subscribers map[string]common.Subscriber
+	subscribers map[string]broker.Subscriber
 
 	exit chan chan error
 	sync.RWMutex
@@ -35,8 +37,8 @@ func NewServer(opts ...common.Option) *Server {
 	srv := &Server{
 		baseCtx:     context.Background(),
 		log:         log.NewHelper(log.GetLogger()),
-		Broker:      NewBroker(opts...),
-		subscribers: map[string]common.Subscriber{},
+		Broker:      rabbitmq.NewBroker(opts...),
+		subscribers: map[string]broker.Subscriber{},
 	}
 
 	return srv
@@ -73,7 +75,7 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return url.Parse(s.Address())
 }
 
-func (s *Server) Handle(_ common.Handler) error {
+func (s *Server) Handle(_ broker.Handler) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -81,7 +83,7 @@ func (s *Server) Handle(_ common.Handler) error {
 }
 
 // RegisterSubscriber is syntactic sugar for registering a subscriber
-func (s *Server) RegisterSubscriber(topic string, h common.Handler, opts ...common.SubscribeOption) error {
+func (s *Server) RegisterSubscriber(topic string, h broker.Handler, opts ...common.SubscribeOption) error {
 	sub, err := s.Subscribe(topic, h, opts...)
 	if err != nil {
 		return err

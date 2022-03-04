@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/gomodule/redigo/redis"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/codec"
 	"github.com/tx7do/kratos-transport/common"
 	"strings"
@@ -13,7 +14,7 @@ import (
 // publication is an internal publication for the Redis common.
 type publication struct {
 	topic   string
-	message *common.Message
+	message *broker.Message
 	err     error
 }
 
@@ -22,7 +23,7 @@ func (p *publication) Topic() string {
 	return p.topic
 }
 
-func (p *publication) Message() *common.Message {
+func (p *publication) Message() *broker.Message {
 	return p.message
 }
 
@@ -38,7 +39,7 @@ type subscriber struct {
 	codec  codec.Marshaler
 	conn   *redis.PubSubConn
 	topic  string
-	handle common.Handler
+	handle broker.Handler
 	opts   common.SubscribeOptions
 }
 
@@ -53,7 +54,7 @@ func (s *subscriber) recv() {
 	for {
 		switch x := s.conn.Receive().(type) {
 		case redis.Message:
-			var m common.Message
+			var m broker.Message
 
 			if s.codec != nil {
 				if err := s.codec.Unmarshal(x.Data, &m); err != nil {
@@ -190,7 +191,7 @@ func (b *redisBroker) Disconnect() error {
 }
 
 // Publish publishes a message.
-func (b *redisBroker) Publish(topic string, msg *common.Message, _ ...common.PublishOption) error {
+func (b *redisBroker) Publish(topic string, msg *broker.Message, _ ...common.PublishOption) error {
 	var err error
 	var data []byte
 	if b.opts.Codec != nil {
@@ -210,7 +211,7 @@ func (b *redisBroker) Publish(topic string, msg *common.Message, _ ...common.Pub
 }
 
 // Subscribe returns a subscriber for the topic and handler.
-func (b *redisBroker) Subscribe(topic string, handler common.Handler, opts ...common.SubscribeOption) (common.Subscriber, error) {
+func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
 	var options common.SubscribeOptions
 	for _, o := range opts {
 		o(&options)
@@ -237,7 +238,7 @@ func (b *redisBroker) Subscribe(topic string, handler common.Handler, opts ...co
 // NewBroker returns a new common implemented using the Redis pub/sub
 // protocol. The connection address may be a fully qualified IANA address such
 // as: redis://user:secret@localhost:6379/0?foo=bar&qux=baz
-func NewBroker(opts ...common.Option) common.Broker {
+func NewBroker(opts ...common.Option) broker.Broker {
 	// Default options.
 	bopts := &commonOptions{
 		maxIdle:        DefaultMaxIdle,

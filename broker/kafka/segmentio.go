@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 	"sync"
 	"time"
@@ -34,7 +35,7 @@ type subscriber struct {
 	offset    int64
 	gen       *kafka.Generation
 	partition int
-	handler   common.Handler
+	handler   broker.Handler
 	reader    *kafka.Reader
 	closed    bool
 	done      chan struct{}
@@ -46,7 +47,7 @@ type subscriber struct {
 type publication struct {
 	topic      string
 	err        error
-	m          *common.Message
+	m          *broker.Message
 	ctx        context.Context
 	generation *kafka.Generation
 	reader     *kafka.Reader
@@ -58,7 +59,7 @@ func (p *publication) Topic() string {
 	return p.topic
 }
 
-func (p *publication) Message() *common.Message {
+func (p *publication) Message() *broker.Message {
 	return p.m
 }
 
@@ -174,7 +175,7 @@ func (k *kBroker) Options() common.Options {
 	return k.opts
 }
 
-func (k *kBroker) Publish(topic string, msg *common.Message, opts ...common.PublishOption) error {
+func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...common.PublishOption) error {
 	var cached bool
 
 	var buf []byte
@@ -246,7 +247,7 @@ func (k *kBroker) Publish(topic string, msg *common.Message, opts ...common.Publ
 	return err
 }
 
-func (k *kBroker) Subscribe(topic string, handler common.Handler, opts ...common.SubscribeOption) (common.Subscriber, error) {
+func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
 	opt := common.SubscribeOptions{
 		AutoAck: true,
 		Queue:   uuid.New().String(),
@@ -348,7 +349,7 @@ type cgHandler struct {
 	commonOpts common.Options
 	subOpts    common.SubscribeOptions
 	reader     *kafka.Reader
-	handler    common.Handler
+	handler    broker.Handler
 	log        *log.Helper
 }
 
@@ -375,7 +376,7 @@ func (h *cgHandler) run(ctx context.Context) {
 			case kafka.ErrGenerationEnded:
 				return
 			case nil:
-				var m common.Message
+				var m broker.Message
 				eh := h.commonOpts.ErrorHandler
 				offsets[msg.Topic][msg.Partition] = msg.Offset
 				p := &publication{topic: msg.Topic, generation: h.generation, m: &m, offsets: offsets}
@@ -441,7 +442,7 @@ func (k *kBroker) String() string {
 	return "kafka"
 }
 
-func NewBroker(opts ...common.Option) common.Broker {
+func NewBroker(opts ...common.Option) broker.Broker {
 	options := common.Options{
 		//Codec:   json.Marshaler{},
 		Context: context.Background(),

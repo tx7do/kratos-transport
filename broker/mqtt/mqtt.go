@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 	"math/rand"
 	"strconv"
@@ -110,7 +111,7 @@ func newClient(addrs []string, opts common.Options) mqtt.Client {
 	return mqtt.NewClient(cOpts)
 }
 
-func newBroker(opts ...common.Option) common.Broker {
+func newBroker(opts ...common.Option) broker.Broker {
 	options := common.Options{
 		//Codec: json.Marshaler{},
 	}
@@ -171,7 +172,7 @@ func (m *mqttBroker) Init(opts ...common.Option) error {
 	return nil
 }
 
-func (m *mqttBroker) Publish(topic string, msg *common.Message, opts ...common.PublishOption) error {
+func (m *mqttBroker) Publish(topic string, msg *broker.Message, opts ...common.PublishOption) error {
 	if !m.client.IsConnected() {
 		return errors.New("not connected")
 	}
@@ -191,7 +192,7 @@ func (m *mqttBroker) Publish(topic string, msg *common.Message, opts ...common.P
 	return t.Error()
 }
 
-func (m *mqttBroker) Subscribe(topic string, h common.Handler, opts ...common.SubscribeOption) (common.Subscriber, error) {
+func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
 	if !m.client.IsConnected() {
 		return nil, errors.New("not connected")
 	}
@@ -202,7 +203,7 @@ func (m *mqttBroker) Subscribe(topic string, h common.Handler, opts ...common.Su
 	}
 
 	t := m.client.Subscribe(topic, 1, func(c mqtt.Client, mq mqtt.Message) {
-		var msg common.Message
+		var msg broker.Message
 
 		if m.opts.Codec == nil {
 			msg.Body = mq.Payload()
@@ -235,6 +236,6 @@ func (m *mqttBroker) String() string {
 	return "mqtt"
 }
 
-func NewBroker(opts ...common.Option) common.Broker {
+func NewBroker(opts ...common.Option) broker.Broker {
 	return newBroker(opts...)
 }

@@ -2,6 +2,7 @@ package redis
 
 import (
 	"fmt"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 	"os"
 	"reflect"
@@ -9,7 +10,7 @@ import (
 	"testing"
 )
 
-func subscribe(t *testing.T, b common.Broker, topic string, handle common.Handler) common.Subscriber {
+func subscribe(t *testing.T, b broker.Broker, topic string, handle broker.Handler) broker.Subscriber {
 	s, err := b.Subscribe(topic, handle)
 	if err != nil {
 		t.Fatal(err)
@@ -17,13 +18,13 @@ func subscribe(t *testing.T, b common.Broker, topic string, handle common.Handle
 	return s
 }
 
-func publish(t *testing.T, b common.Broker, topic string, msg *common.Message) {
+func publish(t *testing.T, b broker.Broker, topic string, msg *broker.Message) {
 	if err := b.Publish(topic, msg); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func unsubscribe(t *testing.T, s common.Subscriber) {
+func unsubscribe(t *testing.T, s broker.Subscriber) {
 	if err := s.Unsubscribe(); err != nil {
 		t.Fatal(err)
 	}
@@ -49,35 +50,35 @@ func TestBroker(t *testing.T) {
 	msgs := make(chan string, 10)
 
 	go func() {
-		s1 := subscribe(t, b, "test", func(p common.Event) error {
+		s1 := subscribe(t, b, "test", func(p broker.Event) error {
 			m := p.Message()
 			msgs <- fmt.Sprintf("s1:%s", string(m.Body))
 			return nil
 		})
 
-		s2 := subscribe(t, b, "test", func(p common.Event) error {
+		s2 := subscribe(t, b, "test", func(p broker.Event) error {
 			m := p.Message()
 			msgs <- fmt.Sprintf("s2:%s", string(m.Body))
 			return nil
 		})
 
-		publish(t, b, "test", &common.Message{
+		publish(t, b, "test", &broker.Message{
 			Body: []byte("hello"),
 		})
 
-		publish(t, b, "test", &common.Message{
+		publish(t, b, "test", &broker.Message{
 			Body: []byte("world"),
 		})
 
 		unsubscribe(t, s1)
 
-		publish(t, b, "test", &common.Message{
+		publish(t, b, "test", &broker.Message{
 			Body: []byte("other"),
 		})
 
 		unsubscribe(t, s2)
 
-		publish(t, b, "test", &common.Message{
+		publish(t, b, "test", &broker.Message{
 			Body: []byte("none"),
 		})
 

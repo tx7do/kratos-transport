@@ -2,13 +2,14 @@ package mqtt
 
 import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 )
 
 // mqttPub is a common.Event
 type mqttPub struct {
 	topic string
-	msg   *common.Message
+	msg   *broker.Message
 	err   error
 }
 
@@ -31,7 +32,7 @@ func (m *mqttPub) Topic() string {
 	return m.topic
 }
 
-func (m *mqttPub) Message() *common.Message {
+func (m *mqttPub) Message() *broker.Message {
 	return m.msg
 }
 

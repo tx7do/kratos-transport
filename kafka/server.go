@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
+	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/broker/kafka"
 	"github.com/tx7do/kratos-transport/common"
 	"net/url"
 )
@@ -15,9 +17,9 @@ var (
 
 // Server is a kafka server wrapper.
 type Server struct {
-	common.Broker
+	broker.Broker
 
-	subscribers map[string]common.Subscriber
+	subscribers map[string]broker.Subscriber
 	baseCtx     context.Context
 	err         error
 	log         *log.Helper
@@ -29,8 +31,8 @@ func NewServer(opts ...common.Option) *Server {
 	srv := &Server{
 		baseCtx:     context.Background(),
 		log:         log.NewHelper(log.GetLogger()),
-		Broker:      NewBroker(opts...),
-		subscribers: map[string]common.Subscriber{},
+		Broker:      kafka.NewBroker(opts...),
+		subscribers: map[string]broker.Subscriber{},
 		started:     false,
 	}
 
@@ -71,7 +73,7 @@ func (s *Server) Stop(_ context.Context) error {
 }
 
 // RegisterSubscriber is syntactic sugar for registering a subscriber
-func (s *Server) RegisterSubscriber(topic string, h common.Handler, opts ...common.SubscribeOption) error {
+func (s *Server) RegisterSubscriber(topic string, h broker.Handler, opts ...common.SubscribeOption) error {
 	sub, err := s.Subscribe(topic, h, opts...)
 	if err != nil {
 		return err

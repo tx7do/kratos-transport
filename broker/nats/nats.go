@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 	"strings"
 	"sync"
@@ -36,14 +37,14 @@ type subscriber struct {
 type publication struct {
 	t   string
 	err error
-	m   *common.Message
+	m   *broker.Message
 }
 
 func (p *publication) Topic() string {
 	return p.t
 }
 
-func (p *publication) Message() *common.Message {
+func (p *publication) Message() *broker.Message {
 	return p.m
 }
 
@@ -160,7 +161,7 @@ func (n *natsBroker) Options() common.Options {
 	return n.opts
 }
 
-func (n *natsBroker) Publish(topic string, msg *common.Message, _ ...common.PublishOption) error {
+func (n *natsBroker) Publish(topic string, msg *broker.Message, _ ...common.PublishOption) error {
 	n.RLock()
 	defer n.RUnlock()
 
@@ -182,7 +183,7 @@ func (n *natsBroker) Publish(topic string, msg *common.Message, _ ...common.Publ
 	return n.conn.Publish(topic, data)
 }
 
-func (n *natsBroker) Subscribe(topic string, handler common.Handler, opts ...common.SubscribeOption) (common.Subscriber, error) {
+func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
 	n.RLock()
 	if n.conn == nil {
 		n.RUnlock()
@@ -200,7 +201,7 @@ func (n *natsBroker) Subscribe(topic string, handler common.Handler, opts ...com
 	}
 
 	fn := func(msg *nats.Msg) {
-		var m common.Message
+		var m broker.Message
 		pub := &publication{t: msg.Subject}
 		eh := n.opts.ErrorHandler
 
@@ -302,7 +303,7 @@ func (n *natsBroker) onDisconnectedError(_ *nats.Conn, err error) {
 	n.closeCh <- err
 }
 
-func NewBroker(opts ...common.Option) common.Broker {
+func NewBroker(opts ...common.Option) broker.Broker {
 	options := common.Options{
 		// Default codec
 		//Codec:    json.Marshaler{},

@@ -23,6 +23,7 @@ func main() {
 
 	_ = kafkaSrv.RegisterSubscriber("test_topic", receive,
 		common.SubscribeContext(ctx),
+		common.Queue("a-group"),
 	)
 
 	app := kratos.New(

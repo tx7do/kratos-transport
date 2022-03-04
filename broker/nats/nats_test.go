@@ -2,6 +2,7 @@ package nats
 
 import (
 	"fmt"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 	"testing"
 
@@ -49,7 +50,7 @@ func TestInitAddrs(t *testing.T) {
 	for _, tc := range addrTestCases {
 		t.Run(fmt.Sprintf("%s: %s", tc.name, tc.description), func(t *testing.T) {
 
-			var br common.Broker
+			var br broker.Broker
 			var addrs []string
 
 			for _, addr := range tc.addrs {

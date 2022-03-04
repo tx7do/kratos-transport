@@ -4,6 +4,7 @@ package rabbitmq
 import (
 	"context"
 	"errors"
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/common"
 	"sync"
 	"time"
@@ -36,7 +37,7 @@ type subscriber struct {
 
 type publication struct {
 	d   amqp.Delivery
-	m   *common.Message
+	m   *broker.Message
 	t   string
 	err error
 }
@@ -53,7 +54,7 @@ func (p *publication) Topic() string {
 	return p.t
 }
 
-func (p *publication) Message() *common.Message {
+func (p *publication) Message() *broker.Message {
 	return p.m
 }
 
@@ -138,7 +139,7 @@ func (s *subscriber) resubscribe() {
 	}
 }
 
-func (r *rcommon) Publish(topic string, msg *common.Message, opts ...common.PublishOption) error {
+func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...common.PublishOption) error {
 	m := amqp.Publishing{
 		Body:    msg.Body,
 		Headers: amqp.Table{},
@@ -211,7 +212,7 @@ func (r *rcommon) Publish(topic string, msg *common.Message, opts ...common.Publ
 	return r.conn.Publish(r.conn.exchange.Name, topic, m)
 }
 
-func (r *rcommon) Subscribe(topic string, handler common.Handler, opts ...common.SubscribeOption) (common.Subscriber, error) {
+func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...common.SubscribeOption) (broker.Subscriber, error) {
 	var ackSuccess bool
 
 	if r.conn == nil {
@@ -262,7 +263,7 @@ func (r *rcommon) Subscribe(topic string, handler common.Handler, opts ...common
 		for k, v := range msg.Headers {
 			header[k], _ = v.(string)
 		}
-		m := &common.Message{
+		m := &broker.Message{
 			Header: header,
 			Body:   msg.Body,
 		}
@@ -331,7 +332,7 @@ func (r *rcommon) Disconnect() error {
 	return ret
 }
 
-func NewBroker(opts ...common.Option) common.Broker {
+func NewBroker(opts ...common.Option) broker.Broker {
 	options := common.Options{
 		Context: context.Background(),
 	}
