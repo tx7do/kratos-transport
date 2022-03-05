@@ -246,13 +246,13 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	}
 
 	go func() {
-		msg, err := sub.reader.FetchMessage(context.Background())
+		msg, err := sub.reader.FetchMessage(opt.Context)
 		if err != nil {
 			return
 		}
 
 		var m broker.Message
-		p := &publication{topic: msg.Topic, reader: sub.reader, m: &m}
+		p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, km: msg, ctx: opt.Context}
 
 		err = sub.handler(p)
 		if err != nil {
