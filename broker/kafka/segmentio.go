@@ -254,6 +254,14 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		var m broker.Message
 		p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, km: msg, ctx: opt.Context}
 
+		if k.opts.Codec != nil {
+			if err := k.opts.Codec.Unmarshal(msg.Value, &m); err != nil {
+				p.err = err
+			}
+		} else {
+			m.Body = msg.Value
+		}
+
 		err = sub.handler(p)
 		if err != nil {
 			k.log.Errorf("[segmentio]: process message failed: %v", err)
