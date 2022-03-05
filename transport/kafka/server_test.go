@@ -16,9 +16,9 @@ func TestServer(t *testing.T) {
 		broker.OptionContext(ctx),
 	)
 
-	_ = srv.RegisterSubscriber("test_topic", receive,
+	_ = srv.RegisterSubscriber("logger.sensor.ts", receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue("test_topic"),
+		broker.Queue("fx-group"),
 	)
 
 	if err := srv.Start(ctx); err != nil {
@@ -34,5 +34,6 @@ func TestServer(t *testing.T) {
 
 func receive(event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
+	//_ = event.Ack()
 	return nil
 }

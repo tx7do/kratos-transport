@@ -226,7 +226,6 @@ func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...broker
 		o(&opt)
 	}
 
-	// Make sure context is setup
 	if opt.Context == nil {
 		opt.Context = context.Background()
 	}

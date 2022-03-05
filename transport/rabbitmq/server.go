@@ -59,6 +59,8 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
+	_ = s.Init()
+
 	s.err = s.Connect()
 	if s.err != nil {
 		return s.err

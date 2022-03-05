@@ -1,11 +1,7 @@
 package rabbitmq
 
 import (
-	"crypto/tls"
-	"errors"
 	"testing"
-
-	"github.com/streadway/amqp"
 )
 
 func TestNewRabbitMQConnURL(t *testing.T) {
@@ -26,54 +22,6 @@ func TestNewRabbitMQConnURL(t *testing.T) {
 
 		if have, want := conn.url, test.want; have != want {
 			t.Errorf("%s: invalid url, want %q, have %q", test.title, want, have)
-		}
-	}
-}
-
-func TestTryToConnectTLS(t *testing.T) {
-	var (
-		dialCount, dialTLSCount int
-
-		err = errors.New("stop connect here")
-	)
-
-	dialConfig = func(_ string, c amqp.Config) (*amqp.Connection, error) {
-
-		if c.TLSClientConfig != nil {
-			dialTLSCount++
-			return nil, err
-		}
-
-		dialCount++
-		return nil, err
-	}
-
-	testcases := []struct {
-		title      string
-		url        string
-		secure     bool
-		amqpConfig *amqp.Config
-		wantTLS    bool
-	}{
-		{"unsecure url, secure false, no tls config", "amqp://example.com", false, nil, false},
-		{"secure url, secure false, no tls config", "amqps://example.com", false, nil, true},
-		{"unsecure url, secure true, no tls config", "amqp://example.com", true, nil, true},
-		{"unsecure url, secure false, tls config", "amqp://example.com", false, &amqp.Config{TLSClientConfig: &tls.Config{}}, true},
-	}
-
-	for _, test := range testcases {
-		dialCount, dialTLSCount = 0, 0
-
-		conn := newRabbitMQConn(Exchange{Name: "exchange"}, []string{test.url}, 0, false)
-		conn.tryConnect(test.secure, test.amqpConfig)
-
-		have := dialCount
-		if test.wantTLS {
-			have = dialTLSCount
-		}
-
-		if have != 1 {
-			t.Errorf("%s: used wrong dialer, Dial called %d times, DialTLS called %d times", test.title, dialCount, dialTLSCount)
 		}
 	}
 }

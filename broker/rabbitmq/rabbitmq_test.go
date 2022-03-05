@@ -1,7 +1,13 @@
-package rabbitmq_test
+package rabbitmq
 
 import (
 	"context"
+	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/tx7do/kratos-transport/broker"
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 )
 
@@ -13,16 +19,36 @@ func (e *Example) Handler(ctx context.Context, r interface{}) error {
 
 func TestDurable(t *testing.T) {
 
-	//brkrSub := common.NewSubscribeOptions(
-	//	common.Queue("queue.default"),
-	//	common.DisableAutoAck(),
-	//	rabbitmq.DurableQueue(),
-	//)
-	//
-	//b := NewBroker(common.Addrs("amqp://rabbitmq:rabbitmq@127.0.0.1:5672"))
-	//if err := b.Connect(); err != nil {
-	//	t.Logf("cant conect to broker, skip: %v", err)
-	//	t.Skip()
-	//}
+	ctx := context.Background()
 
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	b := NewBroker(
+		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672"),
+		broker.OptionContext(ctx),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant conect to broker, skip: %v", err)
+		t.Skip()
+	}
+
+	_, err := b.Subscribe("test_topic", receive,
+		broker.SubscribeContext(ctx),
+		broker.Queue("amq.topic"),
+		// broker.DisableAutoAck(),
+		// rabbitmq.DurableQueue(),
+	)
+	assert.Nil(t, err)
+
+	<-sigs
+}
+
+func receive(event broker.Event) error {
+	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
+	//_ = event.Ack()
+	return nil
 }
