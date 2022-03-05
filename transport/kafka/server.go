@@ -85,7 +85,17 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
+	if s.started == false {
+		return nil
+	}
 	s.log.Info("[kafka] server stopping")
+
+	for _, v := range s.subscribers {
+		_ = v.Unsubscribe()
+	}
+	s.subscribers = SubscriberMap{}
+	s.subscriberOpts = SubscribeOptionMap{}
+
 	s.started = false
 	return s.Disconnect()
 }
