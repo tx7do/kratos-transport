@@ -38,9 +38,9 @@ func TestDurable(t *testing.T) {
 
 	_, err := b.Subscribe("test_topic", receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue("amq.topic"),
+		broker.Queue("test_topic"),
 		// broker.DisableAutoAck(),
-		// rabbitmq.DurableQueue(),
+		DurableQueue(),
 	)
 	assert.Nil(t, err)
 

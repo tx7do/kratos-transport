@@ -80,7 +80,7 @@ func (s *subscriber) resubscribe() {
 	maxResubscribeDelay := 30 * time.Second
 	expFactor := time.Duration(2)
 	reSubscribeDelay := minResubscribeDelay
-	//loop until unsubscribe
+
 	for {
 		s.mtx.Lock()
 		mayRun := s.mayRun
@@ -91,15 +91,11 @@ func (s *subscriber) resubscribe() {
 		}
 
 		select {
-		//check shutdown case
 		case <-s.r.conn.close:
-			//yep, its shutdown case
 			return
-			//wait until we reconect to rabbit
 		case <-s.r.conn.waitConnection:
 		}
 
-		// it may crash (panic) in case of Consume without connection, so recheck it
 		s.r.mtx.Lock()
 		if !s.r.conn.connected {
 			s.r.mtx.Unlock()

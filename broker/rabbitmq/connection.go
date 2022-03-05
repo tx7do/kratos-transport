@@ -13,7 +13,7 @@ import (
 
 var (
 	DefaultExchange = Exchange{
-		Name: "",
+		Name: "amp.topic",
 	}
 	DefaultRabbitURL      = "amqp://guest:guest@127.0.0.1:5672"
 	DefaultPrefetchCount  = 0
