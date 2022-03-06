@@ -1,12 +1,16 @@
 package redis
 
 import (
+	"context"
 	"fmt"
 	"github.com/tx7do/kratos-transport/broker"
 	"os"
+	"os/signal"
 	"reflect"
 	"sort"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func subscribe(t *testing.T, b broker.Broker, topic string, handle broker.Handler) broker.Subscriber {
@@ -30,20 +34,25 @@ func unsubscribe(t *testing.T, s broker.Subscriber) {
 }
 
 func TestBroker(t *testing.T) {
-	url := os.Getenv("REDIS_URL")
-	if url == "" {
-		t.Skip("REDIS_URL not defined")
-	}
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	b := NewBroker(broker.Addrs(url))
+	b := NewBroker(
+		broker.Addrs("localhost:6379"),
+	)
 
 	// Only setting options.
-	b.Init()
+	_ = b.Init()
 
 	if err := b.Connect(); err != nil {
 		t.Fatal(err)
 	}
-	defer b.Disconnect()
+	defer func(b broker.Broker) {
+		err := b.Disconnect()
+		if err != nil {
+
+		}
+	}(b)
 
 	// Large enough buffer to not block.
 	msgs := make(chan string, 10)
@@ -104,4 +113,43 @@ func TestBroker(t *testing.T) {
 	if !reflect.DeepEqual(actual, exp) {
 		t.Fatalf("expected %v, got %v", exp, actual)
 	}
+
+	<-sigs
+}
+
+func TestReceive(t *testing.T) {
+	ctx := context.Background()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	b := NewBroker(
+		broker.Addrs("redis://localhost:6379"),
+		//IdleTimeout(24*time.Hour),
+		ReadTimeout(24*time.Hour),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		fmt.Println(err)
+	}
+	defer func(b broker.Broker) {
+		err := b.Disconnect()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(b)
+
+	_, _ = b.Subscribe("test_topic", receive,
+		broker.SubscribeContext(ctx),
+	)
+
+	<-sigs
+}
+
+func receive(event broker.Event) error {
+	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
+	//_ = event.Ack()
+	return nil
 }

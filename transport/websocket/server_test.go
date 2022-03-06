@@ -3,11 +3,16 @@ package websocket
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
-	"time"
 )
 
 func TestServer(t *testing.T) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	ctx := context.Background()
 
 	srv := NewServer(
@@ -19,11 +24,13 @@ func TestServer(t *testing.T) {
 		panic(err)
 	}
 
-	time.Sleep(time.Second)
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
 
-	if srv.Stop(ctx) != nil {
-		t.Errorf("expected nil got %v", srv.Stop(ctx))
-	}
+	<-sigs
 }
 
 func receive(messageType int, payload []byte) (SendBufferArray, error) {

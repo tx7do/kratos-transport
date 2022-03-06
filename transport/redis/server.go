@@ -8,6 +8,7 @@ import (
 	"github.com/tx7do/kratos-transport/broker/redis"
 	"net/url"
 	"sync"
+	"time"
 )
 
 var (
@@ -38,6 +39,8 @@ type Server struct {
 }
 
 func NewServer(opts ...broker.Option) *Server {
+	opts = append(opts, redis.ReadTimeout(24*time.Hour))
+	opts = append(opts, redis.IdleTimeout(24*time.Hour))
 	srv := &Server{
 		baseCtx:        context.Background(),
 		log:            log.NewHelper(log.GetLogger()),
@@ -46,7 +49,6 @@ func NewServer(opts ...broker.Option) *Server {
 		subscriberOpts: SubscribeOptionMap{},
 		started:        false,
 	}
-
 	return srv
 }
 
@@ -65,6 +67,8 @@ func (s *Server) Start(ctx context.Context) error {
 	if s.started {
 		return nil
 	}
+
+	_ = s.Init()
 
 	s.err = s.Connect()
 	if s.err != nil {
