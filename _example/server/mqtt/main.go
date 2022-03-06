@@ -10,11 +10,21 @@ import (
 	"github.com/tx7do/kratos-transport/transport/mqtt"
 )
 
+const (
+	EmqxBroker        = "tcp://broker.emqx.io:1883"
+	EmqxCnBroker      = "tcp://broker-cn.emqx.io:1883"
+	EclipseBroker     = "tcp://mqtt.eclipseprojects.io:1883"
+	MosquittoBroker   = "tcp://test.mosquitto.org:1883"
+	HiveMQBroker      = "tcp://broker.hivemq.com:1883"
+	LocalEmxqBroker   = "tcp://127.0.0.1:1883"
+	LocalRabbitBroker = "tcp://user:bitnami@127.0.0.1:1883"
+)
+
 func main() {
 	ctx := context.Background()
 
 	mqttSrv := mqtt.NewServer(
-		broker.Addrs("tcp://emqx:public@broker.emqx.io:1883"),
+		broker.Addrs(EmqxCnBroker),
 		broker.OptionContext(ctx),
 	)
 
