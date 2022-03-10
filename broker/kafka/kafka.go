@@ -175,7 +175,7 @@ func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 		buf = msg.Body
 	}
 
-	kMsg := kafka.Message{Value: buf}
+	kMsg := kafka.Message{Topic: topic, Value: buf}
 
 	k.Lock()
 	writer, ok := k.writers[topic]
