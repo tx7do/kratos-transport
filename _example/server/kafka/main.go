@@ -15,7 +15,7 @@ func main() {
 
 	kafkaSrv := kafka.NewServer(
 		broker.OptionContext(ctx),
-		broker.Addrs("localhost:9092"),
+		broker.Addrs("127.0.0.1:9092"),
 	)
 
 	_ = kafkaSrv.RegisterSubscriber("test_topic", receive,

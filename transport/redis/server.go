@@ -7,6 +7,7 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/redis"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 )
@@ -56,7 +57,13 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	return url.Parse(s.Address())
+
+	addr := s.Address()
+	if !strings.HasPrefix(addr, "tcp://") {
+		addr = "tcp://" + addr
+	}
+
+	return url.Parse(addr)
 }
 
 func (s *Server) Start(ctx context.Context) error {

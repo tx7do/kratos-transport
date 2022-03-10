@@ -3,7 +3,10 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,7 +20,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		broker.Addrs("localhost:9092"),
+		broker.Addrs("127.0.0.1:9092"),
 		broker.OptionContext(ctx),
 	)
 
@@ -43,4 +46,37 @@ func receive(event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	//_ = event.Ack()
 	return nil
+}
+
+func TestParseIP(t *testing.T) {
+	IP1 := "www.baidu.com"
+	IP2 := "127.0.0.1"
+	IP3 := "127.0.0.1:8080"
+	parsedIP1 := net.ParseIP(IP1)
+	parsedIP2 := net.ParseIP(IP2)
+	parsedIP3 := net.ParseIP(IP3)
+	fmt.Println("net.ParseIP: ", parsedIP1, parsedIP2, parsedIP3)
+}
+
+func TestParseUrl(t *testing.T) {
+	IP1 := "www.baidu.com"
+	IP2 := "127.0.0.1"
+	IP3 := "127.0.0.1:8080"
+	IP4 := "tcp://127.0.0.1:8080"
+
+	parsedIP1, err := url.Parse(IP1)
+	assert.Nil(t, err)
+	assert.Equal(t, parsedIP1.Path, "www.baidu.com")
+
+	parsedIP2, err := url.Parse(IP2)
+	assert.Nil(t, err)
+	assert.Equal(t, parsedIP2.Path, "127.0.0.1")
+
+	parsedIP3, err := url.Parse(IP3)
+	assert.NotNil(t, err)
+	assert.Nil(t, parsedIP3)
+
+	parsedIP4, err := url.Parse(IP4)
+	assert.Nil(t, err)
+	assert.Equal(t, parsedIP4.Host, "127.0.0.1:8080")
 }
