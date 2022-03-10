@@ -94,6 +94,10 @@ github.com/tx7do/kratos-transport v0.0.0-20220304064939-a40b7c3b8057 h1:bfD4S5ma
 github.com/tx7do/kratos-transport v0.0.0-20220304064939-a40b7c3b8057/go.mod h1:+prpeOLQZ6PktBpwofEfSmUOPdzEhTw01h9uBWTDGo4=
 github.com/tx7do/kratos-transport v0.0.0-20220306120339-bf320221113a h1:yiJtnyNT420bYAw8FJ8ie8eRJKMIsKiHfLNcB0DmU5M=
 github.com/tx7do/kratos-transport v0.0.0-20220306120339-bf320221113a/go.mod h1:8awzHkyBp8+a7qtatwKSIzkAToNleSE4nb8X2E2reoQ=
+github.com/tx7do/kratos-transport v0.0.0-20220306142350-869546196ffc h1:JGpT7ibuO2P5gMcTqEj3IfjMUibgjAzj67YuwRVVGCc=
+github.com/tx7do/kratos-transport v0.0.0-20220306142350-869546196ffc/go.mod h1:8awzHkyBp8+a7qtatwKSIzkAToNleSE4nb8X2E2reoQ=
+github.com/tx7do/kratos-transport v0.0.0-20220310055630-3f0e3ab7168b h1:j+aMs5qRqt9XtM5N7Jk3F9htE8Otir4/WtobVrg3MLY=
+github.com/tx7do/kratos-transport v0.0.0-20220310055630-3f0e3ab7168b/go.mod h1:VbE7ZL9eq+NUSIKPoXe0SoeDUoV89B8TgAfxwzyFnyQ=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0HrGL1Y=
 go.opentelemetry.io/otel v1.3.0/go.mod h1:PWIKzi6JCp7sM0k9yZ43VX+T345uNbAkDKwHVjb2PTs=

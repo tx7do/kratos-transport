@@ -1,9 +1,9 @@
 package proto
 
 import (
-	"github.com/tx7do/kratos-transport/codec"
 	"io"
 
+	"github.com/tx7do/kratos-transport/codec"
 	"google.golang.org/protobuf/proto"
 )
 
