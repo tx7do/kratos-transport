@@ -4,7 +4,7 @@ import (
 	"github.com/tx7do/kratos-transport/codec"
 	"io"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 type Codec struct {

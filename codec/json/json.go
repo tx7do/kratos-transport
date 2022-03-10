@@ -2,18 +2,16 @@
 package json
 
 import (
-	"encoding/json"
-	"github.com/tx7do/kratos-transport/codec"
 	"io"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/tx7do/kratos-transport/codec"
 )
 
 type Codec struct {
-	Conn    io.ReadWriteCloser
-	Encoder *json.Encoder
-	Decoder *json.Decoder
+	Conn io.ReadWriteCloser
 }
 
 func (c *Codec) ReadHeader(m *codec.Message, t codec.MessageType) error {
@@ -21,20 +19,37 @@ func (c *Codec) ReadHeader(m *codec.Message, t codec.MessageType) error {
 }
 
 func (c *Codec) ReadBody(b interface{}) error {
+	buf, err := io.ReadAll(c.Conn)
+	if err != nil {
+		return err
+	}
+
 	if b == nil {
 		return nil
 	}
 	if pb, ok := b.(proto.Message); ok {
-		return jsonpb.UnmarshalNext(c.Decoder, pb)
+		return protojson.Unmarshal(buf, pb)
 	}
-	return c.Decoder.Decode(b)
+	return nil
 }
 
 func (c *Codec) Write(m *codec.Message, b interface{}) error {
 	if b == nil {
 		return nil
 	}
-	return c.Encoder.Encode(b)
+
+	p, ok := b.(proto.Message)
+	if !ok {
+		return codec.ErrInvalidMessage
+	}
+
+	buf, err := protojson.Marshal(p)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Conn.Write(buf)
+	return err
 }
 
 func (c *Codec) Close() error {
@@ -47,8 +62,6 @@ func (c *Codec) String() string {
 
 func NewCodec(c io.ReadWriteCloser) codec.Codec {
 	return &Codec{
-		Conn:    c,
-		Decoder: json.NewDecoder(c),
-		Encoder: json.NewEncoder(c),
+		Conn: c,
 	}
 }
