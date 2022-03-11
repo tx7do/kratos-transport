@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -166,6 +167,19 @@ func (s *Server) listen() error {
 		}
 		s.lis = lis
 	}
+
+	addr := s.address
+	if s.tlsConf == nil {
+		if !strings.HasPrefix(addr, "ws://") {
+			addr = "ws://" + addr
+		}
+	} else {
+		if !strings.HasPrefix(addr, "wss://") {
+			addr = "wss://" + addr
+		}
+	}
+
+	s.endpoint, s.err = url.Parse(addr)
 
 	return nil
 }
