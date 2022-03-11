@@ -53,6 +53,10 @@ func NewServer(opts ...broker.Option) *Server {
 	return srv
 }
 
+func (s *Server) String() string {
+	return "redis"
+}
+
 func (s *Server) Endpoint() (*url.URL, error) {
 	if s.err != nil {
 		return nil, s.err

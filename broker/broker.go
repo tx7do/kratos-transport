@@ -1,6 +1,7 @@
 package broker
 
 type Handler func(Event) error
+type EchoHandler func(Event) (Event, error)
 
 type Message struct {
 	Header map[string]string

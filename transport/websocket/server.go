@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,21 +11,15 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
-	"github.com/gorilla/mux"
+	ws "github.com/gorilla/websocket"
 )
 
-type SendBuffer []byte
-type SendBufferArray []SendBuffer
-type Handler func(int, []byte) (SendBufferArray, error)
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	// 解决跨域问题
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+type Message struct {
+	Body []byte
 }
+
+type Handler func(*Message) error
+type EchoHandler func(*Message) (*Message, error)
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -53,7 +46,7 @@ func Timeout(timeout time.Duration) ServerOption {
 	}
 }
 
-func Handle(path string, h Handler) ServerOption {
+func Handle(path string, h EchoHandler) ServerOption {
 	return func(s *Server) {
 		s.path = path
 		s.handler = h
@@ -72,12 +65,6 @@ func TLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
-func StrictSlash(strictSlash bool) ServerOption {
-	return func(o *Server) {
-		o.strictSlash = strictSlash
-	}
-}
-
 func Listener(lis net.Listener) ServerOption {
 	return func(s *Server) {
 		s.lis = lis
@@ -89,15 +76,21 @@ type Server struct {
 	lis         net.Listener
 	tlsConf     *tls.Config
 	endpoint    *url.URL
-	err         error
-	network     string
-	address     string
-	timeout     time.Duration
 	strictSlash bool
-	router      *mux.Router
-	log         *log.Helper
-	handler     Handler
-	path        string
+
+	err error
+
+	network string
+	address string
+	timeout time.Duration
+
+	log *log.Helper
+
+	handler EchoHandler
+	path    string
+
+	clients  ClientArray
+	upgrader *ws.Upgrader
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -107,71 +100,74 @@ func NewServer(opts ...ServerOption) *Server {
 		timeout:     1 * time.Second,
 		strictSlash: true,
 		log:         log.NewHelper(log.GetLogger()),
+
+		clients: ClientArray{},
+		upgrader: &ws.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			}},
 	}
 
-	for _, o := range opts {
-		o(srv)
-	}
+	srv.init(opts...)
 
-	srv.router = mux.NewRouter().StrictSlash(srv.strictSlash)
-
-	srv.HandleFunc(srv.path, srv.wsHandler)
-
-	srv.Server = &http.Server{
-		Handler:   srv.router,
-		TLSConfig: srv.tlsConf,
-	}
-
-	srv.router.PathPrefix("/").Handler(srv.router)
-
-	srv.err = srv.listenAndEndpoint()
+	srv.err = srv.listen()
 
 	return srv
 }
 
-func (s *Server) Handle(path string, h http.Handler) {
-	s.router.Handle(path, h)
+func (s *Server) String() string {
+	return "websocket"
 }
 
-func (s *Server) HandleFunc(path string, h http.HandlerFunc) {
-	s.router.HandleFunc(path, h)
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
+
+	s.Server = &http.Server{
+		TLSConfig: s.tlsConf,
+	}
+
+	http.HandleFunc(s.path, s.wsHandler)
+}
+
+func (s *Server) ClientCount() int {
+	return len(s.clients)
+}
+
+func (s *Server) Broadcast(message *Message) {
+	for _, c := range s.clients {
+		c.SendMessage(message)
+	}
 }
 
 func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
-	c, err := upgrader.Upgrade(res, req, nil)
+	conn, err := s.upgrader.Upgrade(res, req, nil)
 	if err != nil {
 		s.log.Fatal("upgrade exception:", err)
 		return
 	}
-	defer func(c *websocket.Conn) {
-		err := c.Close()
-		if err != nil {
-			s.log.Fatal("close websocket connection exception:", err)
-		}
-	}(c)
 
-	for {
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			s.log.Fatal("read websocket message exception:", err)
-			break
-		}
+	client := NewClient(conn, s)
+	s.clients = append(s.clients, client)
 
-		sendBuffers, err := s.handler(mt, message)
+	client.Listen()
+
+	s.removeClient(client)
+}
+
+func (s *Server) listen() error {
+	if s.lis == nil {
+		lis, err := net.Listen(s.network, s.address)
 		if err != nil {
-			s.log.Fatal("handle websocket message exception:", err)
-			break
+			return err
 		}
-		if sendBuffers != nil {
-			for _, msg := range sendBuffers {
-				err = c.WriteMessage(mt, msg)
-				if err != nil {
-					s.log.Fatal("send websocket message exception:", err)
-					break
-				}
-			}
-		}
+		s.lis = lis
 	}
+
+	return nil
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
@@ -188,7 +184,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	s.log.Infof("[WS] server listening on: %s", s.lis.Addr().String())
+	s.log.Infof("[websocket] server listening on: %s", s.lis.Addr().String())
 	var err error
 	if s.tlsConf != nil {
 		err = s.ServeTLS(s.lis, "", "")
@@ -202,24 +198,16 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.log.Info("[WS] server stopping")
+	s.log.Info("[websocket] server stopping")
 	return s.Shutdown(ctx)
 }
 
-func (s *Server) listenAndEndpoint() error {
-	if s.lis == nil {
-		lis, err := net.Listen(s.network, s.address)
-		if err != nil {
-			return err
+func (s *Server) removeClient(c *Client) {
+	for i := 0; i < len(s.clients); i++ {
+		if c == s.clients[i] {
+			s.log.Info("remove client")
+			s.clients = append(s.clients[:i], s.clients[i+1:]...)
+			return
 		}
-		s.lis = lis
 	}
-
-	//var err error
-	//s.endpoint, err = url.Parse(s.address)
-	//if err != nil {
-	//	s.log.Errorf("error Endpoint: %X", err)
-	//}
-
-	return nil
 }

@@ -51,6 +51,10 @@ func NewServer(opts ...broker.Option) *Server {
 	return srv
 }
 
+func (s *Server) String() string {
+	return "rabbitmq"
+}
+
 func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
