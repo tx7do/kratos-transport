@@ -27,8 +27,8 @@ func main() {
 	}
 }
 
-func receive(message *websocket.Message) (*websocket.Message, error) {
-	fmt.Println(" Payload: ", string(message.Body))
+func receive(connectionId string, message *websocket.Message) (*websocket.Message, error) {
+	fmt.Printf("[%s] Payload: %s\n", connectionId, string(message.Body))
 
 	var relyMsg websocket.Message
 	relyMsg.Body = []byte("hello")

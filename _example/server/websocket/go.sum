@@ -106,10 +106,10 @@ github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
-github.com/tx7do/kratos-transport v0.0.0-20220311110552-316d7125f9a7 h1:xIXLCa9/rh+5gBwTvWpo14vqgM1UxkEkCsasgq8iOFo=
-github.com/tx7do/kratos-transport v0.0.0-20220311110552-316d7125f9a7/go.mod h1:TKGdM0SK8zYqW5RCySlXYMATMseT+THmG0qIOPEs29I=
 github.com/tx7do/kratos-transport v0.0.0-20220311112558-6f6eb3c407b8 h1:Tfdw7NhajUrL2GLjckLRefZ1JQqdIKmpNStvyaXjecw=
 github.com/tx7do/kratos-transport v0.0.0-20220311112558-6f6eb3c407b8/go.mod h1:TKGdM0SK8zYqW5RCySlXYMATMseT+THmG0qIOPEs29I=
+github.com/tx7do/kratos-transport v0.0.0-20220312061842-74bb53a63cef h1:z97/iOFu0zCDYQB2V+Mml/fHJYjr0261pXwznj9oi5g=
+github.com/tx7do/kratos-transport v0.0.0-20220312061842-74bb53a63cef/go.mod h1:TKGdM0SK8zYqW5RCySlXYMATMseT+THmG0qIOPEs29I=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0HrGL1Y=
 go.opentelemetry.io/otel v1.3.0/go.mod h1:PWIKzi6JCp7sM0k9yZ43VX+T345uNbAkDKwHVjb2PTs=

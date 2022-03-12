@@ -21,6 +21,7 @@ type Message struct {
 
 type Handler func(string, *Message) error
 type EchoHandler func(string, *Message) (*Message, error)
+type RegisterHandler func(string, bool)
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -47,10 +48,16 @@ func Timeout(timeout time.Duration) ServerOption {
 	}
 }
 
-func Handle(path string, h EchoHandler) ServerOption {
+func RegisterHandle(h RegisterHandler) ServerOption {
+	return func(s *Server) {
+		s.registerHandler = h
+	}
+}
+
+func ReadHandle(path string, h EchoHandler) ServerOption {
 	return func(s *Server) {
 		s.path = path
-		s.handler = h
+		s.readHandler = h
 	}
 }
 
@@ -87,8 +94,9 @@ type Server struct {
 
 	log *log.Helper
 
-	handler EchoHandler
-	path    string
+	readHandler     EchoHandler
+	registerHandler RegisterHandler
+	path            string
 
 	clients  ClientMap
 	upgrader *ws.Upgrader
@@ -242,14 +250,21 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) addClient(c *Client) {
-	s.log.Info("add client: ", c.ConnectionID())
+	//s.log.Info("add client: ", c.ConnectionID())
 	s.clients[c.ConnectionID()] = c
+
+	if s.registerHandler != nil {
+		s.registerHandler(c.ConnectionID(), true)
+	}
 }
 
 func (s *Server) removeClient(c *Client) {
 	for k, v := range s.clients {
 		if c == v {
-			s.log.Info("remove client: ", c.ConnectionID())
+			//s.log.Info("remove client: ", c.ConnectionID())
+			if s.registerHandler != nil {
+				s.registerHandler(c.ConnectionID(), false)
+			}
 			delete(s.clients, k)
 			return
 		}

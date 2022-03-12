@@ -21,7 +21,8 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		Address(":8800"),
-		Handle("/ws", receive),
+		ReadHandle("/ws", handleMessage),
+		RegisterHandle(handleRegister),
 	)
 
 	if err := srv.Start(ctx); err != nil {
@@ -37,7 +38,15 @@ func TestServer(t *testing.T) {
 	<-sigs
 }
 
-func receive(connectionId string, message *Message) (*Message, error) {
+func handleRegister(connectionId string, register bool) {
+	if register {
+		fmt.Printf("%s registered\n", connectionId)
+	} else {
+		fmt.Printf("%s unregistered\n", connectionId)
+	}
+}
+
+func handleMessage(connectionId string, message *Message) (*Message, error) {
 	fmt.Printf("[%s] Payload: %s\n", connectionId, string(message.Body))
 
 	var relyMsg Message

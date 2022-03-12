@@ -94,7 +94,10 @@ func (c *Client) readPump() {
 		} else if messageType != ws.BinaryMessage {
 			log.Println("Non binary message received, ignoring")
 		} else {
-			replyMsg, _ := c.server.handler(c.ConnectionID(), &Message{Body: data})
+			if c.server.readHandler == nil {
+				return
+			}
+			replyMsg, _ := c.server.readHandler(c.ConnectionID(), &Message{Body: data})
 			if replyMsg != nil {
 				c.SendMessage(replyMsg)
 			}
