@@ -121,6 +121,8 @@ github.com/tx7do/kratos-transport v0.0.0-20220311110552-316d7125f9a7 h1:xIXLCa9/
 github.com/tx7do/kratos-transport v0.0.0-20220311110552-316d7125f9a7/go.mod h1:TKGdM0SK8zYqW5RCySlXYMATMseT+THmG0qIOPEs29I=
 github.com/tx7do/kratos-transport v0.0.0-20220311112558-6f6eb3c407b8 h1:Tfdw7NhajUrL2GLjckLRefZ1JQqdIKmpNStvyaXjecw=
 github.com/tx7do/kratos-transport v0.0.0-20220311112558-6f6eb3c407b8/go.mod h1:TKGdM0SK8zYqW5RCySlXYMATMseT+THmG0qIOPEs29I=
+github.com/tx7do/kratos-transport v0.0.0-20220312073639-621b9cbb8ea4 h1:itxQcNWGugzxrzCfrSYkE6IzJNfxxrIz9FoCBvDBgMA=
+github.com/tx7do/kratos-transport v0.0.0-20220312073639-621b9cbb8ea4/go.mod h1:TKGdM0SK8zYqW5RCySlXYMATMseT+THmG0qIOPEs29I=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c h1:u40Z8hqBAAQyv+vATcGgV0YCnDjqSL7/q/JyPhhJSPk=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0 h1:d9X0esnoa3dFsV0FG35rAT0RIhYFlPq7MiP+DW89La0=

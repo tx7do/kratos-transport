@@ -14,7 +14,7 @@ func main() {
 	wsSrv := websocket.NewServer(
 		websocket.Address(":8800"),
 		websocket.ReadHandle("/ws", handleMessage),
-		websocket.RegisterHandle(handleRegister),
+		websocket.ConnectHandle(handleConnect),
 	)
 
 	app := kratos.New(
@@ -28,11 +28,11 @@ func main() {
 	}
 }
 
-func handleRegister(connectionId string, register bool) {
+func handleConnect(connectionId string, register bool) {
 	if register {
-		fmt.Printf("%s registered\n", connectionId)
+		fmt.Printf("%s connected\n", connectionId)
 	} else {
-		fmt.Printf("%s unregistered\n", connectionId)
+		fmt.Printf("%s disconnect\n", connectionId)
 	}
 }
 

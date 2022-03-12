@@ -1,26 +1,20 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"github.com/go-kratos/kratos/v2"
 	"log"
 
-	"github.com/go-kratos/kratos/v2"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/transport/kafka"
 )
 
 func main() {
-	ctx := context.Background()
+	//ctx := context.Background()
 
 	kafkaSrv := kafka.NewServer(
-		broker.OptionContext(ctx),
-		broker.Addrs("127.0.0.1:9092"),
-	)
-
-	_ = kafkaSrv.RegisterSubscriber("test_topic", receive,
-		broker.SubscribeContext(ctx),
-		broker.Queue("a-group"),
+		kafka.Address("127.0.0.1:9092"),
+		kafka.Subscribe("test_topic", "a-group", receive),
 	)
 
 	app := kratos.New(

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 
@@ -21,16 +20,11 @@ const (
 )
 
 func main() {
-	ctx := context.Background()
+	//ctx := context.Background()
 
 	mqttSrv := mqtt.NewServer(
-		broker.Addrs(EmqxCnBroker),
-		broker.OptionContext(ctx),
-	)
-
-	_ = mqttSrv.RegisterSubscriber("topic/bobo/#", receive,
-		broker.SubscribeContext(ctx),
-		broker.Queue("topic/bobo/#"),
+		mqtt.Address(EmqxCnBroker),
+		mqtt.Subscribe("topic/bobo/#", receive),
 	)
 
 	app := kratos.New(
