@@ -27,9 +27,9 @@ func Timeout(timeout time.Duration) ServerOption {
 	}
 }
 
-func RegisterHandle(h RegisterHandler) ServerOption {
+func ConnectHandle(h ConnectHandler) ServerOption {
 	return func(s *Server) {
-		s.registerHandler = h
+		s.connectHandler = h
 	}
 }
 

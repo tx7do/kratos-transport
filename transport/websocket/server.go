@@ -21,7 +21,7 @@ type Message struct {
 
 type Handler func(string, *Message) error
 type EchoHandler func(string, *Message) (*Message, error)
-type RegisterHandler func(string, bool)
+type ConnectHandler func(string, bool)
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -43,9 +43,9 @@ type Server struct {
 
 	log *log.Helper
 
-	readHandler     EchoHandler
-	registerHandler RegisterHandler
-	path            string
+	readHandler    EchoHandler
+	connectHandler ConnectHandler
+	path           string
 
 	clients  ClientMap
 	upgrader *ws.Upgrader
@@ -202,8 +202,8 @@ func (s *Server) addClient(c *Client) {
 	//s.log.Info("add client: ", c.ConnectionID())
 	s.clients[c.ConnectionID()] = c
 
-	if s.registerHandler != nil {
-		s.registerHandler(c.ConnectionID(), true)
+	if s.connectHandler != nil {
+		s.connectHandler(c.ConnectionID(), true)
 	}
 }
 
@@ -211,8 +211,8 @@ func (s *Server) removeClient(c *Client) {
 	for k, v := range s.clients {
 		if c == v {
 			//s.log.Info("remove client: ", c.ConnectionID())
-			if s.registerHandler != nil {
-				s.registerHandler(c.ConnectionID(), false)
+			if s.connectHandler != nil {
+				s.connectHandler(c.ConnectionID(), false)
 			}
 			delete(s.clients, k)
 			return

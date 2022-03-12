@@ -22,7 +22,7 @@ func TestServer(t *testing.T) {
 	srv := NewServer(
 		Address(":8800"),
 		ReadHandle("/ws", handleMessage),
-		RegisterHandle(handleRegister),
+		ConnectHandle(handleConnect),
 	)
 
 	if err := srv.Start(ctx); err != nil {
@@ -38,7 +38,7 @@ func TestServer(t *testing.T) {
 	<-interrupt
 }
 
-func handleRegister(connectionId string, register bool) {
+func handleConnect(connectionId string, register bool) {
 	if register {
 		fmt.Printf("%s registered\n", connectionId)
 	} else {
