@@ -26,6 +26,7 @@ type SubscribeOptionMap map[string]*SubscribeOption
 
 type Server struct {
 	broker.Broker
+	bOpts []broker.Option
 
 	subscribers    SubscriberMap
 	subscriberOpts SubscribeOptionMap
@@ -38,17 +39,27 @@ type Server struct {
 	err     error
 }
 
-func NewServer(opts ...broker.Option) *Server {
+func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx:        context.Background(),
 		log:            log.NewHelper(log.GetLogger()),
-		Broker:         mqtt.NewBroker(opts...),
 		subscribers:    SubscriberMap{},
 		subscriberOpts: SubscribeOptionMap{},
+		bOpts:          []broker.Option{},
 		started:        false,
 	}
 
+	srv.init(opts...)
+
+	srv.Broker = mqtt.NewBroker(srv.bOpts...)
+
 	return srv
+}
+
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
 }
 
 func (s *Server) String() string {

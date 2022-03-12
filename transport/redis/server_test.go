@@ -10,14 +10,17 @@ import (
 	"testing"
 )
 
+const serverAddr = "127.0.0.1:6379"
+
 func TestServer(t *testing.T) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
 	srv := NewServer(
-		broker.Addrs("127.0.0.1:6379"),
+		Address(serverAddr),
+		Subscribe("test_topic", receive),
 	)
 
 	if err := srv.Connect(); err != nil {
@@ -28,20 +31,20 @@ func TestServer(t *testing.T) {
 		panic(err)
 	}
 
-	_ = srv.RegisterSubscriber("test_topic", receive,
-		broker.SubscribeContext(ctx),
-	)
-
 	defer func() {
 		if err := srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
 
-	<-sigs
+	<-interrupt
 }
 
 func receive(event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	return nil
+}
+
+func TestClient(t *testing.T) {
+
 }

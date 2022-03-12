@@ -27,6 +27,7 @@ type SubscribeOptionMap map[string]*SubscribeOption
 
 type Server struct {
 	broker.Broker
+	bOpts []broker.Option
 
 	subscribers    SubscriberMap
 	subscriberOpts SubscribeOptionMap
@@ -39,18 +40,30 @@ type Server struct {
 	err     error
 }
 
-func NewServer(opts ...broker.Option) *Server {
-	opts = append(opts, redis.ReadTimeout(24*time.Hour))
-	opts = append(opts, redis.IdleTimeout(24*time.Hour))
+func NewServer(opts ...ServerOption) *Server {
+	opts = append(opts, ReadTimeout(24*time.Hour))
+	opts = append(opts, IdleTimeout(24*time.Hour))
+
 	srv := &Server{
 		baseCtx:        context.Background(),
 		log:            log.NewHelper(log.GetLogger()),
-		Broker:         redis.NewBroker(opts...),
 		subscribers:    SubscriberMap{},
 		subscriberOpts: SubscribeOptionMap{},
+		bOpts:          []broker.Option{},
 		started:        false,
 	}
+
+	srv.init(opts...)
+
+	srv.Broker = redis.NewBroker(srv.bOpts...)
+
 	return srv
+}
+
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
 }
 
 func (s *Server) String() string {

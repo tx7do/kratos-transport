@@ -14,19 +14,14 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
 	srv := NewServer(
-		broker.Addrs("127.0.0.1:9092"),
-		broker.OptionContext(ctx),
-	)
-
-	_ = srv.RegisterSubscriber("logger.sensor.ts", receive,
-		broker.SubscribeContext(ctx),
-		broker.Queue("fx-group"),
+		Address("127.0.0.1:9092"),
+		Subscribe("logger.sensor.ts", "fx-group", receive),
 	)
 
 	if err := srv.Start(ctx); err != nil {
@@ -39,13 +34,17 @@ func TestServer(t *testing.T) {
 		}
 	}()
 
-	<-sigs
+	<-interrupt
 }
 
 func receive(event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	//_ = event.Ack()
 	return nil
+}
+
+func TestClient(t *testing.T) {
+
 }
 
 func TestParseIP(t *testing.T) {

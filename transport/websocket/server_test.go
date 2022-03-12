@@ -14,8 +14,8 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
@@ -35,7 +35,7 @@ func TestServer(t *testing.T) {
 		}
 	}()
 
-	<-sigs
+	<-interrupt
 }
 
 func handleRegister(connectionId string, register bool) {

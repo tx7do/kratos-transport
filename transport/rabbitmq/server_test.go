@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/broker/rabbitmq"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,21 +11,14 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
 	srv := NewServer(
-		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672"),
-		broker.OptionContext(ctx),
-	)
-
-	_ = srv.RegisterSubscriber("test_topic", receive,
-		broker.SubscribeContext(ctx),
-		broker.Queue("test_topic"),
-		//common.DisableAutoAck(),
-		rabbitmq.DurableQueue(),
+		Address("amqp://user:bitnami@127.0.0.1:5672"),
+		SubscribeDurableQueue("test_topic", "test_topic", receive),
 	)
 
 	if err := srv.Start(ctx); err != nil {
@@ -39,10 +31,14 @@ func TestServer(t *testing.T) {
 		}
 	}()
 
-	<-sigs
+	<-interrupt
 }
 
 func receive(event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	return nil
+}
+
+func TestClient(t *testing.T) {
+
 }
