@@ -19,8 +19,8 @@ type Message struct {
 	Body []byte
 }
 
-type Handler func(*Message) error
-type EchoHandler func(*Message) (*Message, error)
+type Handler func(string, *Message) error
+type EchoHandler func(string, *Message) (*Message, error)
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -90,8 +90,11 @@ type Server struct {
 	handler EchoHandler
 	path    string
 
-	clients  ClientArray
+	clients  ClientMap
 	upgrader *ws.Upgrader
+
+	register   chan *Client
+	unregister chan *Client
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -102,13 +105,16 @@ func NewServer(opts ...ServerOption) *Server {
 		strictSlash: true,
 		log:         log.NewHelper(log.GetLogger()),
 
-		clients: ClientArray{},
+		clients: ClientMap{},
 		upgrader: &ws.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			}},
+
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
 	}
 
 	srv.init(opts...)
@@ -138,6 +144,13 @@ func (s *Server) ClientCount() int {
 	return len(s.clients)
 }
 
+func (s *Server) SendMessage(connectionId string, message *Message) {
+	c, ok := s.clients[connectionId]
+	if ok {
+		c.SendMessage(message)
+	}
+}
+
 func (s *Server) Broadcast(message *Message) {
 	for _, c := range s.clients {
 		c.SendMessage(message)
@@ -152,11 +165,9 @@ func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	client := NewClient(conn, s)
-	s.clients = append(s.clients, client)
+	client.server.register <- client
 
 	client.Listen()
-
-	s.removeClient(client)
 }
 
 func (s *Server) listen() error {
@@ -191,6 +202,17 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return s.endpoint, nil
 }
 
+func (s *Server) run() {
+	for {
+		select {
+		case client := <-s.register:
+			s.addClient(client)
+		case client := <-s.unregister:
+			s.removeClient(client)
+		}
+	}
+}
+
 func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
@@ -199,6 +221,9 @@ func (s *Server) Start(ctx context.Context) error {
 		return ctx
 	}
 	s.log.Infof("[websocket] server listening on: %s", s.lis.Addr().String())
+
+	go s.run()
+
 	var err error
 	if s.tlsConf != nil {
 		err = s.ServeTLS(s.lis, "", "")
@@ -216,11 +241,16 @@ func (s *Server) Stop(ctx context.Context) error {
 	return s.Shutdown(ctx)
 }
 
+func (s *Server) addClient(c *Client) {
+	s.log.Info("add client: ", c.ConnectionID())
+	s.clients[c.ConnectionID()] = c
+}
+
 func (s *Server) removeClient(c *Client) {
-	for i := 0; i < len(s.clients); i++ {
-		if c == s.clients[i] {
-			s.log.Info("remove client")
-			s.clients = append(s.clients[:i], s.clients[i+1:]...)
+	for k, v := range s.clients {
+		if c == v {
+			s.log.Info("remove client: ", c.ConnectionID())
+			delete(s.clients, k)
 			return
 		}
 	}

@@ -1,19 +1,21 @@
 package websocket
 
 import (
+	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 	"log"
 )
 
-const channelBufSize = 100
+const channelBufSize = 256
 
 type Client struct {
+	id     string
 	conn   *ws.Conn
-	ch     chan *Message
-	doneCh chan bool
+	send   chan *Message
 	server *Server
 }
 
+type ClientMap map[string]*Client
 type ClientArray []*Client
 
 func NewClient(conn *ws.Conn, server *Server) *Client {
@@ -21,84 +23,81 @@ func NewClient(conn *ws.Conn, server *Server) *Client {
 		panic("conn cannot be nil")
 	}
 
-	ch := make(chan *Message, channelBufSize)
-	doneCh := make(chan bool)
+	u1, _ := uuid.NewUUID()
 
-	return &Client{conn, ch, doneCh, server}
+	c := &Client{
+		id:     u1.String(),
+		conn:   conn,
+		send:   make(chan *Message, channelBufSize),
+		server: server,
+	}
+
+	return c
 }
 
 func (c *Client) Conn() *ws.Conn {
 	return c.conn
 }
 
+func (c *Client) ConnectionID() string {
+	return c.id
+}
+
 func (c *Client) SendMessage(message *Message) {
 	select {
-	case c.ch <- message:
+	case c.send <- message:
 	}
 }
 
-func (c *Client) Done() {
-	c.doneCh <- true
+func (c *Client) Close() {
+	c.server.unregister <- c
+	c.closeConnect()
 }
 
 func (c *Client) Listen() {
 	go c.writePump()
-	c.readPump()
+	go c.readPump()
 }
 
 func (c *Client) closeConnect() {
+	//log.Println(c.ConnectionID(), " connection closed")
 	err := c.conn.Close()
 	if err != nil {
-		log.Println("Error:", err.Error())
+		log.Println("close connection error:", err.Error())
 	}
 	c.conn = nil
 }
 
 func (c *Client) writePump() {
-	defer c.closeConnect()
+	defer c.Close()
 
 	for {
 		select {
-
-		case msg := <-c.ch:
+		case msg := <-c.send:
 			if err := c.conn.WriteMessage(ws.BinaryMessage, msg.Body); err != nil {
-				return
+				log.Println("write message error: ", err)
 			}
-
-		case <-c.doneCh:
-			c.doneCh <- true
-			return
 		}
 	}
 }
 
 func (c *Client) readPump() {
-	defer c.closeConnect()
+	defer c.Close()
 
 	for {
-		select {
-
-		case <-c.doneCh:
-			c.doneCh <- true
+		messageType, data, err := c.conn.ReadMessage()
+		if err != nil {
+			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
+				log.Printf("read message error: %v", err)
+			}
 			return
-
-		default:
-			c.readFromWebSocket()
-		}
-	}
-}
-
-func (c *Client) readFromWebSocket() {
-	messageType, data, err := c.conn.ReadMessage()
-	if err != nil {
-		log.Println(err)
-		c.doneCh <- true
-	} else if messageType != ws.BinaryMessage {
-		log.Println("Non binary message received, ignoring")
-	} else {
-		replyMsg, _ := c.server.handler(&Message{Body: data})
-		if replyMsg != nil {
-			c.SendMessage(replyMsg)
+		} else if messageType != ws.BinaryMessage {
+			log.Println("Non binary message received, ignoring")
+		} else {
+			replyMsg, _ := c.server.handler(c.ConnectionID(), &Message{Body: data})
+			if replyMsg != nil {
+				c.SendMessage(replyMsg)
+			}
 		}
 	}
 }

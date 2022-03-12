@@ -37,8 +37,8 @@ func TestServer(t *testing.T) {
 	<-sigs
 }
 
-func receive(message *Message) (*Message, error) {
-	fmt.Println(" Payload: ", string(message.Body))
+func receive(connectionId string, message *Message) (*Message, error) {
+	fmt.Printf("[%s] Payload: %s\n", connectionId, string(message.Body))
 
 	var relyMsg Message
 	relyMsg.Body = []byte("hello")
