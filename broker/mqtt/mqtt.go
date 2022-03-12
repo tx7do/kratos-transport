@@ -21,12 +21,12 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	cOpts := MQTT.NewClientOptions()
 	cOpts.SetClientID(generateClientId())
 	cOpts.SetCleanSession(false)
+	cOpts.SetAutoReconnect(false)
 	//cOpts.SetKeepAlive(60)
-	//cOpts.SetAutoReconnect(true)
 	//cOpts.SetMaxReconnectInterval(30)
 
-	//cOpts.OnConnect = b.onConnect
-	//cOpts.OnConnectionLost = b.onConnectionLost
+	cOpts.OnConnect = b.onConnect
+	cOpts.OnConnectionLost = b.onConnectionLost
 
 	if opts.TLSConfig != nil {
 		cOpts.SetTLSConfig(opts.TLSConfig)
