@@ -21,8 +21,8 @@ func TestDurable(t *testing.T) {
 
 	ctx := context.Background()
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
 		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672"),
@@ -44,7 +44,7 @@ func TestDurable(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	<-sigs
+	<-interrupt
 }
 
 func receive(event broker.Event) error {

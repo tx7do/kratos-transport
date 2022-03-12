@@ -3,111 +3,40 @@ package mqtt
 import (
 	"errors"
 	"fmt"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/tx7do/kratos-transport/broker"
-	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/go-kratos/kratos/v2/log"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 type mqttBroker struct {
 	addrs  []string
 	opts   broker.Options
-	client mqtt.Client
+	client MQTT.Client
 }
 
-func setAddrs(addrs []string) []string {
-	cAddrs := make([]string, 0, len(addrs))
-
-	for _, addr := range addrs {
-		if len(addr) == 0 {
-			continue
-		}
-
-		var scheme string
-		var host string
-		var port int
-
-		// split on scheme
-		parts := strings.Split(addr, "://")
-
-		// no scheme
-		if len(parts) < 2 {
-			// default tcp scheme
-			scheme = "tcp"
-			parts = strings.Split(parts[0], ":")
-			// got scheme
-		} else {
-			scheme = parts[0]
-			parts = strings.Split(parts[1], ":")
-		}
-
-		// no parts
-		if len(parts) == 0 {
-			continue
-		}
-
-		// check scheme
-		switch scheme {
-		case "tcp", "ssl", "ws":
-		default:
-			continue
-		}
-
-		if len(parts) < 2 {
-			// no port
-			host = parts[0]
-
-			switch scheme {
-			case "tcp":
-				port = 1883
-			case "ssl":
-				port = 8883
-			case "ws":
-				// support secure port
-				port = 80
-			default:
-				port = 1883
-			}
-			// got host port
-		} else {
-			host = parts[0]
-			port, _ = strconv.Atoi(parts[1])
-		}
-
-		addr = fmt.Sprintf("%s://%s:%d", scheme, host, port)
-		cAddrs = append(cAddrs, addr)
-
-	}
-
-	// default an address if we have none
-	if len(cAddrs) == 0 {
-		cAddrs = []string{"tcp://127.0.0.1:1883"}
-	}
-
-	return cAddrs
-}
-
-func newClient(addrs []string, opts broker.Options) mqtt.Client {
-	// create opts
-	cOpts := mqtt.NewClientOptions()
-	cOpts.SetClientID(fmt.Sprintf("%d%d", time.Now().UnixNano(), rand.Intn(10)))
+func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
+	cOpts := MQTT.NewClientOptions()
+	cOpts.SetClientID(generateClientId())
 	cOpts.SetCleanSession(false)
+	//cOpts.SetKeepAlive(60)
+	//cOpts.SetAutoReconnect(true)
+	//cOpts.SetMaxReconnectInterval(30)
 
-	// setup tls
+	//cOpts.OnConnect = b.onConnect
+	//cOpts.OnConnectionLost = b.onConnectionLost
+
 	if opts.TLSConfig != nil {
 		cOpts.SetTLSConfig(opts.TLSConfig)
 	}
 
-	// add commons
 	for _, addr := range addrs {
 		cOpts.AddBroker(addr)
 	}
 
-	return mqtt.NewClient(cOpts)
+	return MQTT.NewClient(cOpts)
 }
 
 func newBroker(opts ...broker.Option) broker.Broker {
@@ -118,15 +47,16 @@ func newBroker(opts ...broker.Option) broker.Broker {
 	for _, o := range opts {
 		o(&options)
 	}
-
 	addrs := options.Addrs
-	client := newClient(addrs, options)
 
-	return &mqttBroker{
-		opts:   options,
-		client: client,
-		addrs:  addrs,
+	b := &mqttBroker{
+		opts:  options,
+		addrs: addrs,
 	}
+
+	b.client = newClient(addrs, options, b)
+
+	return b
 }
 
 func (m *mqttBroker) Options() broker.Options {
@@ -142,8 +72,10 @@ func (m *mqttBroker) Connect() error {
 		return nil
 	}
 
-	if t := m.client.Connect(); t.Wait() && t.Error() != nil {
-		return t.Error()
+	t := m.client.Connect()
+
+	if rs, err := checkClientToken(t); !rs {
+		return err
 	}
 
 	return nil
@@ -167,7 +99,7 @@ func (m *mqttBroker) Init(opts ...broker.Option) error {
 	}
 
 	m.addrs = setAddrs(m.opts.Addrs)
-	m.client = newClient(m.addrs, m.opts)
+	m.client = newClient(m.addrs, m.opts, m)
 	return nil
 }
 
@@ -201,7 +133,7 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 		o(&options)
 	}
 
-	t := m.client.Subscribe(topic, 1, func(c mqtt.Client, mq mqtt.Message) {
+	t := m.client.Subscribe(topic, 1, func(c MQTT.Client, mq MQTT.Message) {
 		var msg broker.Message
 
 		if m.opts.Codec == nil {
@@ -220,8 +152,8 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 		}
 	})
 
-	if t.Wait() && t.Error() != nil {
-		return nil, t.Error()
+	if rs, err := checkClientToken(t); !rs {
+		return nil, err
 	}
 
 	return &mqttSub{
@@ -231,8 +163,29 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 	}, nil
 }
 
+func (m *mqttBroker) onConnect(_ MQTT.Client) {
+	fmt.Println("on connect")
+}
+
+func (m *mqttBroker) onConnectionLost(client MQTT.Client, _ error) {
+	fmt.Println("on connect lost, try to reconnect")
+	m.loopConnect(client)
+}
+
+func (m *mqttBroker) loopConnect(client MQTT.Client) {
+	for {
+		token := client.Connect()
+		if rs, err := checkClientToken(token); !rs {
+			fmt.Printf("connect error: %s\n", err.Error())
+		} else {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func (m *mqttBroker) String() string {
-	return "mqtt"
+	return "MQTT"
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {

@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-func TestKafkaBroker(t *testing.T) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+func TestSubscribe(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
@@ -26,7 +26,7 @@ func TestKafkaBroker(t *testing.T) {
 		broker.Queue("fx-group"),
 	)
 
-	<-sigs
+	<-interrupt
 }
 
 func receive(event broker.Event) error {

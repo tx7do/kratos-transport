@@ -5,18 +5,10 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-// mqttPub is a common.Event
 type mqttPub struct {
 	topic string
 	msg   *broker.Message
 	err   error
-}
-
-// mqttPub is a common.Subscriber
-type mqttSub struct {
-	opts   broker.SubscribeOptions
-	topic  string
-	client mqtt.Client
 }
 
 func (m *mqttPub) Ack() error {
@@ -33,6 +25,12 @@ func (m *mqttPub) Topic() string {
 
 func (m *mqttPub) Message() *broker.Message {
 	return m.msg
+}
+
+type mqttSub struct {
+	opts   broker.SubscribeOptions
+	topic  string
+	client mqtt.Client
 }
 
 func (m *mqttSub) Options() broker.SubscribeOptions {

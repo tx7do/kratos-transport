@@ -34,8 +34,8 @@ func unsubscribe(t *testing.T, s broker.Subscriber) {
 }
 
 func TestBroker(t *testing.T) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
 		broker.Addrs("localhost:6379"),
@@ -114,14 +114,14 @@ func TestBroker(t *testing.T) {
 		t.Fatalf("expected %v, got %v", exp, actual)
 	}
 
-	<-sigs
+	<-interrupt
 }
 
 func TestReceive(t *testing.T) {
 	ctx := context.Background()
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
 		broker.Addrs("redis://localhost:6379"),
@@ -145,7 +145,7 @@ func TestReceive(t *testing.T) {
 		broker.SubscribeContext(ctx),
 	)
 
-	<-sigs
+	<-interrupt
 }
 
 func receive(event broker.Event) error {

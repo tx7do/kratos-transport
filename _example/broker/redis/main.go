@@ -14,8 +14,8 @@ import (
 func main() {
 	ctx := context.Background()
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := redis.NewBroker(
 		broker.Addrs("localhost:6379"),
@@ -38,7 +38,7 @@ func main() {
 		broker.SubscribeContext(ctx),
 	)
 
-	<-sigs
+	<-interrupt
 }
 
 func receive(event broker.Event) error {
