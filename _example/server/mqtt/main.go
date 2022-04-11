@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -23,7 +24,7 @@ func main() {
 	//ctx := context.Background()
 
 	mqttSrv := mqtt.NewServer(
-		mqtt.Address(EmqxCnBroker),
+		mqtt.WithAddress(EmqxCnBroker),
 		mqtt.Subscribe("topic/bobo/#", receive),
 	)
 
