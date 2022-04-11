@@ -140,9 +140,8 @@ func (k *kBroker) Disconnect() error {
 }
 
 func (k *kBroker) Init(opts ...broker.Option) error {
-	for _, o := range opts {
-		o(&k.opts)
-	}
+	k.opts.Apply(opts...)
+
 	var cAddrs []string
 	for _, addr := range k.opts.Addrs {
 		if len(addr) == 0 {
@@ -268,7 +267,7 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 					m.Body = msg.Value
 				}
 
-				err = sub.handler(p)
+				err = sub.handler(sub.opts.Context, p)
 				if err != nil {
 					k.log.Errorf("[segmentio]: process message failed: %v", err)
 				}
@@ -284,19 +283,12 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	return sub, nil
 }
 
-func (k *kBroker) String() string {
+func (k *kBroker) Name() string {
 	return "kafka"
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.Options{
-		//Codec:   json.Marshaler{},
-		Context: context.Background(),
-	}
-
-	for _, o := range opts {
-		o(&options)
-	}
+	options := broker.NewOptionsAndApply(opts...)
 
 	var cAddrs []string
 	for _, addr := range options.Addrs {

@@ -51,7 +51,7 @@ func (c *Codec) Close() error {
 	return c.Conn.Close()
 }
 
-func (c *Codec) String() string {
+func (c *Codec) Name() string {
 	return "proto"
 }
 

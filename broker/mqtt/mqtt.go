@@ -19,8 +19,7 @@ type mqttBroker struct {
 
 func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	cOpts := MQTT.NewClientOptions()
-	cOpts.SetClientID(generateClientId())
-	cOpts.SetCleanSession(false)
+	cOpts.SetCleanSession(true)
 	cOpts.SetAutoReconnect(false)
 	//cOpts.SetKeepAlive(60)
 	//cOpts.SetMaxReconnectInterval(30)
@@ -31,6 +30,18 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	if opts.TLSConfig != nil {
 		cOpts.SetTLSConfig(opts.TLSConfig)
 	}
+	if auth, ok := AuthFromContext(opts.Context); ok && auth != nil {
+		cOpts.SetUsername(auth.username)
+		cOpts.SetPassword(auth.password)
+	}
+	if clientId, ok := ClientIdFromContext(opts.Context); ok && clientId != "" {
+		cOpts.SetClientID(clientId)
+	} else {
+		cOpts.SetClientID(generateClientId())
+	}
+	if enabled, ok := CleanSessionFromContext(opts.Context); ok {
+		cOpts.SetCleanSession(enabled)
+	}
 
 	for _, addr := range addrs {
 		cOpts.AddBroker(addr)
@@ -40,21 +51,14 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 }
 
 func newBroker(opts ...broker.Option) broker.Broker {
-	options := broker.Options{
-		//Codec: json.Marshaler{},
-	}
-
-	for _, o := range opts {
-		o(&options)
-	}
-	addrs := options.Addrs
+	options := broker.NewOptionsAndApply(opts...)
 
 	b := &mqttBroker{
 		opts:  options,
-		addrs: addrs,
+		addrs: options.Addrs,
 	}
 
-	b.client = newClient(addrs, options, b)
+	b.client = newClient(options.Addrs, options, b)
 
 	return b
 }
@@ -146,7 +150,7 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 		}
 
 		p := &mqttPub{topic: mq.Topic(), msg: &msg}
-		if err := h(p); err != nil {
+		if err := h(m.opts.Context, p); err != nil {
 			p.err = err
 			log.Error(err)
 		}
@@ -184,7 +188,7 @@ func (m *mqttBroker) loopConnect(client MQTT.Client) {
 	}
 }
 
-func (m *mqttBroker) String() string {
+func (m *mqttBroker) Name() string {
 	return "MQTT"
 }
 

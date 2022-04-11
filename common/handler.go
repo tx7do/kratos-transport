@@ -1,21 +1,14 @@
 package common
 
-import "context"
+import (
+	"context"
+)
 
 type HandlerOption func(*HandlerOptions)
 
 type HandlerOptions struct {
 	Internal bool
 	Metadata map[string]map[string]string
-}
-
-type SubscriberOption func(*SubscriberOptions)
-
-type SubscriberOptions struct {
-	AutoAck  bool
-	Queue    string
-	Internal bool
-	Context  context.Context
 }
 
 func EndpointMetadata(name string, md map[string]string) HandlerOption {
@@ -27,6 +20,24 @@ func EndpointMetadata(name string, md map[string]string) HandlerOption {
 func InternalHandler(b bool) HandlerOption {
 	return func(o *HandlerOptions) {
 		o.Internal = b
+	}
+}
+
+type SubscriberOption func(*SubscriberOptions)
+
+type SubscriberOptions struct {
+	AutoAck  bool
+	Queue    string
+	Internal bool
+	Context  context.Context
+}
+
+func SubscriberOptionContextWithValue(k, v interface{}) SubscriberOption {
+	return func(o *SubscriberOptions) {
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		o.Context = context.WithValue(o.Context, k, v)
 	}
 }
 

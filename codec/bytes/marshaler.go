@@ -33,6 +33,6 @@ func (n Marshaler) Unmarshal(d []byte, v interface{}) error {
 	return codec.ErrInvalidMessage
 }
 
-func (n Marshaler) String() string {
+func (n Marshaler) Name() string {
 	return "bytes"
 }

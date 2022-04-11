@@ -217,15 +217,15 @@ func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...bro
 			m.Body = msg.Data
 			n.log.Error(err)
 			if eh != nil {
-				_ = eh(pub)
+				_ = eh(n.opts.Context, pub)
 			}
 			return
 		}
-		if err := handler(pub); err != nil {
+		if err := handler(n.opts.Context, pub); err != nil {
 			pub.err = err
 			n.log.Error(err)
 			if eh != nil {
-				_ = eh(pub)
+				_ = eh(n.opts.Context, pub)
 			}
 		}
 	}
@@ -246,7 +246,7 @@ func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...bro
 	return &subscriber{s: sub, opts: opt}, nil
 }
 
-func (n *natsBroker) String() string {
+func (n *natsBroker) Name() string {
 	return "nats"
 }
 
@@ -303,11 +303,7 @@ func (n *natsBroker) onDisconnectedError(_ *nats.Conn, err error) {
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.Options{
-		// Default codec
-		//Codec:    json.Marshaler{},
-		Context: context.Background(),
-	}
+	options := broker.NewOptionsAndApply(opts...)
 
 	n := &natsBroker{
 		opts: options,

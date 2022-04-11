@@ -9,9 +9,9 @@ type optionsKey struct{}
 type drainConnectionKey struct{}
 
 func Options(opts nats.Options) broker.Option {
-	return setBrokerOption(optionsKey{}, opts)
+	return broker.OptionContextWithValue(optionsKey{}, opts)
 }
 
 func DrainConnection() broker.Option {
-	return setBrokerOption(drainConnectionKey{}, struct{}{})
+	return broker.OptionContextWithValue(drainConnectionKey{}, struct{}{})
 }

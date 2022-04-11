@@ -23,6 +23,6 @@ func (j Marshaler) Unmarshal(d []byte, v interface{}) error {
 	return json.Unmarshal(d, v)
 }
 
-func (j Marshaler) String() string {
+func (j Marshaler) Name() string {
 	return "json"
 }

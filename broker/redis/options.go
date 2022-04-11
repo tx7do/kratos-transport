@@ -113,3 +113,23 @@ func IdleTimeout(d time.Duration) broker.Option {
 		}
 	}
 }
+
+func WithCommonOptions() broker.Option {
+	return func(o *broker.Options) {
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		x := o.Context.Value(optionsKey)
+		if x != nil {
+			return
+		}
+		o.Context = context.WithValue(o.Context, optionsKey, &commonOptions{
+			maxIdle:        DefaultMaxIdle,
+			maxActive:      DefaultMaxActive,
+			idleTimeout:    DefaultIdleTimeout,
+			connectTimeout: DefaultConnectTimeout,
+			readTimeout:    DefaultReadTimeout,
+			writeTimeout:   DefaultWriteTimeout,
+		})
+	}
+}

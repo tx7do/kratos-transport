@@ -58,13 +58,13 @@ func TestBroker(t *testing.T) {
 	msgs := make(chan string, 10)
 
 	go func() {
-		s1 := subscribe(t, b, "test", func(p broker.Event) error {
+		s1 := subscribe(t, b, "test", func(_ context.Context, p broker.Event) error {
 			m := p.Message()
 			msgs <- fmt.Sprintf("s1:%s", string(m.Body))
 			return nil
 		})
 
-		s2 := subscribe(t, b, "test", func(p broker.Event) error {
+		s2 := subscribe(t, b, "test", func(_ context.Context, p broker.Event) error {
 			m := p.Message()
 			msgs <- fmt.Sprintf("s2:%s", string(m.Body))
 			return nil
@@ -148,7 +148,7 @@ func TestReceive(t *testing.T) {
 	<-interrupt
 }
 
-func receive(event broker.Event) error {
+func receive(_ context.Context, event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	//_ = event.Ack()
 	return nil

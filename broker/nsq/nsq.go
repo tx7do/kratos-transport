@@ -259,7 +259,7 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 		}
 
 		p := &publication{topic: topic, nm: nm, m: &m}
-		p.err = handler(p)
+		p.err = handler(n.opts.Context, p)
 		return p.err
 	})
 
@@ -287,7 +287,7 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 	return sub, nil
 }
 
-func (n *nsqBroker) String() string {
+func (n *nsqBroker) Name() string {
 	return "nsq"
 }
 
@@ -322,14 +322,7 @@ func (s *subscriber) Unsubscribe() error {
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.Options{
-		//Codec: json.Marshaler{},
-		Context: context.Background(),
-	}
-
-	for _, o := range opts {
-		o(&options)
-	}
+	options := broker.NewOptionsAndApply(opts...)
 
 	var addrs []string
 

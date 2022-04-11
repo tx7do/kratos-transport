@@ -81,7 +81,7 @@ func NewServer(opts ...ServerOption) *Server {
 	return srv
 }
 
-func (s *Server) String() string {
+func (s *Server) Name() string {
 	return "websocket"
 }
 

@@ -29,9 +29,10 @@ func TestSubscribe(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs(EmqxCnBroker),
+		broker.Addrs(LocalRabbitBroker),
 		broker.OptionContext(ctx),
 	)
+	defer b.Disconnect()
 
 	_ = b.Connect()
 
@@ -42,7 +43,7 @@ func TestSubscribe(t *testing.T) {
 	<-interrupt
 }
 
-func receive(event broker.Event) error {
+func receive(_ context.Context, event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	//_ = event.Ack()
 	return nil

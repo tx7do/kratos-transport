@@ -66,7 +66,7 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 }
 
-func (s *Server) String() string {
+func (s *Server) Name() string {
 	return "redis"
 }
 

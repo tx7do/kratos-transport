@@ -38,7 +38,7 @@ func main() {
 	}
 }
 
-func receive(event broker.Event) error {
+func receive(_ context.Context, event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	return nil
 }

@@ -1,7 +1,6 @@
 package redis
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/gomodule/redigo/redis"
@@ -67,7 +66,7 @@ func (s *subscriber) recv() {
 				message: &m,
 			}
 
-			if p.err = s.handle(&p); p.err != nil {
+			if p.err = s.handle(s.opts.Context, &p); p.err != nil {
 				break
 			}
 
@@ -108,7 +107,7 @@ type redisBroker struct {
 	bOpts *commonOptions
 }
 
-func (b *redisBroker) String() string {
+func (b *redisBroker) Name() string {
 	return "redis"
 }
 
@@ -236,15 +235,10 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		writeTimeout:   DefaultWriteTimeout,
 	}
 
-	// Initialize with empty common options.
-	options := broker.Options{
-		//Codec:   json.Marshaler{},
-		Context: context.WithValue(context.Background(), optionsKey, bOpts),
-	}
+	options := broker.NewOptions()
 
-	for _, o := range opts {
-		o(&options)
-	}
+	opts = append(opts, WithCommonOptions())
+	options.Apply(opts...)
 
 	return &redisBroker{
 		opts:  options,

@@ -13,135 +13,122 @@ type prefetchCountKey struct{}
 type prefetchGlobalKey struct{}
 type exchangeKey struct{}
 type requeueOnErrorKey struct{}
-type deliveryMode struct{}
+type deliveryModeKey struct{}
 type priorityKey struct{}
-type contentType struct{}
-type contentEncoding struct{}
-type correlationID struct{}
-type replyTo struct{}
-type expiration struct{}
-type messageID struct{}
-type timestamp struct{}
-type typeMsg struct{}
-type userID struct{}
-type appID struct{}
-type externalAuth struct{}
-type durableExchange struct{}
+type ackSuccessKey struct{}
+type contentTypeKey struct{}
+type contentEncodingKey struct{}
+type correlationIDKey struct{}
+type replyToKey struct{}
+type expirationKey struct{}
+type messageIDKey struct{}
+type timestampKey struct{}
+type typeMsgKey struct{}
+type userIDKey struct{}
+type appIDKey struct{}
+type externalAuthKey struct{}
+type durableExchangeKey struct{}
 
-// DurableQueue creates a durable queue when subscribing.
 func DurableQueue() broker.SubscribeOption {
-	return setSubscribeOption(durableQueueKey{}, true)
+	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
 }
 
-// DurableExchange is an option to set the Exchange to be durable
 func DurableExchange() broker.Option {
-	return setBrokerOption(durableExchange{}, true)
+	return broker.OptionContextWithValue(durableExchangeKey{}, true)
 }
 
-// Headers adds headers used by the headers exchange
 func Headers(h map[string]interface{}) broker.SubscribeOption {
-	return setSubscribeOption(headersKey{}, h)
+	return broker.SubscribeContextWithValue(headersKey{}, h)
 }
 
-// QueueArguments sets arguments for queue creation
 func QueueArguments(h map[string]interface{}) broker.SubscribeOption {
-	return setSubscribeOption(queueArgumentsKey{}, h)
+	return broker.SubscribeContextWithValue(queueArgumentsKey{}, h)
 }
 
-// RequeueOnError calls Nack(muliple:false, requeue:true) on amqp delivery when handler returns error
 func RequeueOnError() broker.SubscribeOption {
-	return setSubscribeOption(requeueOnErrorKey{}, true)
+	return broker.SubscribeContextWithValue(requeueOnErrorKey{}, true)
 }
 
-// ExchangeName is an option to set the ExchangeName
 func ExchangeName(e string) broker.Option {
-	return setBrokerOption(exchangeKey{}, e)
+	return broker.OptionContextWithValue(exchangeKey{}, e)
 }
 
-// PrefetchCount ...
 func PrefetchCount(c int) broker.Option {
-	return setBrokerOption(prefetchCountKey{}, c)
+	return broker.OptionContextWithValue(prefetchCountKey{}, c)
 }
 
-// PrefetchGlobal creates a durable queue when subscribing.
 func PrefetchGlobal() broker.Option {
-	return setBrokerOption(prefetchGlobalKey{}, true)
+	return broker.OptionContextWithValue(prefetchGlobalKey{}, true)
 }
 
-// DeliveryMode sets a delivery mode for publishing
 func DeliveryMode(value uint8) broker.PublishOption {
-	return setPublishOption(deliveryMode{}, value)
+	return broker.PublishContextWithValue(deliveryModeKey{}, value)
 }
 
-// Priority sets a priority level for publishing
 func Priority(value uint8) broker.PublishOption {
-	return setPublishOption(priorityKey{}, value)
+	return broker.PublishContextWithValue(priorityKey{}, value)
 }
 
-// ContentType sets a property MIME content type for publishing
 func ContentType(value string) broker.PublishOption {
-	return setPublishOption(contentType{}, value)
+	return broker.PublishContextWithValue(contentTypeKey{}, value)
 }
 
-// ContentEncoding sets a property MIME content encoding for publishing
 func ContentEncoding(value string) broker.PublishOption {
-	return setPublishOption(contentEncoding{}, value)
+	return broker.PublishContextWithValue(contentEncodingKey{}, value)
 }
 
-// CorrelationID sets a property correlation ID for publishing
 func CorrelationID(value string) broker.PublishOption {
-	return setPublishOption(correlationID{}, value)
+	return broker.PublishContextWithValue(correlationIDKey{}, value)
 }
 
-// ReplyTo sets a property address to to reply to (ex: RPC) for publishing
 func ReplyTo(value string) broker.PublishOption {
-	return setPublishOption(replyTo{}, value)
+	return broker.PublishContextWithValue(replyToKey{}, value)
 }
 
-// Expiration sets a property message expiration spec for publishing
 func Expiration(value string) broker.PublishOption {
-	return setPublishOption(expiration{}, value)
+	return broker.PublishContextWithValue(expirationKey{}, value)
 }
 
-// MessageId sets a property message identifier for publishing
 func MessageId(value string) broker.PublishOption {
-	return setPublishOption(messageID{}, value)
+	return broker.PublishContextWithValue(messageIDKey{}, value)
 }
 
-// Timestamp sets a property message timestamp for publishing
 func Timestamp(value time.Time) broker.PublishOption {
-	return setPublishOption(timestamp{}, value)
+	return broker.PublishContextWithValue(timestampKey{}, value)
 }
 
-// TypeMsg sets a property message type name for publishing
 func TypeMsg(value string) broker.PublishOption {
-	return setPublishOption(typeMsg{}, value)
+	return broker.PublishContextWithValue(typeMsgKey{}, value)
 }
 
-// UserID sets a property user id for publishing
 func UserID(value string) broker.PublishOption {
-	return setPublishOption(userID{}, value)
+	return broker.PublishContextWithValue(userIDKey{}, value)
 }
 
-// AppID sets a property application id for publishing
 func AppID(value string) broker.PublishOption {
-	return setPublishOption(appID{}, value)
+	return broker.PublishContextWithValue(appIDKey{}, value)
 }
 
 func ExternalAuth() broker.Option {
-	return setBrokerOption(externalAuth{}, ExternalAuthentication{})
+	return broker.OptionContextWithValue(externalAuthKey{}, ExternalAuthentication{})
 }
 
 type subscribeContextKey struct{}
 
-// SubscribeContext set the context for common.SubscribeOption
 func SubscribeContext(ctx context.Context) broker.SubscribeOption {
-	return setSubscribeOption(subscribeContextKey{}, ctx)
+	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
 }
 
-type ackSuccessKey struct{}
+func SubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
+	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
+	return c, ok
+}
 
-// AckOnSuccess will automatically acknowledge messages when no error is returned
 func AckOnSuccess() broker.SubscribeOption {
-	return setSubscribeOption(ackSuccessKey{}, true)
+	return broker.SubscribeContextWithValue(ackSuccessKey{}, true)
+}
+
+func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
+	b, ok := ctx.Value(ackSuccessKey{}).(bool)
+	return b, ok
 }

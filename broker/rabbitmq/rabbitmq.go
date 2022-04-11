@@ -146,7 +146,7 @@ func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 	}
 
 	if options.Context != nil {
-		if value, ok := options.Context.Value(deliveryMode{}).(uint8); ok {
+		if value, ok := options.Context.Value(deliveryModeKey{}).(uint8); ok {
 			m.DeliveryMode = value
 		}
 
@@ -154,43 +154,43 @@ func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 			m.Priority = value
 		}
 
-		if value, ok := options.Context.Value(contentType{}).(string); ok {
+		if value, ok := options.Context.Value(contentTypeKey{}).(string); ok {
 			m.ContentType = value
 		}
 
-		if value, ok := options.Context.Value(contentEncoding{}).(string); ok {
+		if value, ok := options.Context.Value(contentEncodingKey{}).(string); ok {
 			m.ContentEncoding = value
 		}
 
-		if value, ok := options.Context.Value(correlationID{}).(string); ok {
+		if value, ok := options.Context.Value(correlationIDKey{}).(string); ok {
 			m.CorrelationId = value
 		}
 
-		if value, ok := options.Context.Value(replyTo{}).(string); ok {
+		if value, ok := options.Context.Value(replyToKey{}).(string); ok {
 			m.ReplyTo = value
 		}
 
-		if value, ok := options.Context.Value(expiration{}).(string); ok {
+		if value, ok := options.Context.Value(expirationKey{}).(string); ok {
 			m.Expiration = value
 		}
 
-		if value, ok := options.Context.Value(messageID{}).(string); ok {
+		if value, ok := options.Context.Value(messageIDKey{}).(string); ok {
 			m.MessageId = value
 		}
 
-		if value, ok := options.Context.Value(timestamp{}).(time.Time); ok {
+		if value, ok := options.Context.Value(timestampKey{}).(time.Time); ok {
 			m.Timestamp = value
 		}
 
-		if value, ok := options.Context.Value(typeMsg{}).(string); ok {
+		if value, ok := options.Context.Value(typeMsgKey{}).(string); ok {
 			m.Type = value
 		}
 
-		if value, ok := options.Context.Value(userID{}).(string); ok {
+		if value, ok := options.Context.Value(userIDKey{}).(string); ok {
 			m.UserId = value
 		}
 
-		if value, ok := options.Context.Value(appID{}).(string); ok {
+		if value, ok := options.Context.Value(appIDKey{}).(string); ok {
 			m.AppId = value
 		}
 
@@ -227,7 +227,7 @@ func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...broker
 	}
 
 	ctx := opt.Context
-	if subscribeContext, ok := ctx.Value(subscribeContextKey{}).(context.Context); ok && subscribeContext != nil {
+	if subscribeContext, ok := SubscribeContextFromContext(ctx); ok && subscribeContext != nil {
 		ctx = subscribeContext
 	}
 
@@ -247,7 +247,7 @@ func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...broker
 		headers = h
 	}
 
-	if bval, ok := ctx.Value(ackSuccessKey{}).(bool); ok && bval {
+	if bVal, ok := AckOnSuccessFromContext(ctx); ok && bVal {
 		opt.AutoAck = false
 		ackSuccess = true
 	}
@@ -262,7 +262,7 @@ func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...broker
 			Body:   msg.Body,
 		}
 		p := &publication{d: msg, m: m, t: msg.RoutingKey}
-		p.err = handler(p)
+		p.err = handler(r.opts.Context, p)
 		if p.err == nil && ackSuccess && !opt.AutoAck {
 			_ = msg.Ack(false)
 		} else if p.err != nil && !opt.AutoAck {
@@ -282,7 +282,7 @@ func (r *rcommon) Options() broker.Options {
 	return r.opts
 }
 
-func (r *rcommon) String() string {
+func (r *rcommon) Name() string {
 	return "rabbitmq"
 }
 
@@ -308,7 +308,7 @@ func (r *rcommon) Connect() error {
 
 	conf := defaultAmqpConfig
 
-	if auth, ok := r.opts.Context.Value(externalAuth{}).(ExternalAuthentication); ok {
+	if auth, ok := r.opts.Context.Value(externalAuthKey{}).(ExternalAuthentication); ok {
 		conf.SASL = []amqp.Authentication{&auth}
 	}
 
@@ -327,13 +327,7 @@ func (r *rcommon) Disconnect() error {
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.Options{
-		Context: context.Background(),
-	}
-
-	for _, o := range opts {
-		o(&options)
-	}
+	options := broker.NewOptionsAndApply(opts...)
 
 	return &rcommon{
 		addrs: options.Addrs,
@@ -349,7 +343,7 @@ func (r *rcommon) getExchange() Exchange {
 		ex.Name = e
 	}
 
-	if d, ok := r.opts.Context.Value(durableExchange{}).(bool); ok {
+	if d, ok := r.opts.Context.Value(durableExchangeKey{}).(bool); ok {
 		ex.Durable = d
 	}
 

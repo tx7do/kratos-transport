@@ -13,30 +13,31 @@ var (
 
 type readerConfigKey struct{}
 type writerConfigKey struct{}
-
-func ReaderConfig(c kafka.ReaderConfig) broker.Option {
-	return setBrokerOption(readerConfigKey{}, c)
-}
-
-func WriterConfig(c kafka.WriterConfig) broker.Option {
-	return setBrokerOption(writerConfigKey{}, c)
-}
-
 type subscribeContextKey struct{}
-
-// SubscribeContext set the context for common.SubscribeOption
-func SubscribeContext(ctx context.Context) broker.SubscribeOption {
-	return setSubscribeOption(subscribeContextKey{}, ctx)
-}
-
 type subscribeReaderConfigKey struct{}
-
-func SubscribeReaderConfig(c kafka.ReaderConfig) broker.SubscribeOption {
-	return setSubscribeOption(subscribeReaderConfigKey{}, c)
-}
-
 type subscribeWriterConfigKey struct{}
 
-func SubscribeWriterConfig(c kafka.WriterConfig) broker.SubscribeOption {
-	return setSubscribeOption(subscribeWriterConfigKey{}, c)
+func WithReaderConfig(c kafka.ReaderConfig) broker.Option {
+	return broker.OptionContextWithValue(readerConfigKey{}, c)
+}
+
+func WithWriterConfig(c kafka.WriterConfig) broker.Option {
+	return broker.OptionContextWithValue(writerConfigKey{}, c)
+}
+
+func WithSubscribeContext(ctx context.Context) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
+}
+
+func WithSubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
+	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
+	return c, ok
+}
+
+func WithSubscribeReaderConfig(c kafka.ReaderConfig) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeReaderConfigKey{}, c)
+}
+
+func WithSubscribeWriterConfig(c kafka.WriterConfig) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeWriterConfigKey{}, c)
 }

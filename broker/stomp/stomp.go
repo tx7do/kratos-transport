@@ -29,8 +29,8 @@ func stompHeaderToMap(h *frame.Header) map[string]string {
 }
 
 func (r *rBroker) defaults() {
-	ConnectTimeout(30 * time.Second)(&r.opts)
-	VirtualHost("/")(&r.opts)
+	WithConnectTimeout(30 * time.Second)(&r.opts)
+	WithVirtualHost("/")(&r.opts)
 }
 
 func (r *rBroker) Options() broker.Options {
@@ -48,7 +48,7 @@ func (r *rBroker) Address() string {
 }
 
 func (r *rBroker) Connect() error {
-	connectTimeOut := r.Options().Context.Value(connectTimeoutKey{}).(time.Duration)
+	connectTimeOut, _ := ConnectTimeoutFromContext(r.Options().Context)
 
 	uri, err := url.Parse(r.Address())
 	if err != nil {
@@ -70,15 +70,15 @@ func (r *rBroker) Connect() error {
 		return fmt.Errorf("failed to dial %s: %v", uri.Host, err)
 	}
 
-	if auth, ok := r.Options().Context.Value(authKey{}).(*authRecord); ok && auth != nil {
+	if auth, ok := AuthFromContext(r.Options().Context); ok && auth != nil {
 		stompOpts = append(stompOpts, stomp.ConnOpt.Login(auth.username, auth.password))
 	}
-	if headers, ok := r.Options().Context.Value(connectHeaderKey{}).(map[string]string); ok && headers != nil {
+	if headers, ok := ConnectHeadersFromContext(r.Options().Context); ok && headers != nil {
 		for k, v := range headers {
 			stompOpts = append(stompOpts, stomp.ConnOpt.Header(k, v))
 		}
 	}
-	if host, ok := r.Options().Context.Value(vHostKey{}).(string); ok && host != "" {
+	if host, ok := VirtualHostFromContext(r.Options().Context); ok && host != "" {
 		log.Printf("Adding host: %s", host)
 		stompOpts = append(stompOpts, stomp.ConnOpt.Host(host))
 	}
@@ -98,9 +98,7 @@ func (r *rBroker) Disconnect() error {
 func (r *rBroker) Init(opts ...broker.Option) error {
 	r.defaults()
 
-	for _, o := range opts {
-		o(&r.opts)
-	}
+	r.opts.Apply(opts...)
 
 	return nil
 }
@@ -156,7 +154,7 @@ func (r *rBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	}
 
 	ctx := bOpt.Context
-	if subscribeContext, ok := ctx.Value(subscribeContextKey{}).(context.Context); ok && subscribeContext != nil {
+	if subscribeContext, ok := SubscribeContextFromContext(ctx); ok && subscribeContext != nil {
 		ctx = subscribeContext
 	}
 
@@ -164,13 +162,13 @@ func (r *rBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 		stompOpt = append(stompOpt, stomp.SubscribeOpt.Header("persistent", "true"))
 	}
 
-	if headers, ok := ctx.Value(subscribeHeaderKey{}).(map[string]string); ok && len(headers) > 0 {
+	if headers, ok := SubscribeHeadersFromContext(ctx); ok && len(headers) > 0 {
 		for k, v := range headers {
 			stompOpt = append(stompOpt, stomp.SubscribeOpt.Header(k, v))
 		}
 	}
 
-	if bVal, ok := ctx.Value(ackSuccessKey{}).(bool); ok && bVal {
+	if bVal, ok := AckOnSuccessFromContext(ctx); ok && bVal {
 		bOpt.AutoAck = false
 		ackSuccess = true
 	}
@@ -195,7 +193,7 @@ func (r *rBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 					Body:   msg.Body,
 				}
 				p := &publication{msg: msg, m: m, topic: topic, broker: r}
-				p.err = handler(p)
+				p.err = handler(r.opts.Context, p)
 				if p.err == nil && !bOpt.AutoAck && ackSuccess {
 					_ = msg.Conn.Ack(msg)
 				}
@@ -206,15 +204,15 @@ func (r *rBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	return &subscriber{sub: sub, topic: topic, opts: bOpt}, nil
 }
 
-func (r *rBroker) String() string {
+func (r *rBroker) Name() string {
 	return "stomp"
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.NewOptions()
+
 	r := &rBroker{
-		opts: broker.Options{
-			Context: context.Background(),
-		},
+		opts: options,
 	}
 	_ = r.Init(opts...)
 	return r

@@ -1,7 +1,9 @@
 package broker
 
-type Handler func(Event) error
-type EchoHandler func(Event) (Event, error)
+import "context"
+
+type Handler func(context.Context, Event) error
+type EchoHandler func(context.Context, Event) (Event, error)
 
 type Message struct {
 	Header map[string]string
@@ -29,5 +31,5 @@ type Broker interface {
 	Disconnect() error
 	Publish(topic string, m *Message, opts ...PublishOption) error
 	Subscribe(topic string, h Handler, opts ...SubscribeOption) (Subscriber, error)
-	String() string
+	Name() string
 }

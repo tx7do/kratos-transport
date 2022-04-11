@@ -25,6 +25,6 @@ func (Marshaler) Unmarshal(data []byte, v interface{}) error {
 	return proto.Unmarshal(data, pb)
 }
 
-func (Marshaler) String() string {
+func (Marshaler) Name() string {
 	return "proto"
 }
