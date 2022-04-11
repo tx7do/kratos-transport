@@ -17,7 +17,7 @@ const (
 	EclipseBroker     = "tcp://mqtt.eclipseprojects.io:1883"
 	MosquittoBroker   = "tcp://test.mosquitto.org:1883"
 	HiveMQBroker      = "tcp://broker.hivemq.com:1883"
-	LocalEmxqBroker   = "tcp://127.0.0.1:1883"
+	LocalEmqxBroker   = "tcp://127.0.0.1:1883"
 	LocalRabbitBroker = "tcp://user:bitnami@127.0.0.1:1883"
 )
 
@@ -28,8 +28,11 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := mqtt.NewBroker(
-		broker.Addrs(LocalRabbitBroker),
+		broker.Addrs(LocalEmqxBroker),
 		broker.OptionContext(ctx),
+		mqtt.WithCleanSession(false),
+		mqtt.WithAuth("user", "bitnami"),
+		mqtt.WithClientId("test-client-2"),
 	)
 
 	defer func(b broker.Broker) {
@@ -43,7 +46,11 @@ func main() {
 		fmt.Println(err)
 	}
 
-	_, _ = b.Subscribe("topic/bobo/#", receive,
+	topic := "topic/bobo/#"
+	//topicSharedGroup := "$share/g1/topic/bobo/#"
+	//topicSharedQueue := "$queue/topic/bobo/#"
+
+	_, _ = b.Subscribe(topic, receive,
 		broker.SubscribeContext(ctx),
 	)
 
