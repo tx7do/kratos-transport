@@ -21,7 +21,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		Address("127.0.0.1:9092"),
-		Subscribe("logger.sensor.ts", "fx-group", receive),
+		Subscribe(ctx, "logger.sensor.ts", "fx-group", false, receive),
 	)
 
 	if err := srv.Start(ctx); err != nil {

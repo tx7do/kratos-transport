@@ -122,9 +122,21 @@ func (s *Server) Stop(_ context.Context) error {
 	return s.Disconnect()
 }
 
-func (s *Server) RegisterSubscriber(topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
+// RegisterSubscriber 注册一个订阅者
+// @param ctx 上下文
+// @param topic 订阅的主题
+// @param queue 订阅的分组
+// @param handler 订阅者的处理函数
+func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, disableAutoAck bool, h broker.Handler) error {
 	s.Lock()
 	defer s.Unlock()
+
+	var opts []broker.SubscribeOption
+	opts = append(opts, broker.Queue(queue))
+	opts = append(opts, broker.SubscribeContext(ctx))
+	if disableAutoAck {
+		opts = append(opts, broker.DisableAutoAck())
+	}
 
 	if s.started {
 		return s.doRegisterSubscriber(topic, h, opts...)

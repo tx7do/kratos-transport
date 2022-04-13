@@ -30,15 +30,8 @@ func TLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
-func Subscribe(topic, queue string, h broker.Handler) ServerOption {
+func Subscribe(ctx context.Context, topic, queue string, disableAutoAck bool, h broker.Handler) ServerOption {
 	return func(s *Server) {
-		if s.baseCtx == nil {
-			s.baseCtx = context.Background()
-		}
-
-		_ = s.RegisterSubscriber(topic, h,
-			broker.SubscribeContext(s.baseCtx),
-			broker.Queue(queue),
-		)
+		_ = s.RegisterSubscriber(ctx, topic, queue, disableAutoAck, h)
 	}
 }
