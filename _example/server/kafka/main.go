@@ -11,11 +11,11 @@ import (
 )
 
 func main() {
-	//ctx := context.Background()
+	ctx := context.Background()
 
 	kafkaSrv := kafka.NewServer(
 		kafka.Address("127.0.0.1:9092"),
-		kafka.Subscribe("test_topic", "a-group", receive),
+		kafka.Subscribe(ctx, "test_topic", "a-group", false, receive),
 	)
 
 	app := kratos.New(

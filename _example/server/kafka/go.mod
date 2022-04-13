@@ -3,9 +3,6 @@ module github.com/tx7do/kratos-transport/_example/kafka
 go 1.16
 
 require (
-	github.com/go-kratos/kratos/v2 v2.2.0
-	github.com/klauspost/compress v1.15.1 // indirect
-	github.com/tx7do/kratos-transport v0.0.0-20220411063519-5a1a6d64800e
-	google.golang.org/genproto v0.0.0-20220310185008-1973136f34c6 // indirect
-	google.golang.org/grpc v1.45.0 // indirect
+	github.com/go-kratos/kratos/v2 v2.2.1
+	github.com/tx7do/kratos-transport v0.0.0-20220413073126-73593d4e7b3e
 )
