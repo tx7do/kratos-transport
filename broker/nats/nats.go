@@ -3,12 +3,12 @@ package nats
 import (
 	"context"
 	"errors"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/tx7do/kratos-transport/broker"
 	"strings"
 	"sync"
 
-	"github.com/nats-io/nats.go"
+	"github.com/go-kratos/kratos/v2/log"
+	NATS "github.com/nats-io/nats.go"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 type natsBroker struct {
@@ -18,9 +18,9 @@ type natsBroker struct {
 	connected bool
 
 	addrs []string
-	conn  *nats.Conn
+	conn  *NATS.Conn
 	opts  broker.Options
-	nopts nats.Options
+	nopts NATS.Options
 
 	log *log.Helper
 
@@ -37,6 +37,16 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	n.setOption(opts...)
 
 	return n
+}
+
+func natsHeaderToMap(h NATS.Header) map[string]string {
+	m := map[string]string{}
+
+	for k, v := range h {
+		m[k] = v[0]
+	}
+
+	return m
 }
 
 func (n *natsBroker) Address() string {
@@ -64,7 +74,7 @@ func (n *natsBroker) setAddrs(addrs []string) []string {
 		cAddrs = append(cAddrs, addr)
 	}
 	if len(cAddrs) == 0 {
-		cAddrs = []string{nats.DefaultURL}
+		cAddrs = []string{NATS.DefaultURL}
 	}
 	return cAddrs
 }
@@ -77,13 +87,13 @@ func (n *natsBroker) Connect() error {
 		return nil
 	}
 
-	status := nats.CLOSED
+	status := NATS.CLOSED
 	if n.conn != nil {
 		status = n.conn.Status()
 	}
 
 	switch status {
-	case nats.CONNECTED, nats.RECONNECTING, nats.CONNECTING:
+	case NATS.CONNECTED, NATS.RECONNECTING, NATS.CONNECTING:
 		n.connected = true
 		return nil
 	default: // DISCONNECTED or CLOSED or DRAINING
@@ -171,10 +181,12 @@ func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...bro
 		o(&opt)
 	}
 
-	fn := func(msg *nats.Msg) {
+	fn := func(msg *NATS.Msg) {
 		var m broker.Message
 		pub := &publication{t: msg.Subject}
 		eh := n.opts.ErrorHandler
+
+		m.Header = natsHeaderToMap(msg.Header)
 
 		var err error
 		if n.opts.Codec != nil {
@@ -202,7 +214,7 @@ func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...bro
 		}
 	}
 
-	var sub *nats.Subscription
+	var sub *NATS.Subscription
 	var err error
 
 	n.RLock()
@@ -228,10 +240,10 @@ func (n *natsBroker) setOption(opts ...broker.Option) {
 	}
 
 	n.Once.Do(func() {
-		n.nopts = nats.GetDefaultOptions()
+		n.nopts = NATS.GetDefaultOptions()
 	})
 
-	if nopts, ok := n.opts.Context.Value(optionsKey{}).(nats.Options); ok {
+	if nopts, ok := n.opts.Context.Value(optionsKey{}).(NATS.Options); ok {
 		n.nopts = nopts
 	}
 
@@ -260,16 +272,16 @@ func (n *natsBroker) setOption(opts ...broker.Option) {
 	}
 }
 
-func (n *natsBroker) onClose(_ *nats.Conn) {
+func (n *natsBroker) onClose(_ *NATS.Conn) {
 	n.closeCh <- nil
 }
 
-func (n *natsBroker) onAsyncError(_ *nats.Conn, _ *nats.Subscription, err error) {
-	if err == nats.ErrDrainTimeout {
+func (n *natsBroker) onAsyncError(_ *NATS.Conn, _ *NATS.Subscription, err error) {
+	if err == NATS.ErrDrainTimeout {
 		n.closeCh <- err
 	}
 }
 
-func (n *natsBroker) onDisconnectedError(_ *nats.Conn, err error) {
+func (n *natsBroker) onDisconnectedError(_ *NATS.Conn, err error) {
 	n.closeCh <- err
 }

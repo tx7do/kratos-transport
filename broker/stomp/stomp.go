@@ -19,6 +19,16 @@ type stompBroker struct {
 	stompConn *stomp.Conn
 }
 
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.NewOptions()
+
+	r := &stompBroker{
+		opts: options,
+	}
+	_ = r.Init(opts...)
+	return r
+}
+
 func stompHeaderToMap(h *frame.Header) map[string]string {
 	m := map[string]string{}
 	for i := 0; i < h.Len(); i++ {
@@ -206,14 +216,4 @@ func (r *stompBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 
 func (r *stompBroker) Name() string {
 	return "stomp"
-}
-
-func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.NewOptions()
-
-	r := &stompBroker{
-		opts: options,
-	}
-	_ = r.Init(opts...)
-	return r
 }

@@ -7,21 +7,61 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
-	"github.com/segmentio/kafka-go"
+	KAFKA "github.com/segmentio/kafka-go"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
 type kafkaBroker struct {
 	addrs []string
 
-	readerConfig kafka.ReaderConfig
-	writers      map[string]*kafka.Writer
+	readerConfig KAFKA.ReaderConfig
+	writers      map[string]*KAFKA.Writer
 
 	log *log.Helper
 
 	connected bool
 	sync.RWMutex
 	opts broker.Options
+}
+
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.NewOptionsAndApply(opts...)
+
+	var cAddrs []string
+	for _, addr := range options.Addrs {
+		if len(addr) == 0 {
+			continue
+		}
+		cAddrs = append(cAddrs, addr)
+	}
+	if len(cAddrs) == 0 {
+		cAddrs = []string{"127.0.0.1:9092"}
+	}
+
+	readerConfig := KAFKA.ReaderConfig{}
+	if cfg, ok := options.Context.Value(readerConfigKey{}).(KAFKA.ReaderConfig); ok {
+		readerConfig = cfg
+	}
+	if len(readerConfig.Brokers) == 0 {
+		readerConfig.Brokers = cAddrs
+	}
+	readerConfig.WatchPartitionChanges = true
+
+	return &kafkaBroker{
+		readerConfig: readerConfig,
+		writers:      make(map[string]*KAFKA.Writer),
+		addrs:        cAddrs,
+		opts:         options,
+		log:          log.NewHelper(log.GetLogger()),
+	}
+}
+
+func kafkaHeaderToMap(h []KAFKA.Header) map[string]string {
+	m := map[string]string{}
+	for _, v := range h {
+		m[v.Key] = string(v.Value)
+	}
+	return m
 }
 
 func (k *kafkaBroker) Address() string {
@@ -41,7 +81,7 @@ func (k *kafkaBroker) Connect() error {
 
 	kAddrs := make([]string, 0, len(k.addrs))
 	for _, addr := range k.addrs {
-		conn, err := kafka.DialContext(k.opts.Context, "tcp", addr)
+		conn, err := KAFKA.DialContext(k.opts.Context, "tcp", addr)
 		if err != nil {
 			continue
 		}
@@ -121,15 +161,15 @@ func (k *kafkaBroker) Publish(topic string, msg *broker.Message, opts ...broker.
 		buf = msg.Body
 	}
 
-	kMsg := kafka.Message{Topic: topic, Value: buf}
+	kMsg := KAFKA.Message{Topic: topic, Value: buf}
 
 	k.Lock()
 	writer, ok := k.writers[topic]
 	if !ok {
 		writer =
-			&kafka.Writer{
-				Addr:     kafka.TCP(k.addrs...),
-				Balancer: &kafka.LeastBytes{},
+			&KAFKA.Writer{
+				Addr:     KAFKA.TCP(k.addrs...),
+				Balancer: &KAFKA.LeastBytes{},
 			}
 		k.writers[topic] = writer
 	} else {
@@ -141,7 +181,7 @@ func (k *kafkaBroker) Publish(topic string, msg *broker.Message, opts ...broker.
 	if err != nil {
 		switch cached {
 		case false:
-			if kerr, ok := err.(kafka.Error); ok {
+			if kerr, ok := err.(KAFKA.Error); ok {
 				if kerr.Temporary() && !kerr.Timeout() {
 					time.Sleep(200 * time.Millisecond)
 					err = writer.WriteMessages(k.opts.Context, kMsg)
@@ -156,9 +196,9 @@ func (k *kafkaBroker) Publish(topic string, msg *broker.Message, opts ...broker.
 			delete(k.writers, topic)
 			k.Unlock()
 
-			writer := &kafka.Writer{
-				Addr:     kafka.TCP(k.addrs...),
-				Balancer: &kafka.LeastBytes{},
+			writer := &KAFKA.Writer{
+				Addr:     KAFKA.TCP(k.addrs...),
+				Balancer: &KAFKA.LeastBytes{},
 			}
 			if err = writer.WriteMessages(k.opts.Context, kMsg); err == nil {
 				k.Lock()
@@ -188,7 +228,7 @@ func (k *kafkaBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 		opts:    opt,
 		topic:   topic,
 		handler: handler,
-		reader:  kafka.NewReader(readerConfig),
+		reader:  KAFKA.NewReader(readerConfig),
 	}
 
 	go func() {
@@ -206,6 +246,7 @@ func (k *kafkaBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 				var m broker.Message
 				p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, km: msg, ctx: opt.Context}
 
+				m.Header = kafkaHeaderToMap(msg.Headers)
 				if k.opts.Codec != nil {
 					if err := k.opts.Codec.Unmarshal(msg.Value, &m); err != nil {
 						p.err = err
@@ -232,36 +273,4 @@ func (k *kafkaBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 
 func (k *kafkaBroker) Name() string {
 	return "kafka"
-}
-
-func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.NewOptionsAndApply(opts...)
-
-	var cAddrs []string
-	for _, addr := range options.Addrs {
-		if len(addr) == 0 {
-			continue
-		}
-		cAddrs = append(cAddrs, addr)
-	}
-	if len(cAddrs) == 0 {
-		cAddrs = []string{"127.0.0.1:9092"}
-	}
-
-	readerConfig := kafka.ReaderConfig{}
-	if cfg, ok := options.Context.Value(readerConfigKey{}).(kafka.ReaderConfig); ok {
-		readerConfig = cfg
-	}
-	if len(readerConfig.Brokers) == 0 {
-		readerConfig.Brokers = cAddrs
-	}
-	readerConfig.WatchPartitionChanges = true
-
-	return &kafkaBroker{
-		readerConfig: readerConfig,
-		writers:      make(map[string]*kafka.Writer),
-		addrs:        cAddrs,
-		opts:         options,
-		log:          log.NewHelper(log.GetLogger()),
-	}
 }

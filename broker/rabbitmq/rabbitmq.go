@@ -30,6 +30,14 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	}
 }
 
+func rabbitHeaderToMap(h amqp.Table) map[string]string {
+	headers := make(map[string]string)
+	for k, v := range h {
+		headers[k], _ = v.(string)
+	}
+	return headers
+}
+
 func (r *rabbitBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	m := amqp.Publishing{
 		Body:    msg.Body,
@@ -149,12 +157,8 @@ func (r *rabbitBroker) Subscribe(topic string, handler broker.Handler, opts ...b
 	}
 
 	fn := func(msg amqp.Delivery) {
-		header := make(map[string]string)
-		for k, v := range msg.Headers {
-			header[k], _ = v.(string)
-		}
 		m := &broker.Message{
-			Header: header,
+			Header: rabbitHeaderToMap(msg.Headers),
 			Body:   msg.Body,
 		}
 		p := &publication{d: msg, m: m, t: msg.RoutingKey}

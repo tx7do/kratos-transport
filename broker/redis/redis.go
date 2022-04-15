@@ -21,7 +21,6 @@ type redisBroker struct {
 // protocol. The connection address may be a fully qualified IANA address such
 // as: redis://user:secret@localhost:6379/0?foo=bar&qux=baz
 func NewBroker(opts ...broker.Option) broker.Broker {
-	// Default options.
 	bOpts := &commonOptions{
 		maxIdle:        DefaultMaxIdle,
 		maxActive:      DefaultMaxActive,
