@@ -3,108 +3,43 @@ package redis
 import (
 	"errors"
 	"fmt"
-	"github.com/gomodule/redigo/redis"
-	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/codec"
 	"strings"
 	"time"
+
+	"github.com/gomodule/redigo/redis"
+	"github.com/tx7do/kratos-transport/broker"
 )
-
-type publication struct {
-	topic   string
-	message *broker.Message
-	err     error
-}
-
-func (p *publication) Topic() string {
-	return p.topic
-}
-
-func (p *publication) Message() *broker.Message {
-	return p.message
-}
-
-func (p *publication) Ack() error {
-	return nil
-}
-
-func (p *publication) Error() error {
-	return p.err
-}
-
-type subscriber struct {
-	codec  codec.Marshaler
-	conn   *redis.PubSubConn
-	topic  string
-	handle broker.Handler
-	opts   broker.SubscribeOptions
-}
-
-func (s *subscriber) recv() {
-	defer func(conn *redis.PubSubConn) {
-		err := conn.Close()
-		if err != nil {
-
-		}
-	}(s.conn)
-
-	for {
-		switch x := s.conn.Receive().(type) {
-		case redis.Message:
-			var m broker.Message
-
-			if s.codec != nil {
-				if err := s.codec.Unmarshal(x.Data, &m); err != nil {
-					break
-				}
-			} else {
-				m.Body = x.Data
-			}
-
-			p := publication{
-				topic:   x.Channel,
-				message: &m,
-			}
-
-			if p.err = s.handle(s.opts.Context, &p); p.err != nil {
-				break
-			}
-
-			if s.opts.AutoAck {
-				if err := p.Ack(); err != nil {
-					break
-				}
-			}
-
-		case redis.Subscription:
-			if x.Count == 0 {
-				return
-			}
-
-		case error:
-			fmt.Printf("redis recv error: %s\n", x.Error())
-			return
-		}
-	}
-}
-
-func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
-}
-
-func (s *subscriber) Topic() string {
-	return s.topic
-}
-
-func (s *subscriber) Unsubscribe() error {
-	return s.conn.Unsubscribe()
-}
 
 type redisBroker struct {
 	addr  string
 	pool  *redis.Pool
 	opts  broker.Options
 	bOpts *commonOptions
+}
+
+// NewBroker returns a new common implemented using the Redis pub/sub
+// protocol. The connection address may be a fully qualified IANA address such
+// as: redis://user:secret@localhost:6379/0?foo=bar&qux=baz
+func NewBroker(opts ...broker.Option) broker.Broker {
+	// Default options.
+	bOpts := &commonOptions{
+		maxIdle:        DefaultMaxIdle,
+		maxActive:      DefaultMaxActive,
+		idleTimeout:    DefaultIdleTimeout,
+		connectTimeout: DefaultConnectTimeout,
+		readTimeout:    DefaultReadTimeout,
+		writeTimeout:   DefaultWriteTimeout,
+	}
+
+	options := broker.NewOptions()
+
+	opts = append(opts, WithCommonOptions())
+	options.Apply(opts...)
+
+	return &redisBroker{
+		opts:  options,
+		bOpts: bOpts,
+	}
 }
 
 func (b *redisBroker) Name() string {
@@ -219,29 +154,4 @@ func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 	}
 
 	return &s, nil
-}
-
-// NewBroker returns a new common implemented using the Redis pub/sub
-// protocol. The connection address may be a fully qualified IANA address such
-// as: redis://user:secret@localhost:6379/0?foo=bar&qux=baz
-func NewBroker(opts ...broker.Option) broker.Broker {
-	// Default options.
-	bOpts := &commonOptions{
-		maxIdle:        DefaultMaxIdle,
-		maxActive:      DefaultMaxActive,
-		idleTimeout:    DefaultIdleTimeout,
-		connectTimeout: DefaultConnectTimeout,
-		readTimeout:    DefaultReadTimeout,
-		writeTimeout:   DefaultWriteTimeout,
-	}
-
-	options := broker.NewOptions()
-
-	opts = append(opts, WithCommonOptions())
-	options.Apply(opts...)
-
-	return &redisBroker{
-		opts:  options,
-		bOpts: bOpts,
-	}
 }

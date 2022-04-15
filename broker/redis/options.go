@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+type optionsKeyType struct{}
+
 var (
 	DefaultMaxActive      = 0
 	DefaultMaxIdle        = 5
@@ -18,7 +20,6 @@ var (
 	optionsKey = optionsKeyType{}
 )
 
-// options contain additional options for the common.
 type commonOptions struct {
 	maxIdle        int
 	maxActive      int
@@ -27,8 +28,6 @@ type commonOptions struct {
 	readTimeout    time.Duration
 	writeTimeout   time.Duration
 }
-
-type optionsKeyType struct{}
 
 func ConnectTimeout(d time.Duration) broker.Option {
 	return func(o *broker.Options) {

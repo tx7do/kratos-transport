@@ -1,18 +1,17 @@
 package kafka
 
 import (
-	"context"
 	"errors"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/tx7do/kratos-transport/broker"
 	"sync"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
-type kBroker struct {
+type kafkaBroker struct {
 	addrs []string
 
 	readerConfig kafka.ReaderConfig
@@ -25,66 +24,14 @@ type kBroker struct {
 	opts broker.Options
 }
 
-type subscriber struct {
-	k       *kBroker
-	topic   string
-	opts    broker.SubscribeOptions
-	handler broker.Handler
-	reader  *kafka.Reader
-	closed  bool
-	done    chan struct{}
-	sync.RWMutex
-}
-
-type publication struct {
-	topic  string
-	err    error
-	m      *broker.Message
-	ctx    context.Context
-	reader *kafka.Reader
-	km     kafka.Message
-}
-
-func (p *publication) Topic() string {
-	return p.topic
-}
-
-func (p *publication) Message() *broker.Message {
-	return p.m
-}
-
-func (p *publication) Ack() error {
-	return p.reader.CommitMessages(p.ctx, p.km)
-}
-
-func (p *publication) Error() error {
-	return p.err
-}
-
-func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
-}
-
-func (s *subscriber) Topic() string {
-	return s.topic
-}
-
-func (s *subscriber) Unsubscribe() error {
-	var err error
-	s.Lock()
-	defer s.Unlock()
-	s.closed = true
-	return err
-}
-
-func (k *kBroker) Address() string {
+func (k *kafkaBroker) Address() string {
 	if len(k.addrs) > 0 {
 		return k.addrs[0]
 	}
 	return "127.0.0.1:9092"
 }
 
-func (k *kBroker) Connect() error {
+func (k *kafkaBroker) Connect() error {
 	k.RLock()
 	if k.connected {
 		k.RUnlock()
@@ -119,7 +66,7 @@ func (k *kBroker) Connect() error {
 	return nil
 }
 
-func (k *kBroker) Disconnect() error {
+func (k *kafkaBroker) Disconnect() error {
 	k.RLock()
 	if !k.connected {
 		k.RUnlock()
@@ -139,7 +86,7 @@ func (k *kBroker) Disconnect() error {
 	return nil
 }
 
-func (k *kBroker) Init(opts ...broker.Option) error {
+func (k *kafkaBroker) Init(opts ...broker.Option) error {
 	k.opts.Apply(opts...)
 
 	var cAddrs []string
@@ -156,11 +103,11 @@ func (k *kBroker) Init(opts ...broker.Option) error {
 	return nil
 }
 
-func (k *kBroker) Options() broker.Options {
+func (k *kafkaBroker) Options() broker.Options {
 	return k.opts
 }
 
-func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (k *kafkaBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	var cached bool
 
 	var buf []byte
@@ -224,7 +171,7 @@ func (k *kBroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 	return err
 }
 
-func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (k *kafkaBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	opt := broker.SubscribeOptions{
 		AutoAck: true,
 		Queue:   uuid.New().String(),
@@ -283,7 +230,7 @@ func (k *kBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	return sub, nil
 }
 
-func (k *kBroker) Name() string {
+func (k *kafkaBroker) Name() string {
 	return "kafka"
 }
 
@@ -310,7 +257,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	}
 	readerConfig.WatchPartitionChanges = true
 
-	return &kBroker{
+	return &kafkaBroker{
 		readerConfig: readerConfig,
 		writers:      make(map[string]*kafka.Writer),
 		addrs:        cAddrs,

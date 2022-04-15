@@ -28,43 +28,15 @@ type natsBroker struct {
 	closeCh chan error
 }
 
-type subscriber struct {
-	s    *nats.Subscription
-	opts broker.SubscribeOptions
-}
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.NewOptionsAndApply(opts...)
 
-type publication struct {
-	t   string
-	err error
-	m   *broker.Message
-}
+	n := &natsBroker{
+		opts: options,
+	}
+	n.setOption(opts...)
 
-func (p *publication) Topic() string {
-	return p.t
-}
-
-func (p *publication) Message() *broker.Message {
-	return p.m
-}
-
-func (p *publication) Ack() error {
-	return nil
-}
-
-func (p *publication) Error() error {
-	return p.err
-}
-
-func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
-}
-
-func (s *subscriber) Topic() string {
-	return s.s.Subject
-}
-
-func (s *subscriber) Unsubscribe() error {
-	return s.s.Unsubscribe()
+	return n
 }
 
 func (n *natsBroker) Address() string {
@@ -300,15 +272,4 @@ func (n *natsBroker) onAsyncError(_ *nats.Conn, _ *nats.Subscription, err error)
 
 func (n *natsBroker) onDisconnectedError(_ *nats.Conn, err error) {
 	n.closeCh <- err
-}
-
-func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.NewOptionsAndApply(opts...)
-
-	n := &natsBroker{
-		opts: options,
-	}
-	n.setOption(opts...)
-
-	return n
 }

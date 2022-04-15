@@ -14,7 +14,7 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-type rBroker struct {
+type stompBroker struct {
 	opts      broker.Options
 	stompConn *stomp.Conn
 }
@@ -28,26 +28,26 @@ func stompHeaderToMap(h *frame.Header) map[string]string {
 	return m
 }
 
-func (r *rBroker) defaults() {
+func (r *stompBroker) defaults() {
 	WithConnectTimeout(30 * time.Second)(&r.opts)
 	WithVirtualHost("/")(&r.opts)
 }
 
-func (r *rBroker) Options() broker.Options {
+func (r *stompBroker) Options() broker.Options {
 	if r.opts.Context == nil {
 		r.opts.Context = context.Background()
 	}
 	return r.opts
 }
 
-func (r *rBroker) Address() string {
+func (r *stompBroker) Address() string {
 	if len(r.opts.Addrs) > 0 {
 		return r.opts.Addrs[0]
 	}
 	return ""
 }
 
-func (r *rBroker) Connect() error {
+func (r *stompBroker) Connect() error {
 	connectTimeOut, _ := ConnectTimeoutFromContext(r.Options().Context)
 
 	uri, err := url.Parse(r.Address())
@@ -91,11 +91,11 @@ func (r *rBroker) Connect() error {
 	return nil
 }
 
-func (r *rBroker) Disconnect() error {
+func (r *stompBroker) Disconnect() error {
 	return r.stompConn.Disconnect()
 }
 
-func (r *rBroker) Init(opts ...broker.Option) error {
+func (r *stompBroker) Init(opts ...broker.Option) error {
 	r.defaults()
 
 	r.opts.Apply(opts...)
@@ -103,7 +103,7 @@ func (r *rBroker) Init(opts ...broker.Option) error {
 	return nil
 }
 
-func (r *rBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (r *stompBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	if r.stompConn == nil {
 		return errors.New("not connected")
 	}
@@ -135,7 +135,7 @@ func (r *rBroker) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 	return nil
 }
 
-func (r *rBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (r *stompBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	var ackSuccess bool
 
 	if r.stompConn == nil {
@@ -204,14 +204,14 @@ func (r *rBroker) Subscribe(topic string, handler broker.Handler, opts ...broker
 	return &subscriber{sub: sub, topic: topic, opts: bOpt}, nil
 }
 
-func (r *rBroker) Name() string {
+func (r *stompBroker) Name() string {
 	return "stomp"
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptions()
 
-	r := &rBroker{
+	r := &stompBroker{
 		opts: options,
 	}
 	_ = r.Init(opts...)

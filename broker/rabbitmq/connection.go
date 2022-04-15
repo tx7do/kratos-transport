@@ -29,10 +29,10 @@ var (
 	}
 )
 
-type rabbitMQConn struct {
+type rabbitConn struct {
 	Connection      *amqp.Connection
-	Channel         *rabbitMQChannel
-	ExchangeChannel *rabbitMQChannel
+	Channel         *rabbitChannel
+	ExchangeChannel *rabbitChannel
 	exchange        Exchange
 	url             string
 	prefetchCount   int
@@ -52,7 +52,7 @@ type Exchange struct {
 	Durable bool
 }
 
-func newRabbitMQConn(ex Exchange, urls []string, prefetchCount int, prefetchGlobal bool) *rabbitMQConn {
+func newRabbitMQConn(ex Exchange, urls []string, prefetchCount int, prefetchGlobal bool) *rabbitConn {
 	var url string
 
 	if len(urls) > 0 && regexp.MustCompile("^amqp(s)?://.*").MatchString(urls[0]) {
@@ -61,7 +61,7 @@ func newRabbitMQConn(ex Exchange, urls []string, prefetchCount int, prefetchGlob
 		url = DefaultRabbitURL
 	}
 
-	ret := &rabbitMQConn{
+	ret := &rabbitConn{
 		exchange:       ex,
 		url:            url,
 		prefetchCount:  prefetchCount,
@@ -74,7 +74,7 @@ func newRabbitMQConn(ex Exchange, urls []string, prefetchCount int, prefetchGlob
 	return ret
 }
 
-func (r *rabbitMQConn) connect(secure bool, config *amqp.Config) error {
+func (r *rabbitConn) connect(secure bool, config *amqp.Config) error {
 	if err := r.tryConnect(secure, config); err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (r *rabbitMQConn) connect(secure bool, config *amqp.Config) error {
 	return nil
 }
 
-func (r *rabbitMQConn) reconnect(secure bool, config *amqp.Config) {
+func (r *rabbitConn) reconnect(secure bool, config *amqp.Config) {
 	var connect bool
 
 	for {
@@ -137,7 +137,7 @@ func (r *rabbitMQConn) reconnect(secure bool, config *amqp.Config) {
 	}
 }
 
-func (r *rabbitMQConn) Connect(secure bool, config *amqp.Config) error {
+func (r *rabbitConn) Connect(secure bool, config *amqp.Config) error {
 	r.Lock()
 
 	if r.connected {
@@ -156,7 +156,7 @@ func (r *rabbitMQConn) Connect(secure bool, config *amqp.Config) error {
 	return r.connect(secure, config)
 }
 
-func (r *rabbitMQConn) Close() error {
+func (r *rabbitConn) Close() error {
 	r.Lock()
 	defer r.Unlock()
 
@@ -171,7 +171,7 @@ func (r *rabbitMQConn) Close() error {
 	return r.Connection.Close()
 }
 
-func (r *rabbitMQConn) tryConnect(secure bool, config *amqp.Config) error {
+func (r *rabbitConn) tryConnect(secure bool, config *amqp.Config) error {
 	var err error
 
 	if config == nil {
@@ -210,7 +210,7 @@ func (r *rabbitMQConn) tryConnect(secure bool, config *amqp.Config) error {
 	return err
 }
 
-func (r *rabbitMQConn) Consume(queue, key string, headers amqp.Table, qArgs amqp.Table, autoAck, durableQueue bool) (*rabbitMQChannel, <-chan amqp.Delivery, error) {
+func (r *rabbitConn) Consume(queue, key string, headers amqp.Table, qArgs amqp.Table, autoAck, durableQueue bool) (*rabbitChannel, <-chan amqp.Delivery, error) {
 	consumerChannel, err := newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal)
 	if err != nil {
 		return nil, nil, err
@@ -239,6 +239,6 @@ func (r *rabbitMQConn) Consume(queue, key string, headers amqp.Table, qArgs amqp
 	return consumerChannel, deliveries, nil
 }
 
-func (r *rabbitMQConn) Publish(exchange, key string, msg amqp.Publishing) error {
+func (r *rabbitConn) Publish(exchange, key string, msg amqp.Publishing) error {
 	return r.ExchangeChannel.Publish(exchange, key, msg)
 }

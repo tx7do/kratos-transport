@@ -1,20 +1,19 @@
-package stomp
+package rabbitmq
 
 import (
-	"github.com/go-stomp/stomp/v3"
+	"github.com/streadway/amqp"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
 type publication struct {
-	msg    *stomp.Message
-	m      *broker.Message
-	broker *stompBroker
-	topic  string
-	err    error
+	d   amqp.Delivery
+	m   *broker.Message
+	t   string
+	err error
 }
 
 func (p *publication) Ack() error {
-	return p.broker.stompConn.Ack(p.msg)
+	return p.d.Ack(false)
 }
 
 func (p *publication) Error() error {
@@ -22,7 +21,7 @@ func (p *publication) Error() error {
 }
 
 func (p *publication) Topic() string {
-	return p.topic
+	return p.t
 }
 
 func (p *publication) Message() *broker.Message {

@@ -7,41 +7,50 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nsqio/go-nsq"
+	NSQ "github.com/nsqio/go-nsq"
 	"github.com/tx7do/kratos-transport/broker"
+)
+
+var (
+	DefaultConcurrentHandlers = 1
 )
 
 type nsqBroker struct {
 	lookupAddrs []string
 	addrs       []string
 	opts        broker.Options
-	config      *nsq.Config
+	config      *NSQ.Config
 
 	sync.Mutex
 	running bool
-	p       []*nsq.Producer
+	p       []*NSQ.Producer
 	c       []*subscriber
 }
 
-type publication struct {
-	topic string
-	m     *broker.Message
-	nm    *nsq.Message
-	opts  broker.PublishOptions
-	err   error
-}
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.NewOptionsAndApply(opts...)
 
-type subscriber struct {
-	topic string
-	opts  broker.SubscribeOptions
-	c     *nsq.Consumer
-	h     nsq.HandlerFunc
-	n     int
-}
+	var addrs []string
 
-var (
-	DefaultConcurrentHandlers = 1
-)
+	for _, addr := range options.Addrs {
+		if len(addr) > 0 {
+			addrs = append(addrs, addr)
+		}
+	}
+
+	if len(addrs) == 0 {
+		addrs = []string{"127.0.0.1:4150"}
+	}
+
+	n := &nsqBroker{
+		addrs:  addrs,
+		opts:   options,
+		config: NSQ.NewConfig(),
+	}
+	n.configure(n.opts.Context)
+
+	return n
+}
 
 func (n *nsqBroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
@@ -71,7 +80,7 @@ func (n *nsqBroker) configure(ctx context.Context) {
 	}
 
 	if v, ok := ctx.Value(consumerOptsKey{}).([]string); ok {
-		cfgFlag := &nsq.ConfigFlag{Config: n.config}
+		cfgFlag := &NSQ.ConfigFlag{Config: n.config}
 		for _, opt := range v {
 			_ = cfgFlag.Set(opt)
 		}
@@ -94,10 +103,10 @@ func (n *nsqBroker) Connect() error {
 		return nil
 	}
 
-	producers := make([]*nsq.Producer, 0, len(n.addrs))
+	producers := make([]*NSQ.Producer, 0, len(n.addrs))
 
 	for _, addr := range n.addrs {
-		p, err := nsq.NewProducer(addr, n.config)
+		p, err := NSQ.NewProducer(addr, n.config)
 		if err != nil {
 			return err
 		}
@@ -113,7 +122,7 @@ func (n *nsqBroker) Connect() error {
 			channel = uuid.New().String() + "#ephemeral"
 		}
 
-		cm, err := nsq.NewConsumer(c.topic, channel, n.config)
+		cm, err := NSQ.NewConsumer(c.topic, channel, n.config)
 		if err != nil {
 			return err
 		}
@@ -177,11 +186,11 @@ func (n *nsqBroker) Publish(topic string, message *broker.Message, opts ...broke
 	}
 
 	var (
-		doneChan chan *nsq.ProducerTransaction
+		doneChan chan *NSQ.ProducerTransaction
 		delay    time.Duration
 	)
 	if options.Context != nil {
-		if v, ok := options.Context.Value(asyncPublishKey{}).(chan *nsq.ProducerTransaction); ok {
+		if v, ok := options.Context.Value(asyncPublishKey{}).(chan *NSQ.ProducerTransaction); ok {
 			doneChan = v
 		}
 		if v, ok := options.Context.Value(deferredPublishKey{}).(time.Duration); ok {
@@ -238,12 +247,12 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 	config := *n.config
 	config.MaxInFlight = maxInFlight
 
-	c, err := nsq.NewConsumer(topic, channel, &config)
+	c, err := NSQ.NewConsumer(topic, channel, &config)
 	if err != nil {
 		return nil, err
 	}
 
-	h := nsq.HandlerFunc(func(nm *nsq.Message) error {
+	h := NSQ.HandlerFunc(func(nm *NSQ.Message) error {
 		if !options.AutoAck {
 			nm.DisableAutoResponse()
 		}
@@ -289,59 +298,4 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 
 func (n *nsqBroker) Name() string {
 	return "nsq"
-}
-
-func (p *publication) Topic() string {
-	return p.topic
-}
-
-func (p *publication) Message() *broker.Message {
-	return p.m
-}
-
-func (p *publication) Ack() error {
-	p.nm.Finish()
-	return nil
-}
-
-func (p *publication) Error() error {
-	return p.err
-}
-
-func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
-}
-
-func (s *subscriber) Topic() string {
-	return s.topic
-}
-
-func (s *subscriber) Unsubscribe() error {
-	s.c.Stop()
-	return nil
-}
-
-func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.NewOptionsAndApply(opts...)
-
-	var addrs []string
-
-	for _, addr := range options.Addrs {
-		if len(addr) > 0 {
-			addrs = append(addrs, addr)
-		}
-	}
-
-	if len(addrs) == 0 {
-		addrs = []string{"127.0.0.1:4150"}
-	}
-
-	n := &nsqBroker{
-		addrs:  addrs,
-		opts:   options,
-		config: nsq.NewConfig(),
-	}
-	n.configure(n.opts.Context)
-
-	return n
 }

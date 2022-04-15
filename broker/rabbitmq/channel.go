@@ -11,18 +11,18 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type rabbitMQChannel struct {
+type rabbitChannel struct {
 	uuid       string
 	connection *amqp.Connection
 	channel    *amqp.Channel
 }
 
-func newRabbitChannel(conn *amqp.Connection, prefetchCount int, prefetchGlobal bool) (*rabbitMQChannel, error) {
+func newRabbitChannel(conn *amqp.Connection, prefetchCount int, prefetchGlobal bool) (*rabbitChannel, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
 	}
-	rabbitCh := &rabbitMQChannel{
+	rabbitCh := &rabbitChannel{
 		uuid:       id.String(),
 		connection: conn,
 	}
@@ -30,10 +30,9 @@ func newRabbitChannel(conn *amqp.Connection, prefetchCount int, prefetchGlobal b
 		return nil, err
 	}
 	return rabbitCh, nil
-
 }
 
-func (r *rabbitMQChannel) Connect(prefetchCount int, prefetchGlobal bool) error {
+func (r *rabbitChannel) Connect(prefetchCount int, prefetchGlobal bool) error {
 	var err error
 	r.channel, err = r.connection.Channel()
 	if err != nil {
@@ -46,21 +45,21 @@ func (r *rabbitMQChannel) Connect(prefetchCount int, prefetchGlobal bool) error 
 	return nil
 }
 
-func (r *rabbitMQChannel) Close() error {
+func (r *rabbitChannel) Close() error {
 	if r.channel == nil {
-		return errors.New("Channel is nil")
+		return errors.New("channel is nil")
 	}
 	return r.channel.Close()
 }
 
-func (r *rabbitMQChannel) Publish(exchange, key string, message amqp.Publishing) error {
+func (r *rabbitChannel) Publish(exchange, key string, message amqp.Publishing) error {
 	if r.channel == nil {
-		return errors.New("Channel is nil")
+		return errors.New("channel is nil")
 	}
 	return r.channel.Publish(exchange, key, false, false, message)
 }
 
-func (r *rabbitMQChannel) DeclareExchange(exchange string) error {
+func (r *rabbitChannel) DeclareExchange(exchange string) error {
 	return r.channel.ExchangeDeclare(
 		exchange, // name
 		"topic",  // kind
@@ -72,7 +71,7 @@ func (r *rabbitMQChannel) DeclareExchange(exchange string) error {
 	)
 }
 
-func (r *rabbitMQChannel) DeclareDurableExchange(exchange string) error {
+func (r *rabbitChannel) DeclareDurableExchange(exchange string) error {
 	return r.channel.ExchangeDeclare(
 		exchange, // name
 		"topic",  // kind
@@ -84,7 +83,7 @@ func (r *rabbitMQChannel) DeclareDurableExchange(exchange string) error {
 	)
 }
 
-func (r *rabbitMQChannel) DeclareQueue(queue string, args amqp.Table) error {
+func (r *rabbitChannel) DeclareQueue(queue string, args amqp.Table) error {
 	_, err := r.channel.QueueDeclare(
 		queue, // name
 		false, // durable
@@ -96,7 +95,7 @@ func (r *rabbitMQChannel) DeclareQueue(queue string, args amqp.Table) error {
 	return err
 }
 
-func (r *rabbitMQChannel) DeclareDurableQueue(queue string, args amqp.Table) error {
+func (r *rabbitChannel) DeclareDurableQueue(queue string, args amqp.Table) error {
 	_, err := r.channel.QueueDeclare(
 		queue, // name
 		true,  // durable
@@ -108,7 +107,7 @@ func (r *rabbitMQChannel) DeclareDurableQueue(queue string, args amqp.Table) err
 	return err
 }
 
-func (r *rabbitMQChannel) DeclareReplyQueue(queue string) error {
+func (r *rabbitChannel) DeclareReplyQueue(queue string) error {
 	_, err := r.channel.QueueDeclare(
 		queue, // name
 		false, // durable
@@ -120,7 +119,7 @@ func (r *rabbitMQChannel) DeclareReplyQueue(queue string) error {
 	return err
 }
 
-func (r *rabbitMQChannel) ConsumeQueue(queue string, autoAck bool) (<-chan amqp.Delivery, error) {
+func (r *rabbitChannel) ConsumeQueue(queue string, autoAck bool) (<-chan amqp.Delivery, error) {
 	return r.channel.Consume(
 		queue,   // queue
 		r.uuid,  // consumer
@@ -132,7 +131,7 @@ func (r *rabbitMQChannel) ConsumeQueue(queue string, autoAck bool) (<-chan amqp.
 	)
 }
 
-func (r *rabbitMQChannel) BindQueue(queue, key, exchange string, args amqp.Table) error {
+func (r *rabbitChannel) BindQueue(queue, key, exchange string, args amqp.Table) error {
 	return r.channel.QueueBind(
 		queue,    // name
 		key,      // key

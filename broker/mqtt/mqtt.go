@@ -17,6 +17,10 @@ type mqttBroker struct {
 	client MQTT.Client
 }
 
+func NewBroker(opts ...broker.Option) broker.Broker {
+	return newBroker(opts...)
+}
+
 func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	cOpts := MQTT.NewClientOptions()
 	cOpts.SetCleanSession(true)
@@ -149,7 +153,7 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 			}
 		}
 
-		p := &mqttPub{topic: mq.Topic(), msg: &msg}
+		p := &publication{topic: mq.Topic(), msg: &msg}
 		if err := h(m.opts.Context, p); err != nil {
 			p.err = err
 			log.Error(err)
@@ -160,7 +164,7 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 		return nil, err
 	}
 
-	return &mqttSub{
+	return &subscriber{
 		opts:   options,
 		client: m.client,
 		topic:  topic,
@@ -190,8 +194,4 @@ func (m *mqttBroker) loopConnect(client MQTT.Client) {
 
 func (m *mqttBroker) Name() string {
 	return "MQTT"
-}
-
-func NewBroker(opts ...broker.Option) broker.Broker {
-	return newBroker(opts...)
 }

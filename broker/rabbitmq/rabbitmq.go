@@ -4,15 +4,15 @@ package rabbitmq
 import (
 	"context"
 	"errors"
-	"github.com/tx7do/kratos-transport/broker"
 	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
-type rcommon struct {
-	conn           *rabbitMQConn
+type rabbitBroker struct {
+	conn           *rabbitConn
 	addrs          []string
 	opts           broker.Options
 	prefetchCount  int
@@ -21,120 +21,16 @@ type rcommon struct {
 	wg             sync.WaitGroup
 }
 
-type subscriber struct {
-	mtx          sync.Mutex
-	mayRun       bool
-	opts         broker.SubscribeOptions
-	topic        string
-	ch           *rabbitMQChannel
-	durableQueue bool
-	queueArgs    map[string]interface{}
-	r            *rcommon
-	fn           func(msg amqp.Delivery)
-	headers      map[string]interface{}
-}
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.NewOptionsAndApply(opts...)
 
-type publication struct {
-	d   amqp.Delivery
-	m   *broker.Message
-	t   string
-	err error
-}
-
-func (p *publication) Ack() error {
-	return p.d.Ack(false)
-}
-
-func (p *publication) Error() error {
-	return p.err
-}
-
-func (p *publication) Topic() string {
-	return p.t
-}
-
-func (p *publication) Message() *broker.Message {
-	return p.m
-}
-
-func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
-}
-
-func (s *subscriber) Topic() string {
-	return s.topic
-}
-
-func (s *subscriber) Unsubscribe() error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.mayRun = false
-	if s.ch != nil {
-		return s.ch.Close()
-	}
-	return nil
-}
-
-func (s *subscriber) resubscribe() {
-	minResubscribeDelay := 100 * time.Millisecond
-	maxResubscribeDelay := 30 * time.Second
-	expFactor := time.Duration(2)
-	reSubscribeDelay := minResubscribeDelay
-
-	for {
-		s.mtx.Lock()
-		mayRun := s.mayRun
-		s.mtx.Unlock()
-		if !mayRun {
-			// we are unsubscribed, showdown routine
-			return
-		}
-
-		select {
-		case <-s.r.conn.close:
-			return
-		case <-s.r.conn.waitConnection:
-		}
-
-		s.r.mtx.Lock()
-		if !s.r.conn.connected {
-			s.r.mtx.Unlock()
-			continue
-		}
-
-		ch, sub, err := s.r.conn.Consume(
-			s.opts.Queue,
-			s.topic,
-			s.headers,
-			s.queueArgs,
-			s.opts.AutoAck,
-			s.durableQueue,
-		)
-
-		s.r.mtx.Unlock()
-		switch err {
-		case nil:
-			reSubscribeDelay = minResubscribeDelay
-			s.mtx.Lock()
-			s.ch = ch
-			s.mtx.Unlock()
-		default:
-			if reSubscribeDelay > maxResubscribeDelay {
-				reSubscribeDelay = maxResubscribeDelay
-			}
-			time.Sleep(reSubscribeDelay)
-			reSubscribeDelay *= expFactor
-			continue
-		}
-		for d := range sub {
-			s.r.wg.Add(1)
-			s.fn(d)
-			s.r.wg.Done()
-		}
+	return &rabbitBroker{
+		addrs: options.Addrs,
+		opts:  options,
 	}
 }
 
-func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (r *rabbitBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	m := amqp.Publishing{
 		Body:    msg.Body,
 		Headers: amqp.Table{},
@@ -207,7 +103,7 @@ func (r *rcommon) Publish(topic string, msg *broker.Message, opts ...broker.Publ
 	return r.conn.Publish(r.conn.exchange.Name, topic, m)
 }
 
-func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (r *rabbitBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	var ackSuccess bool
 
 	if r.conn == nil {
@@ -278,22 +174,22 @@ func (r *rcommon) Subscribe(topic string, handler broker.Handler, opts ...broker
 	return sub, nil
 }
 
-func (r *rcommon) Options() broker.Options {
+func (r *rabbitBroker) Options() broker.Options {
 	return r.opts
 }
 
-func (r *rcommon) Name() string {
+func (r *rabbitBroker) Name() string {
 	return "rabbitmq"
 }
 
-func (r *rcommon) Address() string {
+func (r *rabbitBroker) Address() string {
 	if len(r.addrs) > 0 {
 		return r.addrs[0]
 	}
 	return ""
 }
 
-func (r *rcommon) Init(opts ...broker.Option) error {
+func (r *rabbitBroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
 		o(&r.opts)
 	}
@@ -301,7 +197,7 @@ func (r *rcommon) Init(opts ...broker.Option) error {
 	return nil
 }
 
-func (r *rcommon) Connect() error {
+func (r *rabbitBroker) Connect() error {
 	if r.conn == nil {
 		r.conn = newRabbitMQConn(r.getExchange(), r.opts.Addrs, r.getPrefetchCount(), r.getPrefetchGlobal())
 	}
@@ -317,7 +213,7 @@ func (r *rcommon) Connect() error {
 	return r.conn.Connect(r.opts.Secure, &conf)
 }
 
-func (r *rcommon) Disconnect() error {
+func (r *rabbitBroker) Disconnect() error {
 	if r.conn == nil {
 		return errors.New("connection is nil")
 	}
@@ -326,16 +222,7 @@ func (r *rcommon) Disconnect() error {
 	return ret
 }
 
-func NewBroker(opts ...broker.Option) broker.Broker {
-	options := broker.NewOptionsAndApply(opts...)
-
-	return &rcommon{
-		addrs: options.Addrs,
-		opts:  options,
-	}
-}
-
-func (r *rcommon) getExchange() Exchange {
+func (r *rabbitBroker) getExchange() Exchange {
 
 	ex := DefaultExchange
 
@@ -350,14 +237,14 @@ func (r *rcommon) getExchange() Exchange {
 	return ex
 }
 
-func (r *rcommon) getPrefetchCount() int {
+func (r *rabbitBroker) getPrefetchCount() int {
 	if e, ok := r.opts.Context.Value(prefetchCountKey{}).(int); ok {
 		return e
 	}
 	return DefaultPrefetchCount
 }
 
-func (r *rcommon) getPrefetchGlobal() bool {
+func (r *rabbitBroker) getPrefetchGlobal() bool {
 	if e, ok := r.opts.Context.Value(prefetchGlobalKey{}).(bool); ok {
 		return e
 	}
