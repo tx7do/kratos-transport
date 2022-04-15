@@ -14,11 +14,17 @@ type Codec struct {
 	Conn io.ReadWriteCloser
 }
 
-func (c *Codec) ReadHeader(m *codec.Message, t codec.MessageType) error {
-	return nil
+func NewCodec(c io.ReadWriteCloser) codec.Codec {
+	return &Codec{
+		Conn: c,
+	}
 }
 
-func (c *Codec) ReadBody(b interface{}) error {
+func (c *Codec) Name() string {
+	return "json"
+}
+
+func (c *Codec) Read(b interface{}) error {
 	buf, err := io.ReadAll(c.Conn)
 	if err != nil {
 		return err
@@ -33,7 +39,7 @@ func (c *Codec) ReadBody(b interface{}) error {
 	return nil
 }
 
-func (c *Codec) Write(m *codec.Message, b interface{}) error {
+func (c *Codec) Write(b interface{}) error {
 	if b == nil {
 		return nil
 	}
@@ -54,14 +60,4 @@ func (c *Codec) Write(m *codec.Message, b interface{}) error {
 
 func (c *Codec) Close() error {
 	return c.Conn.Close()
-}
-
-func (c *Codec) Name() string {
-	return "json"
-}
-
-func NewCodec(c io.ReadWriteCloser) codec.Codec {
-	return &Codec{
-		Conn: c,
-	}
 }

@@ -10,16 +10,17 @@ type Codec struct {
 	Conn io.ReadWriteCloser
 }
 
-type Frame struct {
-	Data []byte
+func NewCodec(c io.ReadWriteCloser) codec.Codec {
+	return &Codec{
+		Conn: c,
+	}
 }
 
-func (c *Codec) ReadHeader(m *codec.Message, t codec.MessageType) error {
-	return nil
+func (c *Codec) Name() string {
+	return "text"
 }
 
-func (c *Codec) ReadBody(b interface{}) error {
-	// read bytes
+func (c *Codec) Read(b interface{}) error {
 	buf, err := io.ReadAll(c.Conn)
 	if err != nil {
 		return err
@@ -30,8 +31,6 @@ func (c *Codec) ReadBody(b interface{}) error {
 		*v = string(buf)
 	case *[]byte:
 		*v = buf
-	case *Frame:
-		v.Data = buf
 	default:
 		return fmt.Errorf("failed to read body: %v is not type of *[]byte", b)
 	}
@@ -39,11 +38,9 @@ func (c *Codec) ReadBody(b interface{}) error {
 	return nil
 }
 
-func (c *Codec) Write(m *codec.Message, b interface{}) error {
+func (c *Codec) Write(b interface{}) error {
 	var v []byte
 	switch ve := b.(type) {
-	case *Frame:
-		v = ve.Data
 	case *[]byte:
 		v = *ve
 	case *string:
@@ -61,14 +58,4 @@ func (c *Codec) Write(m *codec.Message, b interface{}) error {
 
 func (c *Codec) Close() error {
 	return c.Conn.Close()
-}
-
-func (c *Codec) Name() string {
-	return "text"
-}
-
-func NewCodec(c io.ReadWriteCloser) codec.Codec {
-	return &Codec{
-		Conn: c,
-	}
 }

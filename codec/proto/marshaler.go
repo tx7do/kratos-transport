@@ -7,6 +7,10 @@ import (
 
 type Marshaler struct{}
 
+func (Marshaler) Name() string {
+	return "proto"
+}
+
 func (Marshaler) Marshal(v interface{}) ([]byte, error) {
 	pb, ok := v.(proto.Message)
 	if !ok {
@@ -23,8 +27,4 @@ func (Marshaler) Unmarshal(data []byte, v interface{}) error {
 	}
 
 	return proto.Unmarshal(data, pb)
-}
-
-func (Marshaler) Name() string {
-	return "proto"
 }
