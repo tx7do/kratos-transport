@@ -2,8 +2,9 @@ package rabbitmq
 
 import (
 	"context"
-	"github.com/tx7do/kratos-transport/broker"
 	"time"
+
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 type durableQueueKey struct{}
@@ -28,13 +29,34 @@ type userIDKey struct{}
 type appIDKey struct{}
 type externalAuthKey struct{}
 type durableExchangeKey struct{}
+type subscribeContextKey struct{}
 
-func DurableQueue() broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
-}
+///////////////////////////////////////////////////////////////////////////////
 
 func DurableExchange() broker.Option {
 	return broker.OptionContextWithValue(durableExchangeKey{}, true)
+}
+
+func ExchangeName(e string) broker.Option {
+	return broker.OptionContextWithValue(exchangeKey{}, e)
+}
+
+func PrefetchCount(c int) broker.Option {
+	return broker.OptionContextWithValue(prefetchCountKey{}, c)
+}
+
+func PrefetchGlobal() broker.Option {
+	return broker.OptionContextWithValue(prefetchGlobalKey{}, true)
+}
+
+func ExternalAuth() broker.Option {
+	return broker.OptionContextWithValue(externalAuthKey{}, ExternalAuthentication{})
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+func DurableQueue() broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
 }
 
 func Headers(h map[string]interface{}) broker.SubscribeOption {
@@ -49,17 +71,25 @@ func RequeueOnError() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(requeueOnErrorKey{}, true)
 }
 
-func ExchangeName(e string) broker.Option {
-	return broker.OptionContextWithValue(exchangeKey{}, e)
+func SubscribeContext(ctx context.Context) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
 }
 
-func PrefetchCount(c int) broker.Option {
-	return broker.OptionContextWithValue(prefetchCountKey{}, c)
+func SubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
+	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
+	return c, ok
 }
 
-func PrefetchGlobal() broker.Option {
-	return broker.OptionContextWithValue(prefetchGlobalKey{}, true)
+func AckOnSuccess() broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(ackSuccessKey{}, true)
 }
+
+func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
+	b, ok := ctx.Value(ackSuccessKey{}).(bool)
+	return b, ok
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 func DeliveryMode(value uint8) broker.PublishOption {
 	return broker.PublishContextWithValue(deliveryModeKey{}, value)
@@ -107,28 +137,4 @@ func UserID(value string) broker.PublishOption {
 
 func AppID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(appIDKey{}, value)
-}
-
-func ExternalAuth() broker.Option {
-	return broker.OptionContextWithValue(externalAuthKey{}, ExternalAuthentication{})
-}
-
-type subscribeContextKey struct{}
-
-func SubscribeContext(ctx context.Context) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
-}
-
-func SubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
-	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
-	return c, ok
-}
-
-func AckOnSuccess() broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(ackSuccessKey{}, true)
-}
-
-func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
-	b, ok := ctx.Value(ackSuccessKey{}).(bool)
-	return b, ok
 }

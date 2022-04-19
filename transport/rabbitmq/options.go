@@ -31,6 +31,22 @@ func TLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
+func Subscribe(ctx context.Context, topic string, h broker.Handler, opts ...broker.SubscribeOption) ServerOption {
+	return func(s *Server) {
+		if ctx != nil {
+			s.baseCtx = ctx
+		}
+		if s.baseCtx == nil {
+			s.baseCtx = context.Background()
+			ctx = s.baseCtx
+		}
+
+		opts = append(opts, broker.SubscribeContext(ctx))
+
+		_ = s.RegisterSubscriber(topic, h, opts...)
+	}
+}
+
 func SubscribeDurableQueue(topic, queue string, h broker.Handler) ServerOption {
 	return func(s *Server) {
 		if s.baseCtx == nil {
