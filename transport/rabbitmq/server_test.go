@@ -18,7 +18,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		Address("amqp://user:bitnami@127.0.0.1:5672"),
-		SubscribeDurableQueue("test_topic", "test_topic", receive),
+		SubscribeDurableQueue(ctx, "test_topic", "test_topic", receive),
 	)
 
 	if err := srv.Start(ctx); err != nil {

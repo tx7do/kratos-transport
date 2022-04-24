@@ -28,7 +28,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(EmqxCnBroker),
-		Subscribe("topic/bobo/#", receive),
+		Subscribe(ctx, "topic/bobo/#", receive),
 	)
 
 	if err := srv.Start(ctx); err != nil {

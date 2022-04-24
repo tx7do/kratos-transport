@@ -112,9 +112,11 @@ func (s *Server) Stop(_ context.Context) error {
 	return s.Disconnect()
 }
 
-func (s *Server) RegisterSubscriber(topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
+func (s *Server) RegisterSubscriber(ctx context.Context, topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
 	s.Lock()
 	defer s.Unlock()
+
+	opts = append(opts, broker.SubscribeContext(ctx))
 
 	if s.started {
 		return s.doRegisterSubscriber(topic, h, opts...)

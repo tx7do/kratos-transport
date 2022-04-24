@@ -41,22 +41,23 @@ func Subscribe(ctx context.Context, topic string, h broker.Handler, opts ...brok
 			ctx = s.baseCtx
 		}
 
-		opts = append(opts, broker.SubscribeContext(ctx))
+		//opts = append(opts, broker.SubscribeContext(ctx))
 
-		_ = s.RegisterSubscriber(topic, h, opts...)
+		_ = s.RegisterSubscriber(ctx, topic, h, opts...)
 	}
 }
 
-func SubscribeDurableQueue(topic, queue string, h broker.Handler) ServerOption {
+func SubscribeDurableQueue(ctx context.Context, topic, queue string, h broker.Handler, opts ...broker.SubscribeOption) ServerOption {
 	return func(s *Server) {
 		if s.baseCtx == nil {
 			s.baseCtx = context.Background()
+			ctx = s.baseCtx
 		}
 
-		_ = s.RegisterSubscriber(topic, h,
-			broker.SubscribeContext(s.baseCtx),
-			broker.Queue(queue),
-			rabbitmq.DurableQueue(),
+		opts = append(opts, broker.Queue(queue))
+		opts = append(opts, rabbitmq.DurableQueue())
+
+		_ = s.RegisterSubscriber(ctx, topic, h, opts...,
 		)
 	}
 }

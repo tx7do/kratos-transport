@@ -49,12 +49,12 @@ func WithClientId(clientId string) ServerOption {
 	}
 }
 
-func Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) ServerOption {
+func Subscribe(ctx context.Context, topic string, h broker.Handler, opts ...broker.SubscribeOption) ServerOption {
 	return func(s *Server) {
 		if s.baseCtx == nil {
 			s.baseCtx = context.Background()
 		}
 
-		_ = s.RegisterSubscriber(topic, h, opts...)
+		_ = s.RegisterSubscriber(ctx, topic, h, opts...)
 	}
 }
