@@ -17,7 +17,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		Address("amqp://user:bitnami@127.0.0.1:5672"),
+		Address([]string{"amqp://user:bitnami@127.0.0.1:5672"}),
 		SubscribeDurableQueue(ctx, "test_topic", "test_topic", receive),
 	)
 

@@ -27,7 +27,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithAddress(EmqxCnBroker),
+		WithAddress([]string{EmqxCnBroker}),
 		Subscribe(ctx, "topic/bobo/#", receive),
 	)
 

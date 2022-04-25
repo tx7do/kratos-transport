@@ -20,7 +20,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		Address("127.0.0.1:9092"),
+		Address([]string{"127.0.0.1:9092"}),
 		Subscribe(ctx, "logger.sensor.ts", "fx-group", false, receive),
 	)
 
