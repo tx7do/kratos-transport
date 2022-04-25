@@ -19,7 +19,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		Address(serverAddr),
+		Address([]string{serverAddr}),
 		Subscribe("test_topic", receive),
 	)
 
