@@ -10,9 +10,9 @@ import (
 
 type ServerOption func(o *Server)
 
-func Address(addr string) ServerOption {
+func Address(addrs []string) ServerOption {
 	return func(s *Server) {
-		s.bOpts = append(s.bOpts, broker.Addrs(addr))
+		s.bOpts = append(s.bOpts, broker.Addrs(addrs...))
 	}
 }
 
