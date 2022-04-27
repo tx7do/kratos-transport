@@ -33,10 +33,17 @@ func ConnectHandle(h ConnectHandler) ServerOption {
 	}
 }
 
-func ReadHandle(path string, h EchoHandler) ServerOption {
+func ReadHandle(path string, h Handler) ServerOption {
 	return func(s *Server) {
 		s.path = path
 		s.readHandler = h
+	}
+}
+
+func EchoHandle(path string, h EchoHandler) ServerOption {
+	return func(s *Server) {
+		s.path = path
+		s.echoHandler = h
 	}
 }
 

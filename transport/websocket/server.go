@@ -43,7 +43,8 @@ type Server struct {
 
 	log *log.Helper
 
-	readHandler    EchoHandler
+	echoHandler    EchoHandler
+	readHandler    Handler
 	connectHandler ConnectHandler
 	path           string
 

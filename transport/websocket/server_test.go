@@ -21,7 +21,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		Address(":8800"),
-		ReadHandle("/ws", handleMessage),
+		EchoHandle("/ws", handleMessage),
 		ConnectHandle(handleConnect),
 	)
 
