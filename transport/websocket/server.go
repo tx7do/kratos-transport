@@ -118,7 +118,7 @@ func (s *Server) Broadcast(message *Message) {
 func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	conn, err := s.upgrader.Upgrade(res, req, nil)
 	if err != nil {
-		s.log.Fatal("upgrade exception:", err)
+		s.log.Error("upgrade exception:", err)
 		return
 	}
 
