@@ -8,24 +8,24 @@ import (
 
 const channelBufSize = 256
 
-type Client struct {
+type Session struct {
 	id     string
 	conn   *ws.Conn
 	send   chan *Message
 	server *Server
 }
 
-type ClientMap map[string]*Client
-type ClientArray []*Client
+type SessionMap map[string]*Session
+type SessionArray []*Session
 
-func NewClient(conn *ws.Conn, server *Server) *Client {
+func NewSession(conn *ws.Conn, server *Server) *Session {
 	if conn == nil {
 		panic("conn cannot be nil")
 	}
 
 	u1, _ := uuid.NewUUID()
 
-	c := &Client{
+	c := &Session{
 		id:     u1.String(),
 		conn:   conn,
 		send:   make(chan *Message, channelBufSize),
@@ -35,32 +35,32 @@ func NewClient(conn *ws.Conn, server *Server) *Client {
 	return c
 }
 
-func (c *Client) Conn() *ws.Conn {
+func (c *Session) Conn() *ws.Conn {
 	return c.conn
 }
 
-func (c *Client) ConnectionID() string {
+func (c *Session) SessionID() string {
 	return c.id
 }
 
-func (c *Client) SendMessage(message *Message) {
+func (c *Session) SendMessage(message *Message) {
 	select {
 	case c.send <- message:
 	}
 }
 
-func (c *Client) Close() {
+func (c *Session) Close() {
 	c.server.unregister <- c
 	c.closeConnect()
 }
 
-func (c *Client) Listen() {
+func (c *Session) Listen() {
 	go c.writePump()
 	go c.readPump()
 }
 
-func (c *Client) closeConnect() {
-	//log.Println(c.ConnectionID(), " connection closed")
+func (c *Session) closeConnect() {
+	//log.Println(c.SessionID(), " connection closed")
 	err := c.conn.Close()
 	if err != nil {
 		log.Println("close connection error:", err.Error())
@@ -68,7 +68,7 @@ func (c *Client) closeConnect() {
 	c.conn = nil
 }
 
-func (c *Client) writePump() {
+func (c *Session) writePump() {
 	defer c.Close()
 
 	for {
@@ -81,7 +81,7 @@ func (c *Client) writePump() {
 	}
 }
 
-func (c *Client) readPump() {
+func (c *Session) readPump() {
 	defer c.Close()
 
 	for {
@@ -95,12 +95,12 @@ func (c *Client) readPump() {
 			log.Println("Non binary message received, ignoring")
 		} else {
 			if c.server.echoHandler != nil {
-				replyMsg, _ := c.server.echoHandler(c.ConnectionID(), &Message{Body: data})
+				replyMsg, _ := c.server.echoHandler(c.SessionID(), &Message{Body: data})
 				if replyMsg != nil {
 					c.SendMessage(replyMsg)
 				}
 			} else if c.server.readHandler != nil {
-				_ = c.server.readHandler(c.ConnectionID(), &Message{Body: data})
+				_ = c.server.readHandler(c.SessionID(), &Message{Body: data})
 			}
 
 		}

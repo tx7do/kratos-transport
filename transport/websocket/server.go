@@ -48,11 +48,11 @@ type Server struct {
 	connectHandler ConnectHandler
 	path           string
 
-	clients  ClientMap
+	sessions SessionMap
 	upgrader *ws.Upgrader
 
-	register   chan *Client
-	unregister chan *Client
+	register   chan *Session
+	unregister chan *Session
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -63,7 +63,7 @@ func NewServer(opts ...ServerOption) *Server {
 		strictSlash: true,
 		log:         log.NewHelper(log.GetLogger()),
 
-		clients: ClientMap{},
+		sessions: SessionMap{},
 		upgrader: &ws.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -71,8 +71,8 @@ func NewServer(opts ...ServerOption) *Server {
 				return true
 			}},
 
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		register:   make(chan *Session),
+		unregister: make(chan *Session),
 	}
 
 	srv.init(opts...)
@@ -98,19 +98,19 @@ func (s *Server) init(opts ...ServerOption) {
 	http.HandleFunc(s.path, s.wsHandler)
 }
 
-func (s *Server) ClientCount() int {
-	return len(s.clients)
+func (s *Server) SessionCount() int {
+	return len(s.sessions)
 }
 
-func (s *Server) SendMessage(connectionId string, message *Message) {
-	c, ok := s.clients[connectionId]
+func (s *Server) SendMessage(sessionId string, message *Message) {
+	c, ok := s.sessions[sessionId]
 	if ok {
 		c.SendMessage(message)
 	}
 }
 
 func (s *Server) Broadcast(message *Message) {
-	for _, c := range s.clients {
+	for _, c := range s.sessions {
 		c.SendMessage(message)
 	}
 }
@@ -122,10 +122,10 @@ func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	client := NewClient(conn, s)
-	client.server.register <- client
+	session := NewSession(conn, s)
+	session.server.register <- session
 
-	client.Listen()
+	session.Listen()
 }
 
 func (s *Server) listen() error {
@@ -164,9 +164,9 @@ func (s *Server) run() {
 	for {
 		select {
 		case client := <-s.register:
-			s.addClient(client)
+			s.addSession(client)
 		case client := <-s.unregister:
-			s.removeClient(client)
+			s.removeSession(client)
 		}
 	}
 }
@@ -199,23 +199,23 @@ func (s *Server) Stop(ctx context.Context) error {
 	return s.Shutdown(ctx)
 }
 
-func (s *Server) addClient(c *Client) {
-	//s.log.Info("add client: ", c.ConnectionID())
-	s.clients[c.ConnectionID()] = c
+func (s *Server) addSession(c *Session) {
+	//s.log.Info("add session: ", c.SessionID())
+	s.sessions[c.SessionID()] = c
 
 	if s.connectHandler != nil {
-		s.connectHandler(c.ConnectionID(), true)
+		s.connectHandler(c.SessionID(), true)
 	}
 }
 
-func (s *Server) removeClient(c *Client) {
-	for k, v := range s.clients {
+func (s *Server) removeSession(c *Session) {
+	for k, v := range s.sessions {
 		if c == v {
-			//s.log.Info("remove client: ", c.ConnectionID())
+			//s.log.Info("remove session: ", c.SessionID())
 			if s.connectHandler != nil {
-				s.connectHandler(c.ConnectionID(), false)
+				s.connectHandler(c.SessionID(), false)
 			}
-			delete(s.clients, k)
+			delete(s.sessions, k)
 			return
 		}
 	}
