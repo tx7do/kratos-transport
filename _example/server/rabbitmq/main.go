@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/tx7do/kratos-transport/broker"
+	rabbitmqBroker "github.com/tx7do/kratos-transport/broker/rabbitmq"
 	"github.com/tx7do/kratos-transport/transport/rabbitmq"
 )
 
@@ -26,9 +27,9 @@ func main() {
 		rabbitmq.Exchange(testExchange, true),
 	)
 
-	_ = srv.RegisterSubscriber(ctx, testRouting,
+	_ = rabbitmqSrv.RegisterSubscriber(ctx, testRouting,
 		receive,
-		broker.Queue(testQueue), rabbitmq.DurableQueue())
+		broker.Queue(testQueue), rabbitmqBroker.DurableQueue())
 
 	app := kratos.New(
 		kratos.Name("rabbitmq"),

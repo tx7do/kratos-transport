@@ -110,6 +110,8 @@ github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
 github.com/tx7do/kratos-transport v0.0.0-20220610124814-78deac8e6187 h1:bT1e2au0YkAOIEiZ9xMgr9NJnMkUlKy0RurkXQ6VAf4=
 github.com/tx7do/kratos-transport v0.0.0-20220610124814-78deac8e6187/go.mod h1:UUu8/oVnCJea7RD9kDpRf3PE0dMJ34989X4czFiqb7Y=
+github.com/tx7do/kratos-transport v0.0.0-20220704145905-1456ffc79341 h1:UY3jcB2jJub6vWD1YtjlwN22e82TDg8qPGmhUM80/zI=
+github.com/tx7do/kratos-transport v0.0.0-20220704145905-1456ffc79341/go.mod h1:UUu8/oVnCJea7RD9kDpRf3PE0dMJ34989X4czFiqb7Y=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0HrGL1Y=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
