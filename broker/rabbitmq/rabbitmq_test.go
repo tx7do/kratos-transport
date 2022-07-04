@@ -11,6 +11,14 @@ import (
 	"testing"
 )
 
+const (
+	testBroker = "amqp://user:bitnami@127.0.0.1:5672"
+
+	testExchange = "test_exchange"
+	testQueue    = "test_queue"
+	testRouting  = "test_routing_key"
+)
+
 func TestDurableQueueSubscribe(t *testing.T) {
 
 	ctx := context.Background()
@@ -20,7 +28,9 @@ func TestDurableQueueSubscribe(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672/"),
+		broker.Addrs(testBroker),
+		ExchangeName(testExchange),
+		DurableExchange(),
 	)
 
 	_ = b.Init()
@@ -30,9 +40,9 @@ func TestDurableQueueSubscribe(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := b.Subscribe("logger.sensor.ts", receive,
+	_, err := b.Subscribe(testRouting, receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue("logger.sensor.ts"),
+		broker.Queue(testQueue),
 		// broker.DisableAutoAck(),
 		DurableQueue(),
 	)
@@ -55,7 +65,7 @@ func TestPublish(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672/"),
+		broker.Addrs(testBroker),
 	)
 
 	_ = b.Init()
@@ -67,7 +77,10 @@ func TestPublish(t *testing.T) {
 
 	var msg broker.Message
 	msg.Body = []byte(`{"Humidity":60, "Temperature":25}`)
-	_ = b.Publish("amq.topic", &msg)
+	for i := 0; i < 10; i++ {
+		err := b.Publish(testRouting, &msg)
+		assert.Nil(t, err)
+	}
 
 	<-interrupt
 }
