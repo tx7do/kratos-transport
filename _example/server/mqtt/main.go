@@ -21,11 +21,11 @@ const (
 )
 
 func main() {
-	//ctx := context.Background()
+	ctx := context.Background()
 
 	mqttSrv := mqtt.NewServer(
-		mqtt.WithAddress(EmqxCnBroker),
-		mqtt.Subscribe("topic/bobo/#", receive),
+		mqtt.WithAddress([]string{EmqxCnBroker}),
+		mqtt.Subscribe(ctx, "topic/bobo/#", receive),
 	)
 
 	app := kratos.New(

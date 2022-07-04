@@ -3,21 +3,32 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/go-kratos/kratos/v2"
 	"log"
 
+	"github.com/go-kratos/kratos/v2"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/transport/rabbitmq"
+)
+
+const (
+	testBroker = "amqp://user:bitnami@127.0.0.1:5672"
+
+	testExchange = "test_exchange"
+	testQueue    = "test_queue"
+	testRouting  = "test_routing_key"
 )
 
 func main() {
 	ctx := context.Background()
 
 	rabbitmqSrv := rabbitmq.NewServer(
-		rabbitmq.Address([]string{"amqp://user:bitnami@127.0.0.1:5672"}),
+		rabbitmq.Address([]string{testBroker}),
+		rabbitmq.Exchange(testExchange, true),
 	)
 
-	_ = rabbitmqSrv.RegisterSubscriber(ctx, "test_queue.*", receive)
+	_ = srv.RegisterSubscriber(ctx, testRouting,
+		receive,
+		broker.Queue(testQueue), rabbitmq.DurableQueue())
 
 	app := kratos.New(
 		kratos.Name("rabbitmq"),

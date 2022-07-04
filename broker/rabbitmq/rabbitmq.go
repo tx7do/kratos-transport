@@ -38,7 +38,7 @@ func rabbitHeaderToMap(h amqp.Table) map[string]string {
 	return headers
 }
 
-func (r *rabbitBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (r *rabbitBroker) Publish(routingKey string, msg *broker.Message, opts ...broker.PublishOption) error {
 	m := amqp.Publishing{
 		Body:    msg.Body,
 		Headers: amqp.Table{},
@@ -108,10 +108,10 @@ func (r *rabbitBroker) Publish(topic string, msg *broker.Message, opts ...broker
 		return errors.New("connection is nil")
 	}
 
-	return r.conn.Publish(r.conn.exchange.Name, topic, m)
+	return r.conn.Publish(r.conn.exchange.Name, routingKey, m)
 }
 
-func (r *rabbitBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	var ackSuccess bool
 
 	if r.conn == nil {
@@ -120,14 +120,11 @@ func (r *rabbitBroker) Subscribe(topic string, handler broker.Handler, opts ...b
 
 	opt := broker.SubscribeOptions{
 		AutoAck: true,
+		Context: context.Background(),
 	}
 
 	for _, o := range opts {
 		o(&opt)
-	}
-
-	if opt.Context == nil {
-		opt.Context = context.Background()
 	}
 
 	ctx := opt.Context
@@ -170,8 +167,16 @@ func (r *rabbitBroker) Subscribe(topic string, handler broker.Handler, opts ...b
 		}
 	}
 
-	sub := &subscriber{topic: topic, opts: opt, mayRun: true, r: r,
-		durableQueue: durableQueue, fn: fn, headers: headers, queueArgs: qArgs}
+	sub := &subscriber{
+		topic:        routingKey,
+		opts:         opt,
+		mayRun:       true,
+		r:            r,
+		durableQueue: durableQueue,
+		fn:           fn,
+		headers:      headers,
+		queueArgs:    qArgs,
+	}
 
 	go sub.resubscribe()
 

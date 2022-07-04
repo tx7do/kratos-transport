@@ -11,13 +11,7 @@ import (
 	"testing"
 )
 
-type Example struct{}
-
-func (e *Example) Handler(ctx context.Context, r interface{}) error {
-	return nil
-}
-
-func TestDurable(t *testing.T) {
+func TestDurableQueueSubscribe(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -25,8 +19,8 @@ func TestDurable(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
-		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672"),
 		broker.OptionContext(ctx),
+		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672/"),
 	)
 
 	_ = b.Init()
@@ -36,9 +30,9 @@ func TestDurable(t *testing.T) {
 		t.Skip()
 	}
 
-	_, err := b.Subscribe("test_topic", receive,
+	_, err := b.Subscribe("logger.sensor.ts", receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue("test_topic"),
+		broker.Queue("logger.sensor.ts"),
 		// broker.DisableAutoAck(),
 		DurableQueue(),
 	)
@@ -51,4 +45,29 @@ func receive(_ context.Context, event broker.Event) error {
 	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	//_ = event.Ack()
 	return nil
+}
+
+func TestPublish(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	b := NewBroker(
+		broker.OptionContext(ctx),
+		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672/"),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant conect to broker, skip: %v", err)
+		t.Skip()
+	}
+
+	var msg broker.Message
+	msg.Body = []byte(`{"Humidity":60, "Temperature":25}`)
+	_ = b.Publish("amq.topic", &msg)
+
+	<-interrupt
 }

@@ -60,7 +60,12 @@ func TestPublish(t *testing.T) {
 		broker.OptionContext(ctx),
 	)
 
-	_ = b.Connect()
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant conect to broker, skip: %v", err)
+		t.Skip()
+	}
 
 	type Hygrothermograph struct {
 		Humidity    float64 `json:"humidity"`

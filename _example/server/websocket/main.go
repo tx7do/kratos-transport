@@ -13,7 +13,7 @@ func main() {
 
 	wsSrv := websocket.NewServer(
 		websocket.Address(":8800"),
-		websocket.ReadHandle("/ws", handleMessage),
+		websocket.EchoHandle("/ws", handleMessage),
 		websocket.ConnectHandle(handleConnect),
 	)
 

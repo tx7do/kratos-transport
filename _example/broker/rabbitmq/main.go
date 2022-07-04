@@ -11,6 +11,14 @@ import (
 	"github.com/tx7do/kratos-transport/broker/rabbitmq"
 )
 
+const (
+	testBroker = "amqp://user:bitnami@127.0.0.1:5672"
+
+	testExchange = "test_exchange"
+	testQueue    = "test_queue"
+	testRouting  = "test_routing_key"
+)
+
 func main() {
 	ctx := context.Background()
 
@@ -18,8 +26,9 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := rabbitmq.NewBroker(
-		broker.Addrs("amqp://user:bitnami@127.0.0.1:5672"),
 		broker.OptionContext(ctx),
+		rabbitmq.ExchangeName(testExchange),
+		broker.Addrs(testBroker),
 	)
 
 	_ = b.Init()
@@ -28,9 +37,9 @@ func main() {
 		fmt.Println(err)
 	}
 
-	_, _ = b.Subscribe("test_queue.*", receive,
+	_, _ = b.Subscribe(testRouting, receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue("test_queue.*"),
+		broker.Queue(testQueue),
 		// broker.DisableAutoAck(),
 		rabbitmq.DurableQueue(),
 	)

@@ -36,6 +36,9 @@ func receive(_ context.Context, event broker.Event) error {
 }
 
 func TestPublish(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	ctx := context.Background()
 
 	b := NewBroker(
@@ -43,7 +46,16 @@ func TestPublish(t *testing.T) {
 		broker.OptionContext(ctx),
 	)
 
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant conect to broker, skip: %v", err)
+		t.Skip()
+	}
+
 	var msg broker.Message
 	msg.Body = []byte(`{"Humidity":60, "Temperature":25}`)
 	_ = b.Publish("logger.sensor.ts", &msg)
+
+	<-interrupt
 }

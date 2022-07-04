@@ -107,34 +107,42 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	}
 
 	addr := s.Address()
-	if !strings.HasPrefix(addr, "tcp://") {
-		addr = "tcp://" + addr
+	if !strings.HasPrefix(addr, "amqp://") {
+		addr = "amqp://" + addr
 	}
 
 	return url.Parse(addr)
 }
 
-func (s *Server) RegisterSubscriber(ctx context.Context, topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
+func (s *Server) RegisterSubscriber(ctx context.Context, routingKey string, h broker.Handler, opts ...broker.SubscribeOption) error {
 	s.Lock()
 	defer s.Unlock()
 
-	opts = append(opts, broker.SubscribeContext(ctx))
+	if s.baseCtx == nil {
+		s.baseCtx = context.Background()
+	}
+	if ctx == nil {
+		ctx = s.baseCtx
+	}
+
+	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
+	opts = append([]broker.SubscribeOption{broker.SubscribeContext(ctx)}, opts...)
 
 	if s.started {
-		return s.doRegisterSubscriber(topic, h, opts...)
+		return s.doRegisterSubscriber(routingKey, h, opts...)
 	} else {
-		s.subscriberOpts[topic] = &SubscribeOption{handler: h, opts: opts}
+		s.subscriberOpts[routingKey] = &SubscribeOption{handler: h, opts: opts}
 	}
 	return nil
 }
 
-func (s *Server) doRegisterSubscriber(topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
-	sub, err := s.Subscribe(topic, h, opts...)
+func (s *Server) doRegisterSubscriber(routingKey string, h broker.Handler, opts ...broker.SubscribeOption) error {
+	sub, err := s.Subscribe(routingKey, h, opts...)
 	if err != nil {
 		return err
 	}
 
-	s.subscribers[topic] = sub
+	s.subscribers[routingKey] = sub
 
 	return nil
 }

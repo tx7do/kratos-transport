@@ -14,7 +14,7 @@ func main() {
 	ctx := context.Background()
 
 	kafkaSrv := kafka.NewServer(
-		kafka.Address("127.0.0.1:9092"),
+		kafka.Address([]string{"127.0.0.1:9092"}),
 		kafka.Subscribe(ctx, "test_topic", "a-group", false, receive),
 	)
 
