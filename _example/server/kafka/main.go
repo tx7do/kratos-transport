@@ -10,12 +10,18 @@ import (
 	"github.com/tx7do/kratos-transport/transport/kafka"
 )
 
+const (
+	testBrokers = "localhost:9092"
+	testTopic   = "test_topic"
+	testGroupId = "a-group"
+)
+
 func main() {
 	ctx := context.Background()
 
 	kafkaSrv := kafka.NewServer(
-		kafka.Address([]string{"127.0.0.1:9092"}),
-		kafka.Subscribe(ctx, "test_topic", "a-group", false, receive),
+		kafka.Address([]string{testBrokers}),
+		kafka.Subscribe(ctx, testTopic, testGroupId, false, receive),
 	)
 
 	app := kratos.New(

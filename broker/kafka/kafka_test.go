@@ -3,11 +3,18 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
+)
+
+const (
+	testBrokers = "localhost:9092"
+	testTopic   = "logger.sensor.ts"
+	testGroupId = "fx-group"
 )
 
 func TestSubscribe(t *testing.T) {
@@ -17,13 +24,13 @@ func TestSubscribe(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs("127.0.0.1:9092"),
+		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
 	)
 
-	_, _ = b.Subscribe("logger.sensor.ts", receive,
+	_, _ = b.Subscribe(testTopic, receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue("fx-group"),
+		broker.Queue(testGroupId),
 	)
 
 	<-interrupt
@@ -42,7 +49,7 @@ func TestPublish(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs("127.0.0.1:9092"),
+		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
 	)
 
@@ -55,7 +62,10 @@ func TestPublish(t *testing.T) {
 
 	var msg broker.Message
 	msg.Body = []byte(`{"Humidity":60, "Temperature":25}`)
-	_ = b.Publish("logger.sensor.ts", &msg)
+	for i := 0; i < 10; i++ {
+		err := b.Publish(testTopic, &msg)
+		assert.Nil(t, err)
+	}
 
 	<-interrupt
 }

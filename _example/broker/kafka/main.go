@@ -11,6 +11,12 @@ import (
 	"github.com/tx7do/kratos-transport/broker/kafka"
 )
 
+const (
+	testBrokers = "localhost:9092"
+	testTopic   = "test_topic"
+	testGroupId = "a-group"
+)
+
 func main() {
 	ctx := context.Background()
 
@@ -18,13 +24,13 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := kafka.NewBroker(
-		broker.Addrs("localhost:9092"),
+		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
 	)
 
-	_, _ = b.Subscribe("test_topic", receive,
+	_, _ = b.Subscribe(testTopic, receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue("mt-group"),
+		broker.Queue(testGroupId),
 	)
 
 	<-interrupt
