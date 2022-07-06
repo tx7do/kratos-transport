@@ -30,13 +30,14 @@ var (
 )
 
 type rabbitConn struct {
-	Connection      *amqp.Connection
-	Channel         *rabbitChannel
-	ExchangeChannel *rabbitChannel
-	exchange        Exchange
-	url             string
-	prefetchCount   int
-	prefetchGlobal  bool
+	Connection     *amqp.Connection
+	Channel        *rabbitChannel
+	PublishChannel *rabbitChannel
+
+	exchange       Exchange
+	url            string
+	prefetchCount  int
+	prefetchGlobal bool
 
 	sync.Mutex
 	connected bool
@@ -106,11 +107,16 @@ func (r *rabbitConn) reconnect(secure bool, config *amqp.Config) {
 		connect = true
 		notifyClose := make(chan *amqp.Error)
 		r.Connection.NotifyClose(notifyClose)
+
 		chanNotifyClose := make(chan *amqp.Error)
-		channel := r.ExchangeChannel.channel
-		channel.NotifyClose(chanNotifyClose)
 		channelNotifyReturn := make(chan amqp.Return)
-		channel.NotifyReturn(channelNotifyReturn)
+
+		if r.PublishChannel != nil {
+			channel := r.PublishChannel.channel
+			channel.NotifyClose(chanNotifyClose)
+
+			channel.NotifyReturn(channelNotifyReturn)
+		}
 
 		select {
 		case result, ok := <-channelNotifyReturn:
@@ -191,7 +197,6 @@ func (r *rabbitConn) tryConnect(secure bool, config *amqp.Config) error {
 	}
 
 	r.Connection, err = amqp.DialConfig(url, *config)
-
 	if err != nil {
 		return err
 	}
@@ -199,13 +204,13 @@ func (r *rabbitConn) tryConnect(secure bool, config *amqp.Config) error {
 	if r.Channel, err = newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal); err != nil {
 		return err
 	}
-
 	if r.exchange.Durable {
 		_ = r.Channel.DeclareDurableExchange(r.exchange.Name)
 	} else {
 		_ = r.Channel.DeclareExchange(r.exchange.Name)
 	}
-	r.ExchangeChannel, err = newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal)
+
+	//r.PublishChannel, err = newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal)
 
 	return err
 }
@@ -240,5 +245,14 @@ func (r *rabbitConn) Consume(queue, key string, headers amqp.Table, qArgs amqp.T
 }
 
 func (r *rabbitConn) Publish(exchange, key string, msg amqp.Publishing) error {
-	return r.ExchangeChannel.Publish(exchange, key, msg)
+	if r.PublishChannel == nil {
+		var err error
+		// lazy init publish channel
+		r.PublishChannel, err = newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal)
+		if err != nil {
+			return err
+		}
+	}
+
+	return r.PublishChannel.Publish(exchange, key, msg)
 }
