@@ -11,6 +11,10 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
+const (
+	defaultAddr = "127.0.0.1:9092"
+)
+
 type kafkaBroker struct {
 	addrs []string
 
@@ -35,7 +39,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		cAddrs = append(cAddrs, addr)
 	}
 	if len(cAddrs) == 0 {
-		cAddrs = []string{"127.0.0.1:9092"}
+		cAddrs = []string{defaultAddr}
 	}
 
 	readerConfig := KAFKA.ReaderConfig{}
@@ -68,7 +72,7 @@ func (k *kafkaBroker) Address() string {
 	if len(k.addrs) > 0 {
 		return k.addrs[0]
 	}
-	return "127.0.0.1:9092"
+	return defaultAddr
 }
 
 func (k *kafkaBroker) Connect() error {
@@ -137,7 +141,7 @@ func (k *kafkaBroker) Init(opts ...broker.Option) error {
 		cAddrs = append(cAddrs, addr)
 	}
 	if len(cAddrs) == 0 {
-		cAddrs = []string{"127.0.0.1:9092"}
+		cAddrs = []string{defaultAddr}
 	}
 	k.addrs = cAddrs
 	return nil
@@ -257,11 +261,11 @@ func (k *kafkaBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 
 				err = sub.handler(sub.opts.Context, p)
 				if err != nil {
-					k.log.Errorf("[segmentio]: process message failed: %v", err)
+					k.log.Errorf("[kafka]: process message failed: %v", err)
 				}
 				if sub.opts.AutoAck {
 					if err = p.Ack(); err != nil {
-						k.log.Errorf("[segmentio]: unable to commit msg: %v", err)
+						k.log.Errorf("[kafka]: unable to commit msg: %v", err)
 					}
 				}
 			}

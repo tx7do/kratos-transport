@@ -1,11 +1,11 @@
-package kafka
+package rocketmq
 
 import (
 	"context"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/broker/kafka"
+	"github.com/tx7do/kratos-transport/broker/rocketmq"
 	"net/url"
 	"strings"
 	"sync"
@@ -51,7 +51,7 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.init(opts...)
 
-	srv.Broker = kafka.NewBroker(srv.bOpts...)
+	srv.Broker = rocketmq.NewBroker(srv.bOpts...)
 
 	return srv
 }
@@ -63,20 +63,7 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return "kafka"
-}
-
-func (s *Server) Endpoint() (*url.URL, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-
-	addr := s.Address()
-	if !strings.HasPrefix(addr, "tcp://") {
-		addr = "tcp://" + addr
-	}
-
-	return url.Parse(addr)
+	return "rocketmq"
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -88,12 +75,14 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
+	_ = s.Init()
+
 	s.err = s.Connect()
 	if s.err != nil {
 		return s.err
 	}
 
-	s.log.Infof("[kafka] server listening on: %s", s.Address())
+	s.log.Infof("[rocketmq] server listening on: %s", s.Address())
 
 	s.err = s.doRegisterSubscriberMap()
 	if s.err != nil {
@@ -107,35 +96,36 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	if s.started == false {
-		return nil
-	}
-	s.log.Info("[kafka] server stopping")
-
-	for _, v := range s.subscribers {
-		_ = v.Unsubscribe()
-	}
-	s.subscribers = SubscriberMap{}
-	s.subscriberOpts = SubscribeOptionMap{}
-
+	s.log.Info("[rocketmq] server stopping")
 	s.started = false
 	return s.Disconnect()
 }
 
-// RegisterSubscriber 注册一个订阅者
-// @param ctx 上下文
-// @param topic 订阅的主题
-// @param queue 订阅的分组
-// @param handler 订阅者的处理函数
-func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, disableAutoAck bool, h broker.Handler, opts ...broker.SubscribeOption) error {
+func (s *Server) Endpoint() (*url.URL, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	addr := s.Address()
+	if !strings.HasPrefix(addr, "amqp://") {
+		addr = "amqp://" + addr
+	}
+
+	return url.Parse(addr)
+}
+
+func (s *Server) RegisterSubscriber(ctx context.Context, topic, groupName string, h broker.Handler, opts ...broker.SubscribeOption) error {
 	s.Lock()
 	defer s.Unlock()
 
-	//var opts []broker.SubscribeOption
-	opts = append(opts, broker.Queue(queue))
-	if disableAutoAck {
-		opts = append(opts, broker.DisableAutoAck())
+	if s.baseCtx == nil {
+		s.baseCtx = context.Background()
 	}
+	if ctx == nil {
+		ctx = s.baseCtx
+	}
+
+	opts = append(opts, broker.Queue(groupName))
 
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
 	opts = append([]broker.SubscribeOption{broker.SubscribeContext(ctx)}, opts...)

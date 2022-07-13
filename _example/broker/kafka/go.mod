@@ -3,6 +3,8 @@ module main.go
 go 1.16
 
 require (
+	github.com/apache/rocketmq-client-go v1.2.4 // indirect
+	github.com/apache/rocketmq-client-go/v2 v2.1.0 // indirect
 	github.com/go-kratos/kratos/v2 v2.3.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/klauspost/compress v1.15.7 // indirect
