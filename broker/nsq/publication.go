@@ -6,11 +6,11 @@ import (
 )
 
 type publication struct {
-	topic string
-	m     *broker.Message
-	nm    *NSQ.Message
-	opts  broker.PublishOptions
-	err   error
+	topic  string
+	msg    *broker.Message
+	nsqMsg *NSQ.Message
+	opts   broker.PublishOptions
+	err    error
 }
 
 func (p *publication) Topic() string {
@@ -18,11 +18,11 @@ func (p *publication) Topic() string {
 }
 
 func (p *publication) Message() *broker.Message {
-	return p.m
+	return p.msg
 }
 
 func (p *publication) Ack() error {
-	p.nm.Finish()
+	p.nsqMsg.Finish()
 	return nil
 }
 

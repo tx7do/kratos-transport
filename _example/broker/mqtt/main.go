@@ -50,9 +50,12 @@ func main() {
 	//topicSharedGroup := "$share/g1/topic/bobo/#"
 	//topicSharedQueue := "$queue/topic/bobo/#"
 
-	_, _ = b.Subscribe(topic, receive,
+	_, err := b.Subscribe(topic, receive,
 		broker.SubscribeContext(ctx),
 	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	<-interrupt
 }

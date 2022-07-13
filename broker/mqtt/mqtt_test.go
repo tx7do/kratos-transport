@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
 	"math/rand"
 	"os"
@@ -36,9 +37,10 @@ func TestSubscribe(t *testing.T) {
 
 	_ = b.Connect()
 
-	_, _ = b.Subscribe("topic/bobo/#", receive,
+	_, err := b.Subscribe("topic/bobo/#", receive,
 		broker.SubscribeContext(ctx),
 	)
+	assert.Nil(t, err)
 
 	<-interrupt
 }

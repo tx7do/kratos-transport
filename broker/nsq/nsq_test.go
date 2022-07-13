@@ -1,20 +1,20 @@
-package rocketmq
+package nsq
 
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/tx7do/kratos-transport/broker"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 const (
-	testBrokers   = "127.0.0.1:9876"
-	testTopic     = "test"
-	testGroupName = "CID_ONSAPI_OWNER"
+	testBrokers = "127.0.0.1:4150"
+	testTopic   = "test_topic"
 )
 
 func TestSubscribe(t *testing.T) {
@@ -30,7 +30,6 @@ func TestSubscribe(t *testing.T) {
 
 	_, err := b.Subscribe(testTopic, receive,
 		broker.SubscribeContext(ctx),
-		broker.Queue(testGroupName),
 	)
 	assert.Nil(t, err)
 
@@ -38,7 +37,7 @@ func TestSubscribe(t *testing.T) {
 }
 
 func receive(_ context.Context, event broker.Event) error {
-	fmt.Print("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
+	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	//_ = event.Ack()
 	return nil
 }

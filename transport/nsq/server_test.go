@@ -1,10 +1,11 @@
-package rocketmq
+package nsq
 
 import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/broker/nsq"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,45 +13,50 @@ import (
 )
 
 const (
-	testBrokers   = "127.0.0.1:9876"
-	testTopic     = "test"
-	testGroupName = "CID_ONSAPI_OWNER"
+	testBroker = "127.0.0.1:4150"
+	testTopic  = "test_topic"
 )
 
-func TestSubscribe(t *testing.T) {
+func TestServer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
-	b := NewBroker(
-		broker.Addrs(testBrokers),
-		broker.OptionContext(ctx),
+	srv := NewServer(
+		Address([]string{testBroker}),
+		//Subscribe(testTopic, receive),
 	)
 
-	_, err := b.Subscribe(testTopic, receive,
-		broker.SubscribeContext(ctx),
-		broker.Queue(testGroupName),
-	)
+	err := srv.RegisterSubscriber(testTopic, receive)
 	assert.Nil(t, err)
+
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
 
 	<-interrupt
 }
 
 func receive(_ context.Context, event broker.Event) error {
-	fmt.Print("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
-	//_ = event.Ack()
+	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
 	return nil
 }
 
-func TestPublish(t *testing.T) {
+func TestClient(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
-	b := NewBroker(
-		broker.Addrs(testBrokers),
+	b := nsq.NewBroker(
+		broker.Addrs(testBroker),
 		broker.OptionContext(ctx),
 	)
 

@@ -28,10 +28,11 @@ func TestSubscribe(t *testing.T) {
 		broker.OptionContext(ctx),
 	)
 
-	_, _ = b.Subscribe(testTopic, receive,
+	_, err := b.Subscribe(testTopic, receive,
 		broker.SubscribeContext(ctx),
 		broker.Queue(testGroupId),
 	)
+	assert.Nil(t, err)
 
 	<-interrupt
 }

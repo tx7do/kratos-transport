@@ -6,11 +6,11 @@ import (
 )
 
 type subscriber struct {
-	topic string
-	opts  broker.SubscribeOptions
-	c     *nsq.Consumer
-	h     nsq.HandlerFunc
-	n     int
+	topic       string
+	opts        broker.SubscribeOptions
+	consumer    *nsq.Consumer
+	handlerFunc nsq.HandlerFunc
+	concurrency int
 }
 
 func (s *subscriber) Options() broker.SubscribeOptions {
@@ -22,6 +22,6 @@ func (s *subscriber) Topic() string {
 }
 
 func (s *subscriber) Unsubscribe() error {
-	s.c.Stop()
+	s.consumer.Stop()
 	return nil
 }

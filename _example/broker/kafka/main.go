@@ -28,10 +28,13 @@ func main() {
 		broker.OptionContext(ctx),
 	)
 
-	_, _ = b.Subscribe(testTopic, receive,
+	_, err := b.Subscribe(testTopic, receive,
 		broker.SubscribeContext(ctx),
 		broker.Queue(testGroupId),
 	)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	<-interrupt
 }

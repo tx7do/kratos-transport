@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
 	"os"
 	"os/signal"
@@ -141,9 +142,10 @@ func TestReceive(t *testing.T) {
 		}
 	}(b)
 
-	_, _ = b.Subscribe("test_topic", receive,
+	_, err := b.Subscribe("test_topic", receive,
 		broker.SubscribeContext(ctx),
 	)
+	assert.Nil(t, err)
 
 	<-interrupt
 }
