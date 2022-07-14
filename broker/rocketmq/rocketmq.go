@@ -157,9 +157,9 @@ func (r *rocketmqBroker) createNsResolver() primitive.NsResolver {
 	if len(r.nameServers) > 0 {
 		return primitive.NewPassthroughResolver(r.nameServers)
 	} else if r.nameServerUrl != "" {
-		return primitive.NewHttpResolver(r.nameServerUrl)
+		return primitive.NewHttpResolver("DEFAULT", r.nameServerUrl)
 	} else {
-		return primitive.NewHttpResolver(defaultAddr)
+		return primitive.NewHttpResolver("DEFAULT", defaultAddr)
 	}
 }
 
