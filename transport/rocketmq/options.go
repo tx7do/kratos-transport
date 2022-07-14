@@ -10,9 +10,12 @@ import (
 
 type ServerOption func(o *Server)
 
-func Address(addrs []string) ServerOption {
+func TLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
-		s.bOpts = append(s.bOpts, broker.Addrs(addrs...))
+		if c != nil {
+			s.bOpts = append(s.bOpts, broker.Secure(true))
+		}
+		s.bOpts = append(s.bOpts, broker.TLSConfig(c))
 	}
 }
 
@@ -22,12 +25,15 @@ func Logger(logger log.Logger) ServerOption {
 	}
 }
 
-func TLSConfig(c *tls.Config) ServerOption {
+func WithNameServer(addrs []string) ServerOption {
 	return func(s *Server) {
-		if c != nil {
-			s.bOpts = append(s.bOpts, broker.Secure(true))
-		}
-		s.bOpts = append(s.bOpts, broker.TLSConfig(c))
+		s.bOpts = append(s.bOpts, rocketmq.WithNameServer(addrs))
+	}
+}
+
+func WithNameServerDomain(uri string) ServerOption {
+	return func(s *Server) {
+		s.bOpts = append(s.bOpts, rocketmq.WithNameServerDomain(uri))
 	}
 }
 

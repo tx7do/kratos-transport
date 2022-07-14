@@ -107,8 +107,8 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	}
 
 	addr := s.Address()
-	if !strings.HasPrefix(addr, "amqp://") {
-		addr = "amqp://" + addr
+	if !strings.HasPrefix(addr, "tcp://") {
+		addr = "tcp://" + addr
 	}
 
 	return url.Parse(addr)

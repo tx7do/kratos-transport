@@ -52,7 +52,7 @@ func TestServer(t *testing.T) {
 }
 
 func receive(_ context.Context, event broker.Event) error {
-	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
+	fmt.Printf("Topic: %s Payload: %s\n", event.Topic(), string(event.Message().Body))
 	return nil
 }
 
@@ -71,7 +71,7 @@ func TestClient(t *testing.T) {
 	_ = b.Init()
 
 	if err := b.Connect(); err != nil {
-		t.Logf("cant conect to broker, skip: %v", err)
+		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
 

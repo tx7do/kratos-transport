@@ -61,7 +61,7 @@ func main() {
 }
 
 func receive(_ context.Context, event broker.Event) error {
-	fmt.Println("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
+	fmt.Printf("Topic: %s Payload: %s\n", event.Topic(), string(event.Message().Body))
 	//_ = event.Ack()
 	return nil
 }

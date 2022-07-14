@@ -18,7 +18,11 @@ const (
 )
 
 type rocketmqBroker struct {
-	addrs      []string
+	//addrs []string
+
+	nameServers   []string
+	nameServerUrl string
+
 	accessKey  string
 	secretKey  string
 	retryCount int
@@ -36,20 +40,8 @@ type rocketmqBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	var cAddrs []string
-	for _, addr := range options.Addrs {
-		if len(addr) == 0 {
-			continue
-		}
-		cAddrs = append(cAddrs, addr)
-	}
-	if len(cAddrs) == 0 {
-		cAddrs = []string{defaultAddr}
-	}
-
 	r := &rocketmqBroker{
 		producers:  make(map[string]rocketmq.Producer),
-		addrs:      cAddrs,
 		opts:       options,
 		log:        log.NewHelper(log.GetLogger()),
 		retryCount: 2,
@@ -63,8 +55,10 @@ func (r *rocketmqBroker) Name() string {
 }
 
 func (r *rocketmqBroker) Address() string {
-	if len(r.addrs) > 0 {
-		return r.addrs[0]
+	if len(r.nameServers) > 0 {
+		return r.nameServers[0]
+	} else if r.nameServerUrl != "" {
+		return r.nameServerUrl
 	}
 	return defaultAddr
 }
@@ -76,19 +70,20 @@ func (r *rocketmqBroker) Options() broker.Options {
 func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	r.opts.Apply(opts...)
 
-	var cAddrs []string
-	for _, addr := range r.opts.Addrs {
-		if len(addr) == 0 {
-			continue
-		}
-		cAddrs = append(cAddrs, addr)
-	}
-	if len(cAddrs) == 0 {
-		cAddrs = []string{defaultAddr}
-	}
-	r.addrs = cAddrs
-
 	ok := false
+
+	var nameServers []string
+	nameServers, ok = r.opts.Context.Value(nameServersKey{}).([]string)
+	if ok {
+		r.nameServers = nameServers
+	}
+
+	var nameServerUrl string
+	nameServerUrl, ok = r.opts.Context.Value(nameServerUrlKey{}).(string)
+	if ok {
+		r.nameServerUrl = nameServerUrl
+	}
+
 	var accesskey string
 	accesskey, ok = r.opts.Context.Value(accessKey{}).(string)
 	if ok {
@@ -132,7 +127,6 @@ func (r *rocketmqBroker) Connect() error {
 	_ = p.Shutdown()
 
 	r.Lock()
-	r.addrs = r.opts.Addrs
 	r.connected = true
 	r.Unlock()
 
@@ -159,9 +153,19 @@ func (r *rocketmqBroker) Disconnect() error {
 	return nil
 }
 
+func (r *rocketmqBroker) createNsResolver() primitive.NsResolver {
+	if len(r.nameServers) > 0 {
+		return primitive.NewPassthroughResolver(r.nameServers)
+	} else if r.nameServerUrl != "" {
+		return primitive.NewHttpResolver(r.nameServerUrl)
+	} else {
+		return primitive.NewHttpResolver(defaultAddr)
+	}
+}
+
 func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 	p, err := rocketmq.NewProducer(
-		producer.WithNsResolver(primitive.NewPassthroughResolver(r.opts.Addrs)),
+		producer.WithNsResolver(r.createNsResolver()),
 		producer.WithRetry(r.retryCount),
 		producer.WithCredentials(primitive.Credentials{
 			AccessKey: r.accessKey,
@@ -255,7 +259,7 @@ func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broke
 
 	c, _ := rocketmq.NewPushConsumer(
 		consumer.WithGroupName(opt.Queue),
-		consumer.WithNsResolver(primitive.NewPassthroughResolver(r.opts.Addrs)),
+		consumer.WithNsResolver(r.createNsResolver()),
 	)
 	if c == nil {
 		return nil, errors.New("create consumer error")

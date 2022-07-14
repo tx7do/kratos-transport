@@ -30,7 +30,7 @@ func TestSubscribe(t *testing.T) {
 	_ = b.Init()
 
 	if err := b.Connect(); err != nil {
-		t.Logf("cant conect to broker, skip: %v", err)
+		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
 
@@ -62,7 +62,7 @@ func TestPublish(t *testing.T) {
 	_ = b.Init()
 
 	if err := b.Connect(); err != nil {
-		t.Logf("cant conect to broker, skip: %v", err)
+		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
 

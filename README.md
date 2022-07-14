@@ -25,3 +25,4 @@
 - [NSQ](https://nsq.io/)
 - [Apache ActiveMQ](http://activemq.apache.org)
 - [Apache Apollo](http://activemq.apache.org/apollo)
+- [Apache Pulsar](https://pulsar.apache.org/)
