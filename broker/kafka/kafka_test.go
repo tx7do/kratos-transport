@@ -24,8 +24,8 @@ func TestSubscribe(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
+		broker.Addrs(testBrokers),
 	)
 
 	_, err := b.Subscribe(testTopic, receive,
@@ -50,8 +50,8 @@ func TestPublish(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
+		broker.Addrs(testBrokers),
 	)
 
 	_ = b.Init()

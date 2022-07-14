@@ -30,8 +30,8 @@ func TestSubscribe(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs(LocalRabbitBroker),
 		broker.OptionContext(ctx),
+		broker.Addrs(LocalRabbitBroker),
 	)
 	defer b.Disconnect()
 
@@ -58,8 +58,8 @@ func TestPublish(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs(EmqxCnBroker),
 		broker.OptionContext(ctx),
+		broker.Addrs(EmqxCnBroker),
 	)
 
 	_ = b.Init()

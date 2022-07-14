@@ -28,8 +28,8 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := mqtt.NewBroker(
-		broker.Addrs(LocalEmqxBroker),
 		broker.OptionContext(ctx),
+		broker.Addrs(LocalEmqxBroker),
 		mqtt.WithCleanSession(false),
 		mqtt.WithAuth("user", "bitnami"),
 		mqtt.WithClientId("test-client-2"),

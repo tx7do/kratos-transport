@@ -18,8 +18,8 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := redis.NewBroker(
-		broker.Addrs("localhost:6379"),
 		broker.OptionContext(ctx),
+		broker.Addrs("localhost:6379"),
 	)
 
 	_ = b.Init()

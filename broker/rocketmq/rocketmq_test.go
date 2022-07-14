@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	testBrokers   = "127.0.0.1:9876"
+	testBroker    = "127.0.0.1:9876"
 	testTopic     = "test"
 	testGroupName = "CID_ONSAPI_OWNER"
 )
@@ -24,9 +24,17 @@ func TestSubscribe(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
+		WithNameServer([]string{testBroker}),
+		//WithNameServerDomain(testBroker),
 	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
 
 	_, err := b.Subscribe(testTopic, receive,
 		broker.SubscribeContext(ctx),
@@ -38,7 +46,7 @@ func TestSubscribe(t *testing.T) {
 }
 
 func receive(_ context.Context, event broker.Event) error {
-	fmt.Print("Topic: ", event.Topic(), " Payload: ", string(event.Message().Body))
+	fmt.Printf("Topic: %s Payload: %s\n", event.Topic(), string(event.Message().Body))
 	//_ = event.Ack()
 	return nil
 }
@@ -50,8 +58,9 @@ func TestPublish(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
+		WithNameServer([]string{testBroker}),
+		//WithNameServerDomain(testBroker),
 	)
 
 	_ = b.Init()

@@ -18,7 +18,7 @@ const (
 	testBroker = "127.0.0.1:9876"
 
 	testTopic     = "test_topic"
-	testGroupName = "CID_ONSAPI_PULL"
+	testGroupName = "CID_ONSAPI_OWNER"
 )
 
 func TestServer(t *testing.T) {
@@ -59,8 +59,9 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := rocketmq.NewBroker(
-		broker.Addrs(testBroker),
 		broker.OptionContext(ctx),
+		rocketmq.WithNameServer([]string{testBroker}),
+		//rocketmq.WithNameServerDomain(testBroker),
 	)
 
 	_ = b.Init()

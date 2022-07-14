@@ -55,8 +55,8 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := pulsar.NewBroker(
-		broker.Addrs(testBroker),
 		broker.OptionContext(ctx),
+		broker.Addrs(testBroker),
 	)
 
 	_ = b.Init()

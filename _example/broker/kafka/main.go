@@ -24,8 +24,8 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := kafka.NewBroker(
-		broker.Addrs(testBrokers),
 		broker.OptionContext(ctx),
+		broker.Addrs(testBrokers),
 	)
 
 	_, err := b.Subscribe(testTopic, receive,
