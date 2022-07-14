@@ -8,12 +8,20 @@
 
 要切到其他的队列（协议）也是简单的，只需要切换包即可，所需的代码更改并不多，具体可以看例子和测试。
 
-## 支持的队列或者协议
+## 支持的协议
+
+- [MQTT](https://mqtt.org/)
+- [WebSocket](https://zh.wikipedia.org/zh-hant/WebSocket)
+- [STOMP](https://stomp.github.io/)
+- [AMQP](https://www.amqp.org/)
+
+## 支持的队列
 
 - [Kafka](https://kafka.apache.org/)
 - [RabbitMQ](https://www.rabbitmq.com/)
 - [NATS](https://nats.io/)
 - [Redis](https://redis.io/)
-- [MQTT](https://mqtt.org/)
-- [WebSocket](https://zh.wikipedia.org/zh-hant/WebSocket)
 - [RocketMQ](https://rocketmq.apache.org/)
+- [NSQ](https://nsq.io/)
+- [Apache ActiveMQ](http://activemq.apache.org)
+- [Apache Apollo](http://activemq.apache.org/apollo)

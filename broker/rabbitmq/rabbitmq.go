@@ -1,4 +1,3 @@
-// Package rabbitmq provides a RabbitMQ common
 package rabbitmq
 
 import (
