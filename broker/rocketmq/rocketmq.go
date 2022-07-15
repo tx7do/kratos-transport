@@ -3,12 +3,12 @@ package rocketmq
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/uuid"
 	"github.com/tx7do/kratos-transport/broker"
 	"sync"
 )
@@ -23,10 +23,11 @@ type rocketmqBroker struct {
 	nameServers   []string
 	nameServerUrl string
 
-	accessKey  string
-	secretKey  string
-	retryCount int
-	namespace  string
+	accessKey    string
+	secretKey    string
+	instanceName string
+	retryCount   int
+	namespace    string
 
 	log *log.Helper
 
@@ -70,42 +71,26 @@ func (r *rocketmqBroker) Options() broker.Options {
 func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	r.opts.Apply(opts...)
 
-	ok := false
-
-	var nameServers []string
-	nameServers, ok = r.opts.Context.Value(nameServersKey{}).([]string)
-	if ok {
-		r.nameServers = nameServers
+	if v, ok := r.opts.Context.Value(nameServersKey{}).([]string); ok {
+		r.nameServers = v
 	}
-
-	var nameServerUrl string
-	nameServerUrl, ok = r.opts.Context.Value(nameServerUrlKey{}).(string)
-	if ok {
-		r.nameServerUrl = nameServerUrl
+	if v, ok := r.opts.Context.Value(nameServerUrlKey{}).(string); ok {
+		r.nameServerUrl = v
 	}
-
-	var accesskey string
-	accesskey, ok = r.opts.Context.Value(accessKey{}).(string)
-	if ok {
-		r.accessKey = accesskey
+	if v, ok := r.opts.Context.Value(accessKey{}).(string); ok {
+		r.accessKey = v
 	}
-
-	var secretkey string
-	secretkey, ok = r.opts.Context.Value(secretKey{}).(string)
-	if ok {
-		r.secretKey = secretkey
+	if v, ok := r.opts.Context.Value(secretKey{}).(string); ok {
+		r.secretKey = v
 	}
-
-	var retryCount int
-	retryCount, ok = r.opts.Context.Value(retryCountKey{}).(int)
-	if ok {
-		r.retryCount = retryCount
+	if v, ok := r.opts.Context.Value(retryCountKey{}).(int); ok {
+		r.retryCount = v
 	}
-
-	var namespace string
-	namespace, ok = r.opts.Context.Value(namespaceKey{}).(string)
-	if ok {
-		r.namespace = namespace
+	if v, ok := r.opts.Context.Value(namespaceKey{}).(string); ok {
+		r.namespace = v
+	}
+	if v, ok := r.opts.Context.Value(instanceKey{}).(string); ok {
+		r.instanceName = v
 	}
 
 	return nil
@@ -164,6 +149,7 @@ func (r *rocketmqBroker) createNsResolver() primitive.NsResolver {
 }
 
 func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
+	fmt.Println(r.instanceName, r.namespace)
 	p, err := rocketmq.NewProducer(
 		producer.WithNsResolver(r.createNsResolver()),
 		producer.WithRetry(r.retryCount),
@@ -171,6 +157,7 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 			AccessKey: r.accessKey,
 			SecretKey: r.secretKey,
 		}),
+		producer.WithInstanceName(r.instanceName),
 		producer.WithNamespace(r.namespace),
 	)
 	if err != nil {
@@ -188,6 +175,11 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 }
 
 func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	options := broker.PublishOptions{}
+	for _, o := range opts {
+		o(&options)
+	}
+
 	var cached bool
 
 	r.Lock()
@@ -218,6 +210,14 @@ func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...brok
 	}
 
 	rMsg := primitive.NewMessage(topic, buf)
+	rMsg.WithProperties(msg.Header)
+	if v, ok := options.Context.Value(compressKey{}).(bool); ok {
+		rMsg.Compress = v
+	}
+	if v, ok := options.Context.Value(batchKey{}).(bool); ok {
+		rMsg.Batch = v
+	}
+
 	_, err := p.SendSync(r.opts.Context, rMsg)
 	if err != nil {
 		r.log.Errorf("[rocketmq]: send message error: %s\n", err)
@@ -248,25 +248,43 @@ func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...brok
 	return nil
 }
 
-func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	opt := broker.SubscribeOptions{
-		AutoAck: true,
-		Queue:   uuid.New().String(),
-	}
-	for _, o := range opts {
-		o(&opt)
-	}
-
+func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocketmq.PushConsumer, error) {
 	c, _ := rocketmq.NewPushConsumer(
-		consumer.WithGroupName(opt.Queue),
+		consumer.WithGroupName(options.Queue),
 		consumer.WithNsResolver(r.createNsResolver()),
+		consumer.WithAutoCommit(options.AutoAck),
+		consumer.WithRetry(r.retryCount),
+		consumer.WithCredentials(primitive.Credentials{
+			AccessKey: r.accessKey,
+			SecretKey: r.secretKey,
+		}),
+		consumer.WithNamespace(r.namespace),
+		consumer.WithInstance(r.instanceName),
 	)
+
 	if c == nil {
 		return nil, errors.New("create consumer error")
 	}
 
+	return c, nil
+}
+
+func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	options := broker.SubscribeOptions{
+		AutoAck: true,
+		Queue:   "DEFAULT_CONSUMER",
+	}
+	for _, o := range opts {
+		o(&options)
+	}
+
+	c, err := r.createConsumer(&options)
+	if err != nil {
+		return nil, err
+	}
+
 	sub := &subscriber{
-		opts:    opt,
+		opts:    options,
 		topic:   topic,
 		handler: h,
 		reader:  c,
@@ -279,7 +297,7 @@ func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broke
 			var err error
 			var m broker.Message
 			for _, msg := range msgs {
-				p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, rm: &msg.Message, ctx: opt.Context}
+				p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, rm: &msg.Message, ctx: options.Context}
 
 				m.Header = msg.GetProperties()
 				if r.opts.Codec != nil {

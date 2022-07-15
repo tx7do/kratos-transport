@@ -121,19 +121,45 @@ func (pb *pulsarBroker) Disconnect() error {
 }
 
 func (pb *pulsarBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	options := broker.PublishOptions{}
+	for _, o := range opts {
+		o(&options)
+	}
+
 	var cached bool
 
-	options := pulsar.ProducerOptions{
+	pbOptions := pulsar.ProducerOptions{
 		Topic:           topic,
-		Name:            "my-producer",
-		DisableBatching: true,
+		DisableBatching: false,
+	}
+
+	if v, ok := options.Context.Value(producerNameKey{}).(string); ok {
+		pbOptions.Name = v
+	}
+	if v, ok := options.Context.Value(producerPropertiesKey{}).(map[string]string); ok {
+		pbOptions.Properties = v
+	}
+	if v, ok := options.Context.Value(sendTimeoutKey{}).(time.Duration); ok {
+		pbOptions.SendTimeout = v
+	}
+	if v, ok := options.Context.Value(disableBatchingKey{}).(bool); ok {
+		pbOptions.DisableBatching = v
+	}
+	if v, ok := options.Context.Value(batchingMaxPublishDelayKey{}).(time.Duration); ok {
+		pbOptions.BatchingMaxPublishDelay = v
+	}
+	if v, ok := options.Context.Value(batchingMaxMessagesKey{}).(uint); ok {
+		pbOptions.BatchingMaxMessages = v
+	}
+	if v, ok := options.Context.Value(batchingMaxSizeKey{}).(uint); ok {
+		pbOptions.BatchingMaxSize = v
 	}
 
 	pb.Lock()
 	producer, ok := pb.producers[topic]
 	if !ok {
 		var err error
-		producer, err = pb.client.CreateProducer(options)
+		producer, err = pb.client.CreateProducer(pbOptions)
 		if err != nil {
 			pb.Unlock()
 			return err
@@ -156,7 +182,14 @@ func (pb *pulsarBroker) Publish(topic string, msg *broker.Message, opts ...broke
 		buf = msg.Body
 	}
 
-	rMsg := pulsar.ProducerMessage{Payload: buf}
+	rMsg := pulsar.ProducerMessage{Payload: buf, Properties: msg.Header}
+	if v, ok := options.Context.Value(deliverAfterKey{}).(time.Duration); ok {
+		rMsg.DeliverAfter = v
+	}
+	if v, ok := options.Context.Value(deliverAtKey{}).(time.Time); ok {
+		rMsg.DeliverAt = v
+	}
+
 	_, err := producer.Send(pb.opts.Context, &rMsg)
 	if err != nil {
 		pb.log.Errorf("[pulsar]: send message error: %s\n", err)
@@ -168,7 +201,7 @@ func (pb *pulsarBroker) Publish(topic string, msg *broker.Message, opts ...broke
 			delete(pb.producers, topic)
 			pb.Unlock()
 
-			producer, err = pb.client.CreateProducer(options)
+			producer, err = pb.client.CreateProducer(pbOptions)
 			if err != nil {
 				pb.Unlock()
 				return err
@@ -179,11 +212,6 @@ func (pb *pulsarBroker) Publish(topic string, msg *broker.Message, opts ...broke
 				pb.Unlock()
 			}
 		}
-	}
-
-	err = producer.Flush()
-	if err != nil {
-		return err
 	}
 
 	return nil

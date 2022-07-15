@@ -190,8 +190,6 @@ func (n *nsqBroker) Disconnect() error {
 }
 
 func (n *nsqBroker) Publish(topic string, message *broker.Message, opts ...broker.PublishOption) error {
-	p := n.producers[rand.Intn(len(n.producers))]
-
 	options := broker.PublishOptions{}
 	for _, o := range opts {
 		o(&options)
@@ -220,6 +218,8 @@ func (n *nsqBroker) Publish(topic string, message *broker.Message, opts ...broke
 	} else {
 		sendBuffer = message.Body
 	}
+
+	p := n.producers[rand.Intn(len(n.producers))]
 
 	if doneChan != nil {
 		if delay > 0 {

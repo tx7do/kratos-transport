@@ -3,12 +3,13 @@ package rocketmq
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/tx7do/kratos-transport/broker"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 const (
