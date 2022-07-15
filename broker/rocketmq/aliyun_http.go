@@ -263,7 +263,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 				{
 					// Topic中没有消息可消费。
 					if strings.Contains(err.(errors.ErrCode).Error(), "MessageNotExist") {
-						r.log.Debug("\nNo new message, continue!")
+						//r.log.Debug("No new message, continue!")
 					} else {
 						r.log.Error(err)
 						time.Sleep(time.Duration(3) * time.Second)
@@ -272,7 +272,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 				}
 			case <-time.After(35 * time.Second):
 				{
-					r.log.Debug("Timeout of consumer message ??")
+					//r.log.Debug("Timeout of consumer message ??")
 					endChan <- 1
 				}
 
