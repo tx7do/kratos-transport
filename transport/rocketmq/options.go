@@ -10,7 +10,7 @@ import (
 
 type ServerOption func(o *Server)
 
-func TLSConfig(c *tls.Config) ServerOption {
+func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
 		if c != nil {
 			s.bOpts = append(s.bOpts, broker.Secure(true))
@@ -19,9 +19,21 @@ func TLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
-func Logger(logger log.Logger) ServerOption {
+func WithLogger(logger log.Logger) ServerOption {
 	return func(s *Server) {
 		s.log = log.NewHelper(logger)
+	}
+}
+
+func WithAliyunHttpSupport() ServerOption {
+	return func(s *Server) {
+		s.bOpts = append(s.bOpts, rocketmq.WithAliyunHttpSupport())
+	}
+}
+
+func WithEnableTrace() ServerOption {
+	return func(s *Server) {
+		s.bOpts = append(s.bOpts, rocketmq.WithEnableTrace())
 	}
 }
 
@@ -37,16 +49,29 @@ func WithNameServerDomain(uri string) ServerOption {
 	}
 }
 
-func WithCredentials(accessKey, secretKey string) ServerOption {
+func WithCredentials(accessKey, secretKey, securityToken string) ServerOption {
 	return func(s *Server) {
 		s.bOpts = append(s.bOpts, rocketmq.WithAccessKey(accessKey))
 		s.bOpts = append(s.bOpts, rocketmq.WithSecretKey(secretKey))
+		s.bOpts = append(s.bOpts, rocketmq.WithSecurityToken(securityToken))
 	}
 }
 
 func WithNamespace(ns string) ServerOption {
 	return func(s *Server) {
 		s.bOpts = append(s.bOpts, rocketmq.WithNamespace(ns))
+	}
+}
+
+func WithInstanceName(name string) ServerOption {
+	return func(s *Server) {
+		s.bOpts = append(s.bOpts, rocketmq.WithInstanceName(name))
+	}
+}
+
+func WithGroupName(name string) ServerOption {
+	return func(s *Server) {
+		s.bOpts = append(s.bOpts, rocketmq.WithGroupName(name))
 	}
 }
 

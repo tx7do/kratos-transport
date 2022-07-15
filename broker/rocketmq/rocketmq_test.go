@@ -14,7 +14,7 @@ import (
 
 const (
 	testBroker    = "127.0.0.1:9876"
-	testTopic     = "test"
+	testTopic     = "test_topic"
 	testGroupName = "CID_ONSAPI_OWNER"
 )
 
@@ -60,6 +60,7 @@ func TestPublish(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
+		WithEnableTrace(),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
 	)
@@ -77,6 +78,82 @@ func TestPublish(t *testing.T) {
 		err := b.Publish(testTopic, &msg)
 		assert.Nil(t, err)
 	}
+
+	<-interrupt
+}
+
+func TestAliyunPublish(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+	endpoint := ""
+	accessKey := ""
+	secretKey := ""
+	instanceId := ""
+	topicName := ""
+
+	b := NewBroker(
+		broker.OptionContext(ctx),
+		WithAliyunHttpSupport(),
+		WithEnableTrace(),
+		WithNameServerDomain(endpoint),
+		WithAccessKey(accessKey),
+		WithSecretKey(secretKey),
+		WithInstanceName(instanceId),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+
+	var msg broker.Message
+	msg.Body = []byte(`{"Humidity":60, "Temperature":25}`)
+	for i := 0; i < 10; i++ {
+		err := b.Publish(topicName, &msg)
+		assert.Nil(t, err)
+	}
+
+	<-interrupt
+}
+
+func TestAliyunSubscribe(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+	endpoint := ""
+	accessKey := ""
+	secretKey := ""
+	instanceId := ""
+	topicName := ""
+	groupName := "GID_DEFAULT"
+
+	b := NewBroker(
+		broker.OptionContext(ctx),
+		WithAliyunHttpSupport(),
+		WithEnableTrace(),
+		WithNameServerDomain(endpoint),
+		WithAccessKey(accessKey),
+		WithSecretKey(secretKey),
+		WithInstanceName(instanceId),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+
+	_, err := b.Subscribe(topicName, receive,
+		broker.SubscribeContext(ctx),
+		broker.Queue(groupName),
+	)
+	assert.Nil(t, err)
 
 	<-interrupt
 }

@@ -3,14 +3,14 @@ package rocketmq
 import (
 	"context"
 	"errors"
-	"fmt"
+	"sync"
+
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
-	"sync"
 )
 
 const (
@@ -18,16 +18,17 @@ const (
 )
 
 type rocketmqBroker struct {
-	//addrs []string
-
 	nameServers   []string
 	nameServerUrl string
 
 	accessKey    string
 	secretKey    string
 	instanceName string
+	groupName    string
 	retryCount   int
 	namespace    string
+
+	enableTrace bool
 
 	log *log.Helper
 
@@ -41,14 +42,20 @@ type rocketmqBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	r := &rocketmqBroker{
+	if v, ok := options.Context.Value(enableAliyunHttpKey{}).(bool); ok && v {
+		return newAliyunHttpBroker(options)
+	} else {
+		return newBroker(options)
+	}
+}
+
+func newBroker(options broker.Options) broker.Broker {
+	return &rocketmqBroker{
 		producers:  make(map[string]rocketmq.Producer),
 		opts:       options,
 		log:        log.NewHelper(log.GetLogger()),
 		retryCount: 2,
 	}
-
-	return r
 }
 
 func (r *rocketmqBroker) Name() string {
@@ -89,8 +96,14 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	if v, ok := r.opts.Context.Value(namespaceKey{}).(string); ok {
 		r.namespace = v
 	}
-	if v, ok := r.opts.Context.Value(instanceKey{}).(string); ok {
+	if v, ok := r.opts.Context.Value(instanceNameKey{}).(string); ok {
 		r.instanceName = v
+	}
+	if v, ok := r.opts.Context.Value(groupNameKey{}).(string); ok {
+		r.groupName = v
+	}
+	if v, ok := r.opts.Context.Value(enableTraceKey{}).(bool); ok {
+		r.enableTrace = v
 	}
 
 	return nil
@@ -149,16 +162,31 @@ func (r *rocketmqBroker) createNsResolver() primitive.NsResolver {
 }
 
 func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
-	fmt.Println(r.instanceName, r.namespace)
+	credentials := primitive.Credentials{
+		AccessKey: r.accessKey,
+		SecretKey: r.secretKey,
+	}
+
+	resolver := r.createNsResolver()
+
+	var traceCfg *primitive.TraceConfig = nil
+	if r.enableTrace {
+		traceCfg = &primitive.TraceConfig{
+			GroupName:   r.groupName,
+			Credentials: credentials,
+			Access:      primitive.Cloud,
+			Resolver:    resolver,
+		}
+	}
+
 	p, err := rocketmq.NewProducer(
-		producer.WithNsResolver(r.createNsResolver()),
+		producer.WithNsResolver(resolver),
+		producer.WithCredentials(credentials),
+		producer.WithTrace(traceCfg),
 		producer.WithRetry(r.retryCount),
-		producer.WithCredentials(primitive.Credentials{
-			AccessKey: r.accessKey,
-			SecretKey: r.secretKey,
-		}),
 		producer.WithInstanceName(r.instanceName),
 		producer.WithNamespace(r.namespace),
+		producer.WithGroupName(r.groupName),
 	)
 	if err != nil {
 		r.log.Errorf("[rocketmq]: new producer error: " + err.Error())
@@ -172,6 +200,42 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 	}
 
 	return p, nil
+}
+
+func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocketmq.PushConsumer, error) {
+	credentials := primitive.Credentials{
+		AccessKey: r.accessKey,
+		SecretKey: r.secretKey,
+	}
+
+	resolver := r.createNsResolver()
+
+	var traceCfg *primitive.TraceConfig = nil
+	if r.enableTrace {
+		traceCfg = &primitive.TraceConfig{
+			GroupName:   options.Queue,
+			Credentials: credentials,
+			Access:      primitive.Cloud,
+			Resolver:    resolver,
+		}
+	}
+
+	c, _ := rocketmq.NewPushConsumer(
+		consumer.WithNsResolver(resolver),
+		consumer.WithCredentials(credentials),
+		consumer.WithTrace(traceCfg),
+		consumer.WithGroupName(options.Queue),
+		consumer.WithAutoCommit(options.AutoAck),
+		consumer.WithRetry(r.retryCount),
+		consumer.WithNamespace(r.namespace),
+		consumer.WithInstance(r.instanceName),
+	)
+
+	if c == nil {
+		return nil, errors.New("create consumer error")
+	}
+
+	return c, nil
 }
 
 func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -248,31 +312,10 @@ func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...brok
 	return nil
 }
 
-func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocketmq.PushConsumer, error) {
-	c, _ := rocketmq.NewPushConsumer(
-		consumer.WithGroupName(options.Queue),
-		consumer.WithNsResolver(r.createNsResolver()),
-		consumer.WithAutoCommit(options.AutoAck),
-		consumer.WithRetry(r.retryCount),
-		consumer.WithCredentials(primitive.Credentials{
-			AccessKey: r.accessKey,
-			SecretKey: r.secretKey,
-		}),
-		consumer.WithNamespace(r.namespace),
-		consumer.WithInstance(r.instanceName),
-	)
-
-	if c == nil {
-		return nil, errors.New("create consumer error")
-	}
-
-	return c, nil
-}
-
 func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
 		AutoAck: true,
-		Queue:   "DEFAULT_CONSUMER",
+		Queue:   r.groupName,
 	}
 	for _, o := range opts {
 		o(&options)
