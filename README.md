@@ -17,12 +17,12 @@
 
 ## 支持的队列
 
-- [Kafka](https://kafka.apache.org/)
 - [RabbitMQ](https://www.rabbitmq.com/)
-- [NATS](https://nats.io/)
-- [Redis](https://redis.io/)
+- [Kafka](https://kafka.apache.org/)
 - [RocketMQ](https://rocketmq.apache.org/)
+- [ActiveMQ](http://activemq.apache.org)
+- [Apollo](http://activemq.apache.org/apollo)
+- [Pulsar](https://pulsar.apache.org/)
+- [NATS](https://nats.io/)
 - [NSQ](https://nsq.io/)
-- [Apache ActiveMQ](http://activemq.apache.org)
-- [Apache Apollo](http://activemq.apache.org/apollo)
-- [Apache Pulsar](https://pulsar.apache.org/)
+- [Redis](https://redis.io/)
