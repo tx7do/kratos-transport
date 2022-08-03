@@ -20,6 +20,7 @@ type SubscriberMap map[string]broker.Subscriber
 
 type SubscribeOption struct {
 	handler broker.Handler
+	binder  broker.Binder
 	opts    []broker.SubscribeOption
 }
 type SubscribeOptionMap map[string]*SubscribeOption
@@ -114,7 +115,7 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return url.Parse(addr)
 }
 
-func (s *Server) RegisterSubscriber(ctx context.Context, topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
+func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -129,15 +130,15 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic string, h broker.
 	opts = append([]broker.SubscribeOption{broker.SubscribeContext(ctx)}, opts...)
 
 	if s.started {
-		return s.doRegisterSubscriber(topic, h, opts...)
+		return s.doRegisterSubscriber(topic, handler, binder, opts...)
 	} else {
-		s.subscriberOpts[topic] = &SubscribeOption{handler: h, opts: opts}
+		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, opts: opts}
 	}
 	return nil
 }
 
-func (s *Server) doRegisterSubscriber(topic string, h broker.Handler, opts ...broker.SubscribeOption) error {
-	sub, err := s.Subscribe(topic, h, opts...)
+func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {
+	sub, err := s.Subscribe(topic, handler, binder, opts...)
 	if err != nil {
 		return err
 	}
@@ -149,7 +150,7 @@ func (s *Server) doRegisterSubscriber(topic string, h broker.Handler, opts ...br
 
 func (s *Server) doRegisterSubscriberMap() error {
 	for topic, opt := range s.subscriberOpts {
-		_ = s.doRegisterSubscriber(topic, opt.handler, opt.opts...)
+		_ = s.doRegisterSubscriber(topic, opt.handler, opt.binder, opt.opts...)
 	}
 	s.subscriberOpts = SubscribeOptionMap{}
 	return nil

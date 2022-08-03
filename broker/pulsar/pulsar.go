@@ -1,6 +1,8 @@
 package pulsar
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/go-kratos/kratos/v2/log"
@@ -120,7 +122,32 @@ func (pb *pulsarBroker) Disconnect() error {
 	return nil
 }
 
-func (pb *pulsarBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (pb *pulsarBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	if pb.opts.Codec != nil {
+		var err error
+		buf, err := pb.opts.Codec.Marshal(msg)
+		if err != nil {
+			return err
+		}
+		return pb.publish(topic, buf, opts...)
+	} else {
+		switch t := msg.(type) {
+		case []byte:
+			return pb.publish(topic, t, opts...)
+		case string:
+			return pb.publish(topic, []byte(t), opts...)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			return pb.publish(topic, buf.Bytes(), opts...)
+		}
+	}
+}
+
+func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{}
 	for _, o := range opts {
 		o(&options)
@@ -171,18 +198,26 @@ func (pb *pulsarBroker) Publish(topic string, msg *broker.Message, opts ...broke
 	}
 	pb.Unlock()
 
-	var buf []byte
-	if pb.opts.Codec != nil {
-		var err error
-		buf, err = pb.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
+	rMsg := pulsar.ProducerMessage{Payload: msg}
+
+	if headers, ok := options.Context.Value(headersKey{}).(map[string]interface{}); ok {
+		for k, v := range headers {
+			switch t := v.(type) {
+			case string:
+				rMsg.Properties[k] = t
+			case []byte:
+				rMsg.Properties[k] = string(t)
+			default:
+				var buf bytes.Buffer
+				enc := gob.NewEncoder(&buf)
+				if err := enc.Encode(v); err != nil {
+					continue
+				}
+				rMsg.Properties[k] = string(buf.Bytes())
+			}
 		}
-	} else {
-		buf = msg.Body
 	}
 
-	rMsg := pulsar.ProducerMessage{Payload: buf, Properties: msg.Header}
 	if v, ok := options.Context.Value(deliverAfterKey{}).(time.Duration); ok {
 		rMsg.DeliverAfter = v
 	}
@@ -217,7 +252,7 @@ func (pb *pulsarBroker) Publish(topic string, msg *broker.Message, opts ...broke
 	return nil
 }
 
-func (pb *pulsarBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	opt := broker.SubscribeOptions{
 		AutoAck: true,
 		Queue:   uuid.New().String(),
@@ -243,7 +278,7 @@ func (pb *pulsarBroker) Subscribe(topic string, h broker.Handler, opts ...broker
 	sub := &subscriber{
 		opts:    opt,
 		topic:   topic,
-		handler: h,
+		handler: handler,
 		reader:  c,
 		channel: channel,
 	}
@@ -253,7 +288,20 @@ func (pb *pulsarBroker) Subscribe(topic string, h broker.Handler, opts ...broker
 		var m broker.Message
 		for cm := range channel {
 			p := &publication{topic: cm.Topic(), reader: sub.reader, msg: &m, pulsarMsg: &cm.Message, ctx: opt.Context}
-			m.Header = cm.Properties()
+			m.Headers = cm.Properties()
+
+			if binder != nil {
+				m.Body = binder()
+			}
+
+			if pb.opts.Codec != nil {
+				if err := pb.opts.Codec.Unmarshal(cm.Payload(), m.Body); err != nil {
+					continue
+				}
+			} else {
+				m.Body = cm.Payload()
+			}
+
 			if pb.opts.Codec != nil {
 				if err := pb.opts.Codec.Unmarshal(cm.Payload(), &m); err != nil {
 					p.err = err

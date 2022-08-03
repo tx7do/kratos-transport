@@ -1,11 +1,11 @@
 package mqtt
 
 import (
-	"context"
 	"crypto/tls"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/mqtt"
+	"github.com/tx7do/kratos-transport/codec"
 )
 
 type ServerOption func(o *Server)
@@ -49,12 +49,8 @@ func WithClientId(clientId string) ServerOption {
 	}
 }
 
-func Subscribe(ctx context.Context, topic string, h broker.Handler, opts ...broker.SubscribeOption) ServerOption {
+func WithCodec(c codec.Marshaler) ServerOption {
 	return func(s *Server) {
-		if s.baseCtx == nil {
-			s.baseCtx = context.Background()
-		}
-
-		_ = s.RegisterSubscriber(ctx, topic, h, opts...)
+		s.bOpts = append(s.bOpts, broker.Codec(c))
 	}
 }

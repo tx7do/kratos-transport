@@ -1,14 +1,16 @@
 package stomp
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-stomp/stomp/v3"
 	"github.com/go-stomp/stomp/v3/frame"
 	"github.com/tx7do/kratos-transport/broker"
@@ -17,62 +19,55 @@ import (
 type stompBroker struct {
 	opts      broker.Options
 	stompConn *stomp.Conn
+	log       *log.Helper
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptions()
 
-	r := &stompBroker{
+	b := &stompBroker{
 		opts: options,
+		log:  log.NewHelper(log.GetLogger()),
 	}
-	_ = r.Init(opts...)
-	return r
+	_ = b.Init(opts...)
+	return b
 }
 
-func stompHeaderToMap(h *frame.Header) map[string]string {
-	m := map[string]string{}
-	for i := 0; i < h.Len(); i++ {
-		k, v := h.GetAt(i)
-		m[k] = v
-	}
-	return m
-}
-
-func (r *stompBroker) Name() string {
+func (b *stompBroker) Name() string {
 	return "stomp"
 }
 
-func (r *stompBroker) defaults() {
-	WithConnectTimeout(30 * time.Second)(&r.opts)
-	WithVirtualHost("/")(&r.opts)
+func (b *stompBroker) defaults() {
+	WithConnectTimeout(30 * time.Second)(&b.opts)
+	WithVirtualHost("/")(&b.opts)
 }
 
-func (r *stompBroker) Options() broker.Options {
-	if r.opts.Context == nil {
-		r.opts.Context = context.Background()
+func (b *stompBroker) Options() broker.Options {
+	if b.opts.Context == nil {
+		b.opts.Context = context.Background()
 	}
-	return r.opts
+	return b.opts
 }
 
-func (r *stompBroker) Address() string {
-	if len(r.opts.Addrs) > 0 {
-		return r.opts.Addrs[0]
+func (b *stompBroker) Address() string {
+	if len(b.opts.Addrs) > 0 {
+		return b.opts.Addrs[0]
 	}
 	return ""
 }
 
-func (r *stompBroker) Init(opts ...broker.Option) error {
-	r.defaults()
+func (b *stompBroker) Init(opts ...broker.Option) error {
+	b.defaults()
 
-	r.opts.Apply(opts...)
+	b.opts.Apply(opts...)
 
 	return nil
 }
 
-func (r *stompBroker) Connect() error {
-	connectTimeOut, _ := ConnectTimeoutFromContext(r.Options().Context)
+func (b *stompBroker) Connect() error {
+	connectTimeOut, _ := ConnectTimeoutFromContext(b.Options().Context)
 
-	uri, err := url.Parse(r.Address())
+	uri, err := url.Parse(b.Address())
 	if err != nil {
 		return err
 	}
@@ -92,20 +87,20 @@ func (r *stompBroker) Connect() error {
 		return fmt.Errorf("failed to dial %s: %v", uri.Host, err)
 	}
 
-	if auth, ok := AuthFromContext(r.Options().Context); ok && auth != nil {
+	if auth, ok := AuthFromContext(b.Options().Context); ok && auth != nil {
 		stompOpts = append(stompOpts, stomp.ConnOpt.Login(auth.username, auth.password))
 	}
-	if headers, ok := ConnectHeadersFromContext(r.Options().Context); ok && headers != nil {
+	if headers, ok := ConnectHeadersFromContext(b.Options().Context); ok && headers != nil {
 		for k, v := range headers {
 			stompOpts = append(stompOpts, stomp.ConnOpt.Header(k, v))
 		}
 	}
-	if host, ok := VirtualHostFromContext(r.Options().Context); ok && host != "" {
-		log.Printf("Adding host: %s", host)
+	if host, ok := VirtualHostFromContext(b.Options().Context); ok && host != "" {
+		b.log.Infof("Adding host: %s", host)
 		stompOpts = append(stompOpts, stomp.ConnOpt.Host(host))
 	}
 
-	r.stompConn, err = stomp.Connect(netConn, stompOpts...)
+	b.stompConn, err = stomp.Connect(netConn, stompOpts...)
 	if err != nil {
 		_ = netConn.Close()
 		return fmt.Errorf("failed to connect to %s: %v", uri.Host, err)
@@ -113,35 +108,75 @@ func (r *stompBroker) Connect() error {
 	return nil
 }
 
-func (r *stompBroker) Disconnect() error {
-	return r.stompConn.Disconnect()
+func (b *stompBroker) Disconnect() error {
+	return b.stompConn.Disconnect()
 }
 
-func (r *stompBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
-	if r.stompConn == nil {
-		return errors.New("not connected")
+func (b *stompBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	if b.opts.Codec != nil {
+		var err error
+		buf, err := b.opts.Codec.Marshal(msg)
+		if err != nil {
+			return err
+		}
+		return b.publish(topic, buf, opts...)
+	} else {
+		switch t := msg.(type) {
+		case []byte:
+			return b.publish(topic, t, opts...)
+		case string:
+			return b.publish(topic, []byte(t), opts...)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			return b.publish(topic, buf.Bytes(), opts...)
+		}
 	}
+}
 
-	stompOpt := make([]func(*frame.Frame) error, 0, len(msg.Header))
-	for k, v := range msg.Header {
-		stompOpt = append(stompOpt, stomp.SendOpt.Header(k, v))
+func (b *stompBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
+	if b.stompConn == nil {
+		return errors.New("not connected")
 	}
 
 	bOpt := broker.PublishOptions{}
 	for _, o := range opts {
 		o(&bOpt)
 	}
-	if withReceipt, ok := r.Options().Context.Value(receiptKey{}).(bool); ok && withReceipt {
+
+	stompOpt := make([]func(*frame.Frame) error, 0, 0)
+
+	if headers, ok := b.Options().Context.Value(headerKey{}).(map[string]interface{}); ok {
+		for k, v := range headers {
+			switch t := v.(type) {
+			case string:
+				stompOpt = append(stompOpt, stomp.SendOpt.Header(k, t))
+			case []byte:
+				stompOpt = append(stompOpt, stomp.SendOpt.Header(k, string(t)))
+			default:
+				var buf bytes.Buffer
+				enc := gob.NewEncoder(&buf)
+				if err := enc.Encode(v); err != nil {
+					continue
+				}
+				stompOpt = append(stompOpt, stomp.SendOpt.Header(k, string(buf.Bytes())))
+			}
+		}
+	}
+	if withReceipt, ok := b.Options().Context.Value(receiptKey{}).(bool); ok && withReceipt {
 		stompOpt = append(stompOpt, stomp.SendOpt.Receipt)
 	}
-	if withoutContentLength, ok := r.Options().Context.Value(suppressContentLengthKey{}).(bool); ok && withoutContentLength {
+	if withoutContentLength, ok := b.Options().Context.Value(suppressContentLengthKey{}).(bool); ok && withoutContentLength {
 		stompOpt = append(stompOpt, stomp.SendOpt.NoContentLength)
 	}
 
-	if err := r.stompConn.Send(
+	if err := b.stompConn.Send(
 		topic,
 		"",
-		msg.Body,
+		msg,
 		stompOpt...); err != nil {
 		return err
 	}
@@ -149,14 +184,11 @@ func (r *stompBroker) Publish(topic string, msg *broker.Message, opts ...broker.
 	return nil
 }
 
-func (r *stompBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	var ackSuccess bool
-
-	if r.stompConn == nil {
+func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	if b.stompConn == nil {
 		return nil, errors.New("not connected")
 	}
 
-	stompOpt := make([]func(*frame.Frame) error, 0, len(opts))
 	bOpt := broker.SubscribeOptions{
 		AutoAck: true,
 	}
@@ -166,6 +198,9 @@ func (r *stompBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 	if bOpt.Context == nil {
 		bOpt.Context = context.Background()
 	}
+
+	var ackSuccess bool
+	stompOpt := make([]func(*frame.Frame) error, 0, len(opts))
 
 	ctx := bOpt.Context
 	if subscribeContext, ok := SubscribeContextFromContext(ctx); ok && subscribeContext != nil {
@@ -194,7 +229,7 @@ func (r *stompBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 		ackMode = stomp.AckClientIndividual
 	}
 
-	sub, err := r.stompConn.Subscribe(topic, ackMode, stompOpt...)
+	sub, err := b.stompConn.Subscribe(topic, ackMode, stompOpt...)
 	if err != nil {
 		return nil, err
 	}
@@ -203,11 +238,23 @@ func (r *stompBroker) Subscribe(topic string, handler broker.Handler, opts ...br
 		for msg := range sub.C {
 			go func(msg *stomp.Message) {
 				m := &broker.Message{
-					Header: stompHeaderToMap(msg.Header),
-					Body:   msg.Body,
+					Headers: stompHeaderToMap(msg.Header),
 				}
-				p := &publication{msg: msg, m: m, topic: topic, broker: r}
-				p.err = handler(r.opts.Context, p)
+
+				if binder != nil {
+					m.Body = binder()
+				}
+
+				if b.opts.Codec != nil {
+					if err := b.opts.Codec.Unmarshal(msg.Body, m.Body); err != nil {
+						return
+					}
+				} else {
+					m.Body = msg.Body
+				}
+
+				p := &publication{msg: msg, m: m, topic: topic, broker: b}
+				p.err = handler(b.opts.Context, p)
 				if p.err == nil && !bOpt.AutoAck && ackSuccess {
 					_ = msg.Conn.Ack(msg)
 				}

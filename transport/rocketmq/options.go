@@ -1,11 +1,11 @@
 package rocketmq
 
 import (
-	"context"
 	"crypto/tls"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
+	"github.com/tx7do/kratos-transport/codec"
 )
 
 type ServerOption func(o *Server)
@@ -81,8 +81,8 @@ func WithRetryCount(count int) ServerOption {
 	}
 }
 
-func Subscribe(ctx context.Context, topic, groupName string, h broker.Handler, opts ...broker.SubscribeOption) ServerOption {
+func WithCodec(c codec.Marshaler) ServerOption {
 	return func(s *Server) {
-		_ = s.RegisterSubscriber(ctx, topic, groupName, h, opts...)
+		s.bOpts = append(s.bOpts, broker.Codec(c))
 	}
 }

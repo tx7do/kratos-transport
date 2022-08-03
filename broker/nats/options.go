@@ -15,3 +15,11 @@ func Options(opts nats.Options) broker.Option {
 func DrainConnection() broker.Option {
 	return broker.OptionContextWithValue(drainConnectionKey{}, struct{}{})
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+type headersKey struct{}
+
+func WithHeaders(h map[string]interface{}) broker.PublishOption {
+	return broker.PublishContextWithValue(headersKey{}, h)
+}

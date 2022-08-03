@@ -2,12 +2,29 @@ package broker
 
 import "context"
 
+type Any interface{}
+
 type Handler func(context.Context, Event) error
 type EchoHandler func(context.Context, Event) (Event, error)
 
+type Binder func() Any
+
+type Headers map[string]string
+
 type Message struct {
-	Header map[string]string
-	Body   []byte
+	Headers Headers
+	Body    Any
+}
+
+func (m Message) GetHeaders() Headers {
+	return m.Headers
+}
+
+func (m Message) GetHeader(key string) string {
+	if m.Headers == nil {
+		return ""
+	}
+	return m.Headers[key]
 }
 
 type Event interface {
@@ -24,12 +41,16 @@ type Subscriber interface {
 }
 
 type Broker interface {
-	Init(...Option) error
+	Name() string
 	Options() Options
 	Address() string
+
+	Init(...Option) error
+
 	Connect() error
 	Disconnect() error
-	Publish(topic string, m *Message, opts ...PublishOption) error
-	Subscribe(topic string, h Handler, opts ...SubscribeOption) (Subscriber, error)
-	Name() string
+
+	Publish(topic string, msg Any, opts ...PublishOption) error
+
+	Subscribe(topic string, handler Handler, binder Binder, opts ...SubscribeOption) (Subscriber, error)
 }

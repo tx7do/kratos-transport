@@ -2,147 +2,131 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/tx7do/kratos-transport/broker"
+	"log"
+	"math/rand"
 	"os"
 	"os/signal"
-	"reflect"
-	"sort"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/tx7do/kratos-transport/broker"
+	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 )
 
-func subscribe(t *testing.T, b broker.Broker, topic string, handle broker.Handler) broker.Subscriber {
-	s, err := b.Subscribe(topic, handle)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return s
+const (
+	localBroker = "127.0.0.1:6379"
+	testTopic   = "test_topic"
+)
+
+type Hygrothermograph struct {
+	Humidity    float64 `json:"humidity"`
+	Temperature float64 `json:"temperature"`
 }
 
-func publish(t *testing.T, b broker.Broker, topic string, msg *broker.Message) {
-	if err := b.Publish(topic, msg); err != nil {
-		t.Fatal(err)
+func registerHygrothermographRawHandler() broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		var msg Hygrothermograph
+
+		switch t := event.Message().Body.(type) {
+		case []byte:
+			if err := json.Unmarshal(t, &msg); err != nil {
+				return err
+			}
+		case string:
+			if err := json.Unmarshal([]byte(t), &msg); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+
+		if err := handleHygrothermograph(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
+			return err
+		}
+
+		return nil
 	}
 }
 
-func unsubscribe(t *testing.T, s broker.Subscriber) {
-	if err := s.Unsubscribe(); err != nil {
-		t.Fatal(err)
+func registerHygrothermographJsonHandler() broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		switch t := event.Message().Body.(type) {
+		case *Hygrothermograph:
+			if err := handleHygrothermograph(ctx, event.Topic(), event.Message().Headers, t); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+		return nil
 	}
 }
 
-func TestBroker(t *testing.T) {
+func handleHygrothermograph(_ context.Context, _ string, _ broker.Headers, msg *Hygrothermograph) error {
+	log.Printf("Humidity: %.2f Temperature: %.2f\n", msg.Humidity, msg.Temperature)
+	return nil
+}
+
+func Test_Publish_WithRawData(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	b := NewBroker(
-		broker.Addrs("localhost:6379"),
-	)
-
-	// Only setting options.
-	_ = b.Init()
-
-	if err := b.Connect(); err != nil {
-		t.Fatal(err)
-	}
-	defer func(b broker.Broker) {
-		err := b.Disconnect()
-		if err != nil {
-
-		}
-	}(b)
-
-	// Large enough buffer to not block.
-	msgs := make(chan string, 10)
-
-	go func() {
-		s1 := subscribe(t, b, "test", func(_ context.Context, p broker.Event) error {
-			m := p.Message()
-			msgs <- fmt.Sprintf("s1:%s", string(m.Body))
-			return nil
-		})
-
-		s2 := subscribe(t, b, "test", func(_ context.Context, p broker.Event) error {
-			m := p.Message()
-			msgs <- fmt.Sprintf("s2:%s", string(m.Body))
-			return nil
-		})
-
-		publish(t, b, "test", &broker.Message{
-			Body: []byte("hello"),
-		})
-
-		publish(t, b, "test", &broker.Message{
-			Body: []byte("world"),
-		})
-
-		unsubscribe(t, s1)
-
-		publish(t, b, "test", &broker.Message{
-			Body: []byte("other"),
-		})
-
-		unsubscribe(t, s2)
-
-		publish(t, b, "test", &broker.Message{
-			Body: []byte("none"),
-		})
-
-		close(msgs)
-	}()
-
-	var actual []string
-	for msg := range msgs {
-		actual = append(actual, msg)
-	}
-
-	exp := []string{
-		"s1:hello",
-		"s2:hello",
-		"s1:world",
-		"s2:world",
-		"s2:other",
-	}
-
-	// Order is not guaranteed.
-	sort.Strings(actual)
-	sort.Strings(exp)
-
-	if !reflect.DeepEqual(actual, exp) {
-		t.Fatalf("expected %v, got %v", exp, actual)
-	}
-
-	<-interrupt
-}
-
-func TestReceive(t *testing.T) {
 	ctx := context.Background()
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
 	b := NewBroker(
-		broker.Addrs("redis://localhost:6379"),
-		//IdleTimeout(24*time.Hour),
+		broker.OptionContext(ctx),
+		broker.Addrs(localBroker),
 		ReadTimeout(24*time.Hour),
 	)
 
 	_ = b.Init()
 
 	if err := b.Connect(); err != nil {
-		fmt.Println(err)
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
 	}
-	defer func(b broker.Broker) {
-		err := b.Disconnect()
-		if err != nil {
-			fmt.Println(err)
-		}
-	}(b)
 
-	_, err := b.Subscribe("test_topic", receive,
+	var msg Hygrothermograph
+	const count = 10
+	for i := 0; i < count; i++ {
+		startTime := time.Now()
+		msg.Humidity = float64(rand.Intn(100))
+		msg.Temperature = float64(rand.Intn(100))
+		buf, _ := json.Marshal(&msg)
+		err := b.Publish(testTopic, buf)
+		assert.Nil(t, err)
+		elapsedTime := time.Since(startTime) / time.Millisecond
+		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+			i, elapsedTime, msg.Humidity, msg.Temperature)
+	}
+
+	fmt.Printf("total send %d messages\n", count)
+
+	<-interrupt
+}
+
+func Test_Subscribe_WithRawData(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	b := NewBroker(
+		broker.OptionContext(ctx),
+		broker.Addrs(localBroker),
+		ReadTimeout(24*time.Hour),
+	)
+	defer b.Disconnect()
+
+	_ = b.Connect()
+
+	_, err := b.Subscribe(testTopic,
+		registerHygrothermographRawHandler(),
+		nil,
 		broker.SubscribeContext(ctx),
 	)
 	assert.Nil(t, err)
@@ -150,8 +134,68 @@ func TestReceive(t *testing.T) {
 	<-interrupt
 }
 
-func receive(_ context.Context, event broker.Event) error {
-	fmt.Printf("Topic: %s Payload: %s\n", event.Topic(), string(event.Message().Body))
-	//_ = event.Ack()
-	return nil
+func Test_Publish_WithJsonCodec(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	b := NewBroker(
+		broker.OptionContext(ctx),
+		broker.Addrs(localBroker),
+		broker.Codec(jsonCodec.Marshaler{}),
+		ReadTimeout(24*time.Hour),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+
+	var msg Hygrothermograph
+	const count = 10
+	for i := 0; i < count; i++ {
+		startTime := time.Now()
+		msg.Humidity = float64(rand.Intn(100))
+		msg.Temperature = float64(rand.Intn(100))
+		err := b.Publish(testTopic, msg)
+		assert.Nil(t, err)
+		elapsedTime := time.Since(startTime) / time.Millisecond
+		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+			i, elapsedTime, msg.Humidity, msg.Temperature)
+	}
+
+	fmt.Printf("total send %d messages\n", count)
+
+	<-interrupt
+}
+
+func Test_Subscribe_WithJsonCodec(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	b := NewBroker(
+		broker.OptionContext(ctx),
+		broker.Addrs(localBroker),
+		broker.Codec(jsonCodec.Marshaler{}),
+		ReadTimeout(24*time.Hour),
+	)
+	defer b.Disconnect()
+
+	_ = b.Connect()
+
+	_, err := b.Subscribe(testTopic,
+		registerHygrothermographJsonHandler(),
+		func() broker.Any {
+			return &Hygrothermograph{}
+		},
+		broker.SubscribeContext(ctx),
+	)
+	assert.Nil(t, err)
+
+	<-interrupt
 }

@@ -7,31 +7,13 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-type durableQueueKey struct{}
-type headersKey struct{}
-type queueArgumentsKey struct{}
+///////////////////////////////////////////////////////////////////////////////
+
+type durableExchangeKey struct{}
+type exchangeKey struct{}
 type prefetchCountKey struct{}
 type prefetchGlobalKey struct{}
-type exchangeKey struct{}
-type requeueOnErrorKey struct{}
-type deliveryModeKey struct{}
-type priorityKey struct{}
-type ackSuccessKey struct{}
-type contentTypeKey struct{}
-type contentEncodingKey struct{}
-type correlationIDKey struct{}
-type replyToKey struct{}
-type expirationKey struct{}
-type messageIDKey struct{}
-type timestampKey struct{}
-type typeMsgKey struct{}
-type userIDKey struct{}
-type appIDKey struct{}
 type externalAuthKey struct{}
-type durableExchangeKey struct{}
-type subscribeContextKey struct{}
-
-///////////////////////////////////////////////////////////////////////////////
 
 func DurableExchange() broker.Option {
 	return broker.OptionContextWithValue(durableExchangeKey{}, true)
@@ -55,12 +37,19 @@ func ExternalAuth() broker.Option {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+type durableQueueKey struct{}
+type subscribeHeadersKey struct{}
+type queueArgumentsKey struct{}
+type requeueOnErrorKey struct{}
+type subscribeContextKey struct{}
+type ackSuccessKey struct{}
+
 func DurableQueue() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
 }
 
-func Headers(h map[string]interface{}) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(headersKey{}, h)
+func SubscribeHeaders(h map[string]interface{}) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeHeadersKey{}, h)
 }
 
 func QueueArguments(h map[string]interface{}) broker.SubscribeOption {
@@ -90,6 +79,20 @@ func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+type deliveryModeKey struct{}
+type priorityKey struct{}
+type contentTypeKey struct{}
+type contentEncodingKey struct{}
+type correlationIDKey struct{}
+type replyToKey struct{}
+type expirationKey struct{}
+type messageIDKey struct{}
+type timestampKey struct{}
+type typeMsgKey struct{}
+type userIDKey struct{}
+type appIDKey struct{}
+type publishHeadersKey struct{}
 
 func DeliveryMode(value uint8) broker.PublishOption {
 	return broker.PublishContextWithValue(deliveryModeKey{}, value)
@@ -137,4 +140,8 @@ func UserID(value string) broker.PublishOption {
 
 func AppID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(appIDKey{}, value)
+}
+
+func PublishHeaders(h map[string]interface{}) broker.PublishOption {
+	return broker.PublishContextWithValue(publishHeadersKey{}, h)
 }

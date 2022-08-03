@@ -22,6 +22,7 @@ type batchingMaxMessagesKey struct{}
 type batchingMaxSizeKey struct{}
 type deliverAfterKey struct{}
 type deliverAtKey struct{}
+type headersKey struct{}
 
 func WithProducerNamePublish(name string) broker.PublishOption {
 	return broker.PublishContextWithValue(producerNameKey{}, name)
@@ -57,6 +58,10 @@ func WithDeliverAfterPublish(delay time.Duration) broker.PublishOption {
 
 func WithDeliverAtPublish(tm time.Time) broker.PublishOption {
 	return broker.PublishContextWithValue(deliverAtKey{}, tm)
+}
+
+func WithHeaders(h map[string]interface{}) broker.PublishOption {
+	return broker.PublishContextWithValue(headersKey{}, h)
 }
 
 ///

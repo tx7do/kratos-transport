@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"context"
-	KAFKA "github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -11,8 +11,8 @@ type publication struct {
 	err    error
 	m      *broker.Message
 	ctx    context.Context
-	reader *KAFKA.Reader
-	km     KAFKA.Message
+	reader *kafkago.Reader
+	km     kafkago.Message
 }
 
 func (p *publication) Topic() string {

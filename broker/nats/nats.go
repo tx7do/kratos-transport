@@ -1,7 +1,9 @@
 package nats
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
 	"strings"
 	"sync"
@@ -18,9 +20,10 @@ type natsBroker struct {
 	connected bool
 
 	addrs []string
-	conn  *NATS.Conn
 	opts  broker.Options
-	nopts NATS.Options
+
+	conn     *NATS.Conn
+	natsOpts NATS.Options
 
 	log *log.Helper
 
@@ -31,37 +34,41 @@ type natsBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	n := &natsBroker{
+	b := &natsBroker{
 		opts: options,
+		log:  log.NewHelper(log.GetLogger()),
 	}
-	n.setOption(opts...)
+	b.setOption(opts...)
 
-	return n
+	return b
 }
 
-func natsHeaderToMap(h NATS.Header) map[string]string {
-	m := map[string]string{}
-
-	for k, v := range h {
-		m[k] = v[0]
+func (b *natsBroker) Address() string {
+	if b.conn != nil && b.conn.IsConnected() {
+		return b.conn.ConnectedUrl()
 	}
 
-	return m
-}
-
-func (n *natsBroker) Address() string {
-	if n.conn != nil && n.conn.IsConnected() {
-		return n.conn.ConnectedUrl()
-	}
-
-	if len(n.addrs) > 0 {
-		return n.addrs[0]
+	if len(b.addrs) > 0 {
+		return b.addrs[0]
 	}
 
 	return ""
 }
 
-func (n *natsBroker) setAddrs(addrs []string) []string {
+func (b *natsBroker) Name() string {
+	return "nats"
+}
+
+func (b *natsBroker) Options() broker.Options {
+	return b.opts
+}
+
+func (b *natsBroker) Init(opts ...broker.Option) error {
+	b.setOption(opts...)
+	return nil
+}
+
+func (b *natsBroker) setAddrs(addrs []string) []string {
 	//nolint:prealloc
 	var cAddrs []string
 	for _, addr := range addrs {
@@ -79,31 +86,65 @@ func (n *natsBroker) setAddrs(addrs []string) []string {
 	return cAddrs
 }
 
-func (n *natsBroker) Connect() error {
-	n.Lock()
-	defer n.Unlock()
+func (b *natsBroker) setOption(opts ...broker.Option) {
+	for _, o := range opts {
+		o(&b.opts)
+	}
 
-	if n.connected {
+	b.Once.Do(func() {
+		b.natsOpts = NATS.GetDefaultOptions()
+	})
+
+	if value, ok := b.opts.Context.Value(optionsKey{}).(NATS.Options); ok {
+		b.natsOpts = value
+	}
+
+	if len(b.opts.Addrs) == 0 {
+		b.opts.Addrs = b.natsOpts.Servers
+	}
+
+	if !b.opts.Secure {
+		b.opts.Secure = b.natsOpts.Secure
+	}
+
+	if b.opts.TLSConfig == nil {
+		b.opts.TLSConfig = b.natsOpts.TLSConfig
+	}
+	b.addrs = b.setAddrs(b.opts.Addrs)
+
+	if b.opts.Context.Value(drainConnectionKey{}) != nil {
+		b.drain = true
+		b.closeCh = make(chan error)
+		b.natsOpts.ClosedCB = b.onClose
+		b.natsOpts.AsyncErrorCB = b.onAsyncError
+		b.natsOpts.DisconnectedErrCB = b.onDisconnectedError
+	}
+}
+
+func (b *natsBroker) Connect() error {
+	b.Lock()
+	defer b.Unlock()
+
+	if b.connected {
 		return nil
 	}
 
 	status := NATS.CLOSED
-	if n.conn != nil {
-		status = n.conn.Status()
+	if b.conn != nil {
+		status = b.conn.Status()
 	}
 
 	switch status {
 	case NATS.CONNECTED, NATS.RECONNECTING, NATS.CONNECTING:
-		n.connected = true
+		b.connected = true
 		return nil
 	default: // DISCONNECTED or CLOSED or DRAINING
-		opts := n.nopts
-		opts.Servers = n.addrs
-		opts.Secure = n.opts.Secure
-		opts.TLSConfig = n.opts.TLSConfig
+		opts := b.natsOpts
+		opts.Servers = b.addrs
+		opts.Secure = b.opts.Secure
+		opts.TLSConfig = b.opts.TLSConfig
 
-		// secure might not be set
-		if n.opts.TLSConfig != nil {
+		if b.opts.TLSConfig != nil {
 			opts.Secure = true
 		}
 
@@ -111,66 +152,72 @@ func (n *natsBroker) Connect() error {
 		if err != nil {
 			return err
 		}
-		n.conn = c
-		n.connected = true
+		b.conn = c
+		b.connected = true
 		return nil
 	}
 }
 
-func (n *natsBroker) Disconnect() error {
-	n.Lock()
-	defer n.Unlock()
+func (b *natsBroker) Disconnect() error {
+	b.Lock()
+	defer b.Unlock()
 
-	if n.drain {
-		_ = n.conn.Drain()
-		n.closeCh <- nil
+	if b.drain {
+		_ = b.conn.Drain()
+		b.closeCh <- nil
 	}
 
-	n.conn.Close()
+	b.conn.Close()
 
-	n.connected = false
+	b.connected = false
 
 	return nil
 }
 
-func (n *natsBroker) Init(opts ...broker.Option) error {
-	n.setOption(opts...)
-	return nil
-}
+func (b *natsBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	b.RLock()
+	defer b.RUnlock()
 
-func (n *natsBroker) Options() broker.Options {
-	return n.opts
-}
-
-func (n *natsBroker) Publish(topic string, msg *broker.Message, _ ...broker.PublishOption) error {
-	n.RLock()
-	defer n.RUnlock()
-
-	if n.conn == nil {
+	if b.conn == nil {
 		return errors.New("not connected")
 	}
 
-	var data []byte
-	if n.opts.Codec != nil {
+	options := broker.PublishOptions{}
+	for _, o := range opts {
+		o(&options)
+	}
+
+	if b.opts.Codec != nil {
 		var err error
-		data, err = n.opts.Codec.Marshal(msg)
+		buf, err := b.opts.Codec.Marshal(msg)
 		if err != nil {
 			return err
 		}
+		return b.conn.Publish(topic, buf)
 	} else {
-		data = msg.Body
+		switch t := msg.(type) {
+		case []byte:
+			return b.conn.Publish(topic, t)
+		case string:
+			return b.conn.Publish(topic, []byte(t))
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			return b.conn.Publish(topic, buf.Bytes())
+		}
 	}
-
-	return n.conn.Publish(topic, data)
 }
 
-func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	n.RLock()
-	if n.conn == nil {
-		n.RUnlock()
+func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	b.RLock()
+	if b.conn == nil {
+		b.RUnlock()
 		return nil, errors.New("not connected")
 	}
-	n.RUnlock()
+	b.RUnlock()
 
 	opt := broker.SubscribeOptions{
 		AutoAck: true,
@@ -181,35 +228,47 @@ func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...bro
 		o(&opt)
 	}
 
+	subs := &subscriber{s: nil, opts: opt}
+
 	fn := func(msg *NATS.Msg) {
-		var m broker.Message
-		pub := &publication{t: msg.Subject}
-		eh := n.opts.ErrorHandler
+		m := &broker.Message{
+			Headers: natsHeaderToMap(msg.Header),
+			Body:    nil,
+		}
 
-		m.Header = natsHeaderToMap(msg.Header)
+		pub := &publication{t: msg.Subject, m: m}
 
-		var err error
-		if n.opts.Codec != nil {
-			err = n.opts.Codec.Unmarshal(msg.Data, &m)
-			pub.err = err
+		eh := b.opts.ErrorHandler
+
+		if binder != nil {
+			m.Body = binder()
+		}
+
+		if b.opts.Codec != nil {
+			if err := b.opts.Codec.Unmarshal(msg.Data, m.Body); err != nil {
+				pub.err = err
+				if err != nil {
+					b.log.Error(err)
+					if eh != nil {
+						_ = eh(b.opts.Context, pub)
+					}
+					return
+				}
+			}
 		} else {
 			m.Body = msg.Data
 		}
 
-		pub.m = &m
-		if err != nil {
-			m.Body = msg.Data
-			n.log.Error(err)
-			if eh != nil {
-				_ = eh(n.opts.Context, pub)
-			}
-			return
-		}
-		if err := handler(n.opts.Context, pub); err != nil {
+		if err := handler(b.opts.Context, pub); err != nil {
 			pub.err = err
-			n.log.Error(err)
+			b.log.Error(err)
 			if eh != nil {
-				_ = eh(n.opts.Context, pub)
+				_ = eh(b.opts.Context, pub)
+			}
+		}
+		if opt.AutoAck {
+			if err := pub.Ack(); err != nil {
+				b.log.Errorf("[nats]: unable to commit msg: %v", err)
 			}
 		}
 	}
@@ -217,71 +276,32 @@ func (n *natsBroker) Subscribe(topic string, handler broker.Handler, opts ...bro
 	var sub *NATS.Subscription
 	var err error
 
-	n.RLock()
+	b.RLock()
 	if len(opt.Queue) > 0 {
-		sub, err = n.conn.QueueSubscribe(topic, opt.Queue, fn)
+		sub, err = b.conn.QueueSubscribe(topic, opt.Queue, fn)
 	} else {
-		sub, err = n.conn.Subscribe(topic, fn)
+		sub, err = b.conn.Subscribe(topic, fn)
 	}
-	n.RUnlock()
+	b.RUnlock()
 	if err != nil {
 		return nil, err
 	}
-	return &subscriber{s: sub, opts: opt}, nil
+
+	subs.s = sub
+
+	return subs, nil
 }
 
-func (n *natsBroker) Name() string {
-	return "nats"
+func (b *natsBroker) onClose(_ *NATS.Conn) {
+	b.closeCh <- nil
 }
 
-func (n *natsBroker) setOption(opts ...broker.Option) {
-	for _, o := range opts {
-		o(&n.opts)
-	}
-
-	n.Once.Do(func() {
-		n.nopts = NATS.GetDefaultOptions()
-	})
-
-	if nopts, ok := n.opts.Context.Value(optionsKey{}).(NATS.Options); ok {
-		n.nopts = nopts
-	}
-
-	// common.Options have higher priority than nats.Options
-	// only if Addrs, Secure or TLSConfig were not set through a common.Option
-	// we read them from nats.Option
-	if len(n.opts.Addrs) == 0 {
-		n.opts.Addrs = n.nopts.Servers
-	}
-
-	if !n.opts.Secure {
-		n.opts.Secure = n.nopts.Secure
-	}
-
-	if n.opts.TLSConfig == nil {
-		n.opts.TLSConfig = n.nopts.TLSConfig
-	}
-	n.addrs = n.setAddrs(n.opts.Addrs)
-
-	if n.opts.Context.Value(drainConnectionKey{}) != nil {
-		n.drain = true
-		n.closeCh = make(chan error)
-		n.nopts.ClosedCB = n.onClose
-		n.nopts.AsyncErrorCB = n.onAsyncError
-		n.nopts.DisconnectedErrCB = n.onDisconnectedError
-	}
-}
-
-func (n *natsBroker) onClose(_ *NATS.Conn) {
-	n.closeCh <- nil
-}
-
-func (n *natsBroker) onAsyncError(_ *NATS.Conn, _ *NATS.Subscription, err error) {
+func (b *natsBroker) onAsyncError(_ *NATS.Conn, _ *NATS.Subscription, err error) {
 	if err == NATS.ErrDrainTimeout {
-		n.closeCh <- err
+		b.closeCh <- err
 	}
 }
 
-func (n *natsBroker) onDisconnectedError(_ *NATS.Conn, err error) {
-	n.closeCh <- err
+func (b *natsBroker) onDisconnectedError(_ *NATS.Conn, err error) {
+	b.closeCh <- err
 }

@@ -1,7 +1,10 @@
 package nsq
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
+	"github.com/go-kratos/kratos/v2/log"
 	"math/rand"
 	"sync"
 	"time"
@@ -29,6 +32,8 @@ type nsqBroker struct {
 	sync.Mutex
 	running bool
 
+	log *log.Helper
+
 	producers   []*NSQ.Producer
 	subscribers []*subscriber
 }
@@ -52,32 +57,34 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		addrs:  addrs,
 		opts:   options,
 		config: NSQ.NewConfig(),
+		log:    log.NewHelper(log.GetLogger()),
 	}
+
 	n.configure(n.opts.Context)
 
 	return n
 }
 
-func (n *nsqBroker) Name() string {
+func (b *nsqBroker) Name() string {
 	return "nsq"
 }
 
-func (n *nsqBroker) Options() broker.Options {
-	return n.opts
+func (b *nsqBroker) Options() broker.Options {
+	return b.opts
 }
 
-func (n *nsqBroker) Address() string {
-	return n.addrs[rand.Intn(len(n.addrs))]
+func (b *nsqBroker) Address() string {
+	return b.addrs[rand.Intn(len(b.addrs))]
 }
 
-func (n *nsqBroker) Init(opts ...broker.Option) error {
+func (b *nsqBroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
-		o(&n.opts)
+		o(&b.opts)
 	}
 
 	var addrs []string
 
-	for _, addr := range n.opts.Addrs {
+	for _, addr := range b.opts.Addrs {
 		if len(addr) > 0 {
 			addrs = append(addrs, addr)
 		}
@@ -87,36 +94,36 @@ func (n *nsqBroker) Init(opts ...broker.Option) error {
 		addrs = []string{defaultAddr}
 	}
 
-	n.addrs = addrs
-	n.configure(n.opts.Context)
+	b.addrs = addrs
+	b.configure(b.opts.Context)
 	return nil
 }
 
-func (n *nsqBroker) configure(ctx context.Context) {
+func (b *nsqBroker) configure(ctx context.Context) {
 	if v, ok := ctx.Value(lookupdAddrsKey{}).([]string); ok {
-		n.lookupAddrs = v
+		b.lookupAddrs = v
 	}
 
 	if v, ok := ctx.Value(consumerOptsKey{}).([]string); ok {
-		cfgFlag := &NSQ.ConfigFlag{Config: n.config}
+		cfgFlag := &NSQ.ConfigFlag{Config: b.config}
 		for _, opt := range v {
 			_ = cfgFlag.Set(opt)
 		}
 	}
 }
 
-func (n *nsqBroker) Connect() error {
-	n.Lock()
-	defer n.Unlock()
+func (b *nsqBroker) Connect() error {
+	b.Lock()
+	defer b.Unlock()
 
-	if n.running {
+	if b.running {
 		return nil
 	}
 
-	producers := make([]*NSQ.Producer, 0, len(n.addrs))
+	producers := make([]*NSQ.Producer, 0, len(b.addrs))
 
-	for _, addr := range n.addrs {
-		p, err := NSQ.NewProducer(addr, n.config)
+	for _, addr := range b.addrs {
+		p, err := NSQ.NewProducer(addr, b.config)
 		if err != nil {
 			return err
 		}
@@ -126,13 +133,13 @@ func (n *nsqBroker) Connect() error {
 		producers = append(producers, p)
 	}
 
-	for _, c := range n.subscribers {
+	for _, c := range b.subscribers {
 		channel := c.opts.Queue
 		if len(channel) == 0 {
 			channel = uuid.New().String() + "#ephemeral"
 		}
 
-		cm, err := NSQ.NewConsumer(c.topic, channel, n.config)
+		cm, err := NSQ.NewConsumer(c.topic, channel, b.config)
 		if err != nil {
 			return err
 		}
@@ -143,53 +150,78 @@ func (n *nsqBroker) Connect() error {
 
 		c.consumer = cm
 
-		if len(n.lookupAddrs) > 0 {
-			_ = c.consumer.ConnectToNSQLookupds(n.lookupAddrs)
+		if len(b.lookupAddrs) > 0 {
+			_ = c.consumer.ConnectToNSQLookupds(b.lookupAddrs)
 		} else {
-			err = c.consumer.ConnectToNSQDs(n.addrs)
+			err = c.consumer.ConnectToNSQDs(b.addrs)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	n.producers = producers
-	n.running = true
+	b.producers = producers
+	b.running = true
 	return nil
 }
 
-func (n *nsqBroker) Disconnect() error {
-	n.Lock()
-	defer n.Unlock()
+func (b *nsqBroker) Disconnect() error {
+	b.Lock()
+	defer b.Unlock()
 
-	if !n.running {
+	if !b.running {
 		return nil
 	}
 
-	for _, p := range n.producers {
+	for _, p := range b.producers {
 		p.Stop()
 	}
 
-	for _, c := range n.subscribers {
+	for _, c := range b.subscribers {
 		c.consumer.Stop()
 
-		if len(n.lookupAddrs) > 0 {
-			for _, addr := range n.lookupAddrs {
+		if len(b.lookupAddrs) > 0 {
+			for _, addr := range b.lookupAddrs {
 				_ = c.consumer.DisconnectFromNSQLookupd(addr)
 			}
 		} else {
-			for _, addr := range n.addrs {
+			for _, addr := range b.addrs {
 				_ = c.consumer.DisconnectFromNSQD(addr)
 			}
 		}
 	}
 
-	n.producers = nil
-	n.running = false
+	b.producers = nil
+	b.running = false
 	return nil
 }
 
-func (n *nsqBroker) Publish(topic string, message *broker.Message, opts ...broker.PublishOption) error {
+func (b *nsqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	if b.opts.Codec != nil {
+		var err error
+		buf, err := b.opts.Codec.Marshal(msg)
+		if err != nil {
+			return err
+		}
+		return b.publish(topic, buf, opts...)
+	} else {
+		switch t := msg.(type) {
+		case []byte:
+			return b.publish(topic, t, opts...)
+		case string:
+			return b.publish(topic, []byte(t), opts...)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			return b.publish(topic, buf.Bytes(), opts...)
+		}
+	}
+}
+
+func (b *nsqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{}
 	for _, o := range opts {
 		o(&options)
@@ -208,33 +240,22 @@ func (n *nsqBroker) Publish(topic string, message *broker.Message, opts ...broke
 		}
 	}
 
-	var sendBuffer []byte
-	if n.opts.Codec != nil {
-		var err error
-		sendBuffer, err = n.opts.Codec.Marshal(message)
-		if err != nil {
-			return err
-		}
-	} else {
-		sendBuffer = message.Body
-	}
-
-	p := n.producers[rand.Intn(len(n.producers))]
+	p := b.producers[rand.Intn(len(b.producers))]
 
 	if doneChan != nil {
 		if delay > 0 {
-			return p.DeferredPublishAsync(topic, delay, sendBuffer, doneChan)
+			return p.DeferredPublishAsync(topic, delay, msg, doneChan)
 		}
-		return p.PublishAsync(topic, sendBuffer, doneChan)
+		return p.PublishAsync(topic, msg, doneChan)
 	} else {
 		if delay > 0 {
-			return p.DeferredPublish(topic, delay, sendBuffer)
+			return p.DeferredPublish(topic, delay, msg)
 		}
-		return p.Publish(topic, sendBuffer)
+		return p.Publish(topic, msg)
 	}
 }
 
-func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
 		AutoAck: true,
 	}
@@ -253,7 +274,7 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 		}
 	}
 
-	config := *n.config
+	config := *b.config
 	config.MaxInFlight = maxInFlight
 
 	channel := options.Queue
@@ -274,8 +295,13 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 		//fmt.Println("receive message:", nm.ID, nm.Body)
 
 		var m broker.Message
-		if n.opts.Codec != nil {
-			if err := n.opts.Codec.Unmarshal(nm.Body, &m); err != nil {
+
+		if binder != nil {
+			m.Body = binder()
+		}
+
+		if b.opts.Codec != nil {
+			if err := b.opts.Codec.Unmarshal(nm.Body, m.Body); err != nil {
 				return err
 			}
 		} else {
@@ -283,16 +309,26 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 		}
 
 		p := &publication{topic: topic, nsqMsg: nm, msg: &m}
-		p.err = handler(n.opts.Context, p)
+
+		if err := handler(b.opts.Context, p); err != nil {
+			p.err = err
+		}
+
+		if options.AutoAck {
+			if err := p.Ack(); err != nil {
+				b.log.Errorf("[nats]: unable to commit msg: %v", err)
+			}
+		}
+
 		return p.err
 	})
 
 	c.AddConcurrentHandlers(h, concurrency)
 
-	if len(n.lookupAddrs) > 0 {
-		err = c.ConnectToNSQLookupds(n.lookupAddrs)
+	if len(b.lookupAddrs) > 0 {
+		err = c.ConnectToNSQLookupds(b.lookupAddrs)
 	} else {
-		err = c.ConnectToNSQDs(n.addrs)
+		err = c.ConnectToNSQDs(b.addrs)
 	}
 	if err != nil {
 		return nil, err
@@ -306,7 +342,7 @@ func (n *nsqBroker) Subscribe(topic string, handler broker.Handler, opts ...brok
 		concurrency: concurrency,
 	}
 
-	n.subscribers = append(n.subscribers, sub)
+	b.subscribers = append(b.subscribers, sub)
 
 	return sub, nil
 }

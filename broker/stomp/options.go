@@ -6,59 +6,16 @@ import (
 	"time"
 )
 
+///////////////////////////////////////////////////////////////////////////////
+
 type authKey struct{}
-type connectHeaderKey struct{}
 type connectTimeoutKey struct{}
-type durableQueueKey struct{}
-type receiptKey struct{}
-type subscribeHeaderKey struct{}
-type suppressContentLengthKey struct{}
+type connectHeaderKey struct{}
 type vHostKey struct{}
-type subscribeContextKey struct{}
-type ackSuccessKey struct{}
 
 type authRecord struct {
 	username string
 	password string
-}
-
-func WithSubscribeHeaders(h map[string]string) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(subscribeHeaderKey{}, h)
-}
-
-func SubscribeHeadersFromContext(ctx context.Context) (map[string]string, bool) {
-	h, ok := ctx.Value(subscribeHeaderKey{}).(map[string]string)
-	return h, ok
-}
-
-func WithSubscribeContext(ctx context.Context) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
-}
-
-func SubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
-	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
-	return c, ok
-}
-
-func WithAckOnSuccess() broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(ackSuccessKey{}, true)
-}
-
-func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
-	b, ok := ctx.Value(ackSuccessKey{}).(bool)
-	return b, ok
-}
-
-func WithDurable() broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
-}
-
-func WithReceipt(_ time.Duration) broker.PublishOption {
-	return broker.PublishContextWithValue(receiptKey{}, true)
-}
-
-func WithSuppressContentLength(_ time.Duration) broker.PublishOption {
-	return broker.PublishContextWithValue(suppressContentLengthKey{}, true)
 }
 
 func WithConnectTimeout(ct time.Duration) broker.Option {
@@ -98,4 +55,60 @@ func WithVirtualHost(h string) broker.Option {
 func VirtualHostFromContext(ctx context.Context) (string, bool) {
 	v, ok := ctx.Value(vHostKey{}).(string)
 	return v, ok
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+type receiptKey struct{}
+type headerKey struct{}
+type suppressContentLengthKey struct{}
+
+func WithReceipt(_ time.Duration) broker.PublishOption {
+	return broker.PublishContextWithValue(receiptKey{}, true)
+}
+
+func WithSuppressContentLength(_ time.Duration) broker.PublishOption {
+	return broker.PublishContextWithValue(suppressContentLengthKey{}, true)
+}
+
+func WithHeaders(h map[string]interface{}) broker.PublishOption {
+	return broker.PublishContextWithValue(headerKey{}, h)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+type durableQueueKey struct{}
+type subscribeHeaderKey struct{}
+type subscribeContextKey struct{}
+type ackSuccessKey struct{}
+
+func WithSubscribeHeaders(h map[string]string) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeHeaderKey{}, h)
+}
+
+func SubscribeHeadersFromContext(ctx context.Context) (map[string]string, bool) {
+	h, ok := ctx.Value(subscribeHeaderKey{}).(map[string]string)
+	return h, ok
+}
+
+func WithSubscribeContext(ctx context.Context) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
+}
+
+func SubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
+	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
+	return c, ok
+}
+
+func WithAckOnSuccess() broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(ackSuccessKey{}, true)
+}
+
+func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
+	b, ok := ctx.Value(ackSuccessKey{}).(bool)
+	return b, ok
+}
+
+func WithDurable() broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
 }

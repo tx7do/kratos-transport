@@ -5,36 +5,37 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/redis"
+	"github.com/tx7do/kratos-transport/codec"
 	"time"
 )
 
 type ServerOption func(o *Server)
 
-func Address(addr string) ServerOption {
+func WithAddress(addr string) ServerOption {
 	return func(s *Server) {
 		s.bOpts = append(s.bOpts, broker.Addrs(addr))
 	}
 }
 
-func ReadTimeout(timeout time.Duration) ServerOption {
+func WithReadTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
 		s.bOpts = append(s.bOpts, redis.ReadTimeout(timeout))
 	}
 }
 
-func IdleTimeout(timeout time.Duration) ServerOption {
+func WithIdleTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
 		s.bOpts = append(s.bOpts, redis.IdleTimeout(timeout))
 	}
 }
 
-func Logger(logger log.Logger) ServerOption {
+func WithLogger(logger log.Logger) ServerOption {
 	return func(s *Server) {
 		s.log = log.NewHelper(logger)
 	}
 }
 
-func TLSConfig(c *tls.Config) ServerOption {
+func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
 		if c != nil {
 			s.bOpts = append(s.bOpts, broker.Secure(true))
@@ -43,8 +44,8 @@ func TLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
-func Subscribe(topic string, h broker.Handler) ServerOption {
+func WithCodec(c codec.Marshaler) ServerOption {
 	return func(s *Server) {
-		_ = s.RegisterSubscriber(topic, h)
+		s.bOpts = append(s.bOpts, broker.Codec(c))
 	}
 }

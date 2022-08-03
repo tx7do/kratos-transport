@@ -67,12 +67,30 @@ func newBroker(opts ...broker.Option) broker.Broker {
 	return b
 }
 
+func (m *mqttBroker) Name() string {
+	return "MQTT"
+}
+
 func (m *mqttBroker) Options() broker.Options {
 	return m.opts
 }
 
 func (m *mqttBroker) Address() string {
 	return strings.Join(m.addrs, ",")
+}
+
+func (m *mqttBroker) Init(opts ...broker.Option) error {
+	if m.client.IsConnected() {
+		return errors.New("cannot init while connected")
+	}
+
+	for _, o := range opts {
+		o(&m.opts)
+	}
+
+	m.addrs = setAddrs(m.opts.Addrs)
+	m.client = newClient(m.addrs, m.opts, m)
+	return nil
 }
 
 func (m *mqttBroker) Connect() error {
@@ -97,41 +115,39 @@ func (m *mqttBroker) Disconnect() error {
 	return nil
 }
 
-func (m *mqttBroker) Init(opts ...broker.Option) error {
-	if m.client.IsConnected() {
-		return errors.New("cannot init while connected")
+func (m *mqttBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	if msg == nil {
+		return errors.New("message is nil")
 	}
 
-	for _, o := range opts {
-		o(&m.opts)
-	}
-
-	m.addrs = setAddrs(m.opts.Addrs)
-	m.client = newClient(m.addrs, m.opts, m)
-	return nil
-}
-
-func (m *mqttBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	if !m.client.IsConnected() {
 		return errors.New("not connected")
 	}
 
-	var payload interface{}
+	options := broker.PublishOptions{}
+	for _, o := range opts {
+		o(&options)
+	}
+
+	var qos byte = 1
+	const retained bool = false
+
 	if m.opts.Codec != nil {
 		var err error
-		payload, err = m.opts.Codec.Marshal(msg)
+		buf, err := m.opts.Codec.Marshal(msg)
 		if err != nil {
 			return err
 		}
+		ret := m.client.Publish(topic, qos, retained, buf)
+		return ret.Error()
 	} else {
-		payload = msg.Body
+		ret := m.client.Publish(topic, qos, retained, msg)
+		return ret.Error()
 	}
 
-	t := m.client.Publish(topic, 1, false, payload)
-	return t.Error()
 }
 
-func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	if !m.client.IsConnected() {
 		return nil, errors.New("not connected")
 	}
@@ -141,20 +157,27 @@ func (m *mqttBroker) Subscribe(topic string, h broker.Handler, opts ...broker.Su
 		o(&options)
 	}
 
-	t := m.client.Subscribe(topic, 1, func(c MQTT.Client, mq MQTT.Message) {
+	var qos byte = 1
+
+	t := m.client.Subscribe(topic, qos, func(c MQTT.Client, mq MQTT.Message) {
 		var msg broker.Message
+
+		p := &publication{topic: mq.Topic(), msg: &msg}
+
+		if binder != nil {
+			msg.Body = binder()
+		}
 
 		if m.opts.Codec == nil {
 			msg.Body = mq.Payload()
 		} else {
-			if err := m.opts.Codec.Unmarshal(mq.Payload(), &msg); err != nil {
+			if err := m.opts.Codec.Unmarshal(mq.Payload(), msg.Body); err != nil {
 				log.Error(err)
 				return
 			}
 		}
 
-		p := &publication{topic: mq.Topic(), msg: &msg}
-		if err := h(m.opts.Context, p); err != nil {
+		if err := handler(m.opts.Context, p); err != nil {
 			p.err = err
 			log.Error(err)
 		}
@@ -190,8 +213,4 @@ func (m *mqttBroker) loopConnect(client MQTT.Client) {
 		}
 		time.Sleep(1 * time.Second)
 	}
-}
-
-func (m *mqttBroker) Name() string {
-	return "MQTT"
 }

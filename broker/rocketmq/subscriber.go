@@ -44,6 +44,7 @@ type aliyunSubscriber struct {
 	topic   string
 	opts    broker.SubscribeOptions
 	handler broker.Handler
+	binder  broker.Binder
 	reader  aliyun.MQConsumer
 	closed  bool
 	done    chan struct{}

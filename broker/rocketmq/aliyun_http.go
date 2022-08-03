@@ -1,6 +1,8 @@
 package rocketmq
 
 import (
+	"bytes"
+	"encoding/gob"
 	aliyun "github.com/aliyunmq/mq-http-go-sdk"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gogap/errors"
@@ -129,7 +131,32 @@ func (r *aliyunBroker) Disconnect() error {
 	return nil
 }
 
-func (r *aliyunBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (r *aliyunBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	if r.opts.Codec != nil {
+		var err error
+		buf, err := r.opts.Codec.Marshal(msg)
+		if err != nil {
+			return err
+		}
+		return r.publish(topic, buf, opts...)
+	} else {
+		switch t := msg.(type) {
+		case []byte:
+			return r.publish(topic, t, opts...)
+		case string:
+			return r.publish(topic, []byte(t), opts...)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			return r.publish(topic, buf.Bytes(), opts...)
+		}
+	}
+}
+
+func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{}
 	for _, o := range opts {
 		o(&options)
@@ -153,20 +180,12 @@ func (r *aliyunBroker) Publish(topic string, msg *broker.Message, opts ...broker
 	}
 	r.Unlock()
 
-	var buf []byte
-	if r.opts.Codec != nil {
-		var err error
-		buf, err = r.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-	} else {
-		buf = msg.Body
+	aMsg := aliyun.PublishMessageRequest{
+		MessageBody: string(msg),
 	}
 
-	aMsg := aliyun.PublishMessageRequest{
-		Properties:  msg.Header,
-		MessageBody: string(buf),
+	if v, ok := options.Context.Value(headerKey{}).(map[string]string); ok {
+		aMsg.Properties = v
 	}
 
 	_, err := p.PublishMessage(aMsg)
@@ -178,7 +197,11 @@ func (r *aliyunBroker) Publish(topic string, msg *broker.Message, opts ...broker
 	return nil
 }
 
-func (r *aliyunBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (r *aliyunBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	if r.client == nil {
+		return nil, errors.New("client is nil")
+	}
+
 	options := broker.SubscribeOptions{
 		AutoAck: true,
 		Queue:   r.groupName,
@@ -187,16 +210,13 @@ func (r *aliyunBroker) Subscribe(topic string, h broker.Handler, opts ...broker.
 		o(&options)
 	}
 
-	if r.client == nil {
-		return nil, errors.New("client is nil")
-	}
-
 	mqConsumer := r.client.GetConsumer(r.instanceName, topic, options.Queue, "")
 
 	sub := &aliyunSubscriber{
 		opts:    options,
 		topic:   topic,
-		handler: h,
+		handler: handler,
+		binder:  binder,
 		reader:  mqConsumer,
 		done:    make(chan struct{}),
 	}
@@ -227,9 +247,14 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 							ctx:    r.opts.Context,
 						}
 
-						m.Header = msg.Properties
+						m.Headers = msg.Properties
+
+						if sub.binder != nil {
+							m.Body = sub.binder()
+						}
+
 						if r.opts.Codec != nil {
-							if err := r.opts.Codec.Unmarshal([]byte(msg.MessageBody), &m); err != nil {
+							if err := r.opts.Codec.Unmarshal([]byte(msg.MessageBody), m.Body); err != nil {
 								p.err = err
 							}
 						} else {

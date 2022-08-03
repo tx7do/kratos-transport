@@ -1,6 +1,8 @@
 package redis
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,6 +10,10 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/tx7do/kratos-transport/broker"
+)
+
+const (
+	defaultBroker = "redis://127.0.0.1:6379"
 )
 
 type redisBroker struct {
@@ -73,7 +79,7 @@ func (b *redisBroker) Connect() error {
 	var addr string
 
 	if len(b.opts.Addrs) == 0 || b.opts.Addrs[0] == "" {
-		addr = "redis://127.0.0.1:6379"
+		addr = defaultBroker
 	} else {
 		addr = b.opts.Addrs[0]
 
@@ -113,37 +119,51 @@ func (b *redisBroker) Disconnect() error {
 	return err
 }
 
-func (b *redisBroker) Publish(topic string, msg *broker.Message, _ ...broker.PublishOption) error {
-	var err error
-	var data []byte
+func (b *redisBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	if b.opts.Codec != nil {
-		data, err = b.opts.Codec.Marshal(msg)
+		var err error
+		buf, err := b.opts.Codec.Marshal(msg)
 		if err != nil {
 			return err
 		}
+		return b.publish(topic, buf, opts...)
 	} else {
-		data = msg.Body
+		switch t := msg.(type) {
+		case []byte:
+			return b.publish(topic, t, opts...)
+		case string:
+			return b.publish(topic, []byte(t), opts...)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			return b.publish(topic, buf.Bytes(), opts...)
+		}
 	}
+}
 
+func (b *redisBroker) publish(topic string, msg []byte, _ ...broker.PublishOption) error {
 	conn := b.pool.Get()
-	_, err = redis.Int(conn.Do("PUBLISH", topic, data))
+	_, err := redis.Int(conn.Do("PUBLISH", topic, msg))
 	_ = conn.Close()
-
 	return err
 }
 
-func (b *redisBroker) Subscribe(topic string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (b *redisBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	var options broker.SubscribeOptions
 	for _, o := range opts {
 		o(&options)
 	}
 
 	s := subscriber{
-		codec:  b.opts.Codec,
-		conn:   &redis.PubSubConn{Conn: b.pool.Get()},
-		topic:  topic,
-		handle: handler,
-		opts:   options,
+		codec:   b.opts.Codec,
+		conn:    &redis.PubSubConn{Conn: b.pool.Get()},
+		topic:   topic,
+		handler: handler,
+		binder:  binder,
+		opts:    options,
 	}
 
 	go s.recv()

@@ -1,7 +1,9 @@
 package rabbitmq
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
 	"sync"
 	"time"
@@ -29,165 +31,12 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	}
 }
 
-func rabbitHeaderToMap(h amqp.Table) map[string]string {
-	headers := make(map[string]string)
-	for k, v := range h {
-		headers[k], _ = v.(string)
-	}
-	return headers
-}
-
-func (r *rabbitBroker) Publish(routingKey string, msg *broker.Message, opts ...broker.PublishOption) error {
-	m := amqp.Publishing{
-		Body:    msg.Body,
-		Headers: amqp.Table{},
-	}
-
-	options := broker.PublishOptions{}
-	for _, o := range opts {
-		o(&options)
-	}
-
-	if options.Context != nil {
-		if value, ok := options.Context.Value(deliveryModeKey{}).(uint8); ok {
-			m.DeliveryMode = value
-		}
-
-		if value, ok := options.Context.Value(priorityKey{}).(uint8); ok {
-			m.Priority = value
-		}
-
-		if value, ok := options.Context.Value(contentTypeKey{}).(string); ok {
-			m.ContentType = value
-		}
-
-		if value, ok := options.Context.Value(contentEncodingKey{}).(string); ok {
-			m.ContentEncoding = value
-		}
-
-		if value, ok := options.Context.Value(correlationIDKey{}).(string); ok {
-			m.CorrelationId = value
-		}
-
-		if value, ok := options.Context.Value(replyToKey{}).(string); ok {
-			m.ReplyTo = value
-		}
-
-		if value, ok := options.Context.Value(expirationKey{}).(string); ok {
-			m.Expiration = value
-		}
-
-		if value, ok := options.Context.Value(messageIDKey{}).(string); ok {
-			m.MessageId = value
-		}
-
-		if value, ok := options.Context.Value(timestampKey{}).(time.Time); ok {
-			m.Timestamp = value
-		}
-
-		if value, ok := options.Context.Value(typeMsgKey{}).(string); ok {
-			m.Type = value
-		}
-
-		if value, ok := options.Context.Value(userIDKey{}).(string); ok {
-			m.UserId = value
-		}
-
-		if value, ok := options.Context.Value(appIDKey{}).(string); ok {
-			m.AppId = value
-		}
-
-	}
-
-	for k, v := range msg.Header {
-		m.Headers[k] = v
-	}
-
-	if r.conn == nil {
-		return errors.New("connection is nil")
-	}
-
-	return r.conn.Publish(r.conn.exchange.Name, routingKey, m)
-}
-
-func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	var ackSuccess bool
-
-	if r.conn == nil {
-		return nil, errors.New("not connected")
-	}
-
-	opt := broker.SubscribeOptions{
-		AutoAck: true,
-		Context: context.Background(),
-	}
-
-	for _, o := range opts {
-		o(&opt)
-	}
-
-	ctx := opt.Context
-	if subscribeContext, ok := SubscribeContextFromContext(ctx); ok && subscribeContext != nil {
-		ctx = subscribeContext
-	}
-
-	var requeueOnError bool
-	requeueOnError, _ = ctx.Value(requeueOnErrorKey{}).(bool)
-
-	var durableQueue bool
-	durableQueue, _ = ctx.Value(durableQueueKey{}).(bool)
-
-	var qArgs map[string]interface{}
-	if qa, ok := ctx.Value(queueArgumentsKey{}).(map[string]interface{}); ok {
-		qArgs = qa
-	}
-
-	var headers map[string]interface{}
-	if h, ok := ctx.Value(headersKey{}).(map[string]interface{}); ok {
-		headers = h
-	}
-
-	if bVal, ok := AckOnSuccessFromContext(ctx); ok && bVal {
-		opt.AutoAck = false
-		ackSuccess = true
-	}
-
-	fn := func(msg amqp.Delivery) {
-		m := &broker.Message{
-			Header: rabbitHeaderToMap(msg.Headers),
-			Body:   msg.Body,
-		}
-		p := &publication{d: msg, m: m, t: msg.RoutingKey}
-		p.err = handler(r.opts.Context, p)
-		if p.err == nil && ackSuccess && !opt.AutoAck {
-			_ = msg.Ack(false)
-		} else if p.err != nil && !opt.AutoAck {
-			_ = msg.Nack(false, requeueOnError)
-		}
-	}
-
-	sub := &subscriber{
-		topic:        routingKey,
-		opts:         opt,
-		mayRun:       true,
-		r:            r,
-		durableQueue: durableQueue,
-		fn:           fn,
-		headers:      headers,
-		queueArgs:    qArgs,
-	}
-
-	go sub.resubscribe()
-
-	return sub, nil
+func (r *rabbitBroker) Name() string {
+	return "rabbitmq"
 }
 
 func (r *rabbitBroker) Options() broker.Options {
 	return r.opts
-}
-
-func (r *rabbitBroker) Name() string {
-	return "rabbitmq"
 }
 
 func (r *rabbitBroker) Address() string {
@@ -257,4 +106,189 @@ func (r *rabbitBroker) getPrefetchGlobal() bool {
 		return e
 	}
 	return DefaultPrefetchGlobal
+}
+
+func (r *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
+	if msg == nil {
+		return errors.New("message is nil")
+	}
+
+	m := amqp.Publishing{
+		Body:    nil,
+		Headers: amqp.Table{},
+	}
+
+	if r.opts.Codec != nil {
+		var err error
+		buf, err := r.opts.Codec.Marshal(msg)
+		if err != nil {
+			return err
+		}
+		m.Body = buf
+	} else {
+		switch t := msg.(type) {
+		case []byte:
+			m.Body = t
+		case string:
+			m.Body = []byte(t)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			m.Body = buf.Bytes()
+		}
+	}
+
+	options := broker.PublishOptions{}
+	for _, o := range opts {
+		o(&options)
+	}
+
+	if options.Context != nil {
+		if value, ok := options.Context.Value(deliveryModeKey{}).(uint8); ok {
+			m.DeliveryMode = value
+		}
+
+		if value, ok := options.Context.Value(priorityKey{}).(uint8); ok {
+			m.Priority = value
+		}
+
+		if value, ok := options.Context.Value(contentTypeKey{}).(string); ok {
+			m.ContentType = value
+		}
+
+		if value, ok := options.Context.Value(contentEncodingKey{}).(string); ok {
+			m.ContentEncoding = value
+		}
+
+		if value, ok := options.Context.Value(correlationIDKey{}).(string); ok {
+			m.CorrelationId = value
+		}
+
+		if value, ok := options.Context.Value(replyToKey{}).(string); ok {
+			m.ReplyTo = value
+		}
+
+		if value, ok := options.Context.Value(expirationKey{}).(string); ok {
+			m.Expiration = value
+		}
+
+		if value, ok := options.Context.Value(messageIDKey{}).(string); ok {
+			m.MessageId = value
+		}
+
+		if value, ok := options.Context.Value(timestampKey{}).(time.Time); ok {
+			m.Timestamp = value
+		}
+
+		if value, ok := options.Context.Value(typeMsgKey{}).(string); ok {
+			m.Type = value
+		}
+
+		if value, ok := options.Context.Value(userIDKey{}).(string); ok {
+			m.UserId = value
+		}
+
+		if value, ok := options.Context.Value(appIDKey{}).(string); ok {
+			m.AppId = value
+		}
+
+		if headers, ok := options.Context.Value(publishHeadersKey{}).(map[string]interface{}); ok {
+			for k, v := range headers {
+				m.Headers[k] = v
+			}
+		}
+	}
+
+	if r.conn == nil {
+		return errors.New("connection is nil")
+	}
+
+	return r.conn.Publish(r.conn.exchange.Name, routingKey, m)
+}
+
+func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	if r.conn == nil {
+		return nil, errors.New("not connected")
+	}
+
+	opt := broker.SubscribeOptions{
+		AutoAck: true,
+		Context: context.Background(),
+	}
+
+	for _, o := range opts {
+		o(&opt)
+	}
+
+	ctx := opt.Context
+	if subscribeContext, ok := SubscribeContextFromContext(ctx); ok && subscribeContext != nil {
+		ctx = subscribeContext
+	}
+
+	var requeueOnError bool
+	requeueOnError, _ = ctx.Value(requeueOnErrorKey{}).(bool)
+
+	var ackSuccess bool
+	if bVal, ok := AckOnSuccessFromContext(ctx); ok && bVal {
+		opt.AutoAck = false
+		ackSuccess = true
+	}
+
+	fn := func(msg amqp.Delivery) {
+		m := &broker.Message{
+			Headers: rabbitHeaderToMap(msg.Headers),
+			Body:    nil,
+		}
+
+		p := &publication{d: msg, m: m, t: msg.RoutingKey}
+
+		if binder != nil {
+			m.Body = binder()
+		}
+
+		if r.opts.Codec != nil {
+			if err := r.opts.Codec.Unmarshal(msg.Body, m.Body); err != nil {
+				p.err = err
+			}
+		} else {
+			m.Body = msg.Body
+		}
+
+		p.err = handler(r.opts.Context, p)
+		if p.err == nil && ackSuccess && !opt.AutoAck {
+			_ = msg.Ack(false)
+		} else if p.err != nil && !opt.AutoAck {
+			_ = msg.Nack(false, requeueOnError)
+		}
+	}
+
+	sub := &subscriber{
+		topic:        routingKey,
+		opts:         opt,
+		mayRun:       true,
+		r:            r,
+		durableQueue: true,
+		fn:           fn,
+		headers:      nil,
+		queueArgs:    nil,
+	}
+
+	if val, ok := ctx.Value(durableQueueKey{}).(bool); ok {
+		sub.durableQueue = val
+	}
+
+	if val, ok := ctx.Value(subscribeHeadersKey{}).(map[string]interface{}); ok {
+		sub.headers = val
+	}
+
+	if val, ok := ctx.Value(queueArgumentsKey{}).(map[string]interface{}); ok {
+		sub.queueArgs = val
+	}
+
+	go sub.resubscribe()
+
+	return sub, nil
 }

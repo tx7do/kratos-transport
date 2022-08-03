@@ -20,9 +20,9 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		Address(":8800"),
-		EchoHandle("/ws", handleMessage),
-		ConnectHandle(handleConnect),
+		WithAddress(":8800"),
+		WithEchoHandle("/ws", handleMessage),
+		WithConnectHandle(handleConnect),
 	)
 
 	if err := srv.Start(ctx); err != nil {

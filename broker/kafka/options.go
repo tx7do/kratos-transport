@@ -1,43 +1,48 @@
 package kafka
 
 import (
-	"context"
-	"github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
 	"github.com/tx7do/kratos-transport/broker"
+	"time"
 )
 
-var (
-	DefaultReaderConfig = kafka.WriterConfig{}
-	DefaultWriterConfig = kafka.ReaderConfig{}
-)
+///////////////////////////////////////////////////////////////////////////////
 
 type readerConfigKey struct{}
-type writerConfigKey struct{}
-type subscribeContextKey struct{}
-type subscribeReaderConfigKey struct{}
-type subscribeWriterConfigKey struct{}
 
-func WithReaderConfig(c kafka.ReaderConfig) broker.Option {
+func WithReaderConfig(c kafkago.ReaderConfig) broker.Option {
 	return broker.OptionContextWithValue(readerConfigKey{}, c)
 }
 
-func WithWriterConfig(c kafka.WriterConfig) broker.Option {
-	return broker.OptionContextWithValue(writerConfigKey{}, c)
+///////////////////////////////////////////////////////////////////////////////
+
+type headersKey struct{}
+type batchSizeKey struct{}
+type batchTimeoutKey struct{}
+type batchBytesKey struct{}
+type retriesCountKey struct{}
+type asyncKey struct{}
+
+func WithHeaders(h map[string]interface{}) broker.PublishOption {
+	return broker.PublishContextWithValue(headersKey{}, h)
 }
 
-func WithSubscribeContext(ctx context.Context) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
+func WithBatchSize(n int) broker.PublishOption {
+	return broker.PublishContextWithValue(batchSizeKey{}, n)
 }
 
-func WithSubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
-	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
-	return c, ok
+func WithBatchTimeout(tm time.Duration) broker.PublishOption {
+	return broker.PublishContextWithValue(batchTimeoutKey{}, tm)
 }
 
-func WithSubscribeReaderConfig(c kafka.ReaderConfig) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(subscribeReaderConfigKey{}, c)
+func WithBatchBytes(by int64) broker.PublishOption {
+	return broker.PublishContextWithValue(batchBytesKey{}, by)
 }
 
-func WithSubscribeWriterConfig(c kafka.WriterConfig) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(subscribeWriterConfigKey{}, c)
+func WithRetriesCount(cnt int64) broker.PublishOption {
+	return broker.PublishContextWithValue(retriesCountKey{}, cnt)
+}
+
+func WithAsync(enable bool) broker.PublishOption {
+	return broker.PublishContextWithValue(asyncKey{}, enable)
 }

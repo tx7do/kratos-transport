@@ -67,6 +67,7 @@ func WithGroupName(name string) broker.Option {
 
 type compressKey struct{}
 type batchKey struct{}
+type headerKey struct{}
 
 func WithCompressPublish(compress bool) broker.PublishOption {
 	return broker.PublishContextWithValue(compressKey{}, compress)
@@ -74,4 +75,8 @@ func WithCompressPublish(compress bool) broker.PublishOption {
 
 func WithBatchPublish(batch bool) broker.PublishOption {
 	return broker.PublishContextWithValue(batchKey{}, batch)
+}
+
+func WithHeaders(h map[string]string) broker.PublishOption {
+	return broker.PublishContextWithValue(headerKey{}, h)
 }

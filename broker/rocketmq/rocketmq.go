@@ -1,7 +1,9 @@
 package rocketmq
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
 	"sync"
 
@@ -238,7 +240,32 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocke
 	return c, nil
 }
 
-func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (r *rocketmqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	if r.opts.Codec != nil {
+		var err error
+		buf, err := r.opts.Codec.Marshal(msg)
+		if err != nil {
+			return err
+		}
+		return r.publish(topic, buf, opts...)
+	} else {
+		switch t := msg.(type) {
+		case []byte:
+			return r.publish(topic, t, opts...)
+		case string:
+			return r.publish(topic, []byte(t), opts...)
+		default:
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+			if err := enc.Encode(msg); err != nil {
+				return err
+			}
+			return r.publish(topic, buf.Bytes(), opts...)
+		}
+	}
+}
+
+func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{}
 	for _, o := range opts {
 		o(&options)
@@ -262,24 +289,16 @@ func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...brok
 	}
 	r.Unlock()
 
-	var buf []byte
-	if r.opts.Codec != nil {
-		var err error
-		buf, err = r.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-	} else {
-		buf = msg.Body
-	}
+	rMsg := primitive.NewMessage(topic, msg)
 
-	rMsg := primitive.NewMessage(topic, buf)
-	rMsg.WithProperties(msg.Header)
 	if v, ok := options.Context.Value(compressKey{}).(bool); ok {
 		rMsg.Compress = v
 	}
 	if v, ok := options.Context.Value(batchKey{}).(bool); ok {
 		rMsg.Batch = v
+	}
+	if v, ok := options.Context.Value(headerKey{}).(map[string]string); ok {
+		rMsg.WithProperties(v)
 	}
 
 	_, err := p.SendSync(r.opts.Context, rMsg)
@@ -312,7 +331,7 @@ func (r *rocketmqBroker) Publish(topic string, msg *broker.Message, opts ...brok
 	return nil
 }
 
-func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
 		AutoAck: true,
 		Queue:   r.groupName,
@@ -329,7 +348,7 @@ func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broke
 	sub := &subscriber{
 		opts:    options,
 		topic:   topic,
-		handler: h,
+		handler: handler,
 		reader:  c,
 	}
 
@@ -342,9 +361,14 @@ func (r *rocketmqBroker) Subscribe(topic string, h broker.Handler, opts ...broke
 			for _, msg := range msgs {
 				p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, rm: &msg.Message, ctx: options.Context}
 
-				m.Header = msg.GetProperties()
+				m.Headers = msg.GetProperties()
+
+				if binder != nil {
+					m.Body = binder()
+				}
+
 				if r.opts.Codec != nil {
-					if err := r.opts.Codec.Unmarshal(msg.Body, &m); err != nil {
+					if err := r.opts.Codec.Unmarshal(msg.Body, m.Body); err != nil {
 						p.err = err
 					}
 				} else {

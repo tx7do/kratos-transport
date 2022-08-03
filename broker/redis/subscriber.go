@@ -8,11 +8,12 @@ import (
 )
 
 type subscriber struct {
-	codec  codec.Marshaler
-	conn   *redis.PubSubConn
-	topic  string
-	handle broker.Handler
-	opts   broker.SubscribeOptions
+	codec   codec.Marshaler
+	conn    *redis.PubSubConn
+	topic   string
+	handler broker.Handler
+	binder  broker.Binder
+	opts    broker.SubscribeOptions
 }
 
 func (s *subscriber) recv() {
@@ -28,8 +29,12 @@ func (s *subscriber) recv() {
 		case redis.Message:
 			var m broker.Message
 
+			if s.binder != nil {
+				m.Body = s.binder()
+			}
+
 			if s.codec != nil {
-				if err := s.codec.Unmarshal(x.Data, &m); err != nil {
+				if err := s.codec.Unmarshal(x.Data, m.Body); err != nil {
 					break
 				}
 			} else {
@@ -41,7 +46,7 @@ func (s *subscriber) recv() {
 				message: &m,
 			}
 
-			if p.err = s.handle(s.opts.Context, &p); p.err != nil {
+			if p.err = s.handler(s.opts.Context, &p); p.err != nil {
 				break
 			}
 
