@@ -197,7 +197,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 
 	var async = false
 	var batchSize = 1
-	var batchBytes int64 = 1
+	var batchBytes int64 = 1048576
 	var batchTimeout = 10 * time.Millisecond
 	var retriesCount = 1
 
