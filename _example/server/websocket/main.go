@@ -12,9 +12,9 @@ func main() {
 	//ctx := context.Background()
 
 	wsSrv := websocket.NewServer(
-		websocket.Address(":8800"),
-		websocket.EchoHandle("/ws", handleMessage),
-		websocket.ConnectHandle(handleConnect),
+		websocket.WithAddress(":8800"),
+		websocket.WithEchoHandle("/ws", handleMessage),
+		websocket.WithConnectHandle(handleConnect),
 	)
 
 	app := kratos.New(
