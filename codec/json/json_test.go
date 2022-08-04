@@ -1,75 +1,14 @@
 package json
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"sync"
 	"testing"
 )
 
 type Hygrothermograph struct {
 	Humidity    float64 `json:"humidity"`
 	Temperature float64 `json:"temperature"`
-}
-
-type readWriteCloser struct {
-	sync.RWMutex
-	wbuf *bytes.Buffer
-	rbuf *bytes.Buffer
-}
-
-func (rwc *readWriteCloser) Read(p []byte) (n int, err error) {
-	rwc.RLock()
-	defer rwc.RUnlock()
-	return rwc.rbuf.Read(p)
-}
-
-func (rwc *readWriteCloser) Write(p []byte) (n int, err error) {
-	rwc.Lock()
-	defer rwc.Unlock()
-	return rwc.wbuf.Write(p)
-}
-
-func (rwc *readWriteCloser) Close() error {
-	return nil
-}
-
-type safeBuffer struct {
-	sync.RWMutex
-	buf []byte
-	off int
-}
-
-func (b *safeBuffer) Write(p []byte) (n int, err error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-	p2 := make([]byte, len(p))
-	copy(p2, p)
-	b.Lock()
-	b.buf = append(b.buf, p2...)
-	b.Unlock()
-	return len(p2), nil
-}
-
-func (b *safeBuffer) Read(p []byte) (n int, err error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-	b.RLock()
-	n = copy(p, b.buf[b.off:])
-	b.RUnlock()
-	if n == 0 {
-		return 0, io.EOF
-	}
-	b.off += n
-	return n, nil
-}
-
-func (b *safeBuffer) Close() error {
-	return nil
 }
 
 func TestMarshal(t *testing.T) {
@@ -90,49 +29,6 @@ func TestMarshal(t *testing.T) {
 	assert.Nil(t, err)
 	msg2, _ := body.(*Hygrothermograph)
 	assert.Equal(t, msg, *msg2)
-}
-
-func TestCodec(t *testing.T) {
-	rwc := readWriteCloser{
-		rbuf: bytes.NewBuffer(nil),
-		wbuf: bytes.NewBuffer(nil),
-	}
-	codec := NewCodec(&rwc)
-	assert.Equal(t, "json", codec.Name())
-
-	var msg Hygrothermograph
-	msg.Humidity = 100
-	msg.Temperature = 200
-
-	err := codec.Write(&msg)
-	assert.Nil(t, err)
-
-	fmt.Printf("buf: %s\n", rwc.wbuf.String())
-
-	rwc.rbuf.Reset()
-	rwc.rbuf.Write(rwc.wbuf.Bytes())
-
-	var msg1 Hygrothermograph
-	err = codec.Read(&msg1)
-	assert.Nil(t, err)
-	assert.Equal(t, msg, msg1)
-}
-
-func TestCodec1(t *testing.T) {
-	buffer := new(safeBuffer)
-	codec := NewCodec(buffer)
-	assert.Equal(t, "json", codec.Name())
-
-	var msg Hygrothermograph
-	msg.Humidity = 100
-	msg.Temperature = 200
-
-	err := codec.Write(&msg)
-	assert.Nil(t, err)
-
-	var msg1 Hygrothermograph
-	err = codec.Read(&msg1)
-	assert.Nil(t, err)
 }
 
 func TestMemory(t *testing.T) {
