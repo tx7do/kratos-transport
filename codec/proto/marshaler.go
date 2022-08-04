@@ -1,9 +1,14 @@
 package proto
 
 import (
+	"bytes"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/oxtoacart/bpool"
 	"github.com/tx7do/kratos-transport/codec"
-	"google.golang.org/protobuf/proto"
 )
+
+var bufferPool = bpool.NewSizedBufferPool(16, 256)
 
 type Marshaler struct{}
 
@@ -17,7 +22,17 @@ func (Marshaler) Marshal(v interface{}) ([]byte, error) {
 		return nil, codec.ErrInvalidMessage
 	}
 
-	return proto.Marshal(pb)
+	buf := bufferPool.Get()
+	pBuf := proto.NewBuffer(buf.Bytes())
+	defer func() {
+		bufferPool.Put(bytes.NewBuffer(pBuf.Bytes()))
+	}()
+
+	if err := pBuf.Marshal(pb); err != nil {
+		return nil, err
+	}
+
+	return pBuf.Bytes(), nil
 }
 
 func (Marshaler) Unmarshal(data []byte, v interface{}) error {
