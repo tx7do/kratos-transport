@@ -116,10 +116,15 @@ func (m *mqttBroker) Disconnect() error {
 }
 
 func (m *mqttBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	if msg == nil {
-		return errors.New("message is nil")
+	buf, err := broker.Marshal(m.opts.Codec, msg)
+	if err != nil {
+		return err
 	}
 
+	return m.publish(topic, buf, opts...)
+}
+
+func (m *mqttBroker) publish(topic string, buf []byte, opts ...broker.PublishOption) error {
 	if !m.client.IsConnected() {
 		return errors.New("not connected")
 	}
@@ -132,19 +137,8 @@ func (m *mqttBroker) Publish(topic string, msg broker.Any, opts ...broker.Publis
 	var qos byte = 1
 	const retained bool = false
 
-	if m.opts.Codec != nil {
-		var err error
-		buf, err := m.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		ret := m.client.Publish(topic, qos, retained, buf)
-		return ret.Error()
-	} else {
-		ret := m.client.Publish(topic, qos, retained, msg)
-		return ret.Error()
-	}
-
+	ret := m.client.Publish(topic, qos, retained, buf)
+	return ret.Error()
 }
 
 func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
@@ -168,13 +162,10 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			msg.Body = binder()
 		}
 
-		if m.opts.Codec == nil {
-			msg.Body = mq.Payload()
-		} else {
-			if err := m.opts.Codec.Unmarshal(mq.Payload(), msg.Body); err != nil {
-				log.Error(err)
-				return
-			}
+		if err := broker.Unmarshal(m.opts.Codec, mq.Payload(), msg.Body); err != nil {
+			p.err = err
+			log.Error(err)
+			return
 		}
 
 		if err := handler(m.opts.Context, p); err != nil {

@@ -113,28 +113,12 @@ func (b *stompBroker) Disconnect() error {
 }
 
 func (b *stompBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	if b.opts.Codec != nil {
-		var err error
-		buf, err := b.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		return b.publish(topic, buf, opts...)
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			return b.publish(topic, t, opts...)
-		case string:
-			return b.publish(topic, []byte(t), opts...)
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			return b.publish(topic, buf.Bytes(), opts...)
-		}
+	buf, err := broker.Marshal(b.opts.Codec, msg)
+	if err != nil {
+		return err
 	}
+
+	return b.publish(topic, buf, opts...)
 }
 
 func (b *stompBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
@@ -241,19 +225,17 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					Headers: stompHeaderToMap(msg.Header),
 				}
 
+				p := &publication{msg: msg, m: m, topic: topic, broker: b}
+
 				if binder != nil {
 					m.Body = binder()
 				}
 
-				if b.opts.Codec != nil {
-					if err := b.opts.Codec.Unmarshal(msg.Body, m.Body); err != nil {
-						return
-					}
-				} else {
-					m.Body = msg.Body
+				if err := broker.Unmarshal(b.opts.Codec, msg.Body, m.Body); err != nil {
+					p.err = err
+					b.log.Error(err)
 				}
 
-				p := &publication{msg: msg, m: m, topic: topic, broker: b}
 				p.err = handler(b.opts.Context, p)
 				if p.err == nil && !bOpt.AutoAck && ackSuccess {
 					_ = msg.Conn.Ack(msg)

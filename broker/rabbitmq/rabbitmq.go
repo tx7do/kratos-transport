@@ -1,9 +1,7 @@
 package rabbitmq
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"errors"
 	"sync"
 	"time"
@@ -109,36 +107,18 @@ func (r *rabbitBroker) getPrefetchGlobal() bool {
 }
 
 func (r *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
-	if msg == nil {
-		return errors.New("message is nil")
+	buf, err := broker.Marshal(r.opts.Codec, msg)
+	if err != nil {
+		return err
 	}
 
+	return r.publish(routingKey, buf, opts...)
+}
+
+func (r *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.PublishOption) error {
 	m := amqp.Publishing{
-		Body:    nil,
+		Body:    buf,
 		Headers: amqp.Table{},
-	}
-
-	if r.opts.Codec != nil {
-		var err error
-		buf, err := r.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		m.Body = buf
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			m.Body = t
-		case string:
-			m.Body = []byte(t)
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			m.Body = buf.Bytes()
-		}
 	}
 
 	options := broker.PublishOptions{}
@@ -249,12 +229,9 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			m.Body = binder()
 		}
 
-		if r.opts.Codec != nil {
-			if err := r.opts.Codec.Unmarshal(msg.Body, m.Body); err != nil {
-				p.err = err
-			}
-		} else {
-			m.Body = msg.Body
+		if err := broker.Unmarshal(r.opts.Codec, msg.Body, m.Body); err != nil {
+			p.err = err
+			//r.log.Error(err)
 		}
 
 		p.err = handler(r.opts.Context, p)

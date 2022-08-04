@@ -28,27 +28,6 @@ type Hygrothermograph struct {
 	Temperature float64 `json:"temperature"`
 }
 
-type Headers broker.Headers
-
-func TestCodec(t *testing.T) {
-	codec := jsonCodec.Marshaler{}
-
-	var msg Hygrothermograph
-	msg.Humidity = 100
-	msg.Temperature = 200
-
-	buf, err := codec.Marshal(msg)
-	assert.Nil(t, err)
-
-	var msg1 Hygrothermograph
-	var body interface{}
-	body = &msg1
-	err = codec.Unmarshal(buf, body)
-	assert.Nil(t, err)
-	msg2, _ := body.(*Hygrothermograph)
-	assert.Equal(t, msg, msg2)
-}
-
 func registerHygrothermographRawHandler() broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		var msg Hygrothermograph

@@ -1,9 +1,7 @@
 package rocketmq
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"errors"
 	"sync"
 
@@ -241,28 +239,12 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocke
 }
 
 func (r *rocketmqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	if r.opts.Codec != nil {
-		var err error
-		buf, err := r.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		return r.publish(topic, buf, opts...)
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			return r.publish(topic, t, opts...)
-		case string:
-			return r.publish(topic, []byte(t), opts...)
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			return r.publish(topic, buf.Bytes(), opts...)
-		}
+	buf, err := broker.Marshal(r.opts.Codec, msg)
+	if err != nil {
+		return err
 	}
+
+	return r.publish(topic, buf, opts...)
 }
 
 func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
@@ -367,12 +349,9 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 					m.Body = binder()
 				}
 
-				if r.opts.Codec != nil {
-					if err := r.opts.Codec.Unmarshal(msg.Body, m.Body); err != nil {
-						p.err = err
-					}
-				} else {
-					m.Body = msg.Body
+				if err := broker.Unmarshal(r.opts.Codec, msg.Body, m.Body); err != nil {
+					p.err = err
+					r.log.Error(err)
 				}
 
 				err = sub.handler(sub.opts.Context, p)

@@ -18,6 +18,8 @@ const (
 )
 
 type kafkaBroker struct {
+	sync.RWMutex
+
 	addrs []string
 
 	readerConfig kafkaGo.ReaderConfig
@@ -25,9 +27,9 @@ type kafkaBroker struct {
 
 	log *log.Helper
 
-	connected bool
-	sync.RWMutex
-	opts broker.Options
+	connected    bool
+	opts         broker.Options
+	retriesCount int
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -44,22 +46,28 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		cAddrs = []string{defaultAddr}
 	}
 
-	readerConfig := kafkaGo.ReaderConfig{}
-	if cfg, ok := options.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
-		readerConfig = cfg
-	}
-	if len(readerConfig.Brokers) == 0 {
-		readerConfig.Brokers = cAddrs
-	}
-	readerConfig.WatchPartitionChanges = true
-
-	return &kafkaBroker{
-		readerConfig: readerConfig,
+	b := &kafkaBroker{
+		readerConfig: kafkaGo.ReaderConfig{},
 		writers:      make(map[string]*kafkaGo.Writer),
 		addrs:        cAddrs,
 		opts:         options,
 		log:          log.NewHelper(log.GetLogger()),
+		retriesCount: 1,
 	}
+
+	if cfg, ok := options.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
+		b.readerConfig = cfg
+	}
+	if len(b.readerConfig.Brokers) == 0 {
+		b.readerConfig.Brokers = cAddrs
+	}
+	b.readerConfig.WatchPartitionChanges = true
+
+	if cnt, ok := options.Context.Value(retriesCountKey{}).(int); ok {
+		b.retriesCount = cnt
+	}
+
+	return b
 }
 
 func (b *kafkaBroker) Name() string {
@@ -149,35 +157,6 @@ func (b *kafkaBroker) Disconnect() error {
 	return nil
 }
 
-func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	if msg == nil {
-		return errors.New("message is nil")
-	}
-
-	if b.opts.Codec != nil {
-		var err error
-		buf, err := b.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		return b.publish(topic, buf, opts...)
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			return b.publish(topic, t, opts...)
-		case string:
-			return b.publish(topic, []byte(t), opts...)
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			return b.publish(topic, buf.Bytes(), opts...)
-		}
-	}
-}
-
 func (b *kafkaBroker) createProducer(async bool, batchSize int, batchBytes int64, batchTimeout time.Duration) *kafkaGo.Writer {
 	return &kafkaGo.Writer{
 		Addr:         kafkaGo.TCP(b.addrs...),
@@ -187,6 +166,15 @@ func (b *kafkaBroker) createProducer(async bool, batchSize int, batchBytes int64
 		BatchTimeout: batchTimeout,
 		BatchBytes:   batchBytes,
 	}
+}
+
+func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.opts.Codec, msg)
+	if err != nil {
+		return err
+	}
+
+	return b.publish(topic, buf, opts...)
 }
 
 func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOption) error {
@@ -199,7 +187,6 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 	var batchSize = 1
 	var batchBytes int64 = 1048576
 	var batchTimeout = 10 * time.Millisecond
-	var retriesCount = 1
 
 	var cached bool
 
@@ -215,10 +202,6 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 
 	if value, ok := options.Context.Value(batchBytesKey{}).(int64); ok {
 		batchBytes = value
-	}
-
-	if value, ok := options.Context.Value(retriesCountKey{}).(int); ok {
-		retriesCount = value
 	}
 
 	if value, ok := options.Context.Value(asyncKey{}).(bool); ok {
@@ -275,7 +258,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 			b.Unlock()
 
 			writer := b.createProducer(async, batchSize, batchBytes, batchTimeout)
-			for i := 0; i < retriesCount; i++ {
+			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(b.opts.Context, kMsg); err == nil {
 					b.Lock()
 					b.writers[topic] = writer
@@ -332,12 +315,8 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					m.Body = binder()
 				}
 
-				if b.opts.Codec != nil {
-					if err := b.opts.Codec.Unmarshal(msg.Value, m.Body); err != nil {
-						p.err = err
-					}
-				} else {
-					m.Body = msg.Value
+				if err := broker.Unmarshal(b.opts.Codec, msg.Value, m.Body); err != nil {
+					p.err = err
 				}
 
 				err = sub.handler(sub.opts.Context, p)

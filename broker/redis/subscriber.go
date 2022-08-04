@@ -33,17 +33,15 @@ func (s *subscriber) recv() {
 				m.Body = s.binder()
 			}
 
-			if s.codec != nil {
-				if err := s.codec.Unmarshal(x.Data, m.Body); err != nil {
-					break
-				}
-			} else {
-				m.Body = x.Data
-			}
-
 			p := publication{
 				topic:   x.Channel,
 				message: &m,
+			}
+
+			if err := broker.Unmarshal(s.codec, x.Data, m.Body); err != nil {
+				p.err = err
+				//r.log.Error(err)
+				break
 			}
 
 			if p.err = s.handler(s.opts.Context, &p); p.err != nil {

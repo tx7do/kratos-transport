@@ -1,8 +1,6 @@
 package redis
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"strings"
@@ -120,28 +118,12 @@ func (b *redisBroker) Disconnect() error {
 }
 
 func (b *redisBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	if b.opts.Codec != nil {
-		var err error
-		buf, err := b.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		return b.publish(topic, buf, opts...)
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			return b.publish(topic, t, opts...)
-		case string:
-			return b.publish(topic, []byte(t), opts...)
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			return b.publish(topic, buf.Bytes(), opts...)
-		}
+	buf, err := broker.Marshal(b.opts.Codec, msg)
+	if err != nil {
+		return err
 	}
+
+	return b.publish(topic, buf, opts...)
 }
 
 func (b *redisBroker) publish(topic string, msg []byte, _ ...broker.PublishOption) error {

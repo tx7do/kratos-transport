@@ -9,9 +9,14 @@ import (
 ///////////////////////////////////////////////////////////////////////////////
 
 type readerConfigKey struct{}
+type retriesCountKey struct{}
 
 func WithReaderConfig(c kafkago.ReaderConfig) broker.Option {
 	return broker.OptionContextWithValue(readerConfigKey{}, c)
+}
+
+func WithRetriesCount(cnt int) broker.Option {
+	return broker.OptionContextWithValue(retriesCountKey{}, cnt)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -20,7 +25,6 @@ type headersKey struct{}
 type batchSizeKey struct{}
 type batchTimeoutKey struct{}
 type batchBytesKey struct{}
-type retriesCountKey struct{}
 type asyncKey struct{}
 
 func WithHeaders(h map[string]interface{}) broker.PublishOption {
@@ -37,10 +41,6 @@ func WithBatchTimeout(tm time.Duration) broker.PublishOption {
 
 func WithBatchBytes(by int64) broker.PublishOption {
 	return broker.PublishContextWithValue(batchBytesKey{}, by)
-}
-
-func WithRetriesCount(cnt int64) broker.PublishOption {
-	return broker.PublishContextWithValue(retriesCountKey{}, cnt)
 }
 
 func WithAsync(enable bool) broker.PublishOption {

@@ -123,28 +123,12 @@ func (pb *pulsarBroker) Disconnect() error {
 }
 
 func (pb *pulsarBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	if pb.opts.Codec != nil {
-		var err error
-		buf, err := pb.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		return pb.publish(topic, buf, opts...)
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			return pb.publish(topic, t, opts...)
-		case string:
-			return pb.publish(topic, []byte(t), opts...)
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			return pb.publish(topic, buf.Bytes(), opts...)
-		}
+	buf, err := broker.Marshal(pb.opts.Codec, msg)
+	if err != nil {
+		return err
 	}
+
+	return pb.publish(topic, buf, opts...)
 }
 
 func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
@@ -294,20 +278,10 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 				m.Body = binder()
 			}
 
-			if pb.opts.Codec != nil {
-				if err := pb.opts.Codec.Unmarshal(cm.Payload(), m.Body); err != nil {
-					continue
-				}
-			} else {
-				m.Body = cm.Payload()
-			}
-
-			if pb.opts.Codec != nil {
-				if err := pb.opts.Codec.Unmarshal(cm.Payload(), &m); err != nil {
-					p.err = err
-				}
-			} else {
-				m.Body = cm.Payload()
+			if err := broker.Unmarshal(pb.opts.Codec, cm.Payload(), m.Body); err != nil {
+				p.err = err
+				pb.log.Error(err)
+				continue
 			}
 
 			err = sub.handler(sub.opts.Context, p)

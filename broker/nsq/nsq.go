@@ -1,9 +1,7 @@
 package nsq
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"github.com/go-kratos/kratos/v2/log"
 	"math/rand"
 	"sync"
@@ -197,28 +195,12 @@ func (b *nsqBroker) Disconnect() error {
 }
 
 func (b *nsqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	if b.opts.Codec != nil {
-		var err error
-		buf, err := b.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		return b.publish(topic, buf, opts...)
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			return b.publish(topic, t, opts...)
-		case string:
-			return b.publish(topic, []byte(t), opts...)
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			return b.publish(topic, buf.Bytes(), opts...)
-		}
+	buf, err := broker.Marshal(b.opts.Codec, msg)
+	if err != nil {
+		return err
 	}
+
+	return b.publish(topic, buf, opts...)
 }
 
 func (b *nsqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
@@ -300,15 +282,12 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 			m.Body = binder()
 		}
 
-		if b.opts.Codec != nil {
-			if err := b.opts.Codec.Unmarshal(nm.Body, m.Body); err != nil {
-				return err
-			}
-		} else {
-			m.Body = nm.Body
-		}
-
 		p := &publication{topic: topic, nsqMsg: nm, msg: &m}
+
+		if err := broker.Unmarshal(b.opts.Codec, nm.Body, m.Body); err != nil {
+			p.err = err
+			return err
+		}
 
 		if err := handler(b.opts.Context, p); err != nil {
 			p.err = err

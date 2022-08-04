@@ -1,9 +1,7 @@
 package nats
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"errors"
 	"strings"
 	"sync"
@@ -175,6 +173,15 @@ func (b *natsBroker) Disconnect() error {
 }
 
 func (b *natsBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.opts.Codec, msg)
+	if err != nil {
+		return err
+	}
+
+	return b.publish(topic, buf, opts...)
+}
+
+func (b *natsBroker) publish(topic string, buf []byte, opts ...broker.PublishOption) error {
 	b.RLock()
 	defer b.RUnlock()
 
@@ -187,28 +194,7 @@ func (b *natsBroker) Publish(topic string, msg broker.Any, opts ...broker.Publis
 		o(&options)
 	}
 
-	if b.opts.Codec != nil {
-		var err error
-		buf, err := b.opts.Codec.Marshal(msg)
-		if err != nil {
-			return err
-		}
-		return b.conn.Publish(topic, buf)
-	} else {
-		switch t := msg.(type) {
-		case []byte:
-			return b.conn.Publish(topic, t)
-		case string:
-			return b.conn.Publish(topic, []byte(t))
-		default:
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			if err := enc.Encode(msg); err != nil {
-				return err
-			}
-			return b.conn.Publish(topic, buf.Bytes())
-		}
-	}
+	return b.conn.Publish(topic, buf)
 }
 
 func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
@@ -244,19 +230,13 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			m.Body = binder()
 		}
 
-		if b.opts.Codec != nil {
-			if err := b.opts.Codec.Unmarshal(msg.Data, m.Body); err != nil {
-				pub.err = err
-				if err != nil {
-					b.log.Error(err)
-					if eh != nil {
-						_ = eh(b.opts.Context, pub)
-					}
-					return
-				}
+		if err := broker.Unmarshal(b.opts.Codec, msg.Data, m.Body); err != nil {
+			pub.err = err
+			b.log.Error(err)
+			if eh != nil {
+				_ = eh(b.opts.Context, pub)
 			}
-		} else {
-			m.Body = msg.Data
+			return
 		}
 
 		if err := handler(b.opts.Context, pub); err != nil {
