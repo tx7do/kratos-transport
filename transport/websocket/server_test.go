@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var testServer *Server
+
 func TestServer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -21,9 +23,11 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(":8800"),
-		WithEchoHandle("/ws", handleMessage),
+		WithReadHandle("/ws", handleMessage),
 		WithConnectHandle(handleConnect),
 	)
+
+	testServer = srv
 
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
@@ -46,13 +50,12 @@ func handleConnect(connectionId string, register bool) {
 	}
 }
 
-func handleMessage(connectionId string, message *Message) (*Message, error) {
+func handleMessage(connectionId string, message *Message) error {
 	fmt.Printf("[%s] Payload: %s\n", connectionId, string(message.Body))
 
-	var relyMsg Message
-	relyMsg.Body = []byte("hello")
+	testServer.SendMessage(connectionId, &Message{Body: []byte("hello")})
 
-	return &relyMsg, nil
+	return nil
 }
 
 func TestClient(t *testing.T) {

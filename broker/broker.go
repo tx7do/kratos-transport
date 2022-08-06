@@ -7,7 +7,6 @@ import (
 type Any interface{}
 
 type Handler func(context.Context, Event) error
-type EchoHandler func(context.Context, Event) (Event, error)
 
 type Binder func() Any
 

@@ -7,6 +7,9 @@ import (
 	"github.com/go-kratos/kratos/v2/encoding"
 )
 
+//var DefaultCodec = encoding.GetCodec("json")
+var DefaultCodec encoding.Codec = nil
+
 type Options struct {
 	Addrs []string
 	Codec encoding.Codec
@@ -30,8 +33,7 @@ func (o *Options) Apply(opts ...Option) {
 func NewOptions() Options {
 	opt := Options{
 		Addrs: []string{},
-		Codec: nil,
-		//Codec: json.Marshaler{},
+		Codec: DefaultCodec,
 
 		ErrorHandler: nil,
 

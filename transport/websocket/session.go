@@ -94,12 +94,7 @@ func (c *Session) readPump() {
 		} else if messageType != ws.BinaryMessage {
 			log.Println("Non binary message received, ignoring")
 		} else {
-			if c.server.echoHandler != nil {
-				replyMsg, _ := c.server.echoHandler(c.SessionID(), &Message{Body: data})
-				if replyMsg != nil {
-					c.SendMessage(replyMsg)
-				}
-			} else if c.server.readHandler != nil {
+			if c.server.readHandler != nil {
 				_ = c.server.readHandler(c.SessionID(), &Message{Body: data})
 			}
 

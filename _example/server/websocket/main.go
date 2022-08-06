@@ -8,14 +8,18 @@ import (
 	"github.com/tx7do/kratos-transport/transport/websocket"
 )
 
+var testServer *websocket.Server
+
 func main() {
 	//ctx := context.Background()
 
 	wsSrv := websocket.NewServer(
 		websocket.WithAddress(":8800"),
-		websocket.WithEchoHandle("/ws", handleMessage),
+		websocket.WithReadHandle("/ws", handleMessage),
 		websocket.WithConnectHandle(handleConnect),
 	)
+
+	testServer = wsSrv
 
 	app := kratos.New(
 		kratos.Name("websocket"),
@@ -36,11 +40,13 @@ func handleConnect(connectionId string, register bool) {
 	}
 }
 
-func handleMessage(connectionId string, message *websocket.Message) (*websocket.Message, error) {
+func handleMessage(connectionId string, message *websocket.Message) error {
 	fmt.Printf("[%s] Payload: %s\n", connectionId, string(message.Body))
 
 	var relyMsg websocket.Message
 	relyMsg.Body = []byte("hello")
 
-	return &relyMsg, nil
+	testServer.SendMessage(connectionId, &relyMsg)
+
+	return nil
 }

@@ -40,13 +40,6 @@ func WithReadHandle(path string, h Handler) ServerOption {
 	}
 }
 
-func WithEchoHandle(path string, h EchoHandler) ServerOption {
-	return func(s *Server) {
-		s.path = path
-		s.echoHandler = h
-	}
-}
-
 func WithLogger(logger log.Logger) ServerOption {
 	return func(s *Server) {
 		s.log = log.NewHelper(logger)
