@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
-	"github.com/tx7do/kratos-transport/codec"
+	"github.com/go-kratos/kratos/v2/encoding"
 )
 
-func Marshal(codec codec.Marshaler, msg Any) ([]byte, error) {
+func Marshal(codec encoding.Codec, msg Any) ([]byte, error) {
 	if msg == nil {
 		return nil, errors.New("message is nil")
 	}
@@ -35,7 +35,7 @@ func Marshal(codec codec.Marshaler, msg Any) ([]byte, error) {
 	}
 }
 
-func Unmarshal(codec codec.Marshaler, buf []byte, data interface{}) error {
+func Unmarshal(codec encoding.Codec, buf []byte, data interface{}) error {
 	if codec != nil {
 		if err := codec.Unmarshal(buf, data); err != nil {
 			return err

@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/broker/redis"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 	"log"
 	"math/rand"
 	"os"
@@ -15,6 +11,11 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/stretchr/testify/assert"
+	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/broker/redis"
 )
 
 const (
@@ -79,7 +80,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localBroker),
-		WithCodec(jsonCodec.Marshaler{}),
+		WithCodec(encoding.GetCodec("json")),
 	)
 
 	err := srv.RegisterSubscriber(testTopic,
@@ -115,7 +116,7 @@ func TestClient(t *testing.T) {
 	b := redis.NewBroker(
 		broker.OptionContext(ctx),
 		broker.Addrs(localBroker),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 		redis.ReadTimeout(24*time.Hour),
 	)
 

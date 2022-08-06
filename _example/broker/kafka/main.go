@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/kafka"
 )
@@ -78,7 +78,7 @@ func main() {
 	b := kafka.NewBroker(
 		broker.OptionContext(ctx),
 		broker.Addrs(testBrokers),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 	)
 
 	_, err := b.Subscribe(testTopic,

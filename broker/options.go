@@ -3,12 +3,13 @@ package broker
 import (
 	"context"
 	"crypto/tls"
-	"github.com/tx7do/kratos-transport/codec"
+
+	"github.com/go-kratos/kratos/v2/encoding"
 )
 
 type Options struct {
 	Addrs []string
-	Codec codec.Marshaler
+	Codec encoding.Codec
 
 	ErrorHandler Handler
 
@@ -72,7 +73,7 @@ func Addrs(addrs ...string) Option {
 	}
 }
 
-func Codec(c codec.Marshaler) Option {
+func Codec(c encoding.Codec) Option {
 	return func(o *Options) {
 		o.Codec = c
 	}

@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rabbitmq"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 )
 
 const (
@@ -79,7 +79,7 @@ func main() {
 
 	b := rabbitmq.NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 		broker.Addrs(testBroker),
 		rabbitmq.ExchangeName(testExchange),
 		rabbitmq.DurableExchange(),

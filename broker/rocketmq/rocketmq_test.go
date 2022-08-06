@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 )
 
 const (
@@ -80,7 +80,7 @@ func TestSubscribe(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
 	)
@@ -113,7 +113,7 @@ func TestPublish(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 		WithEnableTrace(),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
@@ -157,7 +157,7 @@ func TestAliyunPublish(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),
@@ -205,7 +205,7 @@ func TestAliyunSubscribe(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),

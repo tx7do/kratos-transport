@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 )
 
 const (
@@ -146,7 +146,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	b := NewBroker(
 		broker.OptionContext(ctx),
 		broker.Addrs(LocalRabbitBroker),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 	)
 
 	_ = b.Init()
@@ -183,7 +183,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	b := NewBroker(
 		broker.OptionContext(ctx),
 		broker.Addrs(LocalRabbitBroker),
-		broker.Codec(jsonCodec.Marshaler{}),
+		broker.Codec(encoding.GetCodec("json")),
 	)
 	defer b.Disconnect()
 

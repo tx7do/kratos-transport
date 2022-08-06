@@ -1,9 +1,5 @@
 package rabbitmq
 
-//
-// All credit to Mondo
-//
-
 import (
 	"errors"
 

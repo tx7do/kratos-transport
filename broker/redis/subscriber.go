@@ -2,13 +2,14 @@ package redis
 
 import (
 	"fmt"
+
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/gomodule/redigo/redis"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/codec"
 )
 
 type subscriber struct {
-	codec   codec.Marshaler
+	codec   encoding.Codec
 	conn    *redis.PubSubConn
 	topic   string
 	handler broker.Handler

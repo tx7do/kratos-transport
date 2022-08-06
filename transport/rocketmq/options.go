@@ -2,10 +2,11 @@ package rocketmq
 
 import (
 	"crypto/tls"
+
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
-	"github.com/tx7do/kratos-transport/codec"
 )
 
 type ServerOption func(o *Server)
@@ -81,7 +82,7 @@ func WithRetryCount(count int) ServerOption {
 	}
 }
 
-func WithCodec(c codec.Marshaler) ServerOption {
+func WithCodec(c encoding.Codec) ServerOption {
 	return func(s *Server) {
 		s.bOpts = append(s.bOpts, broker.Codec(c))
 	}

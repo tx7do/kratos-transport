@@ -7,8 +7,8 @@ import (
 	"log"
 
 	"github.com/go-kratos/kratos/v2"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/tx7do/kratos-transport/broker"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 	"github.com/tx7do/kratos-transport/transport/mqtt"
 )
 
@@ -76,7 +76,7 @@ func main() {
 
 	mqttSrv := mqtt.NewServer(
 		mqtt.WithAddress([]string{EmqxCnBroker}),
-		mqtt.WithCodec(jsonCodec.Marshaler{}),
+		mqtt.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_ = mqttSrv.RegisterSubscriber(ctx,

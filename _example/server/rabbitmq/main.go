@@ -7,9 +7,9 @@ import (
 	"log"
 
 	"github.com/go-kratos/kratos/v2"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/tx7do/kratos-transport/broker"
 	rabbitmqBroker "github.com/tx7do/kratos-transport/broker/rabbitmq"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 	"github.com/tx7do/kratos-transport/transport/rabbitmq"
 )
 
@@ -75,7 +75,7 @@ func main() {
 
 	rabbitmqSrv := rabbitmq.NewServer(
 		rabbitmq.WithAddress([]string{testBroker}),
-		rabbitmq.WithCodec(jsonCodec.Marshaler{}),
+		rabbitmq.WithCodec(encoding.GetCodec("json")),
 		rabbitmq.WithExchange(testExchange, true),
 	)
 

@@ -7,8 +7,8 @@ import (
 	"log"
 
 	"github.com/go-kratos/kratos/v2"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/tx7do/kratos-transport/broker"
-	jsonCodec "github.com/tx7do/kratos-transport/codec/json"
 	"github.com/tx7do/kratos-transport/transport/kafka"
 )
 
@@ -72,7 +72,7 @@ func main() {
 
 	kafkaSrv := kafka.NewServer(
 		kafka.WithAddress([]string{testBrokers}),
-		kafka.WithCodec(jsonCodec.Marshaler{}),
+		kafka.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_ = kafkaSrv.RegisterSubscriber(ctx,
