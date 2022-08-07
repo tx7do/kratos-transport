@@ -1,8 +1,10 @@
 package websocket
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/gob"
 	"errors"
 	"net"
 	"net/http"
@@ -10,18 +12,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	ws "github.com/gorilla/websocket"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
+type Any interface{}
+type MessageType int
+type MessagePayload Any
+
 type Message struct {
+	Type MessageType
 	Body []byte
 }
 
-type Handler func(string, *Message) error
-type EchoHandler func(string, *Message) (*Message, error)
-type ConnectHandler func(string, bool)
+type Binder func() Any
+
+type ConnectHandler func(SessionID, bool)
+
+type MessageHandler func(SessionID, MessagePayload) error
+
+type HandlerData struct {
+	Handler MessageHandler
+	Binder  Binder
+}
+type MessageHandlerMap map[MessageType]HandlerData
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -30,26 +47,26 @@ var (
 
 type Server struct {
 	*http.Server
-	lis         net.Listener
-	tlsConf     *tls.Config
-	endpoint    *url.URL
-	strictSlash bool
 
-	err error
-
-	network string
-	address string
-	timeout time.Duration
-
-	log *log.Helper
-
-	readHandler    Handler
-	connectHandler ConnectHandler
-	path           string
-
-	sessions SessionMap
+	lis      net.Listener
+	tlsConf  *tls.Config
+	endpoint *url.URL
 	upgrader *ws.Upgrader
 
+	strictSlash bool
+	network     string
+	address     string
+	timeout     time.Duration
+	path        string
+
+	err   error
+	log   *log.Helper
+	Codec encoding.Codec
+
+	messageHandlers MessageHandlerMap
+	connectHandler  ConnectHandler
+
+	sessions   SessionMap
 	register   chan *Session
 	unregister chan *Session
 }
@@ -60,15 +77,16 @@ func NewServer(opts ...ServerOption) *Server {
 		address:     ":0",
 		timeout:     1 * time.Second,
 		strictSlash: true,
-		log:         log.NewHelper(log.GetLogger()),
+		log:         log.NewHelper(log.GetLogger(), log.WithMessageKey("[websocket]")),
+
+		messageHandlers: make(MessageHandlerMap),
 
 		sessions: SessionMap{},
 		upgrader: &ws.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			}},
+			CheckOrigin:     func(r *http.Request) bool { return true },
+		},
 
 		register:   make(chan *Session),
 		unregister: make(chan *Session),
@@ -101,17 +119,88 @@ func (s *Server) SessionCount() int {
 	return len(s.sessions)
 }
 
-func (s *Server) SendMessage(sessionId string, message *Message) {
+func (s *Server) RegisterMessageHandler(messageType MessageType, handler MessageHandler, binder Binder) {
+	s.messageHandlers[messageType] = HandlerData{handler, binder}
+}
+
+func (s *Server) DeregisterMessageHandler(messageType MessageType) {
+	delete(s.messageHandlers, messageType)
+}
+
+func (s *Server) marshalMessage(messageType MessageType, message MessagePayload) ([]byte, error) {
+	var err error
+	var msg Message
+	msg.Type = messageType
+	msg.Body, err = broker.Marshal(s.Codec, message)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err = enc.Encode(msg); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
 	c, ok := s.sessions[sessionId]
-	if ok {
-		c.SendMessage(message)
+	if !ok {
+		s.log.Error("session not found:", sessionId)
+		return
+	}
+
+	buf, err := s.marshalMessage(messageType, message)
+	if err != nil {
+		s.log.Error("marshal message exception:", err)
+		return
+	}
+
+	c.SendMessage(buf)
+}
+
+func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
+	buf, err := s.marshalMessage(messageType, message)
+	if err != nil {
+		s.log.Error("marshal message exception:", err)
+		return
+	}
+
+	for _, c := range s.sessions {
+		c.SendMessage(buf)
 	}
 }
 
-func (s *Server) Broadcast(message *Message) {
-	for _, c := range s.sessions {
-		c.SendMessage(message)
+func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
+	var network bytes.Buffer
+	network.Write(buf)
+	dec := gob.NewDecoder(&network)
+	var msg Message
+	if err := dec.Decode(&msg); err != nil {
+		return err
 	}
+
+	handlerData, ok := s.messageHandlers[msg.Type]
+	if !ok {
+		return errors.New("message handler not found")
+	}
+
+	var payload MessagePayload
+
+	if handlerData.Binder != nil {
+		payload = handlerData.Binder()
+	}
+
+	if err := broker.Unmarshal(s.Codec, msg.Body, payload); err != nil {
+		return err
+	}
+
+	if err := handlerData.Handler(sessionId, payload); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
@@ -137,15 +226,18 @@ func (s *Server) listen() error {
 	}
 
 	addr := s.address
+
+	prefix := "ws://"
 	if s.tlsConf == nil {
 		if !strings.HasPrefix(addr, "ws://") {
-			addr = "ws://" + addr
+			prefix = "ws://"
 		}
 	} else {
 		if !strings.HasPrefix(addr, "wss://") {
-			addr = "wss://" + addr
+			prefix = "wss://"
 		}
 	}
+	addr = prefix + addr
 
 	s.endpoint, s.err = url.Parse(addr)
 
@@ -177,7 +269,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	s.log.Infof("[websocket] server listening on: %s", s.lis.Addr().String())
+	s.log.Infof("server listening on: %s", s.lis.Addr().String())
 
 	go s.run()
 
@@ -194,7 +286,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.log.Info("[websocket] server stopping")
+	s.log.Info("server stopping")
 	return s.Shutdown(ctx)
 }
 

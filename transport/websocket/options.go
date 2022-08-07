@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"crypto/tls"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"net"
 	"time"
@@ -27,22 +28,21 @@ func WithTimeout(timeout time.Duration) ServerOption {
 	}
 }
 
+func WithPath(path string) ServerOption {
+	return func(s *Server) {
+		s.path = path
+	}
+}
+
 func WithConnectHandle(h ConnectHandler) ServerOption {
 	return func(s *Server) {
 		s.connectHandler = h
 	}
 }
 
-func WithReadHandle(path string, h Handler) ServerOption {
-	return func(s *Server) {
-		s.path = path
-		s.readHandler = h
-	}
-}
-
 func WithLogger(logger log.Logger) ServerOption {
 	return func(s *Server) {
-		s.log = log.NewHelper(logger)
+		s.log = log.NewHelper(logger, log.WithMessageKey("websocket"))
 	}
 }
 
@@ -55,5 +55,11 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 func WithListener(lis net.Listener) ServerOption {
 	return func(s *Server) {
 		s.lis = lis
+	}
+}
+
+func WithCodec(c encoding.Codec) ServerOption {
+	return func(s *Server) {
+		s.Codec = c
 	}
 }

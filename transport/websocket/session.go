@@ -8,15 +8,16 @@ import (
 
 const channelBufSize = 256
 
+type SessionID string
+
 type Session struct {
-	id     string
+	id     SessionID
 	conn   *ws.Conn
-	send   chan *Message
+	send   chan []byte
 	server *Server
 }
 
-type SessionMap map[string]*Session
-type SessionArray []*Session
+type SessionMap map[SessionID]*Session
 
 func NewSession(conn *ws.Conn, server *Server) *Session {
 	if conn == nil {
@@ -26,9 +27,9 @@ func NewSession(conn *ws.Conn, server *Server) *Session {
 	u1, _ := uuid.NewUUID()
 
 	c := &Session{
-		id:     u1.String(),
+		id:     SessionID(u1.String()),
 		conn:   conn,
-		send:   make(chan *Message, channelBufSize),
+		send:   make(chan []byte, channelBufSize),
 		server: server,
 	}
 
@@ -39,11 +40,11 @@ func (c *Session) Conn() *ws.Conn {
 	return c.conn
 }
 
-func (c *Session) SessionID() string {
+func (c *Session) SessionID() SessionID {
 	return c.id
 }
 
-func (c *Session) SendMessage(message *Message) {
+func (c *Session) SendMessage(message []byte) {
 	select {
 	case c.send <- message:
 	}
@@ -74,7 +75,7 @@ func (c *Session) writePump() {
 	for {
 		select {
 		case msg := <-c.send:
-			if err := c.conn.WriteMessage(ws.BinaryMessage, msg.Body); err != nil {
+			if err := c.conn.WriteMessage(ws.BinaryMessage, msg); err != nil {
 				log.Println("write message error: ", err)
 			}
 		}
@@ -94,10 +95,7 @@ func (c *Session) readPump() {
 		} else if messageType != ws.BinaryMessage {
 			log.Println("Non binary message received, ignoring")
 		} else {
-			if c.server.readHandler != nil {
-				_ = c.server.readHandler(c.SessionID(), &Message{Body: data})
-			}
-
+			_ = c.server.messageHandler(c.SessionID(), data)
 		}
 	}
 }

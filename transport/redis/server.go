@@ -47,7 +47,7 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv := &Server{
 		baseCtx:        context.Background(),
-		log:            log.NewHelper(log.GetLogger()),
+		log:            log.NewHelper(log.GetLogger(), log.WithMessageKey("[redis]")),
 		subscribers:    SubscriberMap{},
 		subscriberOpts: SubscribeOptionMap{},
 		bOpts:          []broker.Option{},

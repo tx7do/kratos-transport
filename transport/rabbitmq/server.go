@@ -43,7 +43,7 @@ type Server struct {
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx:        context.Background(),
-		log:            log.NewHelper(log.GetLogger()),
+		log:            log.NewHelper(log.GetLogger(), log.WithMessageKey("[rabbitmq]")),
 		subscribers:    SubscriberMap{},
 		subscriberOpts: SubscribeOptionMap{},
 		bOpts:          []broker.Option{},
