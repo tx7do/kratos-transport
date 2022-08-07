@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	kafkaGo "github.com/segmentio/kafka-go"
 	"github.com/tx7do/kratos-transport/broker"
@@ -20,12 +19,8 @@ const (
 type kafkaBroker struct {
 	sync.RWMutex
 
-	addrs []string
-
 	readerConfig kafkaGo.ReaderConfig
 	writers      map[string]*kafkaGo.Writer
-
-	log *log.Helper
 
 	connected    bool
 	opts         broker.Options
@@ -47,21 +42,54 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	}
 
 	b := &kafkaBroker{
-		readerConfig: kafkaGo.ReaderConfig{},
+		readerConfig: kafkaGo.ReaderConfig{Brokers: cAddrs, WatchPartitionChanges: true},
 		writers:      make(map[string]*kafkaGo.Writer),
-		addrs:        cAddrs,
 		opts:         options,
-		log:          log.NewHelper(log.GetLogger()),
 		retriesCount: 1,
 	}
 
-	if cfg, ok := options.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
-		b.readerConfig = cfg
+	if value, ok := options.Context.Value(queueCapacityKey{}).(int); ok {
+		b.readerConfig.QueueCapacity = value
 	}
-	if len(b.readerConfig.Brokers) == 0 {
-		b.readerConfig.Brokers = cAddrs
+	if value, ok := options.Context.Value(minBytesKey{}).(int); ok {
+		b.readerConfig.MinBytes = value
 	}
-	b.readerConfig.WatchPartitionChanges = true
+	if value, ok := options.Context.Value(maxBytesKey{}).(int); ok {
+		b.readerConfig.MaxBytes = value
+	}
+	if value, ok := options.Context.Value(maxWaitKey{}).(time.Duration); ok {
+		b.readerConfig.MaxWait = value
+	}
+	if value, ok := options.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.ReadLagInterval = value
+	}
+	if value, ok := options.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.HeartbeatInterval = value
+	}
+	if value, ok := options.Context.Value(commitIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.CommitInterval = value
+	}
+	if value, ok := options.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.PartitionWatchInterval = value
+	}
+	if value, ok := options.Context.Value(watchPartitionChangesKey{}).(bool); ok {
+		b.readerConfig.WatchPartitionChanges = value
+	}
+	if value, ok := options.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
+		b.readerConfig.SessionTimeout = value
+	}
+	if value, ok := options.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
+		b.readerConfig.RebalanceTimeout = value
+	}
+	if value, ok := options.Context.Value(retentionTimeKey{}).(time.Duration); ok {
+		b.readerConfig.RetentionTime = value
+	}
+	if value, ok := options.Context.Value(startOffsetKey{}).(int64); ok {
+		b.readerConfig.StartOffset = value
+	}
+	if value, ok := options.Context.Value(maxAttemptsKey{}).(int); ok {
+		b.readerConfig.MaxAttempts = value
+	}
 
 	if cnt, ok := options.Context.Value(retriesCountKey{}).(int); ok {
 		b.retriesCount = cnt
@@ -75,8 +103,8 @@ func (b *kafkaBroker) Name() string {
 }
 
 func (b *kafkaBroker) Address() string {
-	if len(b.addrs) > 0 {
-		return b.addrs[0]
+	if len(b.opts.Addrs) > 0 {
+		return b.opts.Addrs[0]
 	}
 	return defaultAddr
 }
@@ -98,7 +126,8 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	if len(cAddrs) == 0 {
 		cAddrs = []string{defaultAddr}
 	}
-	b.addrs = cAddrs
+	b.opts.Addrs = cAddrs
+
 	return nil
 }
 
@@ -110,8 +139,8 @@ func (b *kafkaBroker) Connect() error {
 	}
 	b.RUnlock()
 
-	kAddrs := make([]string, 0, len(b.addrs))
-	for _, addr := range b.addrs {
+	kAddrs := make([]string, 0, len(b.opts.Addrs))
+	for _, addr := range b.opts.Addrs {
 		conn, err := kafkaGo.DialContext(b.opts.Context, "tcp", addr)
 		if err != nil {
 			continue
@@ -129,8 +158,8 @@ func (b *kafkaBroker) Connect() error {
 	}
 
 	b.Lock()
-	b.addrs = kAddrs
-	b.readerConfig.Brokers = b.addrs
+	b.opts.Addrs = kAddrs
+	b.readerConfig.Brokers = kAddrs
 	b.connected = true
 	b.Unlock()
 
@@ -157,15 +186,74 @@ func (b *kafkaBroker) Disconnect() error {
 	return nil
 }
 
-func (b *kafkaBroker) createProducer(async bool, batchSize int, batchBytes int64, batchTimeout time.Duration) *kafkaGo.Writer {
-	return &kafkaGo.Writer{
-		Addr:         kafkaGo.TCP(b.addrs...),
-		Balancer:     &kafkaGo.LeastBytes{},
-		Async:        async,
-		BatchSize:    batchSize,
-		BatchTimeout: batchTimeout,
-		BatchBytes:   batchBytes,
+func (b *kafkaBroker) createProducer(opts ...broker.PublishOption) *kafkaGo.Writer {
+	options := broker.PublishOptions{}
+	for _, o := range opts {
+		o(&options)
 	}
+
+	writer := &kafkaGo.Writer{
+		Addr:     kafkaGo.TCP(b.opts.Addrs...),
+		Balancer: &kafkaGo.LeastBytes{},
+	}
+
+	if value, ok := options.Context.Value(balancerKey{}).(string); ok {
+		switch value {
+		default:
+		case BalancerLeastBytes:
+			writer.Balancer = &kafkaGo.LeastBytes{}
+			break
+		case BalancerRoundRobin:
+			writer.Balancer = &kafkaGo.RoundRobin{}
+			break
+		case BalancerHash:
+			writer.Balancer = &kafkaGo.Hash{}
+			break
+		case BalancerReferenceHash:
+			writer.Balancer = &kafkaGo.ReferenceHash{}
+			break
+		case BalancerCRC32Balancer:
+			writer.Balancer = &kafkaGo.CRC32Balancer{}
+			break
+		case BalancerMurmur2Balancer:
+			writer.Balancer = &kafkaGo.Murmur2Balancer{}
+			break
+		}
+	}
+
+	if value, ok := options.Context.Value(batchSizeKey{}).(int); ok {
+		writer.BatchSize = value
+	}
+
+	if value, ok := options.Context.Value(batchTimeoutKey{}).(time.Duration); ok {
+		writer.BatchTimeout = value
+	}
+
+	if value, ok := options.Context.Value(batchBytesKey{}).(int64); ok {
+		writer.BatchBytes = value
+	}
+
+	if value, ok := options.Context.Value(asyncKey{}).(bool); ok {
+		writer.Async = value
+	}
+
+	if value, ok := options.Context.Value(maxAttemptsKey{}).(int); ok {
+		writer.MaxAttempts = value
+	}
+
+	if value, ok := options.Context.Value(readTimeoutKey{}).(time.Duration); ok {
+		writer.ReadTimeout = value
+	}
+
+	if value, ok := options.Context.Value(writeTimeoutKey{}).(time.Duration); ok {
+		writer.WriteTimeout = value
+	}
+
+	if value, ok := options.Context.Value(allowAutoTopicCreationKey{}).(bool); ok {
+		writer.AllowAutoTopicCreation = value
+	}
+
+	return writer
 }
 
 func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
@@ -183,32 +271,9 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 		o(&options)
 	}
 
-	var async = false
-	var batchSize = 1
-	var batchBytes int64 = 1048576
-	var batchTimeout = 10 * time.Millisecond
-
-	var cached bool
-
 	kMsg := kafkaGo.Message{Topic: topic, Value: buf}
 
-	if value, ok := options.Context.Value(batchSizeKey{}).(int); ok {
-		batchSize = value
-	}
-
-	if value, ok := options.Context.Value(batchTimeoutKey{}).(time.Duration); ok {
-		batchTimeout = value
-	}
-
-	if value, ok := options.Context.Value(batchBytesKey{}).(int64); ok {
-		batchBytes = value
-	}
-
-	if value, ok := options.Context.Value(asyncKey{}).(bool); ok {
-		async = value
-	}
-
-	if headers, ok := options.Context.Value(headersKey{}).(map[string]interface{}); ok {
+	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]interface{}); ok {
 		for k, v := range headers {
 			header := kafkaGo.Header{Key: k}
 			switch t := v.(type) {
@@ -228,10 +293,19 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 		}
 	}
 
+	if value, ok := options.Context.Value(messageKeyKey{}).([]byte); ok {
+		kMsg.Key = value
+	}
+
+	if value, ok := options.Context.Value(messageOffsetKey{}).(int64); ok {
+		kMsg.Offset = value
+	}
+
+	var cached bool
 	b.Lock()
 	writer, ok := b.writers[topic]
 	if !ok {
-		writer = b.createProducer(async, batchSize, batchBytes, batchTimeout)
+		writer = b.createProducer(opts...)
 		b.writers[topic] = writer
 	} else {
 		cached = true
@@ -257,7 +331,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 			delete(b.writers, topic)
 			b.Unlock()
 
-			writer := b.createProducer(async, batchSize, batchBytes, batchTimeout)
+			writer := b.createProducer(opts...)
 			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(b.opts.Context, kMsg); err == nil {
 					b.Lock()
@@ -273,20 +347,20 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 }
 
 func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	opt := broker.SubscribeOptions{
+	options := broker.SubscribeOptions{
 		AutoAck: true,
 		Queue:   uuid.New().String(),
 	}
 	for _, o := range opts {
-		o(&opt)
+		o(&options)
 	}
 
 	readerConfig := b.readerConfig
 	readerConfig.Topic = topic
-	readerConfig.GroupID = opt.Queue
+	readerConfig.GroupID = options.Queue
 
 	sub := &subscriber{
-		opts:    opt,
+		opts:    options,
 		topic:   topic,
 		handler: handler,
 		reader:  kafkaGo.NewReader(readerConfig),
@@ -296,10 +370,10 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 		for {
 			select {
-			case <-opt.Context.Done():
+			case <-options.Context.Done():
 				return
 			default:
-				msg, err := sub.reader.FetchMessage(opt.Context)
+				msg, err := sub.reader.FetchMessage(options.Context)
 				if err != nil {
 					return
 				}
@@ -309,7 +383,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					Body:    nil,
 				}
 
-				p := &publication{topic: msg.Topic, reader: sub.reader, m: m, km: msg, ctx: opt.Context}
+				p := &publication{topic: msg.Topic, reader: sub.reader, m: m, km: msg, ctx: options.Context}
 
 				if binder != nil {
 					m.Body = binder()
@@ -321,11 +395,11 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				err = sub.handler(sub.opts.Context, p)
 				if err != nil {
-					b.log.Errorf("[kafka]: process message failed: %v", err)
+					b.opts.Logger.Errorf("[kafka]: process message failed: %v", err)
 				}
 				if sub.opts.AutoAck {
 					if err = p.Ack(); err != nil {
-						b.log.Errorf("[kafka]: unable to commit msg: %v", err)
+						b.opts.Logger.Errorf("[kafka]: unable to commit msg: %v", err)
 					}
 				}
 			}
