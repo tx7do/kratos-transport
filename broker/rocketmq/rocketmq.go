@@ -9,7 +9,6 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -29,8 +28,6 @@ type rocketmqBroker struct {
 	namespace    string
 
 	enableTrace bool
-
-	log *log.Helper
 
 	connected bool
 	sync.RWMutex
@@ -53,7 +50,6 @@ func newBroker(options broker.Options) broker.Broker {
 	return &rocketmqBroker{
 		producers:  make(map[string]rocketmq.Producer),
 		opts:       options,
-		log:        log.NewHelper(log.GetLogger()),
 		retryCount: 2,
 	}
 }
@@ -189,13 +185,13 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 		producer.WithGroupName(r.groupName),
 	)
 	if err != nil {
-		r.log.Errorf("[rocketmq]: new producer error: " + err.Error())
+		r.opts.Logger.Errorf("[rocketmq]: new producer error: " + err.Error())
 		return nil, err
 	}
 
 	err = p.Start()
 	if err != nil {
-		r.log.Errorf("[rocketmq]: start producer error: %s", err.Error())
+		r.opts.Logger.Errorf("[rocketmq]: start producer error: %s", err.Error())
 		return nil, err
 	}
 
@@ -248,7 +244,9 @@ func (r *rocketmqBroker) Publish(topic string, msg broker.Any, opts ...broker.Pu
 }
 
 func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -279,13 +277,25 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 	if v, ok := options.Context.Value(batchKey{}).(bool); ok {
 		rMsg.Batch = v
 	}
-	if v, ok := options.Context.Value(headerKey{}).(map[string]string); ok {
+	if v, ok := options.Context.Value(propertiesKey{}).(map[string]string); ok {
 		rMsg.WithProperties(v)
+	}
+	if v, ok := options.Context.Value(delayTimeLevelKey{}).(int); ok {
+		rMsg.WithDelayTimeLevel(v)
+	}
+	if v, ok := options.Context.Value(tagsKey{}).(string); ok {
+		rMsg.WithTag(v)
+	}
+	if v, ok := options.Context.Value(keysKey{}).([]string); ok {
+		rMsg.WithKeys(v)
+	}
+	if v, ok := options.Context.Value(shardingKeyKey{}).(string); ok {
+		rMsg.WithShardingKey(v)
 	}
 
 	_, err := p.SendSync(r.opts.Context, rMsg)
 	if err != nil {
-		r.log.Errorf("[rocketmq]: send message error: %s\n", err)
+		r.opts.Logger.Errorf("[rocketmq]: send message error: %s\n", err)
 		switch cached {
 		case false:
 		case true:
@@ -315,6 +325,7 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 
 func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
+		Context: context.Background(),
 		AutoAck: true,
 		Queue:   r.groupName,
 	}
@@ -351,28 +362,28 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 				if err := broker.Unmarshal(r.opts.Codec, msg.Body, m.Body); err != nil {
 					p.err = err
-					r.log.Error(err)
+					r.opts.Logger.Error(err)
 				}
 
 				err = sub.handler(sub.opts.Context, p)
 				if err != nil {
-					r.log.Errorf("[rocketmq]: process message failed: %v", err)
+					r.opts.Logger.Errorf("[rocketmq]: process message failed: %v", err)
 				}
 				if sub.opts.AutoAck {
 					if err = p.Ack(); err != nil {
-						r.log.Errorf("[rocketmq]: unable to commit msg: %v", err)
+						r.opts.Logger.Errorf("[rocketmq]: unable to commit msg: %v", err)
 					}
 				}
 			}
 
 			return consumer.ConsumeSuccess, nil
 		}); err != nil {
-		r.log.Errorf(err.Error())
+		r.opts.Logger.Errorf(err.Error())
 		return nil, err
 	}
 
 	if err := c.Start(); err != nil {
-		r.log.Errorf(err.Error())
+		r.opts.Logger.Errorf(err.Error())
 		return nil, err
 	}
 

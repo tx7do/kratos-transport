@@ -17,23 +17,23 @@ type prefetchCountKey struct{}
 type prefetchGlobalKey struct{}
 type externalAuthKey struct{}
 
-func DurableExchange() broker.Option {
+func WithDurableExchange() broker.Option {
 	return broker.OptionContextWithValue(durableExchangeKey{}, true)
 }
 
-func ExchangeName(e string) broker.Option {
+func WithExchangeName(e string) broker.Option {
 	return broker.OptionContextWithValue(exchangeKey{}, e)
 }
 
-func PrefetchCount(c int) broker.Option {
+func WithPrefetchCount(c int) broker.Option {
 	return broker.OptionContextWithValue(prefetchCountKey{}, c)
 }
 
-func PrefetchGlobal() broker.Option {
+func WithPrefetchGlobal() broker.Option {
 	return broker.OptionContextWithValue(prefetchGlobalKey{}, true)
 }
 
-func ExternalAuth() broker.Option {
+func WithExternalAuth() broker.Option {
 	return broker.OptionContextWithValue(externalAuthKey{}, ExternalAuthentication{})
 }
 
@@ -48,38 +48,28 @@ type requeueOnErrorKey struct{}
 type subscribeContextKey struct{}
 type ackSuccessKey struct{}
 
-func DurableQueue() broker.SubscribeOption {
+func WithDurableQueue() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
 }
 
-func SubscribeHeaders(h map[string]interface{}) broker.SubscribeOption {
+func WithSubscribeHeaders(h map[string]interface{}) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(subscribeHeadersKey{}, h)
 }
 
-func QueueArguments(h map[string]interface{}) broker.SubscribeOption {
+func WithQueueArguments(h map[string]interface{}) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(queueArgumentsKey{}, h)
 }
 
-func RequeueOnError() broker.SubscribeOption {
+func WithRequeueOnError() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(requeueOnErrorKey{}, true)
 }
 
-func SubscribeContext(ctx context.Context) broker.SubscribeOption {
+func WithSubscribeContext(ctx context.Context) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(subscribeContextKey{}, ctx)
 }
 
-func SubscribeContextFromContext(ctx context.Context) (context.Context, bool) {
-	c, ok := ctx.Value(subscribeContextKey{}).(context.Context)
-	return c, ok
-}
-
-func AckOnSuccess() broker.SubscribeOption {
+func WithAckOnSuccess() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(ackSuccessKey{}, true)
-}
-
-func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
-	b, ok := ctx.Value(ackSuccessKey{}).(bool)
-	return b, ok
 }
 
 ///
@@ -95,59 +85,59 @@ type replyToKey struct{}
 type expirationKey struct{}
 type messageIDKey struct{}
 type timestampKey struct{}
-type typeMsgKey struct{}
+type messageTypeKey struct{}
 type userIDKey struct{}
 type appIDKey struct{}
 type publishHeadersKey struct{}
 
-func DeliveryMode(value uint8) broker.PublishOption {
+func WithDeliveryMode(value uint8) broker.PublishOption {
 	return broker.PublishContextWithValue(deliveryModeKey{}, value)
 }
 
-func Priority(value uint8) broker.PublishOption {
+func WithPriority(value uint8) broker.PublishOption {
 	return broker.PublishContextWithValue(priorityKey{}, value)
 }
 
-func ContentType(value string) broker.PublishOption {
+func WithContentType(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(contentTypeKey{}, value)
 }
 
-func ContentEncoding(value string) broker.PublishOption {
+func WithContentEncoding(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(contentEncodingKey{}, value)
 }
 
-func CorrelationID(value string) broker.PublishOption {
+func WithCorrelationID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(correlationIDKey{}, value)
 }
 
-func ReplyTo(value string) broker.PublishOption {
+func WithReplyTo(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(replyToKey{}, value)
 }
 
-func Expiration(value string) broker.PublishOption {
+func WithExpiration(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(expirationKey{}, value)
 }
 
-func MessageId(value string) broker.PublishOption {
+func WithMessageId(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(messageIDKey{}, value)
 }
 
-func Timestamp(value time.Time) broker.PublishOption {
+func WithTimestamp(value time.Time) broker.PublishOption {
 	return broker.PublishContextWithValue(timestampKey{}, value)
 }
 
-func TypeMsg(value string) broker.PublishOption {
-	return broker.PublishContextWithValue(typeMsgKey{}, value)
+func WithTypeMsg(value string) broker.PublishOption {
+	return broker.PublishContextWithValue(messageTypeKey{}, value)
 }
 
-func UserID(value string) broker.PublishOption {
+func WithUserID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(userIDKey{}, value)
 }
 
-func AppID(value string) broker.PublishOption {
+func WithAppID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(appIDKey{}, value)
 }
 
-func PublishHeaders(h map[string]interface{}) broker.PublishOption {
+func WithPublishHeaders(h map[string]interface{}) broker.PublishOption {
 	return broker.PublishContextWithValue(publishHeadersKey{}, h)
 }

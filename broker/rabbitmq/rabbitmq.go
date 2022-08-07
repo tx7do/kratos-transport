@@ -11,21 +11,20 @@ import (
 )
 
 type rabbitBroker struct {
+	mtx sync.Mutex
+	wg  sync.WaitGroup
+
 	conn           *rabbitConn
-	addrs          []string
 	opts           broker.Options
 	prefetchCount  int
 	prefetchGlobal bool
-	mtx            sync.Mutex
-	wg             sync.WaitGroup
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	return &rabbitBroker{
-		addrs: options.Addrs,
-		opts:  options,
+		opts: options,
 	}
 }
 
@@ -38,8 +37,8 @@ func (r *rabbitBroker) Options() broker.Options {
 }
 
 func (r *rabbitBroker) Address() string {
-	if len(r.addrs) > 0 {
-		return r.addrs[0]
+	if len(r.opts.Addrs) > 0 {
+		return r.opts.Addrs[0]
 	}
 	return ""
 }
@@ -48,7 +47,6 @@ func (r *rabbitBroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
 		o(&r.opts)
 	}
-	r.addrs = r.opts.Addrs
 	return nil
 }
 
@@ -121,64 +119,64 @@ func (r *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.Pub
 		Headers: amqp.Table{},
 	}
 
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
 
-	if options.Context != nil {
-		if value, ok := options.Context.Value(deliveryModeKey{}).(uint8); ok {
-			m.DeliveryMode = value
-		}
+	if value, ok := options.Context.Value(deliveryModeKey{}).(uint8); ok {
+		m.DeliveryMode = value
+	}
 
-		if value, ok := options.Context.Value(priorityKey{}).(uint8); ok {
-			m.Priority = value
-		}
+	if value, ok := options.Context.Value(priorityKey{}).(uint8); ok {
+		m.Priority = value
+	}
 
-		if value, ok := options.Context.Value(contentTypeKey{}).(string); ok {
-			m.ContentType = value
-		}
+	if value, ok := options.Context.Value(contentTypeKey{}).(string); ok {
+		m.ContentType = value
+	}
 
-		if value, ok := options.Context.Value(contentEncodingKey{}).(string); ok {
-			m.ContentEncoding = value
-		}
+	if value, ok := options.Context.Value(contentEncodingKey{}).(string); ok {
+		m.ContentEncoding = value
+	}
 
-		if value, ok := options.Context.Value(correlationIDKey{}).(string); ok {
-			m.CorrelationId = value
-		}
+	if value, ok := options.Context.Value(correlationIDKey{}).(string); ok {
+		m.CorrelationId = value
+	}
 
-		if value, ok := options.Context.Value(replyToKey{}).(string); ok {
-			m.ReplyTo = value
-		}
+	if value, ok := options.Context.Value(replyToKey{}).(string); ok {
+		m.ReplyTo = value
+	}
 
-		if value, ok := options.Context.Value(expirationKey{}).(string); ok {
-			m.Expiration = value
-		}
+	if value, ok := options.Context.Value(expirationKey{}).(string); ok {
+		m.Expiration = value
+	}
 
-		if value, ok := options.Context.Value(messageIDKey{}).(string); ok {
-			m.MessageId = value
-		}
+	if value, ok := options.Context.Value(messageIDKey{}).(string); ok {
+		m.MessageId = value
+	}
 
-		if value, ok := options.Context.Value(timestampKey{}).(time.Time); ok {
-			m.Timestamp = value
-		}
+	if value, ok := options.Context.Value(timestampKey{}).(time.Time); ok {
+		m.Timestamp = value
+	}
 
-		if value, ok := options.Context.Value(typeMsgKey{}).(string); ok {
-			m.Type = value
-		}
+	if value, ok := options.Context.Value(messageTypeKey{}).(string); ok {
+		m.Type = value
+	}
 
-		if value, ok := options.Context.Value(userIDKey{}).(string); ok {
-			m.UserId = value
-		}
+	if value, ok := options.Context.Value(userIDKey{}).(string); ok {
+		m.UserId = value
+	}
 
-		if value, ok := options.Context.Value(appIDKey{}).(string); ok {
-			m.AppId = value
-		}
+	if value, ok := options.Context.Value(appIDKey{}).(string); ok {
+		m.AppId = value
+	}
 
-		if headers, ok := options.Context.Value(publishHeadersKey{}).(map[string]interface{}); ok {
-			for k, v := range headers {
-				m.Headers[k] = v
-			}
+	if headers, ok := options.Context.Value(publishHeadersKey{}).(map[string]interface{}); ok {
+		for k, v := range headers {
+			m.Headers[k] = v
 		}
 	}
 
@@ -194,27 +192,23 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 		return nil, errors.New("not connected")
 	}
 
-	opt := broker.SubscribeOptions{
-		AutoAck: true,
+	options := broker.SubscribeOptions{
 		Context: context.Background(),
+		AutoAck: true,
 	}
-
 	for _, o := range opts {
-		o(&opt)
+		o(&options)
 	}
 
-	ctx := opt.Context
-	if subscribeContext, ok := SubscribeContextFromContext(ctx); ok && subscribeContext != nil {
-		ctx = subscribeContext
+	var requeueOnError = false
+	if val, ok := options.Context.Value(requeueOnErrorKey{}).(bool); ok {
+		requeueOnError = val
 	}
 
-	var requeueOnError bool
-	requeueOnError, _ = ctx.Value(requeueOnErrorKey{}).(bool)
-
-	var ackSuccess bool
-	if bVal, ok := AckOnSuccessFromContext(ctx); ok && bVal {
-		opt.AutoAck = false
-		ackSuccess = true
+	var ackSuccess = false
+	if val, ok := options.Context.Value(ackSuccessKey{}).(bool); ok {
+		options.AutoAck = val
+		ackSuccess = !val
 	}
 
 	fn := func(msg amqp.Delivery) {
@@ -231,20 +225,20 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 
 		if err := broker.Unmarshal(r.opts.Codec, msg.Body, m.Body); err != nil {
 			p.err = err
-			//r.log.Error(err)
+			r.opts.Logger.Error(err)
 		}
 
 		p.err = handler(r.opts.Context, p)
-		if p.err == nil && ackSuccess && !opt.AutoAck {
+		if p.err == nil && ackSuccess && !options.AutoAck {
 			_ = msg.Ack(false)
-		} else if p.err != nil && !opt.AutoAck {
+		} else if p.err != nil && !options.AutoAck {
 			_ = msg.Nack(false, requeueOnError)
 		}
 	}
 
 	sub := &subscriber{
 		topic:        routingKey,
-		opts:         opt,
+		opts:         options,
 		mayRun:       true,
 		r:            r,
 		durableQueue: true,
@@ -253,15 +247,15 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 		queueArgs:    nil,
 	}
 
-	if val, ok := ctx.Value(durableQueueKey{}).(bool); ok {
+	if val, ok := options.Context.Value(durableQueueKey{}).(bool); ok {
 		sub.durableQueue = val
 	}
 
-	if val, ok := ctx.Value(subscribeHeadersKey{}).(map[string]interface{}); ok {
+	if val, ok := options.Context.Value(subscribeHeadersKey{}).(map[string]interface{}); ok {
 		sub.headers = val
 	}
 
-	if val, ok := ctx.Value(queueArgumentsKey{}).(map[string]interface{}); ok {
+	if val, ok := options.Context.Value(queueArgumentsKey{}).(map[string]interface{}); ok {
 		sub.queueArgs = val
 	}
 

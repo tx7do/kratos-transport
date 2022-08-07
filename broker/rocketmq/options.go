@@ -67,16 +67,36 @@ func WithGroupName(name string) broker.Option {
 
 type compressKey struct{}
 type batchKey struct{}
-type headerKey struct{}
+type propertiesKey struct{}
+type delayTimeLevelKey struct{}
+type tagsKey struct{}
+type keysKey struct{}
+type shardingKeyKey struct{}
 
-func WithCompressPublish(compress bool) broker.PublishOption {
+func WithCompress(compress bool) broker.PublishOption {
 	return broker.PublishContextWithValue(compressKey{}, compress)
 }
 
-func WithBatchPublish(batch bool) broker.PublishOption {
+func WithBatch(batch bool) broker.PublishOption {
 	return broker.PublishContextWithValue(batchKey{}, batch)
 }
 
-func WithHeaders(h map[string]string) broker.PublishOption {
-	return broker.PublishContextWithValue(headerKey{}, h)
+func WithProperties(properties map[string]string) broker.PublishOption {
+	return broker.PublishContextWithValue(propertiesKey{}, properties)
+}
+
+func WithDelayTimeLevel(level int) broker.PublishOption {
+	return broker.PublishContextWithValue(delayTimeLevelKey{}, level)
+}
+
+func WithTag(tags string) broker.PublishOption {
+	return broker.PublishContextWithValue(tagsKey{}, tags)
+}
+
+func WithKeys(keys []string) broker.PublishOption {
+	return broker.PublishContextWithValue(keysKey{}, keys)
+}
+
+func WithShardingKey(key string) broker.PublishOption {
+	return broker.PublishContextWithValue(shardingKeyKey{}, key)
 }

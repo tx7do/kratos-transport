@@ -2,7 +2,6 @@ package nsq
 
 import (
 	"context"
-	"github.com/go-kratos/kratos/v2/log"
 	"math/rand"
 	"sync"
 	"time"
@@ -21,16 +20,15 @@ const (
 )
 
 type nsqBroker struct {
+	sync.Mutex
+
 	lookupAddrs []string
 	addrs       []string
 
 	opts   broker.Options
 	config *NSQ.Config
 
-	sync.Mutex
 	running bool
-
-	log *log.Helper
 
 	producers   []*NSQ.Producer
 	subscribers []*subscriber
@@ -39,28 +37,12 @@ type nsqBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	var addrs []string
-
-	for _, addr := range options.Addrs {
-		if len(addr) > 0 {
-			addrs = append(addrs, addr)
-		}
-	}
-
-	if len(addrs) == 0 {
-		addrs = []string{defaultAddr}
-	}
-
-	n := &nsqBroker{
-		addrs:  addrs,
+	b := &nsqBroker{
 		opts:   options,
 		config: NSQ.NewConfig(),
-		log:    log.NewHelper(log.GetLogger()),
 	}
 
-	n.configure(n.opts.Context)
-
-	return n
+	return b
 }
 
 func (b *nsqBroker) Name() string {
@@ -94,6 +76,7 @@ func (b *nsqBroker) Init(opts ...broker.Option) error {
 
 	b.addrs = addrs
 	b.configure(b.opts.Context)
+
 	return nil
 }
 
@@ -204,7 +187,9 @@ func (b *nsqBroker) Publish(topic string, msg broker.Any, opts ...broker.Publish
 }
 
 func (b *nsqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -239,9 +224,9 @@ func (b *nsqBroker) publish(topic string, msg []byte, opts ...broker.PublishOpti
 
 func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
+		Context: context.Background(),
 		AutoAck: true,
 	}
-
 	for _, o := range opts {
 		o(&options)
 	}
@@ -295,7 +280,7 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		if options.AutoAck {
 			if err := p.Ack(); err != nil {
-				b.log.Errorf("[nats]: unable to commit msg: %v", err)
+				b.opts.Logger.Errorf("[nats]: unable to commit msg: %v", err)
 			}
 		}
 

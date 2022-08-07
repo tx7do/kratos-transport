@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"errors"
 	"sync"
@@ -30,69 +31,11 @@ type kafkaBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	var cAddrs []string
-	for _, addr := range options.Addrs {
-		if len(addr) == 0 {
-			continue
-		}
-		cAddrs = append(cAddrs, addr)
-	}
-	if len(cAddrs) == 0 {
-		cAddrs = []string{defaultAddr}
-	}
-
 	b := &kafkaBroker{
-		readerConfig: kafkaGo.ReaderConfig{Brokers: cAddrs, WatchPartitionChanges: true},
+		readerConfig: kafkaGo.ReaderConfig{WatchPartitionChanges: true},
 		writers:      make(map[string]*kafkaGo.Writer),
 		opts:         options,
 		retriesCount: 1,
-	}
-
-	if value, ok := options.Context.Value(queueCapacityKey{}).(int); ok {
-		b.readerConfig.QueueCapacity = value
-	}
-	if value, ok := options.Context.Value(minBytesKey{}).(int); ok {
-		b.readerConfig.MinBytes = value
-	}
-	if value, ok := options.Context.Value(maxBytesKey{}).(int); ok {
-		b.readerConfig.MaxBytes = value
-	}
-	if value, ok := options.Context.Value(maxWaitKey{}).(time.Duration); ok {
-		b.readerConfig.MaxWait = value
-	}
-	if value, ok := options.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.ReadLagInterval = value
-	}
-	if value, ok := options.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.HeartbeatInterval = value
-	}
-	if value, ok := options.Context.Value(commitIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.CommitInterval = value
-	}
-	if value, ok := options.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.PartitionWatchInterval = value
-	}
-	if value, ok := options.Context.Value(watchPartitionChangesKey{}).(bool); ok {
-		b.readerConfig.WatchPartitionChanges = value
-	}
-	if value, ok := options.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
-		b.readerConfig.SessionTimeout = value
-	}
-	if value, ok := options.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
-		b.readerConfig.RebalanceTimeout = value
-	}
-	if value, ok := options.Context.Value(retentionTimeKey{}).(time.Duration); ok {
-		b.readerConfig.RetentionTime = value
-	}
-	if value, ok := options.Context.Value(startOffsetKey{}).(int64); ok {
-		b.readerConfig.StartOffset = value
-	}
-	if value, ok := options.Context.Value(maxAttemptsKey{}).(int); ok {
-		b.readerConfig.MaxAttempts = value
-	}
-
-	if cnt, ok := options.Context.Value(retriesCountKey{}).(int); ok {
-		b.retriesCount = cnt
 	}
 
 	return b
@@ -116,17 +59,65 @@ func (b *kafkaBroker) Options() broker.Options {
 func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	b.opts.Apply(opts...)
 
-	var cAddrs []string
+	var addrs []string
 	for _, addr := range b.opts.Addrs {
 		if len(addr) == 0 {
 			continue
 		}
-		cAddrs = append(cAddrs, addr)
+		addrs = append(addrs, addr)
 	}
-	if len(cAddrs) == 0 {
-		cAddrs = []string{defaultAddr}
+	if len(addrs) == 0 {
+		addrs = []string{defaultAddr}
 	}
-	b.opts.Addrs = cAddrs
+	b.opts.Addrs = addrs
+	b.readerConfig.Brokers = addrs
+
+	if value, ok := b.opts.Context.Value(queueCapacityKey{}).(int); ok {
+		b.readerConfig.QueueCapacity = value
+	}
+	if value, ok := b.opts.Context.Value(minBytesKey{}).(int); ok {
+		b.readerConfig.MinBytes = value
+	}
+	if value, ok := b.opts.Context.Value(maxBytesKey{}).(int); ok {
+		b.readerConfig.MaxBytes = value
+	}
+	if value, ok := b.opts.Context.Value(maxWaitKey{}).(time.Duration); ok {
+		b.readerConfig.MaxWait = value
+	}
+	if value, ok := b.opts.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.ReadLagInterval = value
+	}
+	if value, ok := b.opts.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.HeartbeatInterval = value
+	}
+	if value, ok := b.opts.Context.Value(commitIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.CommitInterval = value
+	}
+	if value, ok := b.opts.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
+		b.readerConfig.PartitionWatchInterval = value
+	}
+	if value, ok := b.opts.Context.Value(watchPartitionChangesKey{}).(bool); ok {
+		b.readerConfig.WatchPartitionChanges = value
+	}
+	if value, ok := b.opts.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
+		b.readerConfig.SessionTimeout = value
+	}
+	if value, ok := b.opts.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
+		b.readerConfig.RebalanceTimeout = value
+	}
+	if value, ok := b.opts.Context.Value(retentionTimeKey{}).(time.Duration); ok {
+		b.readerConfig.RetentionTime = value
+	}
+	if value, ok := b.opts.Context.Value(startOffsetKey{}).(int64); ok {
+		b.readerConfig.StartOffset = value
+	}
+	if value, ok := b.opts.Context.Value(maxAttemptsKey{}).(int); ok {
+		b.readerConfig.MaxAttempts = value
+	}
+
+	if cnt, ok := b.opts.Context.Value(retriesCountKey{}).(int); ok {
+		b.retriesCount = cnt
+	}
 
 	return nil
 }
@@ -187,7 +178,9 @@ func (b *kafkaBroker) Disconnect() error {
 }
 
 func (b *kafkaBroker) createProducer(opts ...broker.PublishOption) *kafkaGo.Writer {
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -266,7 +259,9 @@ func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.Publi
 }
 
 func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOption) error {
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -348,6 +343,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 
 func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
+		Context: context.Background(),
 		AutoAck: true,
 		Queue:   uuid.New().String(),
 	}

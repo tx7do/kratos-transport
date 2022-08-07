@@ -1,6 +1,7 @@
 package pulsar
 
 import (
+	"context"
 	"errors"
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/go-kratos/kratos/v2/log"
@@ -27,49 +28,9 @@ type pulsarBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	pulsarOptions := pulsar.ClientOptions{
-		URL:               defaultAddr,
-		OperationTimeout:  30 * time.Second,
-		ConnectionTimeout: 30 * time.Second,
-	}
-
-	if options.Addrs != nil {
-		pulsarOptions.URL = options.Addrs[0]
-	}
-
-	if v, ok := options.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
-		pulsarOptions.OperationTimeout = v
-	}
-	if v, ok := options.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
-		pulsarOptions.ConnectionTimeout = v
-	}
-	if v, ok := options.Context.Value(listenerNameKey{}).(string); ok {
-		pulsarOptions.ListenerName = v
-	}
-	if v, ok := options.Context.Value(maxConnectionsPerBrokerKey{}).(int); ok {
-		pulsarOptions.MaxConnectionsPerBroker = v
-	}
-	if v, ok := options.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
-		pulsarOptions.CustomMetricsLabels = v
-	}
-	if v, ok := options.Context.Value(tlsKey{}).(tlsConfig); ok {
-		pulsarOptions.TLSTrustCertsFilePath = v.CaCertsPath
-		if v.ClientCertPath != "" && v.ClientKeyPath != "" {
-			pulsarOptions.Authentication = pulsar.NewAuthenticationTLS(v.ClientCertPath, v.ClientKeyPath)
-		}
-		pulsarOptions.TLSAllowInsecureConnection = v.AllowInsecureConnection
-		pulsarOptions.TLSValidateHostname = v.ValidateHostname
-	}
-
-	client, err := pulsar.NewClient(pulsarOptions)
-	if err != nil {
-		log.Fatalf("Could not instantiate Pulsar client: %v", err)
-	}
-
 	r := &pulsarBroker{
 		producers: make(map[string]pulsar.Producer),
 		opts:      options,
-		client:    client,
 	}
 
 	return r
@@ -104,6 +65,47 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 		cAddrs = []string{defaultAddr}
 	}
 	pb.opts.Addrs = cAddrs
+
+	pulsarOptions := pulsar.ClientOptions{
+		URL:               defaultAddr,
+		OperationTimeout:  30 * time.Second,
+		ConnectionTimeout: 30 * time.Second,
+	}
+
+	if pb.opts.Addrs != nil {
+		pulsarOptions.URL = pb.opts.Addrs[0]
+	}
+
+	if v, ok := pb.opts.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
+		pulsarOptions.OperationTimeout = v
+	}
+	if v, ok := pb.opts.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
+		pulsarOptions.ConnectionTimeout = v
+	}
+	if v, ok := pb.opts.Context.Value(listenerNameKey{}).(string); ok {
+		pulsarOptions.ListenerName = v
+	}
+	if v, ok := pb.opts.Context.Value(maxConnectionsPerBrokerKey{}).(int); ok {
+		pulsarOptions.MaxConnectionsPerBroker = v
+	}
+	if v, ok := pb.opts.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
+		pulsarOptions.CustomMetricsLabels = v
+	}
+	if v, ok := pb.opts.Context.Value(tlsKey{}).(tlsConfig); ok {
+		pulsarOptions.TLSTrustCertsFilePath = v.CaCertsPath
+		if v.ClientCertPath != "" && v.ClientKeyPath != "" {
+			pulsarOptions.Authentication = pulsar.NewAuthenticationTLS(v.ClientCertPath, v.ClientKeyPath)
+		}
+		pulsarOptions.TLSAllowInsecureConnection = v.AllowInsecureConnection
+		pulsarOptions.TLSValidateHostname = v.ValidateHostname
+	}
+
+	var err error
+	pb.client, err = pulsar.NewClient(pulsarOptions)
+	if err != nil {
+		log.Errorf("Could not instantiate Pulsar client: %v", err)
+		return err
+	}
 
 	return nil
 }
@@ -154,7 +156,9 @@ func (pb *pulsarBroker) Publish(topic string, msg broker.Any, opts ...broker.Pub
 }
 
 func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -262,6 +266,7 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 
 func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
+		Context: context.Background(),
 		AutoAck: true,
 		Queue:   uuid.New().String(),
 	}

@@ -94,3 +94,33 @@ Exchange有4种类型对应4种不同的路由策略:
 
 指定当前 Exchange（交换机）下，什么样的 Routing Key（路由键）会被下派到当前绑定的 Queue 中。
 
+## Docker部署开发环境
+
+```shell
+docker pull bitnami/rabbitmq:latest
+
+docker run -itd \
+    --hostname localhost \
+    --name rabbitmq-test \
+    -p 15672:15672 \
+    -p 5672:5672 \
+    -p 1883:1883 \
+    -p 15675:15675 \
+    -e RABBITMQ_PLUGINS=rabbitmq_top,rabbitmq_mqtt,rabbitmq_web_mqtt,rabbitmq_prometheus,rabbitmq_stomp,rabbitmq_auth_backend_http \
+    bitnami/rabbitmq:latest
+
+# 查看插件列表
+rabbitmq-plugins list
+# rabbitmq_peer_discovery_consul 
+rabbitmq-plugins --offline enable rabbitmq_peer_discovery_consul
+# rabbitmq_mqtt 提供与后端服务交互使用，端口1883
+rabbitmq-plugins enable rabbitmq_mqtt
+# rabbitmq_web_mqtt 提供与前端交互使用，端口15675
+rabbitmq-plugins enable rabbitmq_web_mqtt
+# 
+rabbitmq-plugins enable rabbitmq_auth_backend_http
+```
+
+管理后台: <http://localhost:15672>  
+默认账号: user  
+默认密码: bitnami

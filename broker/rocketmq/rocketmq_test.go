@@ -79,7 +79,7 @@ func TestSubscribe(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
@@ -112,7 +112,7 @@ func TestPublish(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		WithEnableTrace(),
 		WithNameServer([]string{testBroker}),
@@ -156,7 +156,7 @@ func TestAliyunPublish(t *testing.T) {
 	topicName := ""
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),
@@ -204,7 +204,7 @@ func TestAliyunSubscribe(t *testing.T) {
 	groupName := "GID_DEFAULT"
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),

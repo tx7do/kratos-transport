@@ -111,7 +111,7 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := kafka.NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBrokers),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)

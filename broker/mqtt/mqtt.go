@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -129,7 +130,9 @@ func (m *mqttBroker) publish(topic string, buf []byte, opts ...broker.PublishOpt
 		return errors.New("not connected")
 	}
 
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}

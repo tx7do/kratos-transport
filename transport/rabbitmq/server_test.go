@@ -90,11 +90,9 @@ func TestServer(t *testing.T) {
 	_ = srv.RegisterSubscriber(ctx,
 		testRouting,
 		registerHygrothermographJsonHandler(),
-		func() broker.Any {
-			return &Hygrothermograph{}
-		},
+		func() broker.Any { return &Hygrothermograph{} },
 		broker.WithQueueName(testQueue),
-		rabbitmq.DurableQueue())
+		rabbitmq.WithDurableQueue())
 
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
@@ -116,7 +114,7 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := rabbitmq.NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)

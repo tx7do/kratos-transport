@@ -1,6 +1,7 @@
 package rocketmq
 
 import (
+	"context"
 	aliyun "github.com/aliyunmq/mq-http-go-sdk"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gogap/errors"
@@ -139,7 +140,9 @@ func (r *aliyunBroker) Publish(topic string, msg broker.Any, opts ...broker.Publ
 }
 
 func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -166,8 +169,25 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 		MessageBody: string(msg),
 	}
 
-	if v, ok := options.Context.Value(headerKey{}).(map[string]string); ok {
+	if v, ok := options.Context.Value(propertiesKey{}).(map[string]string); ok {
 		aMsg.Properties = v
+	}
+	if v, ok := options.Context.Value(delayTimeLevelKey{}).(int); ok {
+		aMsg.StartDeliverTime = int64(v)
+	}
+	if v, ok := options.Context.Value(tagsKey{}).(string); ok {
+		aMsg.MessageTag = v
+	}
+	if v, ok := options.Context.Value(keysKey{}).([]string); ok {
+		var sb strings.Builder
+		for _, k := range v {
+			sb.WriteString(k)
+			sb.WriteString(" ")
+		}
+		aMsg.MessageKey = sb.String()
+	}
+	if v, ok := options.Context.Value(shardingKeyKey{}).(string); ok {
+		aMsg.ShardingKey = v
 	}
 
 	_, err := p.PublishMessage(aMsg)
@@ -185,6 +205,7 @@ func (r *aliyunBroker) Subscribe(topic string, handler broker.Handler, binder br
 	}
 
 	options := broker.SubscribeOptions{
+		Context: context.Background(),
 		AutoAck: true,
 		Queue:   r.groupName,
 	}

@@ -114,7 +114,7 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := rocketmq.NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		rocketmq.WithEnableTrace(),
 		rocketmq.WithNameServer([]string{testBroker}),
@@ -200,7 +200,7 @@ func TestAliyunClient(t *testing.T) {
 	topicName := ""
 
 	b := rocketmq.NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		rocketmq.WithAliyunHttpSupport(),
 		rocketmq.WithEnableTrace(),

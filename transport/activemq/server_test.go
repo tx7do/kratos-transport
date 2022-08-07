@@ -109,7 +109,7 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := stomp.NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)

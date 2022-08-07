@@ -34,9 +34,9 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 
 func WithExchange(name string, durable bool) ServerOption {
 	return func(s *Server) {
-		s.bOpts = append(s.bOpts, rabbitmq.ExchangeName(name))
+		s.bOpts = append(s.bOpts, rabbitmq.WithExchangeName(name))
 		if durable {
-			s.bOpts = append(s.bOpts, rabbitmq.DurableExchange())
+			s.bOpts = append(s.bOpts, rabbitmq.WithDurableExchange())
 		}
 	}
 }

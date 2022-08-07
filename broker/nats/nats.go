@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/go-kratos/kratos/v2/log"
 	NATS "github.com/nats-io/nats.go"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -17,13 +16,10 @@ type natsBroker struct {
 
 	connected bool
 
-	addrs []string
-	opts  broker.Options
+	opts broker.Options
 
 	conn     *NATS.Conn
 	natsOpts NATS.Options
-
-	log *log.Helper
 
 	drain   bool
 	closeCh chan error
@@ -34,9 +30,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 
 	b := &natsBroker{
 		opts: options,
-		log:  log.NewHelper(log.GetLogger()),
 	}
-	b.setOption(opts...)
 
 	return b
 }
@@ -46,8 +40,8 @@ func (b *natsBroker) Address() string {
 		return b.conn.ConnectedUrl()
 	}
 
-	if len(b.addrs) > 0 {
-		return b.addrs[0]
+	if len(b.opts.Addrs) > 0 {
+		return b.opts.Addrs[0]
 	}
 
 	return ""
@@ -108,7 +102,7 @@ func (b *natsBroker) setOption(opts ...broker.Option) {
 	if b.opts.TLSConfig == nil {
 		b.opts.TLSConfig = b.natsOpts.TLSConfig
 	}
-	b.addrs = b.setAddrs(b.opts.Addrs)
+	b.setAddrs(b.opts.Addrs)
 
 	if b.opts.Context.Value(drainConnectionKey{}) != nil {
 		b.drain = true
@@ -138,7 +132,7 @@ func (b *natsBroker) Connect() error {
 		return nil
 	default: // DISCONNECTED or CLOSED or DRAINING
 		opts := b.natsOpts
-		opts.Servers = b.addrs
+		opts.Servers = b.opts.Addrs
 		opts.Secure = b.opts.Secure
 		opts.TLSConfig = b.opts.TLSConfig
 
@@ -189,7 +183,9 @@ func (b *natsBroker) publish(topic string, buf []byte, opts ...broker.PublishOpt
 		return errors.New("not connected")
 	}
 
-	options := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
@@ -205,16 +201,15 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	}
 	b.RUnlock()
 
-	opt := broker.SubscribeOptions{
-		AutoAck: true,
+	options := broker.SubscribeOptions{
 		Context: context.Background(),
+		AutoAck: true,
 	}
-
 	for _, o := range opts {
-		o(&opt)
+		o(&options)
 	}
 
-	subs := &subscriber{s: nil, opts: opt}
+	subs := &subscriber{s: nil, opts: options}
 
 	fn := func(msg *NATS.Msg) {
 		m := &broker.Message{
@@ -232,7 +227,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if err := broker.Unmarshal(b.opts.Codec, msg.Data, m.Body); err != nil {
 			pub.err = err
-			b.log.Error(err)
+			b.opts.Logger.Error(err)
 			if eh != nil {
 				_ = eh(b.opts.Context, pub)
 			}
@@ -241,14 +236,14 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if err := handler(b.opts.Context, pub); err != nil {
 			pub.err = err
-			b.log.Error(err)
+			b.opts.Logger.Error(err)
 			if eh != nil {
 				_ = eh(b.opts.Context, pub)
 			}
 		}
-		if opt.AutoAck {
+		if options.AutoAck {
 			if err := pub.Ack(); err != nil {
-				b.log.Errorf("[nats]: unable to commit msg: %v", err)
+				b.opts.Logger.Errorf("[nats]: unable to commit msg: %v", err)
 			}
 		}
 	}
@@ -257,8 +252,8 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	var err error
 
 	b.RLock()
-	if len(opt.Queue) > 0 {
-		sub, err = b.conn.QueueSubscribe(topic, opt.Queue, fn)
+	if len(options.Queue) > 0 {
+		sub, err = b.conn.QueueSubscribe(topic, options.Queue, fn)
 	} else {
 		sub, err = b.conn.Subscribe(topic, fn)
 	}

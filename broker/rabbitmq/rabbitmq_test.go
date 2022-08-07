@@ -81,7 +81,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 	)
 
@@ -118,10 +118,10 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
-		ExchangeName(testExchange),
-		DurableExchange(),
+		WithExchangeName(testExchange),
+		WithDurableExchange(),
 	)
 
 	_ = b.Init()
@@ -136,8 +136,8 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 		nil,
 		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testQueue),
-		// broker.DisableAutoAck(),
-		DurableQueue(),
+		// broker.WithDisableAutoAck(),
+		WithDurableQueue(),
 	)
 	assert.Nil(t, err)
 
@@ -151,7 +151,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)
@@ -188,11 +188,11 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
-		ExchangeName(testExchange),
-		DurableExchange(),
+		WithExchangeName(testExchange),
+		WithDurableExchange(),
 	)
 
 	_ = b.Init()
@@ -209,8 +209,8 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 		},
 		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testQueue),
-		// broker.DisableAutoAck(),
-		DurableQueue(),
+		// broker.WithDisableAutoAck(),
+		WithDurableQueue(),
 	)
 	assert.Nil(t, err)
 

@@ -92,12 +92,12 @@ func TestInitAddrs(t *testing.T) {
 			// check if the same amount of addrs we set has actually been set, default
 			// have only 1 address nats://127.0.0.1:4222 (current nats code) or
 			// nats://localhost:4222 (older code version)
-			if len(natsBroker.addrs) != len(tc.addrs) && tc.name != "default" {
+			if len(natsBroker.opts.Addrs) != len(tc.addrs) && tc.name != "default" {
 				t.Errorf("Expected Addr count = %d, Actual Addr count = %d",
-					len(natsBroker.addrs), len(tc.addrs))
+					len(natsBroker.opts.Addrs), len(tc.addrs))
 			}
 
-			for _, addr := range natsBroker.addrs {
+			for _, addr := range natsBroker.opts.Addrs {
 				_, ok := tc.addrs[addr]
 				if !ok {
 					t.Errorf("Expected '%s' has not been set", addr)
@@ -168,7 +168,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 	)
 
@@ -205,7 +205,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 	)
 	defer b.Disconnect()
@@ -229,7 +229,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)
@@ -266,7 +266,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	ctx := context.Background()
 
 	b := NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)

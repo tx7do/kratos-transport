@@ -57,82 +57,82 @@ func (r *rabbitChannel) Publish(exchange, key string, message amqp.Publishing) e
 
 func (r *rabbitChannel) DeclareExchange(exchange string) error {
 	return r.channel.ExchangeDeclare(
-		exchange, // name
-		"topic",  // kind
-		false,    // durable
-		false,    // autoDelete
-		false,    // internal
-		false,    // noWait
-		nil,      // args
+		exchange,
+		"topic",
+		false,
+		false,
+		false,
+		false,
+		nil,
 	)
 }
 
 func (r *rabbitChannel) DeclareDurableExchange(exchange string) error {
 	return r.channel.ExchangeDeclare(
-		exchange, // name
-		"topic",  // kind
-		true,     // durable
-		false,    // autoDelete
-		false,    // internal
-		false,    // noWait
-		nil,      // args
+		exchange,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 }
 
 func (r *rabbitChannel) DeclareQueue(queue string, args amqp.Table) error {
 	_, err := r.channel.QueueDeclare(
-		queue, // name
-		false, // durable
-		true,  // autoDelete
-		false, // exclusive
-		false, // noWait
-		args,  // args
+		queue,
+		false,
+		true,
+		false,
+		false,
+		args,
 	)
 	return err
 }
 
 func (r *rabbitChannel) DeclareDurableQueue(queue string, args amqp.Table) error {
 	_, err := r.channel.QueueDeclare(
-		queue, // name
-		true,  // durable
-		false, // autoDelete
-		false, // exclusive
-		false, // noWait
-		args,  // args
+		queue,
+		true,
+		false,
+		false,
+		false,
+		args,
 	)
 	return err
 }
 
 func (r *rabbitChannel) DeclareReplyQueue(queue string) error {
 	_, err := r.channel.QueueDeclare(
-		queue, // name
-		false, // durable
-		true,  // autoDelete
-		true,  // exclusive
-		false, // noWait
-		nil,   // args
+		queue,
+		false,
+		true,
+		true,
+		false,
+		nil,
 	)
 	return err
 }
 
 func (r *rabbitChannel) ConsumeQueue(queue string, autoAck bool) (<-chan amqp.Delivery, error) {
 	return r.channel.Consume(
-		queue,   // queue
-		r.uuid,  // consumer
-		autoAck, // autoAck
-		false,   // exclusive
-		false,   // nolocal
-		false,   // nowait
-		nil,     // args
+		queue,
+		r.uuid,
+		autoAck,
+		false,
+		false,
+		false,
+		nil,
 	)
 }
 
 func (r *rabbitChannel) BindQueue(queue, key, exchange string, args amqp.Table) error {
 	return r.channel.QueueBind(
-		queue,    // name
-		key,      // key
-		exchange, // exchange
-		false,    // noWait
-		args,     // args
+		queue,
+		key,
+		exchange,
+		false,
+		args,
 	)
 }

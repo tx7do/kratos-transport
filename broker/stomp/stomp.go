@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-stomp/stomp/v3"
 	"github.com/go-stomp/stomp/v3/frame"
 	"github.com/tx7do/kratos-transport/broker"
@@ -19,7 +18,6 @@ import (
 type stompBroker struct {
 	opts      broker.Options
 	stompConn *stomp.Conn
-	log       *log.Helper
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -27,9 +25,8 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 
 	b := &stompBroker{
 		opts: options,
-		log:  log.NewHelper(log.GetLogger()),
 	}
-	_ = b.Init(opts...)
+
 	return b
 }
 
@@ -96,7 +93,7 @@ func (b *stompBroker) Connect() error {
 		}
 	}
 	if host, ok := VirtualHostFromContext(b.Options().Context); ok && host != "" {
-		b.log.Infof("Adding host: %s", host)
+		b.opts.Logger.Infof("Adding host: %s", host)
 		stompOpts = append(stompOpts, stomp.ConnOpt.Host(host))
 	}
 
@@ -126,9 +123,11 @@ func (b *stompBroker) publish(topic string, msg []byte, opts ...broker.PublishOp
 		return errors.New("not connected")
 	}
 
-	bOpt := broker.PublishOptions{}
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
-		o(&bOpt)
+		o(&options)
 	}
 
 	stompOpt := make([]func(*frame.Frame) error, 0, 0)
@@ -173,41 +172,34 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		return nil, errors.New("not connected")
 	}
 
-	bOpt := broker.SubscribeOptions{
+	options := broker.SubscribeOptions{
+		Context: context.Background(),
 		AutoAck: true,
 	}
 	for _, o := range opts {
-		o(&bOpt)
-	}
-	if bOpt.Context == nil {
-		bOpt.Context = context.Background()
+		o(&options)
 	}
 
-	var ackSuccess bool
 	stompOpt := make([]func(*frame.Frame) error, 0, len(opts))
 
-	ctx := bOpt.Context
-	if subscribeContext, ok := SubscribeContextFromContext(ctx); ok && subscribeContext != nil {
-		ctx = subscribeContext
-	}
-
-	if durableQueue, ok := ctx.Value(durableQueueKey{}).(bool); ok && durableQueue {
+	if durableQueue, ok := options.Context.Value(durableQueueKey{}).(bool); ok && durableQueue {
 		stompOpt = append(stompOpt, stomp.SubscribeOpt.Header("persistent", "true"))
 	}
 
-	if headers, ok := SubscribeHeadersFromContext(ctx); ok && len(headers) > 0 {
+	if headers, ok := SubscribeHeadersFromContext(options.Context); ok && len(headers) > 0 {
 		for k, v := range headers {
 			stompOpt = append(stompOpt, stomp.SubscribeOpt.Header(k, v))
 		}
 	}
 
-	if bVal, ok := AckOnSuccessFromContext(ctx); ok && bVal {
-		bOpt.AutoAck = false
+	var ackSuccess bool
+	if bVal, ok := AckOnSuccessFromContext(options.Context); ok && bVal {
+		options.AutoAck = false
 		ackSuccess = true
 	}
 
 	var ackMode stomp.AckMode
-	if bOpt.AutoAck {
+	if options.AutoAck {
 		ackMode = stomp.AckAuto
 	} else {
 		ackMode = stomp.AckClientIndividual
@@ -233,16 +225,16 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if err := broker.Unmarshal(b.opts.Codec, msg.Body, m.Body); err != nil {
 					p.err = err
-					b.log.Error(err)
+					b.opts.Logger.Error(err)
 				}
 
 				p.err = handler(b.opts.Context, p)
-				if p.err == nil && !bOpt.AutoAck && ackSuccess {
+				if p.err == nil && !options.AutoAck && ackSuccess {
 					_ = msg.Conn.Ack(msg)
 				}
 			}(msg)
 		}
 	}()
 
-	return &subscriber{sub: sub, topic: topic, opts: bOpt}, nil
+	return &subscriber{sub: sub, topic: topic, opts: options}, nil
 }

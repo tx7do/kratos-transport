@@ -15,17 +15,17 @@ const (
 )
 
 type redisBroker struct {
-	addr  string
-	pool  *redis.Pool
-	opts  broker.Options
-	bOpts *commonOptions
+	addr       string
+	pool       *redis.Pool
+	opts       broker.Options
+	commonOpts *commonOptions
 }
 
 // NewBroker returns a new common implemented using the Redis pub/sub
 // protocol. The connection address may be a fully qualified IANA address such
 // as: redis://user:secret@localhost:6379/0?foo=bar&qux=baz
 func NewBroker(opts ...broker.Option) broker.Broker {
-	bOpts := &commonOptions{
+	commonOpts := &commonOptions{
 		maxIdle:        DefaultMaxIdle,
 		maxActive:      DefaultMaxActive,
 		idleTimeout:    DefaultIdleTimeout,
@@ -40,8 +40,8 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	options.Apply(opts...)
 
 	return &redisBroker{
-		opts:  options,
-		bOpts: bOpts,
+		opts:       options,
+		commonOpts: commonOpts,
 	}
 }
 
@@ -89,15 +89,15 @@ func (b *redisBroker) Connect() error {
 	b.addr = addr
 
 	b.pool = &redis.Pool{
-		MaxIdle:     b.bOpts.maxIdle,
-		MaxActive:   b.bOpts.maxActive,
-		IdleTimeout: b.bOpts.idleTimeout,
+		MaxIdle:     b.commonOpts.maxIdle,
+		MaxActive:   b.commonOpts.maxActive,
+		IdleTimeout: b.commonOpts.idleTimeout,
 		Dial: func() (redis.Conn, error) {
 			return redis.DialURL(
 				b.addr,
-				redis.DialConnectTimeout(b.bOpts.connectTimeout),
-				redis.DialReadTimeout(b.bOpts.readTimeout),
-				redis.DialWriteTimeout(b.bOpts.writeTimeout),
+				redis.DialConnectTimeout(b.commonOpts.connectTimeout),
+				redis.DialReadTimeout(b.commonOpts.readTimeout),
+				redis.DialWriteTimeout(b.commonOpts.writeTimeout),
 			)
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {

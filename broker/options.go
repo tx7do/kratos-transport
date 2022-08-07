@@ -57,7 +57,7 @@ func NewOptionsAndApply(opts ...Option) Options {
 	return opt
 }
 
-func OptionContext(ctx context.Context) Option {
+func WithOptionContext(ctx context.Context) Option {
 	return func(o *Options) {
 		if o.Context == nil {
 			o.Context = ctx

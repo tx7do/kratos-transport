@@ -109,7 +109,7 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := pulsar.NewBroker(
-		broker.OptionContext(ctx),
+		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)
