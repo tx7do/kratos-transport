@@ -133,13 +133,13 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, di
 	defer s.Unlock()
 
 	//var opts []broker.SubscribeOption
-	opts = append(opts, broker.Queue(queue))
+	opts = append(opts, broker.WithQueueName(queue))
 	if disableAutoAck {
 		opts = append(opts, broker.DisableAutoAck())
 	}
 
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
-	opts = append([]broker.SubscribeOption{broker.SubscribeContext(ctx)}, opts...)
+	opts = append([]broker.SubscribeOption{broker.WithSubscribeContext(ctx)}, opts...)
 
 	if s.started {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)

@@ -93,7 +93,7 @@ func TestServer(t *testing.T) {
 		func() broker.Any {
 			return &Hygrothermograph{}
 		},
-		broker.Queue(testQueue),
+		broker.WithQueueName(testQueue),
 		rabbitmq.DurableQueue())
 
 	if err := srv.Start(ctx); err != nil {
@@ -117,8 +117,8 @@ func TestClient(t *testing.T) {
 
 	b := rabbitmq.NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(testBroker),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithAddress(testBroker),
+		broker.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_ = b.Init()

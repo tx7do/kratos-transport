@@ -111,8 +111,8 @@ func TestClient(t *testing.T) {
 
 	b := nats.NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(localBroker),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithAddress(localBroker),
+		broker.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_ = b.Init()

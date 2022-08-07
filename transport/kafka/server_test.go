@@ -112,8 +112,8 @@ func TestClient(t *testing.T) {
 
 	b := kafka.NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(testBrokers),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithAddress(testBrokers),
+		broker.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_, err := b.Subscribe(testTopic,
@@ -121,8 +121,8 @@ func TestClient(t *testing.T) {
 		func() broker.Any {
 			return &Hygrothermograph{}
 		},
-		broker.SubscribeContext(ctx),
-		broker.Queue(testGroupId),
+		broker.WithSubscribeContext(ctx),
+		broker.WithQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
 

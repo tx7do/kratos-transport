@@ -7,7 +7,9 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-///////////////////////////////////////////////////////////////////////////////
+///
+/// Option
+///
 
 type durableExchangeKey struct{}
 type exchangeKey struct{}
@@ -35,7 +37,9 @@ func ExternalAuth() broker.Option {
 	return broker.OptionContextWithValue(externalAuthKey{}, ExternalAuthentication{})
 }
 
-///////////////////////////////////////////////////////////////////////////////
+///
+/// SubscribeOption
+///
 
 type durableQueueKey struct{}
 type subscribeHeadersKey struct{}
@@ -78,7 +82,9 @@ func AckOnSuccessFromContext(ctx context.Context) (bool, bool) {
 	return b, ok
 }
 
-///////////////////////////////////////////////////////////////////////////////
+///
+/// PublishOption
+///
 
 type deliveryModeKey struct{}
 type priorityKey struct{}

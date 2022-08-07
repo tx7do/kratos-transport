@@ -1,8 +1,6 @@
 package pulsar
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/go-kratos/kratos/v2/log"
@@ -17,13 +15,10 @@ const (
 )
 
 type pulsarBroker struct {
-	addrs []string
-
-	log *log.Helper
+	sync.RWMutex
 
 	connected bool
-	sync.RWMutex
-	opts broker.Options
+	opts      broker.Options
 
 	client    pulsar.Client
 	producers map[string]pulsar.Producer
@@ -32,20 +27,48 @@ type pulsarBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
+	pulsarOptions := pulsar.ClientOptions{
 		URL:               defaultAddr,
 		OperationTimeout:  30 * time.Second,
 		ConnectionTimeout: 30 * time.Second,
-	})
+	}
+
+	if options.Addrs != nil {
+		pulsarOptions.URL = options.Addrs[0]
+	}
+
+	if v, ok := options.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
+		pulsarOptions.OperationTimeout = v
+	}
+	if v, ok := options.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
+		pulsarOptions.ConnectionTimeout = v
+	}
+	if v, ok := options.Context.Value(listenerNameKey{}).(string); ok {
+		pulsarOptions.ListenerName = v
+	}
+	if v, ok := options.Context.Value(maxConnectionsPerBrokerKey{}).(int); ok {
+		pulsarOptions.MaxConnectionsPerBroker = v
+	}
+	if v, ok := options.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
+		pulsarOptions.CustomMetricsLabels = v
+	}
+	if v, ok := options.Context.Value(tlsKey{}).(tlsConfig); ok {
+		pulsarOptions.TLSTrustCertsFilePath = v.CaCertsPath
+		if v.ClientCertPath != "" && v.ClientKeyPath != "" {
+			pulsarOptions.Authentication = pulsar.NewAuthenticationTLS(v.ClientCertPath, v.ClientKeyPath)
+		}
+		pulsarOptions.TLSAllowInsecureConnection = v.AllowInsecureConnection
+		pulsarOptions.TLSValidateHostname = v.ValidateHostname
+	}
+
+	client, err := pulsar.NewClient(pulsarOptions)
 	if err != nil {
 		log.Fatalf("Could not instantiate Pulsar client: %v", err)
 	}
 
 	r := &pulsarBroker{
 		producers: make(map[string]pulsar.Producer),
-		addrs:     options.Addrs,
 		opts:      options,
-		log:       log.NewHelper(log.GetLogger()),
 		client:    client,
 	}
 
@@ -57,8 +80,8 @@ func (pb *pulsarBroker) Name() string {
 }
 
 func (pb *pulsarBroker) Address() string {
-	if len(pb.addrs) > 0 {
-		return pb.addrs[0]
+	if len(pb.opts.Addrs) > 0 {
+		return pb.opts.Addrs[0]
 	}
 	return defaultAddr
 }
@@ -80,7 +103,7 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	if len(cAddrs) == 0 {
 		cAddrs = []string{defaultAddr}
 	}
-	pb.addrs = cAddrs
+	pb.opts.Addrs = cAddrs
 
 	return nil
 }
@@ -94,7 +117,6 @@ func (pb *pulsarBroker) Connect() error {
 	pb.RUnlock()
 
 	pb.Lock()
-	pb.addrs = pb.opts.Addrs
 	pb.connected = true
 	pb.Unlock()
 
@@ -137,40 +159,39 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 		o(&options)
 	}
 
-	var cached bool
-
-	pbOptions := pulsar.ProducerOptions{
+	pulsarOptions := pulsar.ProducerOptions{
 		Topic:           topic,
 		DisableBatching: false,
 	}
 
 	if v, ok := options.Context.Value(producerNameKey{}).(string); ok {
-		pbOptions.Name = v
+		pulsarOptions.Name = v
 	}
 	if v, ok := options.Context.Value(producerPropertiesKey{}).(map[string]string); ok {
-		pbOptions.Properties = v
+		pulsarOptions.Properties = v
 	}
 	if v, ok := options.Context.Value(sendTimeoutKey{}).(time.Duration); ok {
-		pbOptions.SendTimeout = v
+		pulsarOptions.SendTimeout = v
 	}
 	if v, ok := options.Context.Value(disableBatchingKey{}).(bool); ok {
-		pbOptions.DisableBatching = v
+		pulsarOptions.DisableBatching = v
 	}
 	if v, ok := options.Context.Value(batchingMaxPublishDelayKey{}).(time.Duration); ok {
-		pbOptions.BatchingMaxPublishDelay = v
+		pulsarOptions.BatchingMaxPublishDelay = v
 	}
 	if v, ok := options.Context.Value(batchingMaxMessagesKey{}).(uint); ok {
-		pbOptions.BatchingMaxMessages = v
+		pulsarOptions.BatchingMaxMessages = v
 	}
 	if v, ok := options.Context.Value(batchingMaxSizeKey{}).(uint); ok {
-		pbOptions.BatchingMaxSize = v
+		pulsarOptions.BatchingMaxSize = v
 	}
 
+	var cached bool
 	pb.Lock()
 	producer, ok := pb.producers[topic]
 	if !ok {
 		var err error
-		producer, err = pb.client.CreateProducer(pbOptions)
+		producer, err = pb.client.CreateProducer(pulsarOptions)
 		if err != nil {
 			pb.Unlock()
 			return err
@@ -182,36 +203,39 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 	}
 	pb.Unlock()
 
-	rMsg := pulsar.ProducerMessage{Payload: msg}
+	pulsarMsg := pulsar.ProducerMessage{Payload: msg}
 
-	if headers, ok := options.Context.Value(headersKey{}).(map[string]interface{}); ok {
-		for k, v := range headers {
-			switch t := v.(type) {
-			case string:
-				rMsg.Properties[k] = t
-			case []byte:
-				rMsg.Properties[k] = string(t)
-			default:
-				var buf bytes.Buffer
-				enc := gob.NewEncoder(&buf)
-				if err := enc.Encode(v); err != nil {
-					continue
-				}
-				rMsg.Properties[k] = string(buf.Bytes())
-			}
-		}
+	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]string); ok {
+		pulsarMsg.Properties = headers
+	}
+	if v, ok := options.Context.Value(messageDeliverAfterKey{}).(time.Duration); ok {
+		pulsarMsg.DeliverAfter = v
+	}
+	if v, ok := options.Context.Value(messageDeliverAtKey{}).(time.Time); ok {
+		pulsarMsg.DeliverAt = v
+	}
+	if v, ok := options.Context.Value(messageSequenceIdKey{}).(*int64); ok {
+		pulsarMsg.SequenceID = v
+	}
+	if v, ok := options.Context.Value(messageKeyKey{}).(string); ok {
+		pulsarMsg.Key = v
+	}
+	if v, ok := options.Context.Value(messageValueKey{}).(interface{}); ok {
+		pulsarMsg.Value = v
+	}
+	if v, ok := options.Context.Value(messageOrderingKeyKey{}).(string); ok {
+		pulsarMsg.OrderingKey = v
+	}
+	if v, ok := options.Context.Value(messageEventTimeKey{}).(time.Time); ok {
+		pulsarMsg.EventTime = v
+	}
+	if v, ok := options.Context.Value(messageDisableReplication{}).(bool); ok {
+		pulsarMsg.DisableReplication = v
 	}
 
-	if v, ok := options.Context.Value(deliverAfterKey{}).(time.Duration); ok {
-		rMsg.DeliverAfter = v
-	}
-	if v, ok := options.Context.Value(deliverAtKey{}).(time.Time); ok {
-		rMsg.DeliverAt = v
-	}
-
-	_, err := producer.Send(pb.opts.Context, &rMsg)
+	_, err := producer.Send(pb.opts.Context, &pulsarMsg)
 	if err != nil {
-		pb.log.Errorf("[pulsar]: send message error: %s\n", err)
+		pb.opts.Logger.Errorf("[pulsar]: send message error: %s\n", err)
 		switch cached {
 		case false:
 		case true:
@@ -220,12 +244,12 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 			delete(pb.producers, topic)
 			pb.Unlock()
 
-			producer, err = pb.client.CreateProducer(pbOptions)
+			producer, err = pb.client.CreateProducer(pulsarOptions)
 			if err != nil {
 				pb.Unlock()
 				return err
 			}
-			if _, err = producer.Send(pb.opts.Context, &rMsg); err == nil {
+			if _, err = producer.Send(pb.opts.Context, &pulsarMsg); err == nil {
 				pb.Lock()
 				pb.producers[topic] = producer
 				pb.Unlock()
@@ -237,30 +261,55 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 }
 
 func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	opt := broker.SubscribeOptions{
+	options := broker.SubscribeOptions{
 		AutoAck: true,
 		Queue:   uuid.New().String(),
 	}
 	for _, o := range opts {
-		o(&opt)
+		o(&options)
 	}
 
-	options := pulsar.ConsumerOptions{
+	pulsarOptions := pulsar.ConsumerOptions{
 		Topic:            topic,
 		SubscriptionName: "my-subscription",
 		Type:             pulsar.Shared,
 	}
 
 	channel := make(chan pulsar.ConsumerMessage, 100)
-	options.MessageChannel = channel
+	pulsarOptions.MessageChannel = channel
 
-	c, _ := pb.client.Subscribe(options)
+	if v, ok := options.Context.Value(subscriptionNameKey{}).(string); ok {
+		pulsarOptions.SubscriptionName = v
+	}
+	if v, ok := options.Context.Value(consumerPropertiesKey{}).(map[string]string); ok {
+		pulsarOptions.Properties = v
+	}
+	if v, ok := options.Context.Value(subscriptionPropertiesKey{}).(map[string]string); ok {
+		pulsarOptions.SubscriptionProperties = v
+	}
+	if v, ok := options.Context.Value(topicsPatternKey{}).(string); ok {
+		pulsarOptions.TopicsPattern = v
+	}
+	if v, ok := options.Context.Value(autoDiscoveryPeriodKey{}).(time.Duration); ok {
+		pulsarOptions.AutoDiscoveryPeriod = v
+	}
+	if v, ok := options.Context.Value(nackRedeliveryDelayKey{}).(time.Duration); ok {
+		pulsarOptions.NackRedeliveryDelay = v
+	}
+	if v, ok := options.Context.Value(subscriptionRetryEnableKey{}).(bool); ok {
+		pulsarOptions.RetryEnable = v
+	}
+	if v, ok := options.Context.Value(receiverQueueSizeKey{}).(int); ok {
+		pulsarOptions.ReceiverQueueSize = v
+	}
+
+	c, _ := pb.client.Subscribe(pulsarOptions)
 	if c == nil {
 		return nil, errors.New("create consumer error")
 	}
 
 	sub := &subscriber{
-		opts:    opt,
+		opts:    options,
 		topic:   topic,
 		handler: handler,
 		reader:  c,
@@ -271,7 +320,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 		var err error
 		var m broker.Message
 		for cm := range channel {
-			p := &publication{topic: cm.Topic(), reader: sub.reader, msg: &m, pulsarMsg: &cm.Message, ctx: opt.Context}
+			p := &publication{topic: cm.Topic(), reader: sub.reader, msg: &m, pulsarMsg: &cm.Message, ctx: options.Context}
 			m.Headers = cm.Properties()
 
 			if binder != nil {
@@ -280,17 +329,17 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 
 			if err := broker.Unmarshal(pb.opts.Codec, cm.Payload(), m.Body); err != nil {
 				p.err = err
-				pb.log.Error(err)
+				pb.opts.Logger.Error(err)
 				continue
 			}
 
 			err = sub.handler(sub.opts.Context, p)
 			if err != nil {
-				pb.log.Errorf("[pulsar]: process message failed: %v", err)
+				pb.opts.Logger.Errorf("[pulsar]: process message failed: %v", err)
 			}
 			if sub.opts.AutoAck {
 				if err = p.Ack(); err != nil {
-					pb.log.Errorf("[pulsar]: unable to commit msg: %v", err)
+					pb.opts.Logger.Errorf("[pulsar]: unable to commit msg: %v", err)
 				}
 			}
 		}

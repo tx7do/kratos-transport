@@ -84,7 +84,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(LocalRabbitBroker),
+		broker.WithAddress(LocalRabbitBroker),
 	)
 
 	_ = b.Init()
@@ -121,7 +121,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(LocalRabbitBroker),
+		broker.WithAddress(LocalRabbitBroker),
 	)
 	defer b.Disconnect()
 
@@ -130,7 +130,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_, err := b.Subscribe("topic/bobo/#",
 		registerHygrothermographRawHandler(),
 		nil,
-		broker.SubscribeContext(ctx),
+		broker.WithSubscribeContext(ctx),
 	)
 	assert.Nil(t, err)
 
@@ -145,8 +145,8 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(LocalRabbitBroker),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithAddress(LocalRabbitBroker),
+		broker.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_ = b.Init()
@@ -182,8 +182,8 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(LocalRabbitBroker),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithAddress(LocalRabbitBroker),
+		broker.WithCodec(encoding.GetCodec("json")),
 	)
 	defer b.Disconnect()
 
@@ -194,7 +194,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 		func() broker.Any {
 			return &Hygrothermograph{}
 		},
-		broker.SubscribeContext(ctx),
+		broker.WithSubscribeContext(ctx),
 	)
 	assert.Nil(t, err)
 

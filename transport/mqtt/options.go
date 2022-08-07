@@ -12,7 +12,7 @@ type ServerOption func(o *Server)
 
 func WithAddress(addrs []string) ServerOption {
 	return func(s *Server) {
-		s.bOpts = append(s.bOpts, broker.Addrs(addrs...))
+		s.bOpts = append(s.bOpts, broker.WithAddress(addrs...))
 	}
 }
 
@@ -25,9 +25,9 @@ func WithLogger(logger log.Logger) ServerOption {
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
 		if c != nil {
-			s.bOpts = append(s.bOpts, broker.Secure(true))
+			s.bOpts = append(s.bOpts, broker.WithEnableSecure(true))
 		}
-		s.bOpts = append(s.bOpts, broker.TLSConfig(c))
+		s.bOpts = append(s.bOpts, broker.WithTLSConfig(c))
 	}
 }
 
@@ -51,6 +51,6 @@ func WithClientId(clientId string) ServerOption {
 
 func WithCodec(c encoding.Codec) ServerOption {
 	return func(s *Server) {
-		s.bOpts = append(s.bOpts, broker.Codec(c))
+		s.bOpts = append(s.bOpts, broker.WithCodec(c))
 	}
 }

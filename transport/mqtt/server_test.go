@@ -116,8 +116,8 @@ func TestClient(t *testing.T) {
 
 	b := mqtt.NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(LocalRabbitBroker),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithAddress(LocalRabbitBroker),
+		broker.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_ = b.Init()

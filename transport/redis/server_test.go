@@ -115,8 +115,8 @@ func TestClient(t *testing.T) {
 
 	b := redis.NewBroker(
 		broker.OptionContext(ctx),
-		broker.Addrs(localBroker),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithAddress(localBroker),
+		broker.WithCodec(encoding.GetCodec("json")),
 		redis.ReadTimeout(24*time.Hour),
 	)
 

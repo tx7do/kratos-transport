@@ -117,7 +117,7 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler b
 	s.Lock()
 	defer s.Unlock()
 
-	opts = append(opts, broker.SubscribeContext(ctx))
+	opts = append(opts, broker.WithSubscribeContext(ctx))
 
 	if s.started {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)

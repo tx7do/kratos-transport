@@ -127,7 +127,7 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler b
 	}
 
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
-	opts = append([]broker.SubscribeOption{broker.SubscribeContext(ctx)}, opts...)
+	opts = append([]broker.SubscribeOption{broker.WithSubscribeContext(ctx)}, opts...)
 
 	if s.started {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)

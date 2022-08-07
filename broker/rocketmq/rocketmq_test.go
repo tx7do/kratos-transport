@@ -80,7 +80,7 @@ func TestSubscribe(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithCodec(encoding.GetCodec("json")),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
 	)
@@ -97,8 +97,8 @@ func TestSubscribe(t *testing.T) {
 		func() broker.Any {
 			return &Hygrothermograph{}
 		},
-		broker.SubscribeContext(ctx),
-		broker.Queue(testGroupName),
+		broker.WithSubscribeContext(ctx),
+		broker.WithQueueName(testGroupName),
 	)
 	assert.Nil(t, err)
 
@@ -113,7 +113,7 @@ func TestPublish(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithCodec(encoding.GetCodec("json")),
 		WithEnableTrace(),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
@@ -157,7 +157,7 @@ func TestAliyunPublish(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithCodec(encoding.GetCodec("json")),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),
@@ -205,7 +205,7 @@ func TestAliyunSubscribe(t *testing.T) {
 
 	b := NewBroker(
 		broker.OptionContext(ctx),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithCodec(encoding.GetCodec("json")),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),
@@ -226,7 +226,7 @@ func TestAliyunSubscribe(t *testing.T) {
 		func() broker.Any {
 			return &Hygrothermograph{}
 		},
-		broker.Queue(groupName),
+		broker.WithQueueName(groupName),
 	)
 	assert.Nil(t, err)
 

@@ -5,13 +5,14 @@ import (
 	"crypto/tls"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/log"
 )
 
-//var DefaultCodec = encoding.GetCodec("json")
 var DefaultCodec encoding.Codec = nil
 
 type Options struct {
 	Addrs []string
+
 	Codec encoding.Codec
 
 	ErrorHandler Handler
@@ -20,6 +21,8 @@ type Options struct {
 	TLSConfig *tls.Config
 
 	Context context.Context
+
+	Logger *log.Helper
 }
 
 type Option func(*Options)
@@ -41,6 +44,8 @@ func NewOptions() Options {
 		TLSConfig: nil,
 
 		Context: context.Background(),
+
+		Logger: log.NewHelper(log.GetLogger()),
 	}
 
 	return opt
@@ -69,33 +74,39 @@ func OptionContextWithValue(k, v interface{}) Option {
 	}
 }
 
-func Addrs(addrs ...string) Option {
+func WithAddress(addressList ...string) Option {
 	return func(o *Options) {
-		o.Addrs = addrs
+		o.Addrs = addressList
 	}
 }
 
-func Codec(c encoding.Codec) Option {
+func WithCodec(codec encoding.Codec) Option {
 	return func(o *Options) {
-		o.Codec = c
+		o.Codec = codec
 	}
 }
 
-func ErrorHandler(h Handler) Option {
+func WithErrorHandler(handler Handler) Option {
 	return func(o *Options) {
-		o.ErrorHandler = h
+		o.ErrorHandler = handler
 	}
 }
 
-func Secure(b bool) Option {
+func WithEnableSecure(enable bool) Option {
 	return func(o *Options) {
-		o.Secure = b
+		o.Secure = enable
 	}
 }
 
-func TLSConfig(t *tls.Config) Option {
+func WithTLSConfig(config *tls.Config) Option {
 	return func(o *Options) {
-		o.TLSConfig = t
+		o.TLSConfig = config
+	}
+}
+
+func WithLogger(logger *log.Helper) Option {
+	return func(o *Options) {
+		o.Logger = logger
 	}
 }
 
@@ -123,18 +134,18 @@ func NewPublishOptions(opts ...PublishOption) PublishOptions {
 	return opt
 }
 
-func PublishContext(ctx context.Context) PublishOption {
-	return func(o *PublishOptions) {
-		o.Context = ctx
-	}
-}
-
 func PublishContextWithValue(k, v interface{}) PublishOption {
 	return func(o *PublishOptions) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}
 		o.Context = context.WithValue(o.Context, k, v)
+	}
+}
+
+func WithPublishContext(ctx context.Context) PublishOption {
+	return func(o *PublishOptions) {
+		o.Context = ctx
 	}
 }
 
@@ -166,29 +177,29 @@ func NewSubscribeOptions(opts ...SubscribeOption) SubscribeOptions {
 	return opt
 }
 
-func DisableAutoAck() SubscribeOption {
-	return func(o *SubscribeOptions) {
-		o.AutoAck = false
-	}
-}
-
-func Queue(name string) SubscribeOption {
-	return func(o *SubscribeOptions) {
-		o.Queue = name
-	}
-}
-
-func SubscribeContext(ctx context.Context) SubscribeOption {
-	return func(o *SubscribeOptions) {
-		o.Context = ctx
-	}
-}
-
 func SubscribeContextWithValue(k, v interface{}) SubscribeOption {
 	return func(o *SubscribeOptions) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}
 		o.Context = context.WithValue(o.Context, k, v)
+	}
+}
+
+func DisableAutoAck() SubscribeOption {
+	return func(o *SubscribeOptions) {
+		o.AutoAck = false
+	}
+}
+
+func WithQueueName(name string) SubscribeOption {
+	return func(o *SubscribeOptions) {
+		o.Queue = name
+	}
+}
+
+func WithSubscribeContext(ctx context.Context) SubscribeOption {
+	return func(o *SubscribeOptions) {
+		o.Context = ctx
 	}
 }
