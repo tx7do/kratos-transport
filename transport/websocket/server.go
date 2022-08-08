@@ -178,11 +178,13 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	dec := gob.NewDecoder(&network)
 	var msg Message
 	if err := dec.Decode(&msg); err != nil {
+		s.log.Errorf("decode message exception: %s", err)
 		return err
 	}
 
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
+		s.log.Error("message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}
 
@@ -193,10 +195,12 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	}
 
 	if err := broker.Unmarshal(s.Codec, msg.Body, payload); err != nil {
+		s.log.Errorf("unmarshal message exception: %s", err)
 		return err
 	}
 
 	if err := handlerData.Handler(sessionId, payload); err != nil {
+		s.log.Errorf("message handler exception: %s", err)
 		return err
 	}
 
