@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/gob"
+	"encoding/binary"
 	"errors"
 	"net"
 	"net/http"
@@ -20,12 +20,34 @@ import (
 )
 
 type Any interface{}
-type MessageType int
+type MessageType uint32
 type MessagePayload Any
 
 type Message struct {
 	Type MessageType
 	Body []byte
+}
+
+func (m *Message) Marshal() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.LittleEndian, uint32(m.Type)); err != nil {
+		return nil, err
+	}
+	buf.Write(m.Body)
+	return buf.Bytes(), nil
+}
+
+func (m *Message) Unmarshal(buf []byte) error {
+	network := new(bytes.Buffer)
+	network.Write(buf)
+
+	if err := binary.Read(network, binary.LittleEndian, &m.Type); err != nil {
+		return err
+	}
+
+	m.Body = network.Bytes()
+
+	return nil
 }
 
 type Binder func() Any
@@ -136,12 +158,12 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 		return nil, err
 	}
 
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err = enc.Encode(msg); err != nil {
+	buff, err := msg.Marshal()
+	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+
+	return buff, nil
 }
 
 func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
@@ -173,11 +195,8 @@ func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 }
 
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
-	var network bytes.Buffer
-	network.Write(buf)
-	dec := gob.NewDecoder(&network)
 	var msg Message
-	if err := dec.Decode(&msg); err != nil {
+	if err := msg.Unmarshal(buf); err != nil {
 		s.log.Errorf("decode message exception: %s", err)
 		return err
 	}

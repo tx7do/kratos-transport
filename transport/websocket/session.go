@@ -62,7 +62,7 @@ func (c *Session) Listen() {
 func (c *Session) closeConnect() {
 	//log.Println(c.SessionID(), " connection closed")
 	if err := c.conn.Close(); err != nil {
-		c.server.log.Errorf("close connection error:", err.Error())
+		c.server.log.Error("close connection error:", err.Error())
 	}
 	c.conn = nil
 }
@@ -74,7 +74,7 @@ func (c *Session) writePump() {
 		select {
 		case msg := <-c.send:
 			if err := c.conn.WriteMessage(ws.BinaryMessage, msg); err != nil {
-				c.server.log.Errorf("write message error: ", err)
+				c.server.log.Error("write message error: ", err)
 				return
 			}
 		}
@@ -101,7 +101,7 @@ func (c *Session) readPump() {
 			break
 		case ws.PingMessage:
 			if err := c.conn.WriteMessage(ws.PongMessage, nil); err != nil {
-				c.server.log.Errorf("write pong message error: ", err)
+				c.server.log.Error("write pong message error: ", err)
 				return
 			}
 			break

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/go-kratos/kratos/v2/encoding"
 	ws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
 	"log"
 	"net/url"
@@ -116,11 +117,8 @@ func TestClient(t *testing.T) {
 				log.Println("read:", err)
 				return
 			}
-			var network bytes.Buffer
-			network.Write(message)
-			dec := gob.NewDecoder(&network)
 			var msg Message
-			_ = dec.Decode(&msg)
+			_ = msg.Unmarshal(message)
 			var chatMsg ChatMessage
 			_ = broker.Unmarshal(codec, msg.Body, &chatMsg)
 			fmt.Printf("Received: %v\n", chatMsg)
@@ -141,10 +139,9 @@ func TestClient(t *testing.T) {
 			var msg Message
 			msg.Type = MessageTypeChat
 			msg.Body, _ = broker.Marshal(codec, chatMsg)
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-			_ = enc.Encode(msg)
-			_ = c.WriteMessage(ws.BinaryMessage, buf.Bytes())
+
+			buff, _ := msg.Marshal()
+			_ = c.WriteMessage(ws.BinaryMessage, buff)
 		case <-interrupt:
 			log.Println("interrupt")
 
@@ -160,4 +157,32 @@ func TestClient(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestGob(t *testing.T) {
+	var msg Message
+	msg.Type = MessageTypeChat
+	msg.Body = []byte("")
+
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	_ = enc.Encode(msg)
+
+	fmt.Printf("%s\n", string(buf.Bytes()))
+}
+
+func TestMessageMarshal(t *testing.T) {
+	var msg Message
+	msg.Type = 10000
+	msg.Body = []byte("Hello World")
+
+	buf, err := msg.Marshal()
+	assert.Nil(t, err)
+
+	fmt.Printf("%s\n", string(buf))
+
+	var msg1 Message
+	_ = msg1.Unmarshal(buf)
+
+	fmt.Printf("[%d] [%s]\n", msg1.Type, string(msg1.Body))
 }
