@@ -4,7 +4,6 @@ import (
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 	"log"
-	"time"
 )
 
 const channelBufSize = 256
@@ -102,7 +101,7 @@ func (c *Session) readPump() {
 			_ = c.server.messageHandler(c.SessionID(), data)
 			break
 		case ws.PingMessage:
-			time.Sleep(time.Second)
+			//time.Sleep(time.Second)
 			_ = c.conn.WriteMessage(ws.PongMessage, nil)
 			break
 		case ws.PongMessage:
