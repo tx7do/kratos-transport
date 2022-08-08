@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 	"log"
+	"time"
 )
 
 const channelBufSize = 256
@@ -92,10 +93,24 @@ func (c *Session) readPump() {
 				log.Printf("read message error: %v", err)
 			}
 			return
-		} else if messageType != ws.BinaryMessage {
-			log.Println("Non binary message received, ignoring")
-		} else {
-			_ = c.server.messageHandler(c.SessionID(), data)
 		}
+
+		switch messageType {
+		case ws.CloseMessage:
+			return
+		case ws.BinaryMessage:
+			_ = c.server.messageHandler(c.SessionID(), data)
+			break
+		case ws.PingMessage:
+			time.Sleep(time.Second)
+			_ = c.conn.WriteMessage(ws.PongMessage, nil)
+			break
+		case ws.PongMessage:
+			break
+		case ws.TextMessage:
+			log.Println("not support text message")
+			break
+		}
+
 	}
 }
