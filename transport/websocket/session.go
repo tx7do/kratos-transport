@@ -3,7 +3,6 @@ package websocket
 import (
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
-	"log"
 )
 
 const channelBufSize = 256
@@ -62,9 +61,8 @@ func (c *Session) Listen() {
 
 func (c *Session) closeConnect() {
 	//log.Println(c.SessionID(), " connection closed")
-	err := c.conn.Close()
-	if err != nil {
-		log.Println("close connection error:", err.Error())
+	if err := c.conn.Close(); err != nil {
+		c.server.log.Errorf("close connection error:", err.Error())
 	}
 	c.conn = nil
 }
@@ -76,7 +74,8 @@ func (c *Session) writePump() {
 		select {
 		case msg := <-c.send:
 			if err := c.conn.WriteMessage(ws.BinaryMessage, msg); err != nil {
-				log.Println("write message error: ", err)
+				c.server.log.Errorf("write message error: ", err)
+				return
 			}
 		}
 	}
@@ -89,7 +88,7 @@ func (c *Session) readPump() {
 		messageType, data, err := c.conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
-				log.Printf("read message error: %v", err)
+				c.server.log.Errorf("read message error: %v", err)
 			}
 			return
 		}
@@ -101,13 +100,15 @@ func (c *Session) readPump() {
 			_ = c.server.messageHandler(c.SessionID(), data)
 			break
 		case ws.PingMessage:
-			//time.Sleep(time.Second)
-			_ = c.conn.WriteMessage(ws.PongMessage, nil)
+			if err := c.conn.WriteMessage(ws.PongMessage, nil); err != nil {
+				c.server.log.Errorf("write pong message error: ", err)
+				return
+			}
 			break
 		case ws.PongMessage:
 			break
 		case ws.TextMessage:
-			log.Println("not support text message")
+			c.server.log.Errorf("not support text message")
 			break
 		}
 
