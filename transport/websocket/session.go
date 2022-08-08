@@ -67,13 +67,29 @@ func (c *Session) closeConnect() {
 	c.conn = nil
 }
 
+func (c *Session) sendPingMessage(message string) error {
+	return c.conn.WriteMessage(ws.PingMessage, []byte(message))
+}
+
+func (c *Session) sendPongMessage(message string) error {
+	return c.conn.WriteMessage(ws.PongMessage, []byte(message))
+}
+
+func (c *Session) sendTextMessage(message string) error {
+	return c.conn.WriteMessage(ws.TextMessage, []byte(message))
+}
+
+func (c *Session) sendBinaryMessage(message []byte) error {
+	return c.conn.WriteMessage(ws.BinaryMessage, message)
+}
+
 func (c *Session) writePump() {
 	defer c.Close()
 
 	for {
 		select {
 		case msg := <-c.send:
-			if err := c.conn.WriteMessage(ws.BinaryMessage, msg); err != nil {
+			if err := c.sendBinaryMessage(msg); err != nil {
 				c.server.log.Error("write message error: ", err)
 				return
 			}
@@ -100,7 +116,7 @@ func (c *Session) readPump() {
 			_ = c.server.messageHandler(c.SessionID(), data)
 			break
 		case ws.PingMessage:
-			if err := c.conn.WriteMessage(ws.PongMessage, nil); err != nil {
+			if err := c.sendPongMessage(""); err != nil {
 				c.server.log.Error("write pong message error: ", err)
 				return
 			}
