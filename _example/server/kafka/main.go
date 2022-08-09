@@ -23,41 +23,31 @@ type Hygrothermograph struct {
 	Temperature float64 `json:"temperature"`
 }
 
-func registerHygrothermographRawHandler() broker.Handler {
+func registerHygrothermographHandler() broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
-		var msg Hygrothermograph
+		var msg *Hygrothermograph = nil
 
 		switch t := event.Message().Body.(type) {
 		case []byte:
-			if err := json.Unmarshal(t, &msg); err != nil {
+			msg = &Hygrothermograph{}
+			if err := json.Unmarshal(t, msg); err != nil {
 				return err
 			}
 		case string:
-			if err := json.Unmarshal([]byte(t), &msg); err != nil {
+			msg = &Hygrothermograph{}
+			if err := json.Unmarshal([]byte(t), msg); err != nil {
 				return err
 			}
+		case *Hygrothermograph:
+			msg = t
 		default:
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 
-		if err := handleHygrothermograph(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
+		if err := handleHygrothermograph(ctx, event.Topic(), event.Message().Headers, msg); err != nil {
 			return err
 		}
 
-		return nil
-	}
-}
-
-func registerHygrothermographJsonHandler() broker.Handler {
-	return func(ctx context.Context, event broker.Event) error {
-		switch t := event.Message().Body.(type) {
-		case *Hygrothermograph:
-			if err := handleHygrothermograph(ctx, event.Topic(), event.Message().Headers, t); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported type: %T", t)
-		}
 		return nil
 	}
 }
@@ -77,7 +67,7 @@ func main() {
 
 	_ = kafkaSrv.RegisterSubscriber(ctx,
 		testTopic, testGroupId, false,
-		registerHygrothermographJsonHandler(),
+		registerHygrothermographHandler(),
 		func() broker.Any {
 			return &Hygrothermograph{}
 		})

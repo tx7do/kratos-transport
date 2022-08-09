@@ -7,6 +7,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/tx7do/kratos-transport/broker"
+	"strings"
 	"sync"
 	"time"
 )
@@ -58,6 +59,9 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	for _, addr := range pb.opts.Addrs {
 		if len(addr) == 0 {
 			continue
+		}
+		if !strings.HasPrefix(addr, "pulsar://") {
+			addr = "pulsar://" + addr
 		}
 		cAddrs = append(cAddrs, addr)
 	}
