@@ -11,24 +11,41 @@ import (
 /// Option
 ///
 
-type durableExchangeKey struct{}
-type exchangeKey struct{}
+type exchangeDurableKey struct{}
+type exchangeNameKey struct{}
+type exchangeKindKey struct{}
+
 type prefetchCountKey struct{}
+type prefetchSizeKey struct{}
 type prefetchGlobalKey struct{}
 type externalAuthKey struct{}
 
+// WithDurableExchange Exchange.Durable
 func WithDurableExchange() broker.Option {
-	return broker.OptionContextWithValue(durableExchangeKey{}, true)
+	return broker.OptionContextWithValue(exchangeDurableKey{}, true)
 }
 
-func WithExchangeName(e string) broker.Option {
-	return broker.OptionContextWithValue(exchangeKey{}, e)
+// WithExchangeName Exchange.Name
+func WithExchangeName(name string) broker.Option {
+	return broker.OptionContextWithValue(exchangeNameKey{}, name)
 }
 
-func WithPrefetchCount(c int) broker.Option {
-	return broker.OptionContextWithValue(prefetchCountKey{}, c)
+// WithExchangeType Exchange.Type
+func WithExchangeType(kind string) broker.Option {
+	return broker.OptionContextWithValue(exchangeKindKey{}, kind)
 }
 
+// WithPrefetchCount Channel.Qos.PrefetchCount
+func WithPrefetchCount(cnt int) broker.Option {
+	return broker.OptionContextWithValue(prefetchCountKey{}, cnt)
+}
+
+// WithPrefetchSize Channel.Qos.PrefetchSize
+func WithPrefetchSize(size int) broker.Option {
+	return broker.OptionContextWithValue(prefetchSizeKey{}, size)
+}
+
+// WithPrefetchGlobal Channel.Qos.Global
 func WithPrefetchGlobal() broker.Option {
 	return broker.OptionContextWithValue(prefetchGlobalKey{}, true)
 }
@@ -42,8 +59,8 @@ func WithExternalAuth() broker.Option {
 ///
 
 type durableQueueKey struct{}
-type subscribeHeadersKey struct{}
-type queueArgumentsKey struct{}
+type subscribeBindArgsKey struct{}
+type subscribeQueueArgsKey struct{}
 type requeueOnErrorKey struct{}
 type subscribeContextKey struct{}
 type ackSuccessKey struct{}
@@ -52,12 +69,12 @@ func WithDurableQueue() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
 }
 
-func WithSubscribeHeaders(h map[string]interface{}) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(subscribeHeadersKey{}, h)
+func WithBindArguments(args map[string]interface{}) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeBindArgsKey{}, args)
 }
 
-func WithQueueArguments(h map[string]interface{}) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(queueArgumentsKey{}, h)
+func WithQueueArguments(args map[string]interface{}) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeQueueArgsKey{}, args)
 }
 
 func WithRequeueOnError() broker.SubscribeOption {
@@ -76,6 +93,13 @@ func WithAckOnSuccess() broker.SubscribeOption {
 /// PublishOption
 ///
 
+type DeclarePublishQueueInfo struct {
+	QueueArguments map[string]interface{}
+	BindArguments  map[string]interface{}
+	Durable        bool
+	Queue          string
+}
+
 type deliveryModeKey struct{}
 type priorityKey struct{}
 type contentTypeKey struct{}
@@ -89,55 +113,80 @@ type messageTypeKey struct{}
 type userIDKey struct{}
 type appIDKey struct{}
 type publishHeadersKey struct{}
+type publishDeclareQueueKey struct{}
 
+// WithDeliveryMode amqp.Publishing.DeliveryMode
 func WithDeliveryMode(value uint8) broker.PublishOption {
 	return broker.PublishContextWithValue(deliveryModeKey{}, value)
 }
 
+// WithPriority amqp.Publishing.Priority
 func WithPriority(value uint8) broker.PublishOption {
 	return broker.PublishContextWithValue(priorityKey{}, value)
 }
 
+// WithContentType amqp.Publishing.ContentType
 func WithContentType(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(contentTypeKey{}, value)
 }
 
+// WithContentEncoding amqp.Publishing.ContentEncoding
 func WithContentEncoding(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(contentEncodingKey{}, value)
 }
 
+// WithCorrelationID amqp.Publishing.CorrelationId
 func WithCorrelationID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(correlationIDKey{}, value)
 }
 
+// WithReplyTo amqp.Publishing.ReplyTo
 func WithReplyTo(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(replyToKey{}, value)
 }
 
+// WithExpiration amqp.Publishing.Expiration
 func WithExpiration(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(expirationKey{}, value)
 }
 
+// WithMessageId amqp.Publishing.MessageId
 func WithMessageId(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(messageIDKey{}, value)
 }
 
+// WithTimestamp amqp.Publishing.Timestamp
 func WithTimestamp(value time.Time) broker.PublishOption {
 	return broker.PublishContextWithValue(timestampKey{}, value)
 }
 
+// WithTypeMsg amqp.Publishing.Type
 func WithTypeMsg(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(messageTypeKey{}, value)
 }
 
+// WithUserID amqp.Publishing.UserId
 func WithUserID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(userIDKey{}, value)
 }
 
+// WithAppID amqp.Publishing.AppId
 func WithAppID(value string) broker.PublishOption {
 	return broker.PublishContextWithValue(appIDKey{}, value)
 }
 
+// WithPublishHeaders amqp.Publishing.Headers
 func WithPublishHeaders(h map[string]interface{}) broker.PublishOption {
 	return broker.PublishContextWithValue(publishHeadersKey{}, h)
+}
+
+// WithPublishDeclareQueue publish declare queue info
+func WithPublishDeclareQueue(queueName string, durableQueue bool, queueArgs map[string]interface{}, bindArgs map[string]interface{}) broker.PublishOption {
+	val := &DeclarePublishQueueInfo{
+		Queue:          queueName,
+		Durable:        durableQueue,
+		QueueArguments: queueArgs,
+		BindArguments:  bindArgs,
+	}
+	return broker.PublishContextWithValue(publishDeclareQueueKey{}, val)
 }

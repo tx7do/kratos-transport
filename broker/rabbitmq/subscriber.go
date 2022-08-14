@@ -7,6 +7,13 @@ import (
 	"time"
 )
 
+const (
+	defaultMinResubscribeDelay = 100 * time.Millisecond
+	defaultMaxResubscribeDelay = 30 * time.Second
+	defaultExpFactor           = time.Duration(2)
+	defaultResubscribeDelay    = defaultMinResubscribeDelay
+)
+
 type subscriber struct {
 	mtx          sync.Mutex
 	mayRun       bool
@@ -39,10 +46,10 @@ func (s *subscriber) Unsubscribe() error {
 }
 
 func (s *subscriber) resubscribe() {
-	minResubscribeDelay := 100 * time.Millisecond
-	maxResubscribeDelay := 30 * time.Second
-	expFactor := time.Duration(2)
-	reSubscribeDelay := minResubscribeDelay
+	minResubscribeDelay := defaultMinResubscribeDelay
+	maxResubscribeDelay := defaultMaxResubscribeDelay
+	expFactor := defaultExpFactor
+	reSubscribeDelay := defaultResubscribeDelay
 
 	for {
 		s.mtx.Lock()

@@ -7,7 +7,6 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/tx7do/kratos-transport/broker"
-	"strings"
 	"sync"
 	"time"
 )
@@ -55,29 +54,10 @@ func (pb *pulsarBroker) Options() broker.Options {
 func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	pb.opts.Apply(opts...)
 
-	var cAddrs []string
-	for _, addr := range pb.opts.Addrs {
-		if len(addr) == 0 {
-			continue
-		}
-		if !strings.HasPrefix(addr, "pulsar://") {
-			addr = "pulsar://" + addr
-		}
-		cAddrs = append(cAddrs, addr)
-	}
-	if len(cAddrs) == 0 {
-		cAddrs = []string{defaultAddr}
-	}
-	pb.opts.Addrs = cAddrs
-
 	pulsarOptions := pulsar.ClientOptions{
 		URL:               defaultAddr,
 		OperationTimeout:  30 * time.Second,
 		ConnectionTimeout: 30 * time.Second,
-	}
-
-	if pb.opts.Addrs != nil {
-		pulsarOptions.URL = pb.opts.Addrs[0]
 	}
 
 	if v, ok := pb.opts.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
@@ -95,6 +75,8 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	if v, ok := pb.opts.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
 		pulsarOptions.CustomMetricsLabels = v
 	}
+
+	var enableTLS = false
 	if v, ok := pb.opts.Context.Value(tlsKey{}).(tlsConfig); ok {
 		pulsarOptions.TLSTrustCertsFilePath = v.CaCertsPath
 		if v.ClientCertPath != "" && v.ClientKeyPath != "" {
@@ -102,7 +84,23 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 		}
 		pulsarOptions.TLSAllowInsecureConnection = v.AllowInsecureConnection
 		pulsarOptions.TLSValidateHostname = v.ValidateHostname
+
+		enableTLS = true
 	}
+
+	var cAddrs []string
+	for _, addr := range pb.opts.Addrs {
+		if len(addr) == 0 {
+			continue
+		}
+		addr = refitUrl(addr, enableTLS)
+		cAddrs = append(cAddrs, addr)
+	}
+	if len(cAddrs) == 0 {
+		cAddrs = []string{defaultAddr}
+	}
+	pb.opts.Addrs = cAddrs
+	pulsarOptions.URL = cAddrs[0]
 
 	var err error
 	pb.client, err = pulsar.NewClient(pulsarOptions)

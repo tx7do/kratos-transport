@@ -195,3 +195,12 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 	<-interrupt
 }
+
+func TestHasUrlPrefix(t *testing.T) {
+	assert.True(t, hasUrlPrefix("pulsar://localhost:8080/test"))
+	assert.True(t, hasUrlPrefix("pulsar+ssl://localhost:8080/test"))
+	assert.False(t, hasUrlPrefix("localhost:8080/test"))
+	assert.False(t, hasUrlPrefix("tcp://localhost:8080/test"))
+	assert.False(t, hasUrlPrefix("http://localhost:8080/test"))
+	assert.False(t, hasUrlPrefix("https://localhost:8080/test"))
+}

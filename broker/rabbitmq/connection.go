@@ -2,80 +2,115 @@ package rabbitmq
 
 import (
 	"crypto/tls"
-	"github.com/go-kratos/kratos/v2/log"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 var (
-	DefaultExchange = Exchange{
-		Name: "amq.topic",
-	}
-	DefaultRabbitURL      = "amqp://guest:guest@127.0.0.1:5672"
-	DefaultPrefetchCount  = 0
-	DefaultPrefetchGlobal = false
-	DefaultRequeueOnError = false
+	DefaultRabbitURL             = "amqp://guest:guest@127.0.0.1:5672"
+	DefaultRequeueOnError        = false
+	EnableLazyInitPublishChannel = true
 
-	defaultHeartbeat = 10 * time.Second
-	defaultLocale    = "en_US"
-
-	defaultAmqpConfig = amqp.Config{
-		Heartbeat: defaultHeartbeat,
-		Locale:    defaultLocale,
+	DefaultAmqpConfig = amqp.Config{
+		Heartbeat: 10 * time.Second,
+		Locale:    "en_US",
 	}
 )
 
-type rabbitConn struct {
-	Connection     *amqp.Connection
-	Channel        *rabbitChannel
-	PublishChannel *rabbitChannel
-
-	exchange       Exchange
-	url            string
-	prefetchCount  int
-	prefetchGlobal bool
-
-	sync.Mutex
-	connected bool
-	close     chan bool
-
-	log *log.Helper
-
-	waitConnection chan struct{}
-}
-
 type Exchange struct {
 	Name    string
+	Type    string // "direct", "fanout", "topic", "headers"
 	Durable bool
 }
 
-func newRabbitMQConn(ex Exchange, urls []string, prefetchCount int, prefetchGlobal bool) *rabbitConn {
-	var url string
-
-	if len(urls) > 0 && regexp.MustCompile("^amqp(s)?://.*").MatchString(urls[0]) {
-		url = urls[0]
-	} else {
-		url = DefaultRabbitURL
+var (
+	DefaultExchange = Exchange{
+		Name:    "amq.topic",
+		Type:    "topic",
+		Durable: true,
 	}
+)
 
-	ret := &rabbitConn{
-		exchange:       ex,
-		url:            url,
-		prefetchCount:  prefetchCount,
-		prefetchGlobal: prefetchGlobal,
-		close:          make(chan bool),
-		waitConnection: make(chan struct{}),
-		log:            log.NewHelper(log.GetLogger()),
-	}
-	close(ret.waitConnection)
-	return ret
+type Qos struct {
+	PrefetchCount  int
+	PrefetchSize   int
+	PrefetchGlobal bool
 }
 
-func (r *rabbitConn) connect(secure bool, config *amqp.Config) error {
+var (
+	DefaultQos = Qos{
+		PrefetchCount:  0,
+		PrefetchSize:   0,
+		PrefetchGlobal: false,
+	}
+)
+
+type rabbitConnection struct {
+	sync.Mutex
+
+	Connection      *amqp.Connection
+	Channel         *rabbitChannel
+	ExchangeChannel *rabbitChannel
+
+	opts broker.Options
+
+	url      string
+	exchange Exchange
+	qos      Qos
+
+	connected      bool
+	close          chan bool
+	waitConnection chan struct{}
+}
+
+func newRabbitMQConnection(opts broker.Options) *rabbitConnection {
+	conn := &rabbitConnection{
+		opts:           opts,
+		url:            DefaultRabbitURL,
+		qos:            DefaultQos,
+		exchange:       DefaultExchange,
+		close:          make(chan bool),
+		waitConnection: make(chan struct{}),
+	}
+
+	conn.init()
+
+	close(conn.waitConnection)
+
+	return conn
+}
+
+func (r *rabbitConnection) init() {
+	if len(r.opts.Addrs) > 0 && hasUrlPrefix(r.opts.Addrs[0]) {
+		r.url = r.opts.Addrs[0]
+	}
+
+	if val, ok := r.opts.Context.Value(exchangeNameKey{}).(string); ok {
+		r.exchange.Name = val
+	}
+	if val, ok := r.opts.Context.Value(exchangeKindKey{}).(string); ok {
+		r.exchange.Type = val
+	}
+	if val, ok := r.opts.Context.Value(exchangeDurableKey{}).(bool); ok {
+		r.exchange.Durable = val
+	}
+
+	if val, ok := r.opts.Context.Value(prefetchCountKey{}).(int); ok {
+		r.qos.PrefetchCount = val
+	}
+	if val, ok := r.opts.Context.Value(prefetchSizeKey{}).(int); ok {
+		r.qos.PrefetchSize = val
+	}
+	if val, ok := r.opts.Context.Value(prefetchGlobalKey{}).(bool); ok {
+		r.qos.PrefetchGlobal = val
+	}
+}
+
+func (r *rabbitConnection) connect(secure bool, config *amqp.Config) error {
 	if err := r.tryConnect(secure, config); err != nil {
 		return err
 	}
@@ -88,7 +123,7 @@ func (r *rabbitConn) connect(secure bool, config *amqp.Config) error {
 	return nil
 }
 
-func (r *rabbitConn) reconnect(secure bool, config *amqp.Config) {
+func (r *rabbitConnection) reconnect(secure bool, config *amqp.Config) {
 	var connect bool
 
 	for {
@@ -111,8 +146,8 @@ func (r *rabbitConn) reconnect(secure bool, config *amqp.Config) {
 		chanNotifyClose := make(chan *amqp.Error)
 		channelNotifyReturn := make(chan amqp.Return)
 
-		if r.PublishChannel != nil {
-			channel := r.PublishChannel.channel
+		if r.ExchangeChannel != nil {
+			channel := r.ExchangeChannel.channel
 			channel.NotifyClose(chanNotifyClose)
 
 			channel.NotifyReturn(channelNotifyReturn)
@@ -124,15 +159,15 @@ func (r *rabbitConn) reconnect(secure bool, config *amqp.Config) {
 				// Channel closed, probably also the channel or connection.
 				return
 			}
-			r.log.Errorf("notify error reason: %s, description: %s", result.ReplyText, result.Exchange)
+			r.opts.Logger.Errorf("notify error reason: %s, description: %s", result.ReplyText, result.Exchange)
 		case err := <-chanNotifyClose:
-			r.log.Error(err)
+			r.opts.Logger.Error(err)
 			r.Lock()
 			r.connected = false
 			r.waitConnection = make(chan struct{})
 			r.Unlock()
 		case err := <-notifyClose:
-			r.log.Error(err)
+			r.opts.Logger.Error(err)
 			r.Lock()
 			r.connected = false
 			r.waitConnection = make(chan struct{})
@@ -143,7 +178,7 @@ func (r *rabbitConn) reconnect(secure bool, config *amqp.Config) {
 	}
 }
 
-func (r *rabbitConn) Connect(secure bool, config *amqp.Config) error {
+func (r *rabbitConnection) Connect(secure bool, config *amqp.Config) error {
 	r.Lock()
 
 	if r.connected {
@@ -162,7 +197,7 @@ func (r *rabbitConn) Connect(secure bool, config *amqp.Config) error {
 	return r.connect(secure, config)
 }
 
-func (r *rabbitConn) Close() error {
+func (r *rabbitConnection) Close() error {
 	r.Lock()
 	defer r.Unlock()
 
@@ -177,11 +212,9 @@ func (r *rabbitConn) Close() error {
 	return r.Connection.Close()
 }
 
-func (r *rabbitConn) tryConnect(secure bool, config *amqp.Config) error {
-	var err error
-
+func (r *rabbitConnection) tryConnect(secure bool, config *amqp.Config) error {
 	if config == nil {
-		config = &defaultAmqpConfig
+		config = &DefaultAmqpConfig
 	}
 
 	url := r.url
@@ -196,63 +229,76 @@ func (r *rabbitConn) tryConnect(secure bool, config *amqp.Config) error {
 		url = strings.Replace(r.url, "amqp://", "amqps://", 1)
 	}
 
+	var err error
 	r.Connection, err = amqp.DialConfig(url, *config)
 	if err != nil {
 		return err
 	}
 
-	if r.Channel, err = newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal); err != nil {
+	if r.Channel, err = newRabbitChannel(r.Connection, r.qos); err != nil {
 		return err
 	}
-	if r.exchange.Durable {
-		_ = r.Channel.DeclareDurableExchange(r.exchange.Name)
-	} else {
-		_ = r.Channel.DeclareExchange(r.exchange.Name)
-	}
 
-	//r.PublishChannel, err = newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal)
+	_ = r.Channel.DeclareExchange(r.exchange.Name, r.exchange.Type, r.exchange.Durable)
+
+	if !EnableLazyInitPublishChannel {
+		r.ExchangeChannel, err = newRabbitChannel(r.Connection, r.qos)
+	}
 
 	return err
 }
 
-func (r *rabbitConn) Consume(queue, key string, headers amqp.Table, qArgs amqp.Table, autoAck, durableQueue bool) (*rabbitChannel, <-chan amqp.Delivery, error) {
-	consumerChannel, err := newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal)
+func (r *rabbitConnection) Consume(queueName, routingKey string, bindArgs amqp.Table, qArgs amqp.Table, autoAck, durableQueue bool) (*rabbitChannel, <-chan amqp.Delivery, error) {
+	consumerChannel, err := newRabbitChannel(r.Connection, r.qos)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if durableQueue {
-		err = consumerChannel.DeclareDurableQueue(queue, qArgs)
-	} else {
-		err = consumerChannel.DeclareQueue(queue, qArgs)
+	if err = consumerChannel.DeclareQueue(queueName, qArgs, durableQueue); err != nil {
+		return nil, nil, err
 	}
 
+	deliveries, err := consumerChannel.ConsumeQueue(queueName, autoAck)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	deliveries, err := consumerChannel.ConsumeQueue(queue, autoAck)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = consumerChannel.BindQueue(queue, key, r.exchange.Name, headers)
-	if err != nil {
+	if err = consumerChannel.BindQueue(queueName, routingKey, r.exchange.Name, bindArgs); err != nil {
 		return nil, nil, err
 	}
 
 	return consumerChannel, deliveries, nil
 }
 
-func (r *rabbitConn) Publish(exchange, key string, msg amqp.Publishing) error {
-	if r.PublishChannel == nil {
+func (r *rabbitConnection) DeclarePublishQueue(queueName, routingKey string, bindArgs amqp.Table, queueArgs amqp.Table, durableQueue bool) error {
+	if r.ExchangeChannel == nil {
 		var err error
-		// lazy init publish channel
-		r.PublishChannel, err = newRabbitChannel(r.Connection, r.prefetchCount, r.prefetchGlobal)
+		r.ExchangeChannel, err = newRabbitChannel(r.Connection, r.qos)
 		if err != nil {
 			return err
 		}
 	}
 
-	return r.PublishChannel.Publish(exchange, key, msg)
+	if err := r.ExchangeChannel.DeclareQueue(queueName, queueArgs, durableQueue); err != nil {
+		return err
+	}
+
+	if err := r.ExchangeChannel.BindQueue(queueName, routingKey, r.exchange.Name, bindArgs); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *rabbitConnection) Publish(exchangeName, routingKey string, msg amqp.Publishing) error {
+	if r.ExchangeChannel == nil {
+		var err error
+		// lazy init publish channel
+		r.ExchangeChannel, err = newRabbitChannel(r.Connection, r.qos)
+		if err != nil {
+			return err
+		}
+	}
+
+	return r.ExchangeChannel.Publish(exchangeName, routingKey, msg)
 }

@@ -14,10 +14,8 @@ type rabbitBroker struct {
 	mtx sync.Mutex
 	wg  sync.WaitGroup
 
-	conn           *rabbitConn
-	opts           broker.Options
-	prefetchCount  int
-	prefetchGlobal bool
+	conn *rabbitConnection
+	opts broker.Options
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -44,18 +42,32 @@ func (r *rabbitBroker) Address() string {
 }
 
 func (r *rabbitBroker) Init(opts ...broker.Option) error {
-	for _, o := range opts {
-		o(&r.opts)
+	r.opts.Apply(opts...)
+
+	var addrs []string
+	for _, addr := range r.opts.Addrs {
+		if len(addr) == 0 {
+			continue
+		}
+		if !hasUrlPrefix(addr) {
+			addr = "amqp://" + addr
+		}
+		addrs = append(addrs, addr)
 	}
+	if len(addrs) == 0 {
+		addrs = []string{DefaultRabbitURL}
+	}
+	r.opts.Addrs = addrs
+
 	return nil
 }
 
 func (r *rabbitBroker) Connect() error {
 	if r.conn == nil {
-		r.conn = newRabbitMQConn(r.getExchange(), r.opts.Addrs, r.getPrefetchCount(), r.getPrefetchGlobal())
+		r.conn = newRabbitMQConnection(r.opts)
 	}
 
-	conf := defaultAmqpConfig
+	conf := DefaultAmqpConfig
 
 	if auth, ok := r.opts.Context.Value(externalAuthKey{}).(ExternalAuthentication); ok {
 		conf.SASL = []amqp.Authentication{&auth}
@@ -71,37 +83,8 @@ func (r *rabbitBroker) Disconnect() error {
 		return errors.New("connection is nil")
 	}
 	ret := r.conn.Close()
-	r.wg.Wait() // wait all goroutines
+	r.wg.Wait()
 	return ret
-}
-
-func (r *rabbitBroker) getExchange() Exchange {
-
-	ex := DefaultExchange
-
-	if e, ok := r.opts.Context.Value(exchangeKey{}).(string); ok {
-		ex.Name = e
-	}
-
-	if d, ok := r.opts.Context.Value(durableExchangeKey{}).(bool); ok {
-		ex.Durable = d
-	}
-
-	return ex
-}
-
-func (r *rabbitBroker) getPrefetchCount() int {
-	if e, ok := r.opts.Context.Value(prefetchCountKey{}).(int); ok {
-		return e
-	}
-	return DefaultPrefetchCount
-}
-
-func (r *rabbitBroker) getPrefetchGlobal() bool {
-	if e, ok := r.opts.Context.Value(prefetchGlobalKey{}).(bool); ok {
-		return e
-	}
-	return DefaultPrefetchGlobal
 }
 
 func (r *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
@@ -114,9 +97,8 @@ func (r *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker
 }
 
 func (r *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.PublishOption) error {
-	m := amqp.Publishing{
-		Body:    buf,
-		Headers: amqp.Table{},
+	if r.conn == nil {
+		return errors.New("connection is nil")
 	}
 
 	options := broker.PublishOptions{
@@ -126,65 +108,72 @@ func (r *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.Pub
 		o(&options)
 	}
 
+	msg := amqp.Publishing{
+		Body:    buf,
+		Headers: amqp.Table{},
+	}
+
 	if value, ok := options.Context.Value(deliveryModeKey{}).(uint8); ok {
-		m.DeliveryMode = value
+		msg.DeliveryMode = value
 	}
 
 	if value, ok := options.Context.Value(priorityKey{}).(uint8); ok {
-		m.Priority = value
+		msg.Priority = value
 	}
 
 	if value, ok := options.Context.Value(contentTypeKey{}).(string); ok {
-		m.ContentType = value
+		msg.ContentType = value
 	}
 
 	if value, ok := options.Context.Value(contentEncodingKey{}).(string); ok {
-		m.ContentEncoding = value
+		msg.ContentEncoding = value
 	}
 
 	if value, ok := options.Context.Value(correlationIDKey{}).(string); ok {
-		m.CorrelationId = value
+		msg.CorrelationId = value
 	}
 
 	if value, ok := options.Context.Value(replyToKey{}).(string); ok {
-		m.ReplyTo = value
+		msg.ReplyTo = value
 	}
 
 	if value, ok := options.Context.Value(expirationKey{}).(string); ok {
-		m.Expiration = value
+		msg.Expiration = value
 	}
 
 	if value, ok := options.Context.Value(messageIDKey{}).(string); ok {
-		m.MessageId = value
+		msg.MessageId = value
 	}
 
 	if value, ok := options.Context.Value(timestampKey{}).(time.Time); ok {
-		m.Timestamp = value
+		msg.Timestamp = value
 	}
 
 	if value, ok := options.Context.Value(messageTypeKey{}).(string); ok {
-		m.Type = value
+		msg.Type = value
 	}
 
 	if value, ok := options.Context.Value(userIDKey{}).(string); ok {
-		m.UserId = value
+		msg.UserId = value
 	}
 
 	if value, ok := options.Context.Value(appIDKey{}).(string); ok {
-		m.AppId = value
+		msg.AppId = value
 	}
 
 	if headers, ok := options.Context.Value(publishHeadersKey{}).(map[string]interface{}); ok {
 		for k, v := range headers {
-			m.Headers[k] = v
+			msg.Headers[k] = v
 		}
 	}
 
-	if r.conn == nil {
-		return errors.New("connection is nil")
+	if val, ok := options.Context.Value(publishDeclareQueueKey{}).(*DeclarePublishQueueInfo); ok {
+		if err := r.conn.DeclarePublishQueue(val.Queue, routingKey, val.BindArguments, val.QueueArguments, val.Durable); err != nil {
+			return err
+		}
 	}
 
-	return r.conn.Publish(r.conn.exchange.Name, routingKey, m)
+	return r.conn.Publish(r.conn.exchange.Name, routingKey, msg)
 }
 
 func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
@@ -251,11 +240,11 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 		sub.durableQueue = val
 	}
 
-	if val, ok := options.Context.Value(subscribeHeadersKey{}).(map[string]interface{}); ok {
+	if val, ok := options.Context.Value(subscribeBindArgsKey{}).(map[string]interface{}); ok {
 		sub.headers = val
 	}
 
-	if val, ok := options.Context.Value(queueArgumentsKey{}).(map[string]interface{}); ok {
+	if val, ok := options.Context.Value(subscribeQueueArgsKey{}).(map[string]interface{}); ok {
 		sub.queueArgs = val
 	}
 
