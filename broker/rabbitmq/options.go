@@ -64,9 +64,14 @@ type subscribeQueueArgsKey struct{}
 type requeueOnErrorKey struct{}
 type subscribeContextKey struct{}
 type ackSuccessKey struct{}
+type autoDeleteQueueKey struct{}
 
 func WithDurableQueue() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(durableQueueKey{}, true)
+}
+
+func WithAutoDeleteQueue() broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(autoDeleteQueueKey{}, true)
 }
 
 func WithBindArguments(args map[string]interface{}) broker.SubscribeOption {

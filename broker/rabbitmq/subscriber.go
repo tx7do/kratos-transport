@@ -21,6 +21,7 @@ type subscriber struct {
 	topic        string
 	ch           *rabbitChannel
 	durableQueue bool
+	autoDelete   bool
 	queueArgs    map[string]interface{}
 	r            *rabbitBroker
 	fn           func(msg amqp.Delivery)
@@ -79,6 +80,7 @@ func (s *subscriber) resubscribe() {
 			s.queueArgs,
 			s.opts.AutoAck,
 			s.durableQueue,
+			s.autoDelete,
 		)
 
 		s.r.mtx.Unlock()

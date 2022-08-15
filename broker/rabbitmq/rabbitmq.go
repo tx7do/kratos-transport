@@ -234,6 +234,7 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 		mayRun:       true,
 		r:            r,
 		durableQueue: true,
+		autoDelete:   false,
 		fn:           fn,
 		headers:      nil,
 		queueArgs:    nil,
@@ -241,6 +242,12 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 
 	if val, ok := options.Context.Value(durableQueueKey{}).(bool); ok {
 		sub.durableQueue = val
+		sub.autoDelete = false
+	}
+
+	if val, ok := options.Context.Value(autoDeleteQueueKey{}).(bool); ok {
+		sub.autoDelete = val
+		sub.durableQueue = false
 	}
 
 	if val, ok := options.Context.Value(subscribeBindArgsKey{}).(map[string]interface{}); ok {
