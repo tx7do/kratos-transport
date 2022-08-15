@@ -97,6 +97,7 @@ type DeclarePublishQueueInfo struct {
 	QueueArguments map[string]interface{}
 	BindArguments  map[string]interface{}
 	Durable        bool
+	AutoDelete     bool
 	Queue          string
 }
 
@@ -181,10 +182,11 @@ func WithPublishHeaders(h map[string]interface{}) broker.PublishOption {
 }
 
 // WithPublishDeclareQueue publish declare queue info
-func WithPublishDeclareQueue(queueName string, durableQueue bool, queueArgs map[string]interface{}, bindArgs map[string]interface{}) broker.PublishOption {
+func WithPublishDeclareQueue(queueName string, durableQueue, autoDelete bool, queueArgs map[string]interface{}, bindArgs map[string]interface{}) broker.PublishOption {
 	val := &DeclarePublishQueueInfo{
 		Queue:          queueName,
 		Durable:        durableQueue,
+		AutoDelete:     autoDelete,
 		QueueArguments: queueArgs,
 		BindArguments:  bindArgs,
 	}

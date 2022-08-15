@@ -239,7 +239,7 @@ func (r *rabbitConnection) tryConnect(secure bool, config *amqp.Config) error {
 		return err
 	}
 
-	_ = r.Channel.DeclareExchange(r.exchange.Name, r.exchange.Type, r.exchange.Durable)
+	_ = r.Channel.DeclareExchange(r.exchange.Name, r.exchange.Type, r.exchange.Durable, false)
 
 	if !EnableLazyInitPublishChannel {
 		r.ExchangeChannel, err = newRabbitChannel(r.Connection, r.qos)
@@ -248,13 +248,13 @@ func (r *rabbitConnection) tryConnect(secure bool, config *amqp.Config) error {
 	return err
 }
 
-func (r *rabbitConnection) Consume(queueName, routingKey string, bindArgs amqp.Table, qArgs amqp.Table, autoAck, durableQueue bool) (*rabbitChannel, <-chan amqp.Delivery, error) {
+func (r *rabbitConnection) Consume(queueName, routingKey string, bindArgs amqp.Table, qArgs amqp.Table, autoAck, durableQueue, autoDel bool) (*rabbitChannel, <-chan amqp.Delivery, error) {
 	consumerChannel, err := newRabbitChannel(r.Connection, r.qos)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if err = consumerChannel.DeclareQueue(queueName, qArgs, durableQueue); err != nil {
+	if err = consumerChannel.DeclareQueue(queueName, qArgs, durableQueue, autoDel); err != nil {
 		return nil, nil, err
 	}
 
@@ -270,7 +270,7 @@ func (r *rabbitConnection) Consume(queueName, routingKey string, bindArgs amqp.T
 	return consumerChannel, deliveries, nil
 }
 
-func (r *rabbitConnection) DeclarePublishQueue(queueName, routingKey string, bindArgs amqp.Table, queueArgs amqp.Table, durableQueue bool) error {
+func (r *rabbitConnection) DeclarePublishQueue(queueName, routingKey string, bindArgs amqp.Table, queueArgs amqp.Table, durableQueue, autoDel bool) error {
 	if r.ExchangeChannel == nil {
 		var err error
 		r.ExchangeChannel, err = newRabbitChannel(r.Connection, r.qos)
@@ -279,7 +279,7 @@ func (r *rabbitConnection) DeclarePublishQueue(queueName, routingKey string, bin
 		}
 	}
 
-	if err := r.ExchangeChannel.DeclareQueue(queueName, queueArgs, durableQueue); err != nil {
+	if err := r.ExchangeChannel.DeclareQueue(queueName, queueArgs, durableQueue, autoDel); err != nil {
 		return err
 	}
 

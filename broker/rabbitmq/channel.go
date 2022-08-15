@@ -50,23 +50,23 @@ func (r *rabbitChannel) Publish(exchangeName, key string, message amqp.Publishin
 	return r.channel.Publish(exchangeName, key, false, false, message)
 }
 
-func (r *rabbitChannel) DeclareExchange(exchangeName, kind string, durable bool) error {
+func (r *rabbitChannel) DeclareExchange(exchangeName, kind string, durable, autoDelete bool) error {
 	return r.channel.ExchangeDeclare(
 		exchangeName,
 		kind,
 		durable,
-		false,
+		autoDelete,
 		false,
 		false,
 		nil,
 	)
 }
 
-func (r *rabbitChannel) DeclareQueue(queueName string, args amqp.Table, durable bool) error {
+func (r *rabbitChannel) DeclareQueue(queueName string, args amqp.Table, durable, autoDelete bool) error {
 	_, err := r.channel.QueueDeclare(
 		queueName,
 		durable,
-		true,
+		autoDelete,
 		false,
 		false,
 		args,

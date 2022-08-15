@@ -168,7 +168,10 @@ func (r *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.Pub
 	}
 
 	if val, ok := options.Context.Value(publishDeclareQueueKey{}).(*DeclarePublishQueueInfo); ok {
-		if err := r.conn.DeclarePublishQueue(val.Queue, routingKey, val.BindArguments, val.QueueArguments, val.Durable); err != nil {
+		if val.Durable {
+			val.AutoDelete = false
+		}
+		if err := r.conn.DeclarePublishQueue(val.Queue, routingKey, val.BindArguments, val.QueueArguments, val.Durable, val.AutoDelete); err != nil {
 			return err
 		}
 	}
@@ -195,9 +198,9 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	}
 
 	var ackSuccess = false
-	if val, ok := options.Context.Value(ackSuccessKey{}).(bool); ok {
-		options.AutoAck = val
-		ackSuccess = !val
+	if val, ok := options.Context.Value(ackSuccessKey{}).(bool); ok && val {
+		options.AutoAck = false
+		ackSuccess = true
 	}
 
 	fn := func(msg amqp.Delivery) {
