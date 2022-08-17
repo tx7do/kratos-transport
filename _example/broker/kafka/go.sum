@@ -510,8 +510,8 @@ github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JT
 github.com/tidwall/pretty v1.2.0/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
-github.com/tx7do/kratos-transport v0.0.0-20220817013401-079598103037 h1:sNhf2h9ce0E7j6Ood8XckJv/K0AWLMx5VNbbXdnVEDE=
-github.com/tx7do/kratos-transport v0.0.0-20220817013401-079598103037/go.mod h1:dn5BA9wzyvnHDZQkMxrsuGOGqs9TKAAGx/ZOw5zd2RM=
+github.com/tx7do/kratos-transport v0.0.0-20220817014205-7591935d4c25 h1:ISqMfgs/lukyj6mYJQxDLM/XM/uq7Won3drUbOAYuWg=
+github.com/tx7do/kratos-transport v0.0.0-20220817014205-7591935d4c25/go.mod h1:dn5BA9wzyvnHDZQkMxrsuGOGqs9TKAAGx/ZOw5zd2RM=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.38.0/go.mod h1:t/G+3rLek+CyY9bnIE+YlMRddxVAAGjhxndDB4i4C0I=
 github.com/valyala/tcplisten v1.0.0/go.mod h1:T0xQ8SeCZGxckz9qRXTfG43PvQ/mcWh7FwZEA7Ioqkc=
