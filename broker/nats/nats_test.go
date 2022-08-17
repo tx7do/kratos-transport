@@ -15,6 +15,7 @@ import (
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
+	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -112,51 +113,7 @@ const (
 	testTopic   = "test"
 )
 
-type Hygrothermograph struct {
-	Humidity    float64 `json:"humidity"`
-	Temperature float64 `json:"temperature"`
-}
-
-func registerHygrothermographRawHandler() broker.Handler {
-	return func(ctx context.Context, event broker.Event) error {
-		var msg Hygrothermograph
-
-		switch t := event.Message().Body.(type) {
-		case []byte:
-			if err := json.Unmarshal(t, &msg); err != nil {
-				return err
-			}
-		case string:
-			if err := json.Unmarshal([]byte(t), &msg); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported type: %T", t)
-		}
-
-		if err := handleHygrothermograph(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
-			return err
-		}
-
-		return nil
-	}
-}
-
-func registerHygrothermographJsonHandler() broker.Handler {
-	return func(ctx context.Context, event broker.Event) error {
-		switch t := event.Message().Body.(type) {
-		case *Hygrothermograph:
-			if err := handleHygrothermograph(ctx, event.Topic(), event.Message().Headers, t); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("unsupported type: %T", t)
-		}
-		return nil
-	}
-}
-
-func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error {
+func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
 	log.Printf("Humidity: %.2f Temperature: %.2f\n", msg.Humidity, msg.Temperature)
 	return nil
 }
@@ -179,7 +136,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 		t.Skip()
 	}
 
-	var msg Hygrothermograph
+	var msg api.Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
@@ -213,7 +170,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_ = b.Connect()
 
 	_, err := b.Subscribe(testTopic,
-		registerHygrothermographRawHandler(),
+		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
 		broker.WithSubscribeContext(ctx),
 	)
@@ -241,7 +198,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		t.Skip()
 	}
 
-	var msg Hygrothermograph
+	var msg api.Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
@@ -275,9 +232,9 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	_ = b.Connect()
 
 	_, err := b.Subscribe(testTopic,
-		registerHygrothermographJsonHandler(),
+		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		func() broker.Any {
-			return &Hygrothermograph{}
+			return &api.Hygrothermograph{}
 		},
 		broker.WithSubscribeContext(ctx),
 	)

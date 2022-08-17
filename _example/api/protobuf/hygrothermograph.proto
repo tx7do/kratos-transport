@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package protobuf.api;
+
+option go_package = "kratos-transport/api/protobuf;api";
+
+message Hygrothermograph {
+  string Humidity = 1 [json_name = "humidity"];
+  string Temperature = 2 [json_name = "temperature"];
+}
