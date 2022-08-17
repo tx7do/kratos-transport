@@ -3,6 +3,10 @@ package rabbitmq
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"time"
 
@@ -26,26 +30,26 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	}
 }
 
-func (r *rabbitBroker) Name() string {
+func (b *rabbitBroker) Name() string {
 	return "rabbitmq"
 }
 
-func (r *rabbitBroker) Options() broker.Options {
-	return r.opts
+func (b *rabbitBroker) Options() broker.Options {
+	return b.opts
 }
 
-func (r *rabbitBroker) Address() string {
-	if len(r.opts.Addrs) > 0 {
-		return r.opts.Addrs[0]
+func (b *rabbitBroker) Address() string {
+	if len(b.opts.Addrs) > 0 {
+		return b.opts.Addrs[0]
 	}
 	return ""
 }
 
-func (r *rabbitBroker) Init(opts ...broker.Option) error {
-	r.opts.Apply(opts...)
+func (b *rabbitBroker) Init(opts ...broker.Option) error {
+	b.opts.Apply(opts...)
 
 	var addrs []string
-	for _, addr := range r.opts.Addrs {
+	for _, addr := range b.opts.Addrs {
 		if len(addr) == 0 {
 			continue
 		}
@@ -57,47 +61,47 @@ func (r *rabbitBroker) Init(opts ...broker.Option) error {
 	if len(addrs) == 0 {
 		addrs = []string{DefaultRabbitURL}
 	}
-	r.opts.Addrs = addrs
+	b.opts.Addrs = addrs
 
 	return nil
 }
 
-func (r *rabbitBroker) Connect() error {
-	if r.conn == nil {
-		r.conn = newRabbitMQConnection(r.opts)
+func (b *rabbitBroker) Connect() error {
+	if b.conn == nil {
+		b.conn = newRabbitMQConnection(b.opts)
 	}
 
 	conf := DefaultAmqpConfig
 
-	if auth, ok := r.opts.Context.Value(externalAuthKey{}).(ExternalAuthentication); ok {
+	if auth, ok := b.opts.Context.Value(externalAuthKey{}).(ExternalAuthentication); ok {
 		conf.SASL = []amqp.Authentication{&auth}
 	}
 
-	conf.TLSClientConfig = r.opts.TLSConfig
+	conf.TLSClientConfig = b.opts.TLSConfig
 
-	return r.conn.Connect(r.opts.Secure, &conf)
+	return b.conn.Connect(b.opts.Secure, &conf)
 }
 
-func (r *rabbitBroker) Disconnect() error {
-	if r.conn == nil {
+func (b *rabbitBroker) Disconnect() error {
+	if b.conn == nil {
 		return errors.New("connection is nil")
 	}
-	ret := r.conn.Close()
-	r.wg.Wait()
+	ret := b.conn.Close()
+	b.wg.Wait()
 	return ret
 }
 
-func (r *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(r.opts.Codec, msg)
+func (b *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.opts.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return r.publish(routingKey, buf, opts...)
+	return b.publish(routingKey, buf, opts...)
 }
 
-func (r *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.PublishOption) error {
-	if r.conn == nil {
+func (b *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.PublishOption) error {
+	if b.conn == nil {
 		return errors.New("connection is nil")
 	}
 
@@ -171,16 +175,22 @@ func (r *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.Pub
 		if val.Durable {
 			val.AutoDelete = false
 		}
-		if err := r.conn.DeclarePublishQueue(val.Queue, routingKey, val.BindArguments, val.QueueArguments, val.Durable, val.AutoDelete); err != nil {
+		if err := b.conn.DeclarePublishQueue(val.Queue, routingKey, val.BindArguments, val.QueueArguments, val.Durable, val.AutoDelete); err != nil {
 			return err
 		}
 	}
 
-	return r.conn.Publish(r.conn.exchange.Name, routingKey, msg)
+	span := b.startProducerSpan(routingKey, &msg)
+
+	err := b.conn.Publish(b.conn.exchange.Name, routingKey, msg)
+
+	b.finishProducerSpan(span, routingKey, err)
+
+	return nil
 }
 
-func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	if r.conn == nil {
+func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	if b.conn == nil {
 		return nil, errors.New("not connected")
 	}
 
@@ -209,30 +219,34 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			Body:    nil,
 		}
 
+		span := b.startConsumerSpan(options.Queue, &msg)
+
 		p := &publication{d: msg, m: m, t: msg.RoutingKey}
 
 		if binder != nil {
 			m.Body = binder()
 		}
 
-		if err := broker.Unmarshal(r.opts.Codec, msg.Body, m.Body); err != nil {
+		if err := broker.Unmarshal(b.opts.Codec, msg.Body, m.Body); err != nil {
 			p.err = err
-			r.opts.Logger.Error(err)
+			b.opts.Logger.Error(err)
 		}
 
-		p.err = handler(r.opts.Context, p)
+		p.err = handler(b.opts.Context, p)
 		if p.err == nil && ackSuccess && !options.AutoAck {
 			_ = msg.Ack(false)
 		} else if p.err != nil && !options.AutoAck {
 			_ = msg.Nack(false, requeueOnError)
 		}
+
+		b.finishConsumerSpan(span)
 	}
 
 	sub := &subscriber{
 		topic:        routingKey,
 		opts:         options,
 		mayRun:       true,
-		r:            r,
+		r:            b,
 		durableQueue: true,
 		autoDelete:   false,
 		fn:           fn,
@@ -261,4 +275,79 @@ func (r *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	go sub.resubscribe()
 
 	return sub, nil
+}
+
+func (b *rabbitBroker) startProducerSpan(routingKey string, msg *amqp.Publishing) trace.Span {
+	if b.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewProducerMessageCarrier(msg)
+	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("rabbitmq"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(routingKey),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindProducer),
+	}
+	ctx, span := b.opts.Tracer.Tracer.Start(ctx, "rabbitmq.produce", opts...)
+
+	b.opts.Tracer.Propagators.Inject(ctx, carrier)
+
+	return span
+}
+
+func (b *rabbitBroker) finishProducerSpan(span trace.Span, routingKey string, err error) {
+	if span == nil {
+		return
+	}
+
+	span.SetAttributes(
+		semConv.MessagingRabbitmqRoutingKeyKey.String(routingKey),
+	)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	span.End()
+}
+
+func (b *rabbitBroker) startConsumerSpan(queueName string, msg *amqp.Delivery) trace.Span {
+	if b.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewConsumerMessageCarrier(msg)
+	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("rabbitmq"),
+		semConv.MessagingDestinationKindQueue,
+		semConv.MessagingDestinationKey.String(queueName),
+		semConv.MessagingOperationReceive,
+		semConv.MessagingMessageIDKey.String(msg.MessageId),
+		semConv.MessagingRabbitmqRoutingKeyKey.String(msg.RoutingKey),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindConsumer),
+	}
+
+	newCtx, span := b.opts.Tracer.Tracer.Start(ctx, "rabbitmq.consume", opts...)
+
+	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
+
+	return span
+}
+
+func (b *rabbitBroker) finishConsumerSpan(span trace.Span) {
+	if span == nil {
+		return
+	}
+
+	span.End()
 }

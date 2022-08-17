@@ -2,11 +2,14 @@ package kafka
 
 import (
 	"crypto/tls"
-	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/tx7do/kratos-transport/broker"
+
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/log"
+
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 type ServerOption func(o *Server)
