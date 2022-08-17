@@ -23,8 +23,8 @@ const (
 	testTopic   = "test_topic"
 )
 
-func handleHygrothermograph(_ context.Context, _ string, _ broker.Headers, msg *api.Hygrothermograph) error {
-	log.Printf("Humidity: %.2f Temperature: %.2f\n", msg.Humidity, msg.Temperature)
+func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
+	log.Printf("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 
