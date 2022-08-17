@@ -4,11 +4,28 @@ import (
 	"context"
 	"crypto/tls"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
-var DefaultCodec encoding.Codec = nil
+var (
+	DefaultCodec      encoding.Codec = nil
+	DefaultTracerName                = "kratos-broker"
+)
+
+///////////////////////////////////////////////////////////////////////////////
+
+type TracingOptions struct {
+	TracerProvider trace.TracerProvider
+	Propagators    propagation.TextMapPropagator
+	Tracer         trace.Tracer
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 type Options struct {
 	Addrs []string
@@ -23,6 +40,8 @@ type Options struct {
 	Context context.Context
 
 	Logger *log.Helper
+
+	Tracer TracingOptions
 }
 
 type Option func(*Options)
@@ -107,6 +126,40 @@ func WithTLSConfig(config *tls.Config) Option {
 func WithLogger(logger *log.Helper) Option {
 	return func(o *Options) {
 		o.Logger = logger
+	}
+}
+
+func WithTracerProvider(provider trace.TracerProvider, tracerName string) Option {
+	return func(opt *Options) {
+		if provider != nil {
+			opt.Tracer.TracerProvider = provider
+		} else {
+			opt.Tracer.TracerProvider = otel.GetTracerProvider()
+		}
+
+		if opt.Tracer.Propagators == nil {
+			opt.Tracer.Propagators = otel.GetTextMapPropagator()
+		}
+
+		if len(tracerName) == 0 {
+			tracerName = DefaultTracerName
+		}
+
+		opt.Tracer.Tracer = opt.Tracer.TracerProvider.Tracer(tracerName)
+	}
+}
+
+func WithPropagators(propagators propagation.TextMapPropagator) Option {
+	return func(opt *Options) {
+		if propagators != nil {
+			opt.Tracer.Propagators = propagators
+		} else {
+			opt.Tracer.Propagators = otel.GetTextMapPropagator()
+		}
+		if opt.Tracer.TracerProvider == nil {
+			opt.Tracer.TracerProvider = otel.GetTracerProvider()
+			opt.Tracer.Tracer = opt.Tracer.TracerProvider.Tracer(DefaultTracerName)
+		}
 	}
 }
 
@@ -202,4 +255,27 @@ func WithSubscribeContext(ctx context.Context) SubscribeOption {
 	return func(o *SubscribeOptions) {
 		o.Context = ctx
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+type TracingOption func(*TracingOptions)
+
+func (o *TracingOptions) Apply(opts ...TracingOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+func NewTracingOptions(opts ...TracingOption) TracingOptions {
+	opt := TracingOptions{
+		Propagators:    otel.GetTextMapPropagator(),
+		TracerProvider: otel.GetTracerProvider(),
+	}
+
+	opt.Apply(opts...)
+
+	opt.Tracer = opt.TracerProvider.Tracer(DefaultTracerName)
+
+	return opt
 }

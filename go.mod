@@ -18,6 +18,8 @@ require (
 	github.com/segmentio/kafka-go v0.4.33
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.8.0
+	go.opentelemetry.io/otel v1.9.0
+	go.opentelemetry.io/otel/trace v1.9.0
 )
 
 require (
@@ -36,6 +38,8 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/frankban/quicktest v1.14.3 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.2.0 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogap/stack v0.0.0-20150131034635-fef68dddd4f8 // indirect
