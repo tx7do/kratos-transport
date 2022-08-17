@@ -144,9 +144,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		func() broker.Any {
-			return &api.Hygrothermograph{}
-		},
+		api.HygrothermographCreator,
 		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testGroupId),
 	)

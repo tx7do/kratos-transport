@@ -50,9 +50,7 @@ func TestSubscribe(t *testing.T) {
 
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		func() broker.Any {
-			return &api.Hygrothermograph{}
-		},
+		api.HygrothermographCreator,
 		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testGroupName),
 	)
@@ -179,9 +177,7 @@ func TestAliyunSubscribe(t *testing.T) {
 
 	_, err := b.Subscribe(topicName,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		func() broker.Any {
-			return &api.Hygrothermograph{}
-		},
+		api.HygrothermographCreator,
 		broker.WithQueueName(groupName),
 	)
 	assert.Nil(t, err)

@@ -46,7 +46,7 @@ func TestServer(t *testing.T) {
 	_ = srv.RegisterSubscriber(ctx,
 		testRouting,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		func() broker.Any { return &api.Hygrothermograph{} },
+		api.HygrothermographCreator,
 		broker.WithQueueName(testQueue),
 		rabbitmq.WithDurableQueue())
 

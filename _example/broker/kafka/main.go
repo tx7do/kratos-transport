@@ -32,18 +32,16 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := kafka.NewBroker(
-		broker.OptionContext(ctx),
-		broker.Addrs(testBrokers),
-		broker.Codec(encoding.GetCodec("json")),
+		broker.WithOptionContext(ctx),
+		broker.WithAddress(testBrokers),
+		broker.WithCodec(encoding.GetCodec("json")),
 	)
 
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographHandler(handleHygrothermograph),
-		func() broker.Any {
-			return &api.Hygrothermograph{}
-		},
-		broker.SubscribeContext(ctx),
-		broker.Queue(testGroupId),
+		api.HygrothermographCreator,
+		broker.WithSubscribeContext(ctx),
+		broker.WithQueueName(testGroupId),
 	)
 	if err != nil {
 		fmt.Println(err)

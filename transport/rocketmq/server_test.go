@@ -45,9 +45,8 @@ func TestServer(t *testing.T) {
 
 	err := srv.RegisterSubscriber(ctx, testTopic, testGroupName,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		func() broker.Any {
-			return &api.Hygrothermograph{}
-		})
+		api.HygrothermographCreator,
+	)
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {
@@ -126,9 +125,8 @@ func TestAliyunServer(t *testing.T) {
 
 	err := srv.RegisterSubscriber(ctx, topicName, groupName,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		func() broker.Any {
-			return &api.Hygrothermograph{}
-		})
+		api.HygrothermographCreator,
+	)
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {

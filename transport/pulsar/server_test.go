@@ -41,9 +41,8 @@ func TestServer(t *testing.T) {
 
 	_ = srv.RegisterSubscriber(ctx, testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		func() broker.Any {
-			return &api.Hygrothermograph{}
-		})
+		api.HygrothermographCreator,
+	)
 
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
