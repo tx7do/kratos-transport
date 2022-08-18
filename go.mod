@@ -7,7 +7,7 @@ require (
 	github.com/apache/pulsar-client-go v0.8.1
 	github.com/apache/rocketmq-client-go/v2 v2.1.1
 	github.com/eclipse/paho.mqtt.golang v1.4.1
-	github.com/go-kratos/kratos/v2 v2.4.1
+	github.com/go-kratos/kratos/v2 v2.5.0
 	github.com/go-stomp/stomp/v3 v3.0.5
 	github.com/gogap/errors v0.0.0-20210818113853-edfbba0ddea9
 	github.com/gomodule/redigo v1.8.9
