@@ -66,7 +66,7 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
-	s.endpoint, s.err = url.Parse(s.address)
+	s.endpoint, s.err = url.Parse("tcp://" + s.address)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

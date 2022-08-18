@@ -2,13 +2,14 @@ package thrift
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
 
-	api "github.com/tx7do/kratos-transport/_example/api/thrift/gen-go"
+	"github.com/tx7do/kratos-transport/_example/api/thrift/gen-go/api"
 )
 
 type HygrothermographHandler struct {
@@ -19,9 +20,14 @@ func NewHygrothermographHandler() *HygrothermographHandler {
 }
 
 func (p *HygrothermographHandler) GetHygrothermograph(ctx context.Context) (_r *api.Hygrothermograph, _err error) {
-	_r.Humidity = float64(rand.Intn(100))
-	_r.Temperature = float64(rand.Intn(100))
-	return _r, nil
+	var Humidity = float64(rand.Intn(100))
+	var Temperature = float64(rand.Intn(100))
+	_r = &api.Hygrothermograph{
+		Humidity:    &Humidity,
+		Temperature: &Temperature,
+	}
+	fmt.Println("Humidity:", Humidity, "Temperature:", Temperature)
+	return
 }
 
 func TestServer(t *testing.T) {
@@ -31,7 +37,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithAddress(":8800"),
+		WithAddress(":7700"),
 		WithProcessor(api.NewHygrothermographServiceProcessor(NewHygrothermographHandler())),
 	)
 

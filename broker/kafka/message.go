@@ -17,7 +17,7 @@ func NewMessageCarrier(msg *kafkaGo.Message) MessageCarrier {
 
 func (c MessageCarrier) Get(key string) string {
 	for _, h := range c.msg.Headers {
-		if string(h.Key) == key {
+		if h.Key == key {
 			return string(h.Value)
 		}
 	}
@@ -26,7 +26,7 @@ func (c MessageCarrier) Get(key string) string {
 
 func (c MessageCarrier) Set(key, val string) {
 	for i := 0; i < len(c.msg.Headers); i++ {
-		if string(c.msg.Headers[i].Key) == key {
+		if c.msg.Headers[i].Key == key {
 			c.msg.Headers = append(c.msg.Headers[:i], c.msg.Headers[i+1:]...)
 			i--
 		}
@@ -40,7 +40,7 @@ func (c MessageCarrier) Set(key, val string) {
 func (c MessageCarrier) Keys() []string {
 	out := make([]string, len(c.msg.Headers))
 	for i, h := range c.msg.Headers {
-		out[i] = string(h.Key)
+		out[i] = h.Key
 	}
 	return out
 }

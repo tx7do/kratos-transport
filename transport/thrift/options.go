@@ -58,6 +58,13 @@ func WithDiscovery(d registry.Discovery) ClientOption {
 	}
 }
 
+// WithEndpoint with client endpoint.
+func WithEndpoint(endpoint string) ClientOption {
+	return func(o *clientOptions) {
+		o.endpoint = endpoint
+	}
+}
+
 // WithClientTLSConfig with tls config.
 func WithClientTLSConfig(c *tls.Config) ClientOption {
 	return func(o *clientOptions) {

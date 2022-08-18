@@ -3,6 +3,7 @@ package thrift
 import (
 	"crypto/tls"
 	"github.com/apache/thrift/lib/go/thrift"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 )
 
@@ -12,7 +13,7 @@ type clientOptions struct {
 	discovery registry.Discovery
 	tlsConf   *tls.Config
 
-	address string
+	endpoint string
 
 	protocol string
 
@@ -23,11 +24,25 @@ type clientOptions struct {
 	secure bool
 }
 
-func Dial(opts ...ClientOption) (*thrift.TStandardClient, error) {
+type Connection struct {
+	Client    *thrift.TStandardClient
+	Transport thrift.TTransport
+}
+
+func (c *Connection) Close() {
+	if c.Transport != nil {
+		err := c.Transport.Close()
+		if err != nil {
+			log.Error("failed to close transport: %v", err)
+		}
+	}
+}
+
+func Dial(opts ...ClientOption) (*Connection, error) {
 	return dial(opts...)
 }
 
-func dial(opts ...ClientOption) (*thrift.TStandardClient, error) {
+func dial(opts ...ClientOption) (*Connection, error) {
 	cli := &clientOptions{
 		bufferSize: 8192,
 		buffered:   false,
@@ -56,7 +71,7 @@ func dial(opts ...ClientOption) (*thrift.TStandardClient, error) {
 		return nil, ErrInvalidTransport
 	}
 
-	clientTransport, err := createClientTransport(transportFactory, cli.address, cli.secure, cfg)
+	clientTransport, err := createClientTransport(transportFactory, cli.endpoint, cli.secure, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -64,5 +79,8 @@ func dial(opts ...ClientOption) (*thrift.TStandardClient, error) {
 	iProto := protocolFactory.GetProtocol(clientTransport)
 	oProto := protocolFactory.GetProtocol(clientTransport)
 
-	return thrift.NewTStandardClient(iProto, oProto), nil
+	return &Connection{
+		Client:    thrift.NewTStandardClient(iProto, oProto),
+		Transport: clientTransport,
+	}, nil
 }
