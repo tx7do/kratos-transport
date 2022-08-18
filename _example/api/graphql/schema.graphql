@@ -1,0 +1,9 @@
+
+type Hygrothermograph {
+    humidity: String!
+    temperature: String!
+}
+
+type Query {
+    hygrothermographs: [Hygrothermograph!]!
+}
