@@ -3,14 +3,17 @@ package graphql
 import (
 	"context"
 	"crypto/tls"
-	"errors"
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/gorilla/mux"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/99designs/gqlgen/graphql"
+
+	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 )
@@ -22,20 +25,21 @@ var (
 
 type Server struct {
 	*http.Server
+	es graphql.ExecutableSchema
 
 	lis      net.Listener
 	tlsConf  *tls.Config
 	endpoint *url.URL
+	router   *mux.Router
+
+	network string
+	address string
 
 	strictSlash bool
-	network     string
-	address     string
 	timeout     time.Duration
-	path        string
 
-	err   error
-	log   *log.Helper
-	Codec encoding.Codec
+	err error
+	log *log.Helper
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -49,7 +53,7 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.init(opts...)
 
-	srv.err = srv.listen()
+	srv.err = srv.listenAndEndpoint()
 
 	return srv
 }
@@ -58,17 +62,27 @@ func (s *Server) Name() string {
 	return "graphql"
 }
 
+func (s *Server) Handle(path string, es graphql.ExecutableSchema) {
+	s.router.Handle(path, handler.NewDefaultServer(es))
+}
+
 func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
 
+	s.router = mux.NewRouter().StrictSlash(s.strictSlash)
+	s.router.NotFoundHandler = http.DefaultServeMux
+	s.router.MethodNotAllowedHandler = http.DefaultServeMux
+	//srv.router.Use(srv.filter())
+
 	s.Server = &http.Server{
 		TLSConfig: s.tlsConf,
+		Handler:   s.router,
 	}
 }
 
-func (s *Server) listen() error {
+func (s *Server) listenAndEndpoint() error {
 	if s.lis == nil {
 		lis, err := net.Listen(s.network, s.address)
 		if err != nil {
@@ -110,10 +124,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	s.log.Infof("server listening on: %s", s.lis.Addr().String())
-
-	go s.run()
-
+	log.Infof("server listening on: %s", s.lis.Addr().String())
 	var err error
 	if s.tlsConf != nil {
 		err = s.ServeTLS(s.lis, "", "")
@@ -129,7 +140,4 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	s.log.Info("server stopping")
 	return s.Shutdown(ctx)
-}
-
-func (s *Server) run() {
 }

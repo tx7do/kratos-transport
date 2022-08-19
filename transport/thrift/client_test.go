@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/tx7do/kratos-transport/_example/api/thrift/gen-go/api"
 	"testing"
-	"time"
 )
 
 func TestClient(t *testing.T) {
@@ -24,6 +23,4 @@ func TestClient(t *testing.T) {
 		t.Errorf("failed to call: %v", err)
 	}
 	t.Log(*reply.Humidity, *reply.Temperature)
-
-	time.Sleep(time.Second)
 }

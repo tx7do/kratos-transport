@@ -15,18 +15,14 @@ var _ Transporter = &Transport{}
 
 type Transporter interface {
 	transport.Transporter
-	Request() *http.Request
-	PathTemplate() string
 }
 
-// Transport is a websocket transport.
+// Transport is a thrift transport.
 type Transport struct {
-	endpoint     string
-	operation    string
-	reqHeader    headerCarrier
-	replyHeader  headerCarrier
-	request      *http.Request
-	pathTemplate string
+	endpoint    string
+	operation   string
+	reqHeader   headerCarrier
+	replyHeader headerCarrier
 }
 
 // Kind returns the transport kind.
@@ -44,11 +40,6 @@ func (tr *Transport) Operation() string {
 	return tr.operation
 }
 
-// Request returns the HTTP request.
-func (tr *Transport) Request() *http.Request {
-	return tr.request
-}
-
 // RequestHeader returns the request header.
 func (tr *Transport) RequestHeader() transport.Header {
 	return tr.reqHeader
@@ -57,11 +48,6 @@ func (tr *Transport) RequestHeader() transport.Header {
 // ReplyHeader returns the reply header.
 func (tr *Transport) ReplyHeader() transport.Header {
 	return tr.replyHeader
-}
-
-// PathTemplate returns the http path template.
-func (tr *Transport) PathTemplate() string {
-	return tr.pathTemplate
 }
 
 // SetOperation sets the transport operation.

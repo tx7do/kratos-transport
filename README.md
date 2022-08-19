@@ -14,6 +14,8 @@
 - [WebSocket](https://zh.wikipedia.org/zh-hant/WebSocket)
 - [STOMP](https://stomp.github.io/)
 - [AMQP](https://www.amqp.org/)
+- [Thrift](https://thrift.apache.org/)
+- [GraphQL](https://graphql.org/)
 
 ## 支持的队列
 

@@ -3,6 +3,6 @@
 package graphql
 
 type Hygrothermograph struct {
-	Humidity    string `json:"humidity"`
-	Temperature string `json:"temperature"`
+	Humidity    float64 `json:"humidity"`
+	Temperature float64 `json:"temperature"`
 }

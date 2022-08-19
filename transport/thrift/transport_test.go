@@ -3,7 +3,6 @@ package thrift
 import (
 	"context"
 	"github.com/go-kratos/kratos/v2/transport"
-	"net/http"
 	"reflect"
 	"sort"
 	"testing"
@@ -32,14 +31,6 @@ func TestTransport_Operation(t *testing.T) {
 	}
 }
 
-func TestTransport_Request(t *testing.T) {
-	v := &http.Request{}
-	o := &Transport{request: v}
-	if !reflect.DeepEqual(v, o.Request()) {
-		t.Errorf("expect %v, got %v", v, o.Request())
-	}
-}
-
 func TestTransport_RequestHeader(t *testing.T) {
 	v := headerCarrier{}
 	v.Set("a", "1")
@@ -55,14 +46,6 @@ func TestTransport_ReplyHeader(t *testing.T) {
 	o := &Transport{replyHeader: v}
 	if !reflect.DeepEqual("1", o.ReplyHeader().Get("a")) {
 		t.Errorf("expect %v, got %v", "1", o.ReplyHeader().Get("a"))
-	}
-}
-
-func TestTransport_PathTemplate(t *testing.T) {
-	v := "template"
-	o := &Transport{pathTemplate: v}
-	if !reflect.DeepEqual(v, o.PathTemplate()) {
-		t.Errorf("expect %v, got %v", v, o.PathTemplate())
 	}
 }
 

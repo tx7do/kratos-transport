@@ -2,12 +2,32 @@ package graphql
 
 import (
 	"context"
-	"github.com/go-kratos/kratos/v2/encoding"
+	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
+
+	api "github.com/tx7do/kratos-transport/_example/api/graphql"
 )
+
+type resolver struct{}
+
+func (r *resolver) Query() api.QueryResolver {
+	return &queryResolver{}
+}
+
+type queryResolver struct{}
+
+func (r *queryResolver) Hygrothermograph(ctx context.Context) (*api.Hygrothermograph, error) {
+	ret := &api.Hygrothermograph{
+		Humidity:    float64(rand.Intn(100)),
+		Temperature: float64(rand.Intn(100)),
+	}
+	fmt.Println("Humidity:", ret.Humidity, "Temperature:", ret.Temperature)
+	return ret, nil
+}
 
 func TestServer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
@@ -17,8 +37,9 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(":8800"),
-		WithCodec(encoding.GetCodec("json")),
 	)
+
+	srv.Handle("/query", api.NewExecutableSchema(api.Config{Resolvers: &resolver{}}))
 
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
