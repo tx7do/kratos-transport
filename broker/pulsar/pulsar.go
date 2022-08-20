@@ -3,6 +3,11 @@ package pulsar
 import (
 	"context"
 	"errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
+	"strconv"
 	"sync"
 	"time"
 
@@ -212,6 +217,8 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 
 	pulsarMsg := pulsar.ProducerMessage{Payload: msg}
 
+	span := pb.startProducerSpan(topic, &pulsarMsg)
+
 	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]string); ok {
 		pulsarMsg.Properties = headers
 	}
@@ -240,7 +247,9 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 		pulsarMsg.DisableReplication = v
 	}
 
-	_, err := producer.Send(pb.opts.Context, &pulsarMsg)
+	var err error
+	var messageId pulsar.MessageID
+	messageId, err = producer.Send(pb.opts.Context, &pulsarMsg)
 	if err != nil {
 		log.Errorf("[pulsar]: send message error: %s\n", err)
 		switch cached {
@@ -254,7 +263,7 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 			producer, err = pb.client.CreateProducer(pulsarOptions)
 			if err != nil {
 				pb.Unlock()
-				return err
+				break
 			}
 			if _, err = producer.Send(pb.opts.Context, &pulsarMsg); err == nil {
 				pb.Lock()
@@ -264,7 +273,14 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 		}
 	}
 
-	return nil
+	var msgId string
+	if messageId != nil {
+		msgId = strconv.FormatInt(messageId.EntryID(), 10)
+	}
+
+	pb.finishProducerSpan(span, msgId, err)
+
+	return err
 }
 
 func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
@@ -331,6 +347,8 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			p := &publication{topic: cm.Topic(), reader: sub.reader, msg: &m, pulsarMsg: &cm.Message, ctx: options.Context}
 			m.Headers = cm.Properties()
 
+			span := pb.startConsumerSpan(&cm)
+
 			if binder != nil {
 				m.Body = binder()
 			}
@@ -350,8 +368,83 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 					log.Errorf("[pulsar]: unable to commit msg: %v", err)
 				}
 			}
+
+			pb.finishConsumerSpan(span)
 		}
 	}()
 
 	return sub, nil
+}
+
+func (pb *pulsarBroker) startProducerSpan(topic string, msg *pulsar.ProducerMessage) trace.Span {
+	if pb.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewProducerMessageCarrier(msg)
+	ctx := pb.opts.Tracer.Propagators.Extract(pb.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("pulsar"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(topic),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindProducer),
+	}
+	ctx, span := pb.opts.Tracer.Tracer.Start(ctx, "pulsar.produce", opts...)
+
+	pb.opts.Tracer.Propagators.Inject(ctx, carrier)
+
+	return span
+}
+
+func (pb *pulsarBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
+	if span == nil {
+		return
+	}
+
+	span.SetAttributes(
+		semConv.MessagingMessageIDKey.String(messageId),
+	)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	span.End()
+}
+
+func (pb *pulsarBroker) startConsumerSpan(msg *pulsar.ConsumerMessage) trace.Span {
+	if pb.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewConsumerMessageCarrier(msg)
+	ctx := pb.opts.Tracer.Propagators.Extract(pb.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("pulsar"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(msg.Topic()),
+		semConv.MessagingOperationReceive,
+		semConv.MessagingMessageIDKey.Int64(msg.ID().EntryID()),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindConsumer),
+	}
+	newCtx, span := pb.opts.Tracer.Tracer.Start(ctx, "pulsar.consume", opts...)
+
+	pb.opts.Tracer.Propagators.Inject(newCtx, carrier)
+
+	return span
+}
+
+func (pb *pulsarBroker) finishConsumerSpan(span trace.Span) {
+	if span == nil {
+		return
+	}
+
+	span.End()
 }

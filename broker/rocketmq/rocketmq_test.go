@@ -207,7 +207,7 @@ func TestSubscribe_WithTracer(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithCodec(encoding.GetCodec("json")),
-		createTracerProvider("jaeger", "publish_tracer_tester"),
+		createTracerProvider("jaeger", "subscribe_tracer_tester"),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
 	)
