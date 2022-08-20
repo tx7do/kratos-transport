@@ -16,8 +16,6 @@ var (
 	_ transport.Endpointer = (*Server)(nil)
 )
 
-var defaultLogger = log.NewHelper(log.GetLogger(), log.WithMessageKey("[thrift]"))
-
 var (
 	ErrInvalidProtocol  = errors.New("invalid protocol")
 	ErrInvalidTransport = errors.New("invalid transport")
@@ -40,12 +38,10 @@ type Server struct {
 	processor thrift.TProcessor
 
 	err error
-	log *log.Helper
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		log:        defaultLogger,
 		bufferSize: 8192,
 		buffered:   false,
 		framed:     false,
@@ -102,6 +98,8 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 
+	log.Infof("[redis] server listening on: %s", s.address)
+
 	s.Server = thrift.NewTSimpleServer4(s.processor, serverTransport, transportFactory, protocolFactory)
 	if err := s.Server.Serve(); err != nil {
 		return err
@@ -111,7 +109,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.log.Info("server stopping")
+	log.Info("[thrift] server stopping")
 
 	if s.Server != nil {
 		return s.Server.Stop()

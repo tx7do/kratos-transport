@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-kratos/kratos/v2/log"
 	NATS "github.com/nats-io/nats.go"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -227,7 +228,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if err := broker.Unmarshal(b.opts.Codec, msg.Data, m.Body); err != nil {
 			pub.err = err
-			b.opts.Logger.Error(err)
+			log.Error(err)
 			if eh != nil {
 				_ = eh(b.opts.Context, pub)
 			}
@@ -236,14 +237,14 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if err := handler(b.opts.Context, pub); err != nil {
 			pub.err = err
-			b.opts.Logger.Error(err)
+			log.Error(err)
 			if eh != nil {
 				_ = eh(b.opts.Context, pub)
 			}
 		}
 		if options.AutoAck {
 			if err := pub.Ack(); err != nil {
-				b.opts.Logger.Errorf("[nats]: unable to commit msg: %v", err)
+				log.Errorf("[nats]: unable to commit msg: %v", err)
 			}
 		}
 	}

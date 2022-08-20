@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	NSQ "github.com/nsqio/go-nsq"
 	"github.com/tx7do/kratos-transport/broker"
@@ -280,7 +281,7 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		if options.AutoAck {
 			if err := p.Ack(); err != nil {
-				b.opts.Logger.Errorf("[nats]: unable to commit msg: %v", err)
+				log.Errorf("[nats]: unable to commit msg: %v", err)
 			}
 		}
 

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/streadway/amqp"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -159,15 +160,15 @@ func (r *rabbitConnection) reconnect(secure bool, config *amqp.Config) {
 				// Channel closed, probably also the channel or connection.
 				return
 			}
-			r.opts.Logger.Errorf("notify error reason: %s, description: %s", result.ReplyText, result.Exchange)
+			log.Errorf("notify error reason: %s, description: %s", result.ReplyText, result.Exchange)
 		case err := <-chanNotifyClose:
-			r.opts.Logger.Error(err)
+			log.Error(err)
 			r.Lock()
 			r.connected = false
 			r.waitConnection = make(chan struct{})
 			r.Unlock()
 		case err := <-notifyClose:
-			r.opts.Logger.Error(err)
+			log.Error(err)
 			r.Lock()
 			r.connected = false
 			r.waitConnection = make(chan struct{})

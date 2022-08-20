@@ -2,7 +2,6 @@ package graphql
 
 import (
 	"crypto/tls"
-	"github.com/go-kratos/kratos/v2/log"
 	"net"
 	"time"
 )
@@ -24,12 +23,6 @@ func WithAddress(addr string) ServerOption {
 func WithTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
 		s.timeout = timeout
-	}
-}
-
-func WithLogger(logger log.Logger) ServerOption {
-	return func(s *Server) {
-		s.log = log.NewHelper(logger, log.WithMessageKey("graphql"))
 	}
 }
 

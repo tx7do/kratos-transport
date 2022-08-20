@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-stomp/stomp/v3"
 	"github.com/go-stomp/stomp/v3/frame"
 	"github.com/tx7do/kratos-transport/broker"
@@ -93,7 +94,7 @@ func (b *stompBroker) Connect() error {
 		}
 	}
 	if host, ok := VirtualHostFromContext(b.Options().Context); ok && host != "" {
-		b.opts.Logger.Infof("Adding host: %s", host)
+		log.Infof("Adding host: %s", host)
 		stompOpts = append(stompOpts, stomp.ConnOpt.Host(host))
 	}
 
@@ -225,7 +226,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if err := broker.Unmarshal(b.opts.Codec, msg.Body, m.Body); err != nil {
 					p.err = err
-					b.opts.Logger.Error(err)
+					log.Error(err)
 				}
 
 				p.err = handler(b.opts.Context, p)

@@ -9,6 +9,8 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
+
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -185,13 +187,13 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 		producer.WithGroupName(r.groupName),
 	)
 	if err != nil {
-		r.opts.Logger.Errorf("[rocketmq]: new producer error: " + err.Error())
+		log.Errorf("[rocketmq]: new producer error: " + err.Error())
 		return nil, err
 	}
 
 	err = p.Start()
 	if err != nil {
-		r.opts.Logger.Errorf("[rocketmq]: start producer error: %s", err.Error())
+		log.Errorf("[rocketmq]: start producer error: %s", err.Error())
 		return nil, err
 	}
 
@@ -295,7 +297,7 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 
 	_, err := p.SendSync(r.opts.Context, rMsg)
 	if err != nil {
-		r.opts.Logger.Errorf("[rocketmq]: send message error: %s\n", err)
+		log.Errorf("[rocketmq]: send message error: %s\n", err)
 		switch cached {
 		case false:
 		case true:
@@ -362,28 +364,28 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 				if err := broker.Unmarshal(r.opts.Codec, msg.Body, m.Body); err != nil {
 					p.err = err
-					r.opts.Logger.Error(err)
+					log.Error(err)
 				}
 
 				err = sub.handler(sub.opts.Context, p)
 				if err != nil {
-					r.opts.Logger.Errorf("[rocketmq]: process message failed: %v", err)
+					log.Errorf("[rocketmq]: process message failed: %v", err)
 				}
 				if sub.opts.AutoAck {
 					if err = p.Ack(); err != nil {
-						r.opts.Logger.Errorf("[rocketmq]: unable to commit msg: %v", err)
+						log.Errorf("[rocketmq]: unable to commit msg: %v", err)
 					}
 				}
 			}
 
 			return consumer.ConsumeSuccess, nil
 		}); err != nil {
-		r.opts.Logger.Errorf(err.Error())
+		log.Errorf(err.Error())
 		return nil, err
 	}
 
 	if err := c.Start(); err != nil {
-		r.opts.Logger.Errorf(err.Error())
+		log.Errorf(err.Error())
 		return nil, err
 	}
 

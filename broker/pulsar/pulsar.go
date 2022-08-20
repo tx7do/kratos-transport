@@ -3,12 +3,13 @@ package pulsar
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	"github.com/tx7do/kratos-transport/broker"
-	"sync"
-	"time"
 )
 
 const (
@@ -241,7 +242,7 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 
 	_, err := producer.Send(pb.opts.Context, &pulsarMsg)
 	if err != nil {
-		pb.opts.Logger.Errorf("[pulsar]: send message error: %s\n", err)
+		log.Errorf("[pulsar]: send message error: %s\n", err)
 		switch cached {
 		case false:
 		case true:
@@ -336,17 +337,17 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 
 			if err := broker.Unmarshal(pb.opts.Codec, cm.Payload(), m.Body); err != nil {
 				p.err = err
-				pb.opts.Logger.Error(err)
+				log.Error(err)
 				continue
 			}
 
 			err = sub.handler(sub.opts.Context, p)
 			if err != nil {
-				pb.opts.Logger.Errorf("[pulsar]: process message failed: %v", err)
+				log.Errorf("[pulsar]: process message failed: %v", err)
 			}
 			if sub.opts.AutoAck {
 				if err = p.Ack(); err != nil {
-					pb.opts.Logger.Errorf("[pulsar]: unable to commit msg: %v", err)
+					log.Errorf("[pulsar]: unable to commit msg: %v", err)
 				}
 			}
 		}

@@ -3,15 +3,16 @@ package rabbitmq
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
+	"github.com/go-kratos/kratos/v2/log"
+	"github.com/streadway/amqp"
+	"github.com/tx7do/kratos-transport/broker"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
-	"sync"
-	"time"
-
-	"github.com/streadway/amqp"
-	"github.com/tx7do/kratos-transport/broker"
 )
 
 type rabbitBroker struct {
@@ -229,7 +230,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 
 		if err := broker.Unmarshal(b.opts.Codec, msg.Body, m.Body); err != nil {
 			p.err = err
-			b.opts.Logger.Error(err)
+			log.Error(err)
 		}
 
 		p.err = handler(b.opts.Context, p)

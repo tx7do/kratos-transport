@@ -27,7 +27,7 @@ type SubscribeOptionMap map[string]*SubscribeOption
 
 type Server struct {
 	broker.Broker
-	bOpts []broker.Option
+	brokerOpts []broker.Option
 
 	subscribers    SubscriberMap
 	subscriberOpts SubscribeOptionMap
@@ -46,13 +46,13 @@ func NewServer(opts ...ServerOption) *Server {
 		log:            log.NewHelper(log.GetLogger(), log.WithMessageKey("[rocketmq]")),
 		subscribers:    SubscriberMap{},
 		subscriberOpts: SubscribeOptionMap{},
-		bOpts:          []broker.Option{},
+		brokerOpts:     []broker.Option{},
 		started:        false,
 	}
 
 	srv.init(opts...)
 
-	srv.Broker = rocketmq.NewBroker(srv.bOpts...)
+	srv.Broker = rocketmq.NewBroker(srv.brokerOpts...)
 
 	return srv
 }

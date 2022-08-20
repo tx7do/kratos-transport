@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 )
 
 var (
@@ -39,8 +38,6 @@ type Options struct {
 
 	Context context.Context
 
-	Logger *log.Helper
-
 	Tracer TracingOptions
 }
 
@@ -63,8 +60,6 @@ func NewOptions() Options {
 		TLSConfig: nil,
 
 		Context: context.Background(),
-
-		Logger: log.NewHelper(log.GetLogger()),
 	}
 
 	return opt
@@ -120,12 +115,6 @@ func WithEnableSecure(enable bool) Option {
 func WithTLSConfig(config *tls.Config) Option {
 	return func(o *Options) {
 		o.TLSConfig = config
-	}
-}
-
-func WithLogger(logger *log.Helper) Option {
-	return func(o *Options) {
-		o.Logger = logger
 	}
 }
 

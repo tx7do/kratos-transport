@@ -28,7 +28,7 @@ type SubscribeOptionMap map[string]*SubscribeOption
 
 type Server struct {
 	broker.Broker
-	bOpts []broker.Option
+	brokerOpts []broker.Option
 
 	subscribers    SubscriberMap
 	subscriberOpts SubscribeOptionMap
@@ -36,7 +36,6 @@ type Server struct {
 	sync.RWMutex
 	started bool
 
-	log     *log.Helper
 	baseCtx context.Context
 	err     error
 }
@@ -47,16 +46,15 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv := &Server{
 		baseCtx:        context.Background(),
-		log:            log.NewHelper(log.GetLogger(), log.WithMessageKey("[redis]")),
 		subscribers:    SubscriberMap{},
 		subscriberOpts: SubscribeOptionMap{},
-		bOpts:          []broker.Option{},
+		brokerOpts:     []broker.Option{},
 		started:        false,
 	}
 
 	srv.init(opts...)
 
-	srv.Broker = redis.NewBroker(srv.bOpts...)
+	srv.Broker = redis.NewBroker(srv.brokerOpts...)
 
 	return srv
 }
@@ -100,7 +98,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	s.log.Infof("[redis] server listening on: %s", s.Address())
+	log.Infof("[redis] server listening on: %s", s.Address())
 
 	s.err = s.doRegisterSubscriberMap()
 	if s.err != nil {
@@ -114,7 +112,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	s.log.Info("[redis] server stopping")
+	log.Info("[redis] server stopping")
 	s.started = false
 	return s.Disconnect()
 }

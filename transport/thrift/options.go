@@ -3,7 +3,6 @@ package thrift
 import (
 	"crypto/tls"
 	"github.com/apache/thrift/lib/go/thrift"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/registry"
 )
 
@@ -12,12 +11,6 @@ type ServerOption func(o *Server)
 func WithAddress(addr string) ServerOption {
 	return func(s *Server) {
 		s.address = addr
-	}
-}
-
-func WithLogger(logger log.Logger) ServerOption {
-	return func(s *Server) {
-		s.log = log.NewHelper(logger, log.WithMessageKey("[thrift]"))
 	}
 }
 

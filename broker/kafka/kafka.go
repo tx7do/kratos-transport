@@ -14,6 +14,7 @@ import (
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	kafkaGo "github.com/segmentio/kafka-go"
 	"github.com/tx7do/kratos-transport/broker"
@@ -478,11 +479,11 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				err = sub.handler(sub.opts.Context, p)
 				if err != nil {
-					b.opts.Logger.Errorf("[kafka]: process message failed: %v", err)
+					log.Errorf("[kafka]: process message failed: %v", err)
 				}
 				if sub.opts.AutoAck {
 					if err = p.Ack(); err != nil {
-						b.opts.Logger.Errorf("[kafka]: unable to commit msg: %v", err)
+						log.Errorf("[kafka]: unable to commit msg: %v", err)
 					}
 				}
 

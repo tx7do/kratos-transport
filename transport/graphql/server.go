@@ -3,8 +3,6 @@ package graphql
 import (
 	"context"
 	"crypto/tls"
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/gorilla/mux"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,6 +10,9 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/99designs/gqlgen/graphql/handler"
+
+	"github.com/gorilla/mux"
 
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
@@ -39,7 +40,6 @@ type Server struct {
 	timeout     time.Duration
 
 	err error
-	log *log.Helper
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -48,7 +48,6 @@ func NewServer(opts ...ServerOption) *Server {
 		address:     ":0",
 		timeout:     1 * time.Second,
 		strictSlash: true,
-		log:         log.NewHelper(log.GetLogger(), log.WithMessageKey("[graphql]")),
 	}
 
 	srv.init(opts...)
@@ -138,6 +137,6 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.log.Info("server stopping")
+	log.Info("[graphql] server stopping")
 	return s.Shutdown(ctx)
 }
