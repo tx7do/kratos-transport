@@ -183,7 +183,7 @@ func createTracerProvider(exporterName, serviceName string) broker.Option {
 			"1.0.0",
 			1.0,
 		),
-			"rabbitmq",
+			"rabbitmq-tracer",
 		)
 	case "zipkin":
 		return broker.WithTracerProvider(broker.NewTracerProvider(exporterName,
@@ -193,7 +193,7 @@ func createTracerProvider(exporterName, serviceName string) broker.Option {
 			"1.0.0",
 			1.0,
 		),
-			"rabbitmq",
+			"rabbitmq-tracer",
 		)
 	}
 
