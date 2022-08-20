@@ -27,11 +27,13 @@ type rocketmqBroker struct {
 	nameServers   []string
 	nameServerUrl string
 
-	accessKey    string
-	secretKey    string
+	accessKey string
+	secretKey string
+
+	retryCount int
+
 	instanceName string
 	groupName    string
-	retryCount   int
 	namespace    string
 
 	enableTrace bool
@@ -165,32 +167,53 @@ func (r *rocketmqBroker) createNsResolver() primitive.NsResolver {
 }
 
 func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
-	credentials := primitive.Credentials{
-		AccessKey: r.accessKey,
-		SecretKey: r.secretKey,
+
+	var credentials primitive.Credentials
+	if r.accessKey == "" || r.secretKey == "" {
+		credentials = primitive.Credentials{
+			AccessKey: r.accessKey,
+			SecretKey: r.secretKey,
+		}
 	}
 
 	resolver := r.createNsResolver()
 
+	var opts []producer.Option
+
 	var traceCfg *primitive.TraceConfig = nil
 	if r.enableTrace {
 		traceCfg = &primitive.TraceConfig{
-			GroupName:   r.groupName,
-			Credentials: credentials,
-			Access:      primitive.Cloud,
-			Resolver:    resolver,
+			Access:   primitive.Cloud,
+			Resolver: resolver,
 		}
+
+		if r.groupName == "" {
+			traceCfg.GroupName = "DEFAULT"
+		} else {
+			traceCfg.GroupName = r.groupName
+		}
+
+		if credentials.AccessKey != "" && credentials.SecretKey != "" {
+			traceCfg.Credentials = credentials
+		}
+
+		opts = append(opts, producer.WithTrace(traceCfg))
 	}
 
-	p, err := rocketmq.NewProducer(
-		producer.WithNsResolver(resolver),
-		producer.WithCredentials(credentials),
-		producer.WithTrace(traceCfg),
-		producer.WithRetry(r.retryCount),
-		producer.WithInstanceName(r.instanceName),
-		producer.WithNamespace(r.namespace),
-		producer.WithGroupName(r.groupName),
-	)
+	if credentials.AccessKey != "" && credentials.SecretKey != "" {
+		producer.WithCredentials(credentials)
+	}
+
+	opts = append(opts, producer.WithNsResolver(resolver))
+	opts = append(opts, producer.WithRetry(r.retryCount))
+	if r.instanceName != "" {
+		opts = append(opts, producer.WithInstanceName(r.instanceName))
+	}
+	if r.groupName != "" {
+		opts = append(opts, producer.WithGroupName(r.groupName))
+	}
+
+	p, err := rocketmq.NewProducer(opts...)
 	if err != nil {
 		log.Errorf("[rocketmq]: new producer error: " + err.Error())
 		return nil, err

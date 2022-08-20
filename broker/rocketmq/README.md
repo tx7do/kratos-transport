@@ -62,6 +62,6 @@ vi /home/rocketmq/rocketmq-4.9.2/conf/broker.conf
 
 添加如下配置，brokerIP1可以是ip也可以是dns，hostname：
 
-```bash
+```ini
 brokerIP1 = host.docker.internal
 ```

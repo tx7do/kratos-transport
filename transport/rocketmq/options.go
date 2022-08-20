@@ -3,6 +3,9 @@ package rocketmq
 import (
 	"crypto/tls"
 
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
@@ -78,5 +81,17 @@ func WithRetryCount(count int) ServerOption {
 func WithCodec(c encoding.Codec) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))
+	}
+}
+
+func WithTracerProvider(provider trace.TracerProvider, tracerName string) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, broker.WithTracerProvider(provider, tracerName))
+	}
+}
+
+func WithPropagators(propagators propagation.TextMapPropagator) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, broker.WithPropagators(propagators))
 	}
 }
