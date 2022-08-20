@@ -5,6 +5,11 @@ import (
 	"errors"
 	"sync"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -295,7 +300,11 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 		rMsg.WithShardingKey(v)
 	}
 
-	_, err := p.SendSync(r.opts.Context, rMsg)
+	span := r.startProducerSpan(rMsg)
+
+	var err error
+	var ret *primitive.SendResult
+	ret, err = p.SendSync(r.opts.Context, rMsg)
 	if err != nil {
 		log.Errorf("[rocketmq]: send message error: %s\n", err)
 		switch cached {
@@ -304,7 +313,7 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 			r.Lock()
 			if err = p.Shutdown(); err != nil {
 				r.Unlock()
-				return err
+				break
 			}
 			delete(r.producers, topic)
 			r.Unlock()
@@ -312,17 +321,25 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 			p, err = r.createProducer()
 			if err != nil {
 				r.Unlock()
-				return err
+				break
 			}
-			if _, err = p.SendSync(r.opts.Context, rMsg); err == nil {
+			if ret, err = p.SendSync(r.opts.Context, rMsg); err == nil {
 				r.Lock()
 				r.producers[topic] = p
 				r.Unlock()
+				break
 			}
 		}
 	}
 
-	return nil
+	var messageId string
+	if ret != nil {
+		messageId = ret.MsgID
+	}
+
+	r.finishProducerSpan(span, messageId, err)
+
+	return err
 }
 
 func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
@@ -356,6 +373,8 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 			for _, msg := range msgs {
 				p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, rm: &msg.Message, ctx: options.Context}
 
+				span := r.startConsumerSpan(msg)
+
 				m.Headers = msg.GetProperties()
 
 				if binder != nil {
@@ -376,6 +395,8 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 						log.Errorf("[rocketmq]: unable to commit msg: %v", err)
 					}
 				}
+
+				r.finishConsumerSpan(span)
 			}
 
 			return consumer.ConsumeSuccess, nil
@@ -390,4 +411,79 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 	}
 
 	return sub, nil
+}
+
+func (r *rocketmqBroker) startProducerSpan(msg *primitive.Message) trace.Span {
+	if r.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewProducerMessageCarrier(msg)
+	ctx := r.opts.Tracer.Propagators.Extract(r.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(msg.Topic),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindProducer),
+	}
+	ctx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.produce", opts...)
+
+	r.opts.Tracer.Propagators.Inject(ctx, carrier)
+
+	return span
+}
+
+func (r *rocketmqBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
+	if span == nil {
+		return
+	}
+
+	span.SetAttributes(
+		semConv.MessagingMessageIDKey.String(messageId),
+		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
+		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
+	)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	span.End()
+}
+
+func (r *rocketmqBroker) startConsumerSpan(msg *primitive.MessageExt) trace.Span {
+	if r.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewConsumerMessageCarrier(msg)
+	ctx := r.opts.Tracer.Propagators.Extract(r.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(msg.Topic),
+		semConv.MessagingOperationReceive,
+		semConv.MessagingMessageIDKey.String(msg.MsgId),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindConsumer),
+	}
+	newCtx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.consume", opts...)
+
+	r.opts.Tracer.Propagators.Inject(newCtx, carrier)
+
+	return span
+}
+
+func (r *rocketmqBroker) finishConsumerSpan(span trace.Span) {
+	if span == nil {
+		return
+	}
+
+	span.End()
 }

@@ -352,6 +352,74 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 	return err
 }
 
+func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	options := broker.SubscribeOptions{
+		Context: context.Background(),
+		AutoAck: true,
+		Queue:   uuid.New().String(),
+	}
+	for _, o := range opts {
+		o(&options)
+	}
+
+	readerConfig := b.readerConfig
+	readerConfig.Topic = topic
+	readerConfig.GroupID = options.Queue
+
+	sub := &subscriber{
+		opts:    options,
+		topic:   topic,
+		handler: handler,
+		reader:  kafkaGo.NewReader(readerConfig),
+	}
+
+	go func() {
+
+		for {
+			select {
+			case <-options.Context.Done():
+				return
+			default:
+				msg, err := sub.reader.FetchMessage(options.Context)
+				if err != nil {
+					return
+				}
+
+				span := b.startConsumerSpan(&msg)
+
+				m := &broker.Message{
+					Headers: kafkaHeaderToMap(msg.Headers),
+					Body:    nil,
+				}
+
+				p := &publication{topic: msg.Topic, reader: sub.reader, m: m, km: msg, ctx: options.Context}
+
+				if binder != nil {
+					m.Body = binder()
+				}
+
+				if err := broker.Unmarshal(b.opts.Codec, msg.Value, m.Body); err != nil {
+					p.err = err
+				}
+
+				err = sub.handler(sub.opts.Context, p)
+				if err != nil {
+					log.Errorf("[kafka]: process message failed: %v", err)
+				}
+				if sub.opts.AutoAck {
+					if err = p.Ack(); err != nil {
+						log.Errorf("[kafka]: unable to commit msg: %v", err)
+					}
+				}
+
+				b.finishConsumerSpan(span)
+			}
+		}
+	}()
+
+	return sub, nil
+}
+
 func (b *kafkaBroker) startProducerSpan(msg *kafkaGo.Message) trace.Span {
 	if b.opts.Tracer.Tracer == nil {
 		return nil
@@ -425,72 +493,4 @@ func (b *kafkaBroker) finishConsumerSpan(span trace.Span) {
 	}
 
 	span.End()
-}
-
-func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	options := broker.SubscribeOptions{
-		Context: context.Background(),
-		AutoAck: true,
-		Queue:   uuid.New().String(),
-	}
-	for _, o := range opts {
-		o(&options)
-	}
-
-	readerConfig := b.readerConfig
-	readerConfig.Topic = topic
-	readerConfig.GroupID = options.Queue
-
-	sub := &subscriber{
-		opts:    options,
-		topic:   topic,
-		handler: handler,
-		reader:  kafkaGo.NewReader(readerConfig),
-	}
-
-	go func() {
-
-		for {
-			select {
-			case <-options.Context.Done():
-				return
-			default:
-				msg, err := sub.reader.FetchMessage(options.Context)
-				if err != nil {
-					return
-				}
-
-				span := b.startConsumerSpan(&msg)
-
-				m := &broker.Message{
-					Headers: kafkaHeaderToMap(msg.Headers),
-					Body:    nil,
-				}
-
-				p := &publication{topic: msg.Topic, reader: sub.reader, m: m, km: msg, ctx: options.Context}
-
-				if binder != nil {
-					m.Body = binder()
-				}
-
-				if err := broker.Unmarshal(b.opts.Codec, msg.Value, m.Body); err != nil {
-					p.err = err
-				}
-
-				err = sub.handler(sub.opts.Context, p)
-				if err != nil {
-					log.Errorf("[kafka]: process message failed: %v", err)
-				}
-				if sub.opts.AutoAck {
-					if err = p.Ack(); err != nil {
-						log.Errorf("[kafka]: unable to commit msg: %v", err)
-					}
-				}
-
-				b.finishConsumerSpan(span)
-			}
-		}
-	}()
-
-	return sub, nil
 }

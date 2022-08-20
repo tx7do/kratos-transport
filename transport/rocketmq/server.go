@@ -2,13 +2,14 @@ package rocketmq
 
 import (
 	"context"
+	"net/url"
+	"strings"
+	"sync"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
-	"net/url"
-	"strings"
-	"sync"
 )
 
 var (
@@ -35,7 +36,6 @@ type Server struct {
 	sync.RWMutex
 	started bool
 
-	log     *log.Helper
 	baseCtx context.Context
 	err     error
 }
@@ -43,7 +43,6 @@ type Server struct {
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx:        context.Background(),
-		log:            log.NewHelper(log.GetLogger(), log.WithMessageKey("[rocketmq]")),
 		subscribers:    SubscriberMap{},
 		subscriberOpts: SubscribeOptionMap{},
 		brokerOpts:     []broker.Option{},
@@ -83,7 +82,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	s.log.Infof("[rocketmq] server listening on: %s", s.Address())
+	log.Infof("[rocketmq] server listening on: %s", s.Address())
 
 	s.err = s.doRegisterSubscriberMap()
 	if s.err != nil {
@@ -97,7 +96,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	s.log.Info("[rocketmq] server stopping")
+	log.Info("[rocketmq] server stopping")
 	s.started = false
 	return s.Disconnect()
 }

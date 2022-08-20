@@ -2,13 +2,19 @@ package rocketmq
 
 import (
 	"context"
+	"strings"
+	"sync"
+	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
+
 	aliyun "github.com/aliyunmq/mq-http-go-sdk"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gogap/errors"
 	"github.com/tx7do/kratos-transport/broker"
-	"strings"
-	"sync"
-	"time"
 )
 
 type aliyunBroker struct {
@@ -24,8 +30,6 @@ type aliyunBroker struct {
 	retryCount   int
 	namespace    string
 
-	log *log.Helper
-
 	connected bool
 	sync.RWMutex
 	opts broker.Options
@@ -38,7 +42,6 @@ func newAliyunHttpBroker(options broker.Options) broker.Broker {
 	return &aliyunBroker{
 		producers:  make(map[string]aliyun.MQProducer),
 		opts:       options,
-		log:        log.NewHelper(log.GetLogger()),
 		retryCount: 2,
 	}
 }
@@ -169,6 +172,8 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 		MessageBody: string(msg),
 	}
 
+	span := r.startProducerSpan(topic, &aMsg)
+
 	if v, ok := options.Context.Value(propertiesKey{}).(map[string]string); ok {
 		aMsg.Properties = v
 	}
@@ -190,11 +195,12 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 		aMsg.ShardingKey = v
 	}
 
-	_, err := p.PublishMessage(aMsg)
+	ret, err := p.PublishMessage(aMsg)
 	if err != nil {
-		r.log.Errorf("[rocketmq]: send message error: %s\n", err)
-		return err
+		log.Errorf("[rocketmq]: send message error: %s\n", err)
 	}
+
+	r.finishProducerSpan(span, ret.MessageId, err)
 
 	return nil
 }
@@ -242,6 +248,8 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 					var m broker.Message
 					for _, msg := range resp.Messages {
 
+						span := r.startConsumerSpan(&msg)
+
 						p := &aliyunPublication{
 							topic:  msg.Message,
 							reader: sub.reader,
@@ -258,12 +266,12 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 
 						if err := broker.Unmarshal(r.opts.Codec, []byte(msg.MessageBody), m.Body); err != nil {
 							p.err = err
-							r.log.Error(err)
+							log.Error("[rocketmq]: ", err)
 						}
 
 						err = sub.handler(sub.opts.Context, p)
 						if err != nil {
-							r.log.Errorf("[rocketmq]: process message failed: %v", err)
+							log.Errorf("[rocketmq]: process message failed: %v", err)
 						}
 
 						if sub.opts.AutoAck {
@@ -271,15 +279,17 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 								// 某些消息的句柄可能超时，会导致消息消费状态确认不成功。
 								if errAckItems, ok := err.(errors.ErrCode).Context()["Detail"].([]aliyun.ErrAckItem); ok {
 									for _, errAckItem := range errAckItems {
-										r.log.Errorf("ErrorHandle:%s, ErrorCode:%s, ErrorMsg:%s\n",
+										log.Errorf("[rocketmq]: ErrorHandle:%s, ErrorCode:%s, ErrorMsg:%s\n",
 											errAckItem.ErrorHandle, errAckItem.ErrorCode, errAckItem.ErrorMsg)
 									}
 								} else {
-									r.log.Error("ack err =", err)
+									log.Error("[rocketmq]: ack err =", err)
 								}
 								time.Sleep(time.Duration(3) * time.Second)
 							}
 						}
+
+						r.finishConsumerSpan(span)
 					}
 
 					endChan <- 1
@@ -290,7 +300,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 					if strings.Contains(err.(errors.ErrCode).Error(), "MessageNotExist") {
 						//r.log.Debug("No new message, continue!")
 					} else {
-						r.log.Error(err)
+						log.Error("[rocketmq]: ", err)
 						time.Sleep(time.Duration(3) * time.Second)
 					}
 					endChan <- 1
@@ -314,4 +324,79 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 		)
 		<-endChan
 	}
+}
+
+func (r *aliyunBroker) startProducerSpan(topicName string, msg *aliyun.PublishMessageRequest) trace.Span {
+	if r.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewAliyunProducerMessageCarrier(msg)
+	ctx := r.opts.Tracer.Propagators.Extract(r.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(topicName),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindProducer),
+	}
+	ctx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.produce", opts...)
+
+	r.opts.Tracer.Propagators.Inject(ctx, carrier)
+
+	return span
+}
+
+func (r *aliyunBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
+	if span == nil {
+		return
+	}
+
+	span.SetAttributes(
+		semConv.MessagingMessageIDKey.String(messageId),
+		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
+		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
+	)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+	}
+
+	span.End()
+}
+
+func (r *aliyunBroker) startConsumerSpan(msg *aliyun.ConsumeMessageEntry) trace.Span {
+	if r.opts.Tracer.Tracer == nil {
+		return nil
+	}
+
+	carrier := NewAliyunConsumerMessageCarrier(msg)
+	ctx := r.opts.Tracer.Propagators.Extract(r.opts.Context, carrier)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(msg.Message),
+		semConv.MessagingOperationReceive,
+		semConv.MessagingMessageIDKey.String(msg.MessageId),
+	}
+	opts := []trace.SpanStartOption{
+		trace.WithAttributes(attrs...),
+		trace.WithSpanKind(trace.SpanKindConsumer),
+	}
+	newCtx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.consume", opts...)
+
+	r.opts.Tracer.Propagators.Inject(newCtx, carrier)
+
+	return span
+}
+
+func (r *aliyunBroker) finishConsumerSpan(span trace.Span) {
+	if span == nil {
+		return
+	}
+
+	span.End()
 }
