@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/stretchr/testify/assert"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
@@ -25,7 +25,7 @@ const (
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	log.Printf("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 
@@ -121,11 +121,11 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		err := b.Publish(testTopic, msg, WithHeaders(headers))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
-		log.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+		log.Infof("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
 			i, elapsedTime, msg.Humidity, msg.Temperature)
 	}
 
-	log.Printf("total send %d messages\n", count)
+	log.Infof("total send %d messages\n", count)
 
 	<-interrupt
 }

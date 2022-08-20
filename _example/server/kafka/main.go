@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
-	"log"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/log"
+	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/transport/kafka"
 )
@@ -18,7 +18,7 @@ const (
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	log.Printf("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 
@@ -43,6 +43,6 @@ func main() {
 		),
 	)
 	if err := app.Run(); err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }

@@ -1,10 +1,8 @@
 package websocket
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/binary"
 	"errors"
 	"net"
 	"net/http"
@@ -18,37 +16,6 @@ import (
 	ws "github.com/gorilla/websocket"
 	"github.com/tx7do/kratos-transport/broker"
 )
-
-type Any interface{}
-type MessageType uint32
-type MessagePayload Any
-
-type Message struct {
-	Type MessageType
-	Body []byte
-}
-
-func (m *Message) Marshal() ([]byte, error) {
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.LittleEndian, uint32(m.Type)); err != nil {
-		return nil, err
-	}
-	buf.Write(m.Body)
-	return buf.Bytes(), nil
-}
-
-func (m *Message) Unmarshal(buf []byte) error {
-	network := new(bytes.Buffer)
-	network.Write(buf)
-
-	if err := binary.Read(network, binary.LittleEndian, &m.Type); err != nil {
-		return err
-	}
-
-	m.Body = network.Bytes()
-
-	return nil
-}
 
 type Binder func() Any
 
@@ -72,18 +39,18 @@ type Server struct {
 
 	lis      net.Listener
 	tlsConf  *tls.Config
-	endpoint *url.URL
 	upgrader *ws.Upgrader
 
-	strictSlash bool
 	network     string
 	address     string
-	timeout     time.Duration
 	path        string
+	strictSlash bool
+	endpoint    *url.URL
+
+	timeout time.Duration
 
 	err   error
-	log   *log.Helper
-	Codec encoding.Codec
+	codec encoding.Codec
 
 	messageHandlers MessageHandlerMap
 	connectHandler  ConnectHandler
@@ -99,7 +66,6 @@ func NewServer(opts ...ServerOption) *Server {
 		address:     ":0",
 		timeout:     1 * time.Second,
 		strictSlash: true,
-		log:         log.NewHelper(log.GetLogger(), log.WithMessageKey("[websocket]")),
 
 		messageHandlers: make(MessageHandlerMap),
 
@@ -142,7 +108,13 @@ func (s *Server) SessionCount() int {
 }
 
 func (s *Server) RegisterMessageHandler(messageType MessageType, handler MessageHandler, binder Binder) {
-	s.messageHandlers[messageType] = HandlerData{handler, binder}
+	if _, ok := s.messageHandlers[messageType]; ok {
+		return
+	}
+
+	s.messageHandlers[messageType] = HandlerData{
+		handler, binder,
+	}
 }
 
 func (s *Server) DeregisterMessageHandler(messageType MessageType) {
@@ -153,7 +125,7 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 	var err error
 	var msg Message
 	msg.Type = messageType
-	msg.Body, err = broker.Marshal(s.Codec, message)
+	msg.Body, err = broker.Marshal(s.codec, message)
 	if err != nil {
 		return nil, err
 	}
@@ -169,13 +141,13 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
 	c, ok := s.sessions[sessionId]
 	if !ok {
-		s.log.Error("session not found:", sessionId)
+		log.Error("[websocket] session not found:", sessionId)
 		return
 	}
 
 	buf, err := s.marshalMessage(messageType, message)
 	if err != nil {
-		s.log.Error("marshal message exception:", err)
+		log.Error("[websocket] marshal message exception:", err)
 		return
 	}
 
@@ -185,7 +157,7 @@ func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, messa
 func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 	buf, err := s.marshalMessage(messageType, message)
 	if err != nil {
-		s.log.Error("marshal message exception:", err)
+		log.Error(" [websocket] marshal message exception:", err)
 		return
 	}
 
@@ -197,13 +169,13 @@ func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
-		s.log.Errorf("decode message exception: %s", err)
+		log.Errorf("[websocket] decode message exception: %s", err)
 		return err
 	}
 
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
-		s.log.Error("message type not found:", msg.Type)
+		log.Error("[websocket] message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}
 
@@ -213,13 +185,13 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 		payload = handlerData.Binder()
 	}
 
-	if err := broker.Unmarshal(s.Codec, msg.Body, payload); err != nil {
-		s.log.Errorf("unmarshal message exception: %s", err)
+	if err := broker.Unmarshal(s.codec, msg.Body, payload); err != nil {
+		log.Errorf("[websocket] unmarshal message exception: %s", err)
 		return err
 	}
 
 	if err := handlerData.Handler(sessionId, payload); err != nil {
-		s.log.Errorf("message handler exception: %s", err)
+		log.Errorf("[websocket] message handler exception: %s", err)
 		return err
 	}
 
@@ -229,7 +201,7 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	conn, err := s.upgrader.Upgrade(res, req, nil)
 	if err != nil {
-		s.log.Error("upgrade exception:", err)
+		log.Error("[websocket] upgrade exception:", err)
 		return
 	}
 
@@ -292,7 +264,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	s.log.Infof("server listening on: %s", s.lis.Addr().String())
+	log.Infof("[websocket] server listening on: %s", s.lis.Addr().String())
 
 	go s.run()
 
@@ -309,12 +281,12 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.log.Info("server stopping")
+	log.Info("[websocket] server stopping")
 	return s.Shutdown(ctx)
 }
 
 func (s *Server) addSession(c *Session) {
-	//s.log.Info("add session: ", c.SessionID())
+	//log.Info("[websocket] add session: ", c.SessionID())
 	s.sessions[c.SessionID()] = c
 
 	if s.connectHandler != nil {
@@ -325,7 +297,7 @@ func (s *Server) addSession(c *Session) {
 func (s *Server) removeSession(c *Session) {
 	for k, v := range s.sessions {
 		if c == v {
-			//s.log.Info("remove session: ", c.SessionID())
+			//log.Info("[websocket] remove session: ", c.SessionID())
 			if s.connectHandler != nil {
 				s.connectHandler(c.SessionID(), false)
 			}

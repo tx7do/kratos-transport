@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
@@ -114,7 +114,7 @@ const (
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	log.Printf("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 

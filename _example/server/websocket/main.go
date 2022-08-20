@@ -3,10 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/transport/websocket"
 )
 
@@ -50,7 +50,7 @@ func main() {
 		),
 	)
 	if err := app.Run(); err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 }
 

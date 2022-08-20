@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 )
@@ -60,11 +61,13 @@ func (c *Session) Listen() {
 }
 
 func (c *Session) closeConnect() {
-	//log.Println(c.SessionID(), " connection closed")
-	if err := c.conn.Close(); err != nil {
-		c.server.log.Error("close connection error:", err.Error())
+	//log.Info(c.SessionID(), " connection closed")
+	if c.conn != nil {
+		if err := c.conn.Close(); err != nil {
+			log.Errorf("[websocket] disconnect error: %s", err.Error())
+		}
+		c.conn = nil
 	}
-	c.conn = nil
 }
 
 func (c *Session) sendPingMessage(message string) error {
@@ -90,7 +93,7 @@ func (c *Session) writePump() {
 		select {
 		case msg := <-c.send:
 			if err := c.sendBinaryMessage(msg); err != nil {
-				c.server.log.Error("write message error: ", err)
+				log.Error("[websocket] write message error: ", err)
 				return
 			}
 		}
@@ -104,7 +107,7 @@ func (c *Session) readPump() {
 		messageType, data, err := c.conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
-				c.server.log.Errorf("read message error: %v", err)
+				log.Errorf("[websocket] read message error: %v", err)
 			}
 			return
 		}
@@ -117,14 +120,14 @@ func (c *Session) readPump() {
 			break
 		case ws.PingMessage:
 			if err := c.sendPongMessage(""); err != nil {
-				c.server.log.Error("write pong message error: ", err)
+				log.Error("[websocket] write pong message error: ", err)
 				return
 			}
 			break
 		case ws.PongMessage:
 			break
 		case ws.TextMessage:
-			c.server.log.Errorf("not support text message")
+			log.Error("[websocket] not support text message")
 			break
 		}
 
