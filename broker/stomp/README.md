@@ -10,6 +10,26 @@ STOMP是一个非常简单和容易实现的协议，其设计灵感源自于HTT
 STOMP协议与2012年10月22日发布了最新的STOMP 1.2规范。
 要查看STOMP 1.2规范，见： https://stomp.github.io/stomp-specification-1.2.html
 
+## STOMP协议分析
+
+STOMP协议与HTTP协议很相似，它基于TCP协议，使用了以下命令：  
+CONNECT  
+SEND  
+SUBSCRIBE  
+UNSUBSCRIBE  
+BEGIN 
+COMMIT  
+ABORT  
+ACK
+NACK  
+DISCONNECT
+
+STOMP的客户端和服务器之间的通信是通过“帧”（Frame）实现的，每个帧由多“行”（Line）组成。  
+第一行包含了命令，然后紧跟键值对形式的Header内容。  
+第二行必须是空行。  
+第三行开始就是Body内容，末尾都以空字符结尾。  
+STOMP的客户端和服务器之间的通信是通过MESSAGE帧、RECEIPT帧或ERROR帧实现的，它们的格式相似。
+
 ## 支持STOMP的服务器
 
 | 项目名             | 兼容STOMP的版本  | 描述                                                                                        |
