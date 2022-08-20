@@ -84,6 +84,9 @@ func (c ConsumerMessageCarrier) Get(key string) string {
 }
 
 func (c ConsumerMessageCarrier) Set(key, val string) {
+	if c.msg.Headers == nil {
+		c.msg.Headers = make(amqp.Table)
+	}
 	c.msg.Headers[key] = val
 }
 

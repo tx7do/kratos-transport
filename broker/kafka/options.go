@@ -85,7 +85,7 @@ func WithRetentionTime(time time.Duration) broker.Option {
 	return broker.OptionContextWithValue(retentionTimeKey{}, time)
 }
 
-func StartOffset(offset int64) broker.Option {
+func WithStartOffset(offset int64) broker.Option {
 	return broker.OptionContextWithValue(startOffsetKey{}, offset)
 }
 

@@ -127,7 +127,8 @@ func WithTracerProvider(provider trace.TracerProvider, tracerName string) Option
 		}
 
 		if opt.Tracer.Propagators == nil {
-			opt.Tracer.Propagators = otel.GetTextMapPropagator()
+			//opt.Tracer.Propagators = otel.GetTextMapPropagator()
+			opt.Tracer.Propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
 		}
 
 		if len(tracerName) == 0 {
@@ -143,7 +144,8 @@ func WithPropagators(propagators propagation.TextMapPropagator) Option {
 		if propagators != nil {
 			opt.Tracer.Propagators = propagators
 		} else {
-			opt.Tracer.Propagators = otel.GetTextMapPropagator()
+			//opt.Tracer.Propagators = otel.GetTextMapPropagator()
+			opt.Tracer.Propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
 		}
 		if opt.Tracer.TracerProvider == nil {
 			opt.Tracer.TracerProvider = otel.GetTracerProvider()
