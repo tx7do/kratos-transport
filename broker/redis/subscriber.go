@@ -41,7 +41,7 @@ func (s *subscriber) recv() {
 
 			if err := broker.Unmarshal(s.codec, x.Data, m.Body); err != nil {
 				p.err = err
-				//r.log.Error(err)
+				//log.Error("[redis]", err)
 				break
 			}
 

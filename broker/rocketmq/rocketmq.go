@@ -366,7 +366,7 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 	if err := c.Subscribe(topic, consumer.MessageSelector{},
 		func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-			//r.log.Infof("subscribe callback: %v \n", msgs)
+			//log.Infof("[rocketmq] subscribe callback: %v \n", msgs)
 
 			var err error
 			var m broker.Message

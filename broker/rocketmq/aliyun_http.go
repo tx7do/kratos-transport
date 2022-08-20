@@ -298,7 +298,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 				{
 					// Topic中没有消息可消费。
 					if strings.Contains(err.(errors.ErrCode).Error(), "MessageNotExist") {
-						//r.log.Debug("No new message, continue!")
+						//log.Debug("[rocketmq] No new message, continue!")
 					} else {
 						log.Error("[rocketmq]: ", err)
 						time.Sleep(time.Duration(3) * time.Second)
@@ -307,7 +307,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 				}
 			case <-time.After(35 * time.Second):
 				{
-					//r.log.Debug("Timeout of consumer message ??")
+					//log.Debug("[rocketmq] Timeout of consumer message ??")
 					endChan <- 1
 				}
 
