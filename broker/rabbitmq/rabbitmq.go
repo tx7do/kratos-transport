@@ -299,11 +299,11 @@ func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string,
 		trace.WithAttributes(attrs...),
 		trace.WithSpanKind(trace.SpanKindProducer),
 	}
-	ctx, span := b.opts.Tracer.Tracer.Start(ctx, "rabbitmq.produce", opts...)
+	newCtx, span := b.opts.Tracer.Tracer.Start(ctx, "rabbitmq.produce", opts...)
 
-	b.opts.Tracer.Propagators.Inject(ctx, carrier)
+	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return ctx, span
+	return newCtx, span
 }
 
 func (b *rabbitBroker) finishProducerSpan(ctx context.Context, span trace.Span, routingKey string, err error) {
