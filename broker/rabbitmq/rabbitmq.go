@@ -306,7 +306,7 @@ func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string,
 	return newCtx, span
 }
 
-func (b *rabbitBroker) finishProducerSpan(ctx context.Context, span trace.Span, routingKey string, err error) {
+func (b *rabbitBroker) finishProducerSpan(_ context.Context, span trace.Span, routingKey string, err error) {
 	if !span.IsRecording() {
 		return
 	}
@@ -354,7 +354,7 @@ func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, 
 	return newCtx, span
 }
 
-func (b *rabbitBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
+func (b *rabbitBroker) finishConsumerSpan(_ context.Context, span trace.Span, err error) {
 	if !span.IsRecording() {
 		return
 	}
