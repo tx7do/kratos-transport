@@ -20,6 +20,6 @@ func DrainConnection() broker.Option {
 
 type headersKey struct{}
 
-func WithHeaders(h map[string]interface{}) broker.PublishOption {
+func WithHeaders(h map[string][]string) broker.PublishOption {
 	return broker.PublishContextWithValue(headersKey{}, h)
 }
