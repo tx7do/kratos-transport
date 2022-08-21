@@ -182,11 +182,11 @@ func (b *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.Pub
 		}
 	}
 
-	span := b.startProducerSpan(routingKey, &msg)
+	ctx, span := b.startProducerSpan(options.Context, routingKey, &msg)
 
 	err := b.conn.Publish(b.conn.exchange.Name, routingKey, msg)
 
-	b.finishProducerSpan(span, routingKey, err)
+	b.finishProducerSpan(ctx, span, routingKey, err)
 
 	return nil
 }
@@ -221,7 +221,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			Body:    nil,
 		}
 
-		span := b.startConsumerSpan(options.Queue, &msg)
+		ctx, span := b.startConsumerSpan(b.opts.Context, options.Queue, &msg)
 
 		p := &publication{d: msg, m: m, t: msg.RoutingKey}
 
@@ -234,14 +234,14 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			log.Error(err)
 		}
 
-		p.err = handler(b.opts.Context, p)
+		p.err = handler(ctx, p)
 		if p.err == nil && ackSuccess && !options.AutoAck {
 			_ = msg.Ack(false)
 		} else if p.err != nil && !options.AutoAck {
 			_ = msg.Nack(false, requeueOnError)
 		}
 
-		b.finishConsumerSpan(span)
+		b.finishConsumerSpan(ctx, span, p.err)
 	}
 
 	sub := &subscriber{
@@ -279,18 +279,21 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	return sub, nil
 }
 
-func (b *rabbitBroker) startProducerSpan(routingKey string, msg *amqp.Publishing) trace.Span {
+func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string, msg *amqp.Publishing) (context.Context, trace.Span) {
 	if b.opts.Tracer.Tracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rabbitmq"),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(routingKey),
+		semConv.MessagingMessageIDKey.String(msg.MessageId),
+		semConv.MessagingProtocolKey.String("AMQP"),
+		semConv.MessagingProtocolVersionKey.String("0.9.1"),
 	}
 	opts := []trace.SpanStartOption{
 		trace.WithAttributes(attrs...),
@@ -300,11 +303,11 @@ func (b *rabbitBroker) startProducerSpan(routingKey string, msg *amqp.Publishing
 
 	b.opts.Tracer.Propagators.Inject(ctx, carrier)
 
-	return span
+	return ctx, span
 }
 
-func (b *rabbitBroker) finishProducerSpan(span trace.Span, routingKey string, err error) {
-	if span == nil {
+func (b *rabbitBroker) finishProducerSpan(ctx context.Context, span trace.Span, routingKey string, err error) {
+	if !span.IsRecording() {
 		return
 	}
 
@@ -312,19 +315,22 @@ func (b *rabbitBroker) finishProducerSpan(span trace.Span, routingKey string, er
 		semConv.MessagingRabbitmqRoutingKeyKey.String(routingKey),
 	)
 	if err != nil {
+		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+	} else {
+		span.SetStatus(codes.Ok, "OK")
 	}
 
 	span.End()
 }
 
-func (b *rabbitBroker) startConsumerSpan(queueName string, msg *amqp.Delivery) trace.Span {
+func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, msg *amqp.Delivery) (context.Context, trace.Span) {
 	if b.opts.Tracer.Tracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewConsumerMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rabbitmq"),
@@ -333,6 +339,8 @@ func (b *rabbitBroker) startConsumerSpan(queueName string, msg *amqp.Delivery) t
 		semConv.MessagingOperationReceive,
 		semConv.MessagingMessageIDKey.String(msg.MessageId),
 		semConv.MessagingRabbitmqRoutingKeyKey.String(msg.RoutingKey),
+		semConv.MessagingProtocolKey.String("AMQP"),
+		semConv.MessagingProtocolVersionKey.String("0.9.1"),
 	}
 	opts := []trace.SpanStartOption{
 		trace.WithAttributes(attrs...),
@@ -343,12 +351,18 @@ func (b *rabbitBroker) startConsumerSpan(queueName string, msg *amqp.Delivery) t
 
 	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return span
+	return newCtx, span
 }
 
-func (b *rabbitBroker) finishConsumerSpan(span trace.Span) {
-	if span == nil {
+func (b *rabbitBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
+	if !span.IsRecording() {
 		return
+	}
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	} else {
+		span.SetStatus(codes.Ok, "OK")
 	}
 
 	span.End()
