@@ -110,7 +110,7 @@ func TestInitAddrs(t *testing.T) {
 
 const (
 	localBroker = "nats://127.0.0.1:4222"
-	testTopic   = "test"
+	testTopic   = "test_topic"
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {

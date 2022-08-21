@@ -55,7 +55,11 @@ func (b *nsqBroker) Options() broker.Options {
 }
 
 func (b *nsqBroker) Address() string {
-	return b.addrs[rand.Intn(len(b.addrs))]
+	if len(b.opts.Addrs) > 0 {
+		return b.opts.Addrs[0]
+	}
+
+	return defaultAddr
 }
 
 func (b *nsqBroker) Init(opts ...broker.Option) error {

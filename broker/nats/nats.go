@@ -15,6 +15,10 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
+const (
+	defaultAddr = "nats://127.0.0.1:4222"
+)
+
 type natsBroker struct {
 	sync.Once
 	sync.RWMutex
@@ -49,7 +53,7 @@ func (b *natsBroker) Address() string {
 		return b.opts.Addrs[0]
 	}
 
-	return ""
+	return defaultAddr
 }
 
 func (b *natsBroker) Name() string {
