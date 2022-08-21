@@ -217,8 +217,6 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 
 	pulsarMsg := pulsar.ProducerMessage{Payload: msg}
 
-	span := pb.startProducerSpan(topic, &pulsarMsg)
-
 	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]string); ok {
 		pulsarMsg.Properties = headers
 	}
@@ -246,6 +244,8 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 	if v, ok := options.Context.Value(messageDisableReplication{}).(bool); ok {
 		pulsarMsg.DisableReplication = v
 	}
+
+	span := pb.startProducerSpan(options.Context, topic, &pulsarMsg)
 
 	var err error
 	var messageId pulsar.MessageID
@@ -347,7 +347,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			p := &publication{topic: cm.Topic(), reader: sub.reader, msg: &m, pulsarMsg: &cm.Message, ctx: options.Context}
 			m.Headers = cm.Properties()
 
-			span := pb.startConsumerSpan(&cm)
+			ctx, span := pb.startConsumerSpan(sub.opts.Context, &cm)
 
 			if binder != nil {
 				m.Body = binder()
@@ -359,7 +359,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 				continue
 			}
 
-			err = sub.handler(sub.opts.Context, p)
+			err = sub.handler(ctx, p)
 			if err != nil {
 				log.Errorf("[pulsar]: process message failed: %v", err)
 			}
@@ -376,13 +376,13 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 	return sub, nil
 }
 
-func (pb *pulsarBroker) startProducerSpan(topic string, msg *pulsar.ProducerMessage) trace.Span {
+func (pb *pulsarBroker) startProducerSpan(ctx context.Context, topic string, msg *pulsar.ProducerMessage) trace.Span {
 	if pb.opts.Tracer.Tracer == nil {
 		return nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
-	ctx := pb.opts.Tracer.Propagators.Extract(pb.opts.Context, carrier)
+	ctx = pb.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("pulsar"),
@@ -404,6 +404,9 @@ func (pb *pulsarBroker) finishProducerSpan(span trace.Span, messageId string, er
 	if span == nil {
 		return
 	}
+	if !span.IsRecording() {
+		return
+	}
 
 	span.SetAttributes(
 		semConv.MessagingMessageIDKey.String(messageId),
@@ -415,13 +418,13 @@ func (pb *pulsarBroker) finishProducerSpan(span trace.Span, messageId string, er
 	span.End()
 }
 
-func (pb *pulsarBroker) startConsumerSpan(msg *pulsar.ConsumerMessage) trace.Span {
+func (pb *pulsarBroker) startConsumerSpan(ctx context.Context, msg *pulsar.ConsumerMessage) (context.Context, trace.Span) {
 	if pb.opts.Tracer.Tracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewConsumerMessageCarrier(msg)
-	ctx := pb.opts.Tracer.Propagators.Extract(pb.opts.Context, carrier)
+	ctx = pb.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("pulsar"),
@@ -438,11 +441,14 @@ func (pb *pulsarBroker) startConsumerSpan(msg *pulsar.ConsumerMessage) trace.Spa
 
 	pb.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return span
+	return newCtx, span
 }
 
 func (pb *pulsarBroker) finishConsumerSpan(span trace.Span) {
 	if span == nil {
+		return
+	}
+	if !span.IsRecording() {
 		return
 	}
 

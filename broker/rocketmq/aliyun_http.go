@@ -172,8 +172,6 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 		MessageBody: string(msg),
 	}
 
-	span := r.startProducerSpan(topic, &aMsg)
-
 	if v, ok := options.Context.Value(propertiesKey{}).(map[string]string); ok {
 		aMsg.Properties = v
 	}
@@ -194,6 +192,8 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 	if v, ok := options.Context.Value(shardingKeyKey{}).(string); ok {
 		aMsg.ShardingKey = v
 	}
+
+	span := r.startProducerSpan(options.Context, topic, &aMsg)
 
 	ret, err := p.PublishMessage(aMsg)
 	if err != nil {
@@ -248,7 +248,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 					var m broker.Message
 					for _, msg := range resp.Messages {
 
-						span := r.startConsumerSpan(&msg)
+						ctx, span := r.startConsumerSpan(sub.opts.Context, &msg)
 
 						p := &aliyunPublication{
 							topic:  msg.Message,
@@ -269,7 +269,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 							log.Error("[rocketmq]: ", err)
 						}
 
-						err = sub.handler(sub.opts.Context, p)
+						err = sub.handler(ctx, p)
 						if err != nil {
 							log.Errorf("[rocketmq]: process message failed: %v", err)
 						}
@@ -326,13 +326,13 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 	}
 }
 
-func (r *aliyunBroker) startProducerSpan(topicName string, msg *aliyun.PublishMessageRequest) trace.Span {
+func (r *aliyunBroker) startProducerSpan(ctx context.Context, topicName string, msg *aliyun.PublishMessageRequest) trace.Span {
 	if r.opts.Tracer.Tracer == nil {
 		return nil
 	}
 
 	carrier := NewAliyunProducerMessageCarrier(msg)
-	ctx := r.opts.Tracer.Propagators.Extract(r.opts.Context, carrier)
+	ctx = r.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
@@ -354,6 +354,9 @@ func (r *aliyunBroker) finishProducerSpan(span trace.Span, messageId string, err
 	if span == nil {
 		return
 	}
+	if !span.IsRecording() {
+		return
+	}
 
 	span.SetAttributes(
 		semConv.MessagingMessageIDKey.String(messageId),
@@ -367,13 +370,13 @@ func (r *aliyunBroker) finishProducerSpan(span trace.Span, messageId string, err
 	span.End()
 }
 
-func (r *aliyunBroker) startConsumerSpan(msg *aliyun.ConsumeMessageEntry) trace.Span {
+func (r *aliyunBroker) startConsumerSpan(ctx context.Context, msg *aliyun.ConsumeMessageEntry) (context.Context, trace.Span) {
 	if r.opts.Tracer.Tracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewAliyunConsumerMessageCarrier(msg)
-	ctx := r.opts.Tracer.Propagators.Extract(r.opts.Context, carrier)
+	ctx = r.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
@@ -390,11 +393,14 @@ func (r *aliyunBroker) startConsumerSpan(msg *aliyun.ConsumeMessageEntry) trace.
 
 	r.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return span
+	return newCtx, span
 }
 
 func (r *aliyunBroker) finishConsumerSpan(span trace.Span) {
 	if span == nil {
+		return
+	}
+	if !span.IsRecording() {
 		return
 	}
 

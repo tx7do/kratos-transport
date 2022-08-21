@@ -314,9 +314,9 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 	}
 	b.Unlock()
 
-	span := b.startProducerSpan(&kMsg)
+	span := b.startProducerSpan(options.Context, &kMsg)
 
-	err := writer.WriteMessages(b.opts.Context, kMsg)
+	err := writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
 		switch cached {
 		case false:
@@ -385,7 +385,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					return
 				}
 
-				span := b.startConsumerSpan(&msg)
+				ctx, span := b.startConsumerSpan(options.Context, &msg)
 
 				m := &broker.Message{
 					Headers: kafkaHeaderToMap(msg.Headers),
@@ -402,7 +402,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					p.err = err
 				}
 
-				err = sub.handler(sub.opts.Context, p)
+				err = sub.handler(ctx, p)
 				if err != nil {
 					log.Errorf("[kafka]: process message failed: %v", err)
 				}
@@ -420,13 +420,13 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 	return sub, nil
 }
 
-func (b *kafkaBroker) startProducerSpan(msg *kafkaGo.Message) trace.Span {
+func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) trace.Span {
 	if b.opts.Tracer.Tracer == nil {
 		return nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("kafka"),
@@ -448,6 +448,9 @@ func (b *kafkaBroker) finishProducerSpan(span trace.Span, partition int32, offse
 	if span == nil {
 		return
 	}
+	if !span.IsRecording() {
+		return
+	}
 
 	span.SetAttributes(
 		semConv.MessagingMessageIDKey.String(strconv.FormatInt(offset, 10)),
@@ -460,13 +463,13 @@ func (b *kafkaBroker) finishProducerSpan(span trace.Span, partition int32, offse
 	span.End()
 }
 
-func (b *kafkaBroker) startConsumerSpan(msg *kafkaGo.Message) trace.Span {
+func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Message) (context.Context, trace.Span) {
 	if b.opts.Tracer.Tracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("kafka"),
@@ -484,11 +487,14 @@ func (b *kafkaBroker) startConsumerSpan(msg *kafkaGo.Message) trace.Span {
 
 	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return span
+	return newCtx, span
 }
 
 func (b *kafkaBroker) finishConsumerSpan(span trace.Span) {
 	if span == nil {
+		return
+	}
+	if !span.IsRecording() {
 		return
 	}
 

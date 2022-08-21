@@ -210,7 +210,7 @@ func (b *natsBroker) publish(topic string, buf []byte, opts ...broker.PublishOpt
 		}
 	}
 
-	span := b.startProducerSpan(m)
+	span := b.startProducerSpan(options.Context, m)
 
 	err := b.conn.PublishMsg(m)
 
@@ -245,7 +245,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		pub := &publication{t: msg.Subject, m: m}
 
-		span := b.startConsumerSpan(msg)
+		ctx, span := b.startConsumerSpan(options.Context, msg)
 
 		eh := b.opts.ErrorHandler
 
@@ -262,7 +262,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			return
 		}
 
-		if err := handler(b.opts.Context, pub); err != nil {
+		if err := handler(ctx, pub); err != nil {
 			pub.err = err
 			log.Error(err)
 			if eh != nil {
@@ -311,13 +311,13 @@ func (b *natsBroker) onDisconnectedError(_ *NATS.Conn, err error) {
 	b.closeCh <- err
 }
 
-func (b *natsBroker) startProducerSpan(msg *NATS.Msg) trace.Span {
+func (b *natsBroker) startProducerSpan(ctx context.Context, msg *NATS.Msg) trace.Span {
 	if b.opts.Tracer.Tracer == nil {
 		return nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("nats"),
@@ -347,13 +347,13 @@ func (b *natsBroker) finishProducerSpan(span trace.Span, err error) {
 	span.End()
 }
 
-func (b *natsBroker) startConsumerSpan(msg *NATS.Msg) trace.Span {
+func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *NATS.Msg) (context.Context, trace.Span) {
 	if b.opts.Tracer.Tracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("nats"),
@@ -369,7 +369,7 @@ func (b *natsBroker) startConsumerSpan(msg *NATS.Msg) trace.Span {
 
 	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return span
+	return newCtx, span
 }
 
 func (b *natsBroker) finishConsumerSpan(span trace.Span) {

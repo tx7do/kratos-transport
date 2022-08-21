@@ -174,17 +174,17 @@ func (b *stompBroker) publish(topic string, msg []byte, opts ...broker.PublishOp
 
 	stompOpt := make([]func(*frame.Frame) error, 0, 0)
 
-	span := b.startProducerSpan(topic, &stompOpt)
+	span := b.startProducerSpan(options.Context, topic, &stompOpt)
 
-	if headers, ok := b.Options().Context.Value(headerKey{}).(map[string]string); ok {
+	if headers, ok := options.Context.Value(headerKey{}).(map[string]string); ok {
 		for k, v := range headers {
 			stompOpt = append(stompOpt, stomp.SendOpt.Header(k, v))
 		}
 	}
-	if withReceipt, ok := b.Options().Context.Value(receiptKey{}).(bool); ok && withReceipt {
+	if withReceipt, ok := options.Context.Value(receiptKey{}).(bool); ok && withReceipt {
 		stompOpt = append(stompOpt, stomp.SendOpt.Receipt)
 	}
-	if withoutContentLength, ok := b.Options().Context.Value(suppressContentLengthKey{}).(bool); ok && withoutContentLength {
+	if withoutContentLength, ok := options.Context.Value(suppressContentLengthKey{}).(bool); ok && withoutContentLength {
 		stompOpt = append(stompOpt, stomp.SendOpt.NoContentLength)
 	}
 
@@ -247,7 +247,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				p := &publication{msg: msg, m: m, topic: topic, broker: b}
 
-				span := b.startConsumerSpan(msg)
+				ctx, span := b.startConsumerSpan(options.Context, msg)
 
 				if binder != nil {
 					m.Body = binder()
@@ -258,7 +258,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					log.Error(err)
 				}
 
-				p.err = handler(b.opts.Context, p)
+				p.err = handler(ctx, p)
 				if p.err == nil && !options.AutoAck && ackSuccess {
 					_ = msg.Conn.Ack(msg)
 				}
@@ -271,14 +271,14 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 	return &subscriber{sub: sub, topic: topic, opts: options}, nil
 }
 
-func (b *stompBroker) startProducerSpan(topic string, msg *[]func(*frame.Frame) error) trace.Span {
+func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *[]func(*frame.Frame) error) trace.Span {
 	if b.opts.Tracer.Tracer == nil {
 		fmt.Printf("No tracer found, skipping tracing for %s\n", topic)
 		return nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("stomp"),
@@ -308,13 +308,13 @@ func (b *stompBroker) finishProducerSpan(span trace.Span, err error) {
 	span.End()
 }
 
-func (b *stompBroker) startConsumerSpan(msg *stomp.Message) trace.Span {
+func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stomp.Message) (context.Context, trace.Span) {
 	if b.opts.Tracer.Tracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewConsumerMessageCarrier(msg)
-	ctx := b.opts.Tracer.Propagators.Extract(b.opts.Context, carrier)
+	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("stomp"),
@@ -331,7 +331,7 @@ func (b *stompBroker) startConsumerSpan(msg *stomp.Message) trace.Span {
 
 	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return span
+	return newCtx, span
 }
 
 func (b *stompBroker) finishConsumerSpan(span trace.Span) {

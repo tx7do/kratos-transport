@@ -182,11 +182,11 @@ func (b *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.Pub
 		}
 	}
 
-	ctx, span := b.startProducerSpan(options.Context, routingKey, &msg)
+	span := b.startProducerSpan(options.Context, routingKey, &msg)
 
 	err := b.conn.Publish(b.conn.exchange.Name, routingKey, msg)
 
-	b.finishProducerSpan(ctx, span, routingKey, err)
+	b.finishProducerSpan(span, routingKey, err)
 
 	return nil
 }
@@ -221,7 +221,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			Body:    nil,
 		}
 
-		ctx, span := b.startConsumerSpan(b.opts.Context, options.Queue, &msg)
+		ctx, span := b.startConsumerSpan(options.Context, options.Queue, &msg)
 
 		p := &publication{d: msg, m: m, t: msg.RoutingKey}
 
@@ -241,7 +241,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			_ = msg.Nack(false, requeueOnError)
 		}
 
-		b.finishConsumerSpan(ctx, span, p.err)
+		b.finishConsumerSpan(span, p.err)
 	}
 
 	sub := &subscriber{
@@ -279,9 +279,9 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	return sub, nil
 }
 
-func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string, msg *amqp.Publishing) (context.Context, trace.Span) {
+func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string, msg *amqp.Publishing) trace.Span {
 	if b.opts.Tracer.Tracer == nil {
-		return ctx, nil
+		return nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
@@ -303,10 +303,13 @@ func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string,
 
 	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
 
-	return newCtx, span
+	return span
 }
 
-func (b *rabbitBroker) finishProducerSpan(_ context.Context, span trace.Span, routingKey string, err error) {
+func (b *rabbitBroker) finishProducerSpan(span trace.Span, routingKey string, err error) {
+	if span == nil {
+		return
+	}
 	if !span.IsRecording() {
 		return
 	}
@@ -354,10 +357,14 @@ func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, 
 	return newCtx, span
 }
 
-func (b *rabbitBroker) finishConsumerSpan(_ context.Context, span trace.Span, err error) {
+func (b *rabbitBroker) finishConsumerSpan(span trace.Span, err error) {
+	if span == nil {
+		return
+	}
 	if !span.IsRecording() {
 		return
 	}
+
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
