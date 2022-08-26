@@ -150,3 +150,9 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 	<-interrupt
 }
+
+func TestRandom(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		fmt.Println(rand.Intn(10))
+	}
+}

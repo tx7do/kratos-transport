@@ -2,6 +2,7 @@ package nsq
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -107,7 +108,6 @@ func (b *nsqBroker) Connect() error {
 	}
 
 	producers := make([]*NSQ.Producer, 0, len(b.addrs))
-
 	for _, addr := range b.addrs {
 		p, err := NSQ.NewProducer(addr, b.config)
 		if err != nil {
@@ -118,6 +118,7 @@ func (b *nsqBroker) Connect() error {
 		}
 		producers = append(producers, p)
 	}
+	b.producers = producers
 
 	for _, c := range b.subscribers {
 		channel := c.opts.Queue
@@ -146,7 +147,6 @@ func (b *nsqBroker) Connect() error {
 		}
 	}
 
-	b.producers = producers
 	b.running = true
 	return nil
 }
@@ -191,6 +191,14 @@ func (b *nsqBroker) Publish(topic string, msg broker.Any, opts ...broker.Publish
 	return b.publish(topic, buf, opts...)
 }
 
+func (b *nsqBroker) getProducer() *NSQ.Producer {
+	producerLen := len(b.producers)
+	if producerLen == 0 {
+		return nil
+	}
+	return b.producers[rand.Intn(producerLen)]
+}
+
 func (b *nsqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: context.Background(),
@@ -212,7 +220,10 @@ func (b *nsqBroker) publish(topic string, msg []byte, opts ...broker.PublishOpti
 		}
 	}
 
-	p := b.producers[rand.Intn(len(b.producers))]
+	p := b.getProducer()
+	if p == nil {
+		return errors.New("producer is null")
+	}
 
 	if doneChan != nil {
 		if delay > 0 {
