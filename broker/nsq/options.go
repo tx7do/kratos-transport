@@ -14,11 +14,11 @@ import (
 type lookupdAddrsKey struct{}
 type consumerOptsKey struct{}
 
-func WithLookupdAddrs(addrs []string) broker.Option {
+func WithLookupdAddress(addrs []string) broker.Option {
 	return broker.OptionContextWithValue(lookupdAddrsKey{}, addrs)
 }
 
-func WithConsumerOpts(consumerOpts []string) broker.Option {
+func WithConsumerOptions(consumerOpts []string) broker.Option {
 	return broker.OptionContextWithValue(consumerOptsKey{}, consumerOpts)
 }
 
