@@ -34,6 +34,8 @@
 ### 网络协议
 
 - [WebSocket](https://zh.wikipedia.org/zh-hant/WebSocket)
+- [HTTP3](https://www.chromium.org/quic/)
+- [WebTransport](https://web.dev/webtransport/)
 
 ## 支持的消息代理（Broker）
 
