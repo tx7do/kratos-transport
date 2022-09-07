@@ -10,12 +10,6 @@ import (
 
 type ServerOption func(*Server)
 
-func WithNetwork(network string) ServerOption {
-	return func(s *Server) {
-		s.network = network
-	}
-}
-
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(o *Server) {
 		o.tlsConf = c

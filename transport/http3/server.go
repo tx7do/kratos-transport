@@ -31,8 +31,6 @@ type Server struct {
 
 	tlsConf  *tls.Config
 	endpoint *url.URL
-	network  string
-	address  string
 	timeout  time.Duration
 
 	err error
@@ -49,8 +47,6 @@ type Server struct {
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		network:     "udp",
-		address:     ":443",
 		timeout:     1 * time.Second,
 		dec:         kHttp.DefaultRequestDecoder,
 		enc:         kHttp.DefaultResponseEncoder,
@@ -64,7 +60,9 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) init(opts ...ServerOption) {
-	s.Server = &http3.Server{}
+	s.Server = &http3.Server{
+		Addr: ":443",
+	}
 
 	for _, o := range opts {
 		o(s)

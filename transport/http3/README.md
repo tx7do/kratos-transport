@@ -29,3 +29,6 @@ QUIC（快速UDP网络连接）是一种实验性的网络传输协议，由Goog
 - [QUIC协议 - 维基百科](https://zh.wikipedia.org/wiki/QUIC)
 - [HTTP/3 - 维基百科](https://zh.wikipedia.org/wiki/HTTP/3)
 - [深入剖析HTTP3协议](https://www.taohui.tech/2021/02/04/%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE/%E6%B7%B1%E5%85%A5%E5%89%96%E6%9E%90HTTP3%E5%8D%8F%E8%AE%AE/)
+- [降低20%链路耗时，Trip.com APP QUIC应用和优化实践](https://www.51cto.com/article/706585.html)
+- [QUIC 在微博中的落地思考](https://www.infoq.cn/article/2018/03/weibo-quic)
+
