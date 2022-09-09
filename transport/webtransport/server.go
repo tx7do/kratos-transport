@@ -77,8 +77,14 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) init(opts ...ServerOption) {
+	const idleTimeout = 30 * time.Second
+
 	s.Server = &http3.Server{
 		Addr: ":443",
+		QuicConfig: &quic.Config{
+			MaxIdleTimeout:  idleTimeout,
+			KeepAlivePeriod: idleTimeout / 2,
+		},
 	}
 
 	for _, o := range opts {
@@ -234,8 +240,8 @@ func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	str := httpStreamer.HTTPStream()
-	sID := SessionID(str.StreamID())
+	httpStream := httpStreamer.HTTPStream()
+	sID := SessionID(httpStream.StreamID())
 
 	hijacker, ok := w.(http3.Hijacker)
 	if !ok { // should never happen, unless quic-go changed the API
@@ -279,7 +285,7 @@ func (s *Server) doAcceptUniStream(session *Session) {
 	for {
 		acceptStream, err := session.AcceptUniStream(s.ctx)
 		if err != nil {
-			log.Debug("[webtransport] accept stream failed: ", err.Error())
+			log.Debug("[webtransport] accept uni stream failed: ", err.Error())
 			if s.connectHandler != nil {
 				s.connectHandler(session.SessionID(), false)
 			}
@@ -287,7 +293,7 @@ func (s *Server) doAcceptUniStream(session *Session) {
 		}
 		data, err := io.ReadAll(acceptStream)
 		if err != nil {
-			log.Error("[webtransport] read data failed: ", err.Error())
+			log.Error("[webtransport] read uni data failed: ", err.Error())
 		}
 		//log.Debug("receive data: ", string(data))
 		_ = s.messageHandler(session.SessionID(), data)

@@ -212,7 +212,7 @@ func (c *Client) doAcceptStream(session *Session) {
 		if err != nil {
 			log.Error("[webtransport] read data failed: ", err.Error())
 		}
-		log.Debug("[webtransport] receive data: ", string(data))
+		// log.Debug("[webtransport] receive data: ", string(data))
 		_ = c.messageHandler(data)
 	}
 }
@@ -221,14 +221,14 @@ func (c *Client) doAcceptUniStream(session *Session) {
 	for {
 		acceptStream, err := session.AcceptUniStream(c.ctx)
 		if err != nil {
-			log.Debug("[webtransport] accept stream failed: ", err.Error())
+			log.Debug("[webtransport] accept uni stream failed: ", err.Error())
 			break
 		}
 		data, err := io.ReadAll(acceptStream)
 		if err != nil {
-			log.Error("[webtransport] read data failed: ", err.Error())
+			log.Error("[webtransport] read uni data failed: ", err.Error())
 		}
-		log.Debug("[webtransport] receive data: ", string(data))
+		//log.Debug("[webtransport] receive uni data: ", string(data))
 		_ = c.messageHandler(data)
 	}
 }

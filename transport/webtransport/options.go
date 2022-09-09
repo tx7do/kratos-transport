@@ -3,6 +3,7 @@ package webtransport
 import (
 	"crypto/tls"
 	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/lucas-clemente/quic-go"
 	"time"
 )
 
@@ -23,6 +24,24 @@ func WithAddress(addr string) ServerOption {
 func WithTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
 		s.timeout = timeout
+	}
+}
+
+func WithMaxIdleTimeout(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		if s.Server.QuicConfig == nil {
+			s.Server.QuicConfig = &quic.Config{}
+		}
+		s.Server.QuicConfig.MaxIdleTimeout = timeout
+	}
+}
+
+func WithKeepAlivePeriod(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		if s.Server.QuicConfig == nil {
+			s.Server.QuicConfig = &quic.Config{}
+		}
+		s.Server.QuicConfig.KeepAlivePeriod = timeout
 	}
 }
 
@@ -63,5 +82,23 @@ func WithEndpoint(url string) ClientOption {
 func WithClientCodec(c encoding.Codec) ClientOption {
 	return func(o *Client) {
 		o.codec = c
+	}
+}
+
+func WithClientMaxIdleTimeout(timeout time.Duration) ClientOption {
+	return func(s *Client) {
+		if s.transport.QuicConfig == nil {
+			s.transport.QuicConfig = &quic.Config{}
+		}
+		s.transport.QuicConfig.MaxIdleTimeout = timeout
+	}
+}
+
+func WithClientKeepAlivePeriod(timeout time.Duration) ClientOption {
+	return func(s *Client) {
+		if s.transport.QuicConfig == nil {
+			s.transport.QuicConfig = &quic.Config{}
+		}
+		s.transport.QuicConfig.KeepAlivePeriod = timeout
 	}
 }
