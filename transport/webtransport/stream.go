@@ -37,10 +37,10 @@ type Stream interface {
 }
 
 type sendStream struct {
-	str quic.SendStream
-	// WebTransport stream header.
+	qStream quic.SendStream
+	// WebTransport qStream header.
 	// Set by the constructor, set to nil once sent out.
-	// Might be initialized to nil if this sendStream is part of an incoming bidirectional stream.
+	// Might be initialized to nil if this sendStream is part of an incoming bidirectional qStream.
 	streamHdr []byte
 
 	onClose func()
@@ -48,15 +48,15 @@ type sendStream struct {
 
 var _ SendStream = &sendStream{}
 
-func newSendStream(str quic.SendStream, hdr []byte, onClose func()) *sendStream {
-	return &sendStream{str: str, streamHdr: hdr, onClose: onClose}
+func newSendStream(qStream quic.SendStream, hdr []byte, onClose func()) *sendStream {
+	return &sendStream{qStream: qStream, streamHdr: hdr, onClose: onClose}
 }
 
 func (s *sendStream) maybeSendStreamHeader() error {
 	if len(s.streamHdr) == 0 {
 		return nil
 	}
-	if _, err := s.str.Write(s.streamHdr); err != nil {
+	if _, err := s.qStream.Write(s.streamHdr); err != nil {
 		return err
 	}
 	s.streamHdr = nil
@@ -67,7 +67,7 @@ func (s *sendStream) Write(b []byte) (int, error) {
 	if err := s.maybeSendStreamHeader(); err != nil {
 		return 0, err
 	}
-	n, err := s.str.Write(b)
+	n, err := s.qStream.Write(b)
 	if err != nil && !isTimeoutError(err) {
 		s.onClose()
 	}
@@ -75,12 +75,12 @@ func (s *sendStream) Write(b []byte) (int, error) {
 }
 
 func (s *sendStream) CancelWrite(e ErrorCode) {
-	s.str.CancelWrite(webtransportCodeToHTTPCode(e))
+	s.qStream.CancelWrite(webtransportCodeToHTTPCode(e))
 	s.onClose()
 }
 
 func (s *sendStream) closeWithSession() {
-	s.str.CancelWrite(sessionCloseErrorCode)
+	s.qStream.CancelWrite(sessionCloseErrorCode)
 }
 
 func (s *sendStream) Close() error {
@@ -88,43 +88,43 @@ func (s *sendStream) Close() error {
 		return err
 	}
 	s.onClose()
-	return maybeConvertStreamError(s.str.Close())
+	return maybeConvertStreamError(s.qStream.Close())
 }
 
 func (s *sendStream) SetWriteDeadline(t time.Time) error {
-	return maybeConvertStreamError(s.str.SetWriteDeadline(t))
+	return maybeConvertStreamError(s.qStream.SetWriteDeadline(t))
 }
 
 type receiveStream struct {
-	str     quic.ReceiveStream
+	qStream quic.ReceiveStream
 	onClose func()
 }
 
 var _ ReceiveStream = &receiveStream{}
 
-func newReceiveStream(str quic.ReceiveStream, onClose func()) *receiveStream {
-	return &receiveStream{str: str, onClose: onClose}
+func newReceiveStream(qStream quic.ReceiveStream, onClose func()) *receiveStream {
+	return &receiveStream{qStream: qStream, onClose: onClose}
 }
 
 func (s *receiveStream) Read(b []byte) (int, error) {
-	n, err := s.str.Read(b)
+	n, err := s.qStream.Read(b)
 	if err != nil && !isTimeoutError(err) {
 		s.onClose()
 	}
 	return n, maybeConvertStreamError(err)
 }
 
-func (s *receiveStream) CancelRead(e ErrorCode) {
-	s.str.CancelRead(webtransportCodeToHTTPCode(e))
+func (s *receiveStream) CancelRead(ec ErrorCode) {
+	s.qStream.CancelRead(webtransportCodeToHTTPCode(ec))
 	s.onClose()
 }
 
 func (s *receiveStream) closeWithSession() {
-	s.str.CancelRead(sessionCloseErrorCode)
+	s.qStream.CancelRead(sessionCloseErrorCode)
 }
 
 func (s *receiveStream) SetReadDeadline(t time.Time) error {
-	return maybeConvertStreamError(s.str.SetReadDeadline(t))
+	return maybeConvertStreamError(s.qStream.SetReadDeadline(t))
 }
 
 type stream struct {
@@ -138,10 +138,10 @@ type stream struct {
 
 var _ Stream = &stream{}
 
-func newStream(str quic.Stream, hdr []byte, onClose func()) *stream {
+func newStream(qStream quic.Stream, hdr []byte, onClose func()) *stream {
 	s := &stream{onClose: onClose}
-	s.sendStream = newSendStream(str, hdr, func() { s.registerClose(true) })
-	s.receiveStream = newReceiveStream(str, func() { s.registerClose(false) })
+	s.sendStream = newSendStream(qStream, hdr, func() { s.registerClose(true) })
+	s.receiveStream = newReceiveStream(qStream, func() { s.registerClose(false) })
 	return s
 }
 
@@ -177,9 +177,9 @@ func maybeConvertStreamError(err error) error {
 	}
 	var streamErr *quic.StreamError
 	if errors.As(err, &streamErr) {
-		errorCode, cerr := httpCodeToWebtransportCode(streamErr.ErrorCode)
-		if cerr != nil {
-			return fmt.Errorf("stream reset, but failed to convert stream error %d: %w", streamErr.ErrorCode, cerr)
+		errorCode, cErr := httpCodeToWebtransportCode(streamErr.ErrorCode)
+		if cErr != nil {
+			return fmt.Errorf("qStream reset, but failed to convert qStream error %d: %w", streamErr.ErrorCode, cErr)
 		}
 		return &StreamError{ErrorCode: errorCode}
 	}
@@ -187,9 +187,9 @@ func maybeConvertStreamError(err error) error {
 }
 
 func isTimeoutError(err error) bool {
-	nerr, ok := err.(net.Error)
+	netErr, ok := err.(net.Error)
 	if !ok {
 		return false
 	}
-	return nerr.Timeout()
+	return netErr.Timeout()
 }

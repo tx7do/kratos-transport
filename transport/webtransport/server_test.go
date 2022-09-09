@@ -2,16 +2,33 @@ package webtransport
 
 import (
 	"context"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/stretchr/testify/assert"
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
+	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
+
+	api "github.com/tx7do/kratos-transport/_example/api/manual"
 )
 
 var testServer *Server
+
+func handleConnect(sessionId SessionID, register bool) {
+	if register {
+		fmt.Printf("%d registered\n", sessionId)
+	} else {
+		fmt.Printf("%d unregistered\n", sessionId)
+	}
+}
+
+func handleChatMessage(sessionId SessionID, message *api.ChatMessage) error {
+	fmt.Printf("[%d] Payload: %v\n", sessionId, message)
+
+	//testServer.Broadcast(api.MessageTypeChat, *message)
+
+	return nil
+}
 
 func TestServer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
@@ -28,7 +45,17 @@ func TestServer(t *testing.T) {
 		//WithCodec(encoding.GetCodec("json")),
 	)
 
-	testServer = srv
+	srv.RegisterMessageHandler(api.MessageTypeChat,
+		func(sessionId SessionID, payload MessagePayload) error {
+			switch t := payload.(type) {
+			case *api.ChatMessage:
+				return handleChatMessage(sessionId, t)
+			default:
+				return errors.New("invalid payload type")
+			}
+		},
+		func() Any { return &api.ChatMessage{} },
+	)
 
 	if err := srv.Start(ctx); err != nil {
 		panic(err)
@@ -41,27 +68,4 @@ func TestServer(t *testing.T) {
 	}()
 
 	<-interrupt
-}
-
-func handleConnect(sessionId SessionID, register bool) {
-	if register {
-		log.Infof("%d registered\n", sessionId)
-	} else {
-		log.Infof("%d unregistered\n", sessionId)
-	}
-}
-
-func handleChatMessage(sessionId SessionID, message *api.ChatMessage) error {
-	log.Infof("[%d] Payload: %v\n", sessionId, message)
-
-	return nil
-}
-
-func TestClient(t *testing.T) {
-	client := NewClient(
-		//WithClientTLSConfig(NewTlsConfig("", "", "./cert/ca.crt")),
-		WithServerUrl("https://localhost:8800/webtransport"),
-	)
-	err := client.Start()
-	assert.Nil(t, err)
 }

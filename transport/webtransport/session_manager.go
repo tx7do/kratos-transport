@@ -40,21 +40,21 @@ func newSessionManager(timeout time.Duration) *sessionManager {
 	return m
 }
 
-// AddStream adds a new bidirectional stream to a WebTransport session.
+// AddStream adds a new bidirectional qStream to a WebTransport session.
 // If the WebTransport session has not yet been established,
 // it starts a new go routine and waits for establishment of the session.
-// If that takes longer than timeout, the stream is reset.
-func (m *sessionManager) AddStream(qconn http3.StreamCreator, str quic.Stream, id SessionID) {
-	sess, isExisting := m.getOrCreateSession(qconn, id)
+// If that takes longer than timeout, the qStream is reset.
+func (m *sessionManager) AddStream(qConn http3.StreamCreator, qStream quic.Stream, id SessionID) {
+	sess, isExisting := m.getOrCreateSession(qConn, id)
 	if isExisting {
-		sess.conn.addIncomingStream(str)
+		sess.conn.addIncomingStream(qStream)
 		return
 	}
 
 	m.refCount.Add(1)
 	go func() {
 		defer m.refCount.Done()
-		m.handleStream(str, sess)
+		m.handleStream(qStream, sess)
 
 		m.mx.Lock()
 		defer m.mx.Unlock()
@@ -63,43 +63,43 @@ func (m *sessionManager) AddStream(qconn http3.StreamCreator, str quic.Stream, i
 		// Once no more streams are waiting for this session to be established,
 		// and this session is still outstanding, delete it from the map.
 		if sess.counter == 0 && sess.conn == nil {
-			m.maybeDelete(qconn, id)
+			m.maybeDelete(qConn, id)
 		}
 	}()
 }
 
-func (m *sessionManager) maybeDelete(qconn http3.StreamCreator, id SessionID) {
-	sessions, ok := m.connections[qconn]
+func (m *sessionManager) maybeDelete(qConn http3.StreamCreator, id SessionID) {
+	sessions, ok := m.connections[qConn]
 	if !ok { // should never happen
 		return
 	}
 	delete(sessions, id)
 	if len(sessions) == 0 {
-		delete(m.connections, qconn)
+		delete(m.connections, qConn)
 	}
 }
 
-// AddUniStream adds a new unidirectional stream to a WebTransport session.
+// AddUniStream adds a new unidirectional qStream to a WebTransport session.
 // If the WebTransport session has not yet been established,
 // it starts a new go routine and waits for establishment of the session.
-// If that takes longer than timeout, the stream is reset.
-func (m *sessionManager) AddUniStream(qconn http3.StreamCreator, str quic.ReceiveStream) {
-	idv, err := quicvarint.Read(quicvarint.NewReader(str))
+// If that takes longer than timeout, the qStream is reset.
+func (m *sessionManager) AddUniStream(qConn http3.StreamCreator, qStream quic.ReceiveStream) {
+	idv, err := quicvarint.Read(quicvarint.NewReader(qStream))
 	if err != nil {
-		str.CancelRead(1337)
+		qStream.CancelRead(1337)
 	}
 	id := SessionID(idv)
 
-	sess, isExisting := m.getOrCreateSession(qconn, id)
+	sess, isExisting := m.getOrCreateSession(qConn, id)
 	if isExisting {
-		sess.conn.addIncomingUniStream(str)
+		sess.conn.addIncomingUniStream(qStream)
 		return
 	}
 
 	m.refCount.Add(1)
 	go func() {
 		defer m.refCount.Done()
-		m.handleUniStream(str, sess)
+		m.handleUniStream(qStream, sess)
 
 		m.mx.Lock()
 		defer m.mx.Unlock()
@@ -108,19 +108,19 @@ func (m *sessionManager) AddUniStream(qconn http3.StreamCreator, str quic.Receiv
 		// Once no more streams are waiting for this session to be established,
 		// and this session is still outstanding, delete it from the map.
 		if sess.counter == 0 && sess.conn == nil {
-			m.maybeDelete(qconn, id)
+			m.maybeDelete(qConn, id)
 		}
 	}()
 }
 
-func (m *sessionManager) getOrCreateSession(qconn http3.StreamCreator, id SessionID) (sess *session, existed bool) {
+func (m *sessionManager) getOrCreateSession(qConn http3.StreamCreator, id SessionID) (sess *session, existed bool) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 
-	sessions, ok := m.connections[qconn]
+	sessions, ok := m.connections[qConn]
 	if !ok {
 		sessions = make(sessionMap)
-		m.connections[qconn] = sessions
+		m.connections[qConn] = sessions
 	}
 
 	sess, ok = sessions[id]
@@ -135,52 +135,52 @@ func (m *sessionManager) getOrCreateSession(qconn http3.StreamCreator, id Sessio
 	return sess, false
 }
 
-func (m *sessionManager) handleStream(str quic.Stream, sess *session) {
+func (m *sessionManager) handleStream(qStream quic.Stream, sess *session) {
 	t := time.NewTimer(m.timeout)
 	defer t.Stop()
 
 	// When multiple streams are waiting for the same session to be established,
-	// the timeout is calculated for every stream separately.
+	// the timeout is calculated for every qStream separately.
 	select {
 	case <-sess.created:
-		sess.conn.addIncomingStream(str)
+		sess.conn.addIncomingStream(qStream)
 	case <-t.C:
-		str.CancelRead(WebTransportBufferedStreamRejectedErrorCode)
-		str.CancelWrite(WebTransportBufferedStreamRejectedErrorCode)
+		qStream.CancelRead(WebTransportBufferedStreamRejectedErrorCode)
+		qStream.CancelWrite(WebTransportBufferedStreamRejectedErrorCode)
 	case <-m.ctx.Done():
 	}
 }
 
-func (m *sessionManager) handleUniStream(str quic.ReceiveStream, sess *session) {
+func (m *sessionManager) handleUniStream(qStream quic.ReceiveStream, sess *session) {
 	t := time.NewTimer(m.timeout)
 	defer t.Stop()
 
 	// When multiple streams are waiting for the same session to be established,
-	// the timeout is calculated for every stream separately.
+	// the timeout is calculated for every qStream separately.
 	select {
 	case <-sess.created:
-		sess.conn.addIncomingUniStream(str)
+		sess.conn.addIncomingUniStream(qStream)
 	case <-t.C:
-		str.CancelRead(WebTransportBufferedStreamRejectedErrorCode)
+		qStream.CancelRead(WebTransportBufferedStreamRejectedErrorCode)
 	case <-m.ctx.Done():
 	}
 }
 
-// AddSession adds a new WebTransport session.
-func (m *sessionManager) AddSession(qconn http3.StreamCreator, id SessionID, requestStr quic.Stream) *Session {
-	conn := newSession(id, qconn, requestStr)
+// AddSession add a new WebTransport session.
+func (m *sessionManager) AddSession(qConn http3.StreamCreator, id SessionID, requestStream quic.Stream) *Session {
+	conn := newSession(id, qConn, requestStream)
 
 	m.mx.Lock()
 	defer m.mx.Unlock()
 
-	sessions, ok := m.connections[qconn]
+	sessions, ok := m.connections[qConn]
 	if !ok {
 		sessions = make(sessionMap)
-		m.connections[qconn] = sessions
+		m.connections[qConn] = sessions
 	}
 	if sess, ok := sessions[id]; ok {
 		// We might already have an entry of this session.
-		// This can happen when we receive a stream for this WebTransport session before we complete the HTTP request
+		// This can happen when we receive a qStream for this WebTransport session before we complete the HTTP request
 		// that establishes the session.
 		sess.conn = conn
 		close(sess.created)

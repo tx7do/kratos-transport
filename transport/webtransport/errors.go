@@ -48,7 +48,7 @@ func isWebTransportError(e error) bool {
 // H3_WEBTRANSPORT_BUFFERED_STREAM_REJECTED error.
 const WebTransportBufferedStreamRejectedErrorCode quic.StreamErrorCode = 0x3994bd84
 
-// StreamError is the error that is returned from stream operations (Read, Write) when the stream is canceled.
+// StreamError is the error that is returned from qStream operations (Read, Write) when the qStream is canceled.
 type StreamError struct {
 	ErrorCode ErrorCode
 }
@@ -59,7 +59,7 @@ func (e *StreamError) Is(target error) bool {
 }
 
 func (e *StreamError) Error() string {
-	return fmt.Sprintf("stream canceled with error code %d", e.ErrorCode)
+	return fmt.Sprintf("qStream canceled with error code %d", e.ErrorCode)
 }
 
 // ConnectionError is a WebTransport connection error.

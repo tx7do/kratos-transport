@@ -38,7 +38,7 @@ func (u *Upgrader) Upgrade(w http.ResponseWriter, r *http.Request, responseHeade
 
 	httpStreamer, ok := r.Body.(http3.HTTPStreamer)
 	if !ok { // should never happen, unless quic-go changed the API
-		return nil, errors.New("failed to take over HTTP stream")
+		return nil, errors.New("failed to take over HTTP qStream")
 	}
 
 	return httpStreamer, nil

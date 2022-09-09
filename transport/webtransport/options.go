@@ -2,6 +2,7 @@ package webtransport
 
 import (
 	"crypto/tls"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"time"
 )
 
@@ -37,6 +38,14 @@ func WithConnectHandle(h ConnectHandler) ServerOption {
 	}
 }
 
+func WithCodec(c encoding.Codec) ServerOption {
+	return func(s *Server) {
+		s.codec = c
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type ClientOption func(*Client)
 
 func WithClientTLSConfig(c *tls.Config) ClientOption {
@@ -45,8 +54,14 @@ func WithClientTLSConfig(c *tls.Config) ClientOption {
 	}
 }
 
-func WithServerUrl(url string) ClientOption {
+func WithEndpoint(url string) ClientOption {
 	return func(o *Client) {
 		o.url = url
+	}
+}
+
+func WithClientCodec(c encoding.Codec) ClientOption {
+	return func(o *Client) {
+		o.codec = c
 	}
 }
