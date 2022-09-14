@@ -169,6 +169,13 @@ func (r *rabbitConnection) reconnect(secure bool, config *amqp.Config) {
 			r.Unlock()
 		case err := <-notifyClose:
 			log.Error(err)
+
+			select {
+			case errs := <-chanNotifyClose:
+				log.Error(errs)
+			case <-time.After(time.Second):
+			}
+
 			r.Lock()
 			r.connected = false
 			r.waitConnection = make(chan struct{})
