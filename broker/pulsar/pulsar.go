@@ -3,10 +3,6 @@ package pulsar
 import (
 	"context"
 	"errors"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
-	"go.opentelemetry.io/otel/trace"
 	"strconv"
 	"sync"
 	"time"
@@ -14,7 +10,13 @@ import (
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
+
+	"go.opentelemetry.io/otel/attribute"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -29,17 +31,20 @@ type pulsarBroker struct {
 
 	client    pulsar.Client
 	producers map[string]pulsar.Producer
+
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	r := &pulsarBroker{
+	b := &pulsarBroker{
 		producers: make(map[string]pulsar.Producer),
 		opts:      options,
 	}
 
-	return r
+	return b
 }
 
 func (pb *pulsarBroker) Name() string {
@@ -113,6 +118,11 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	if err != nil {
 		log.Errorf("Could not instantiate Pulsar client: %v", err)
 		return err
+	}
+
+	if len(pb.opts.Tracings) > 0 {
+		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("pulsar-producer"))
+		pb.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("pulsar-consumer"))
 	}
 
 	return nil
@@ -377,80 +387,61 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 }
 
 func (pb *pulsarBroker) startProducerSpan(ctx context.Context, topic string, msg *pulsar.ProducerMessage) trace.Span {
-	if pb.opts.Tracer.Tracer == nil {
+	if pb.producerTracer == nil {
 		return nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
-	ctx = pb.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("pulsar"),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(topic),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindProducer),
-	}
-	ctx, span := pb.opts.Tracer.Tracer.Start(ctx, "pulsar.produce", opts...)
 
-	pb.opts.Tracer.Propagators.Inject(ctx, carrier)
+	var span trace.Span
+	ctx, span = pb.producerTracer.Start(ctx, carrier, attrs...)
 
 	return span
 }
 
 func (pb *pulsarBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if pb.producerTracer == nil {
 		return
 	}
 
-	span.SetAttributes(
+	attrs := []attribute.KeyValue{
 		semConv.MessagingMessageIDKey.String(messageId),
-	)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
 	}
 
-	span.End()
+	pb.producerTracer.End(context.Background(), span, err, attrs...)
 }
 
 func (pb *pulsarBroker) startConsumerSpan(ctx context.Context, msg *pulsar.ConsumerMessage) (context.Context, trace.Span) {
-	if pb.opts.Tracer.Tracer == nil {
+	if pb.consumerTracer == nil {
 		return ctx, nil
 	}
 
 	carrier := NewConsumerMessageCarrier(msg)
-	ctx = pb.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("pulsar"),
+		semConv.MessagingSystemKey.String(pb.Name()),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Topic()),
 		semConv.MessagingOperationReceive,
 		semConv.MessagingMessageIDKey.Int64(msg.ID().EntryID()),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindConsumer),
-	}
-	newCtx, span := pb.opts.Tracer.Tracer.Start(ctx, "pulsar.consume", opts...)
 
-	pb.opts.Tracer.Propagators.Inject(newCtx, carrier)
+	var span trace.Span
+	ctx, span = pb.consumerTracer.Start(ctx, carrier, attrs...)
 
-	return newCtx, span
+	return ctx, span
 }
 
 func (pb *pulsarBroker) finishConsumerSpan(span trace.Span) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if pb.consumerTracer == nil {
 		return
 	}
 
-	span.End()
+	pb.consumerTracer.End(context.Background(), span, nil)
 }

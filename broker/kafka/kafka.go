@@ -5,19 +5,23 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
+
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/uuid"
+
 	kafkaGo "github.com/segmentio/kafka-go"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
 )
 
 const (
@@ -33,6 +37,9 @@ type kafkaBroker struct {
 	connected    bool
 	opts         broker.Options
 	retriesCount int
+
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -124,6 +131,11 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 
 	if cnt, ok := b.opts.Context.Value(retriesCountKey{}).(int); ok {
 		b.retriesCount = cnt
+	}
+
+	if len(b.opts.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("kafka-producer"))
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("kafka-consumer"))
 	}
 
 	return nil
@@ -323,7 +335,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 			if kerr, ok := err.(kafkaGo.Error); ok {
 				if kerr.Temporary() && !kerr.Timeout() {
 					time.Sleep(200 * time.Millisecond)
-					err = writer.WriteMessages(b.opts.Context, kMsg)
+					err = writer.WriteMessages(options.Context, kMsg)
 				}
 			}
 		case true:
@@ -337,7 +349,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 
 			writer := b.createProducer(opts...)
 			for i := 0; i < b.retriesCount; i++ {
-				if err = writer.WriteMessages(b.opts.Context, kMsg); err == nil {
+				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
 					b.Lock()
 					b.writers[topic] = writer
 					b.Unlock()
@@ -421,55 +433,43 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 }
 
 func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) trace.Span {
-	if b.opts.Tracer.Tracer == nil {
+	if b.producerTracer == nil {
 		return nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("kafka"),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Topic),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindProducer),
-	}
-	ctx, span := b.opts.Tracer.Tracer.Start(ctx, "kafka.produce", opts...)
 
-	b.opts.Tracer.Propagators.Inject(ctx, carrier)
+	var span trace.Span
+	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
 	return span
 }
 
 func (b *kafkaBroker) finishProducerSpan(span trace.Span, partition int32, offset int64, err error) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if b.producerTracer == nil {
 		return
 	}
 
-	span.SetAttributes(
+	attrs := []attribute.KeyValue{
 		semConv.MessagingMessageIDKey.String(strconv.FormatInt(offset, 10)),
 		semConv.MessagingKafkaPartitionKey.Int64(int64(partition)),
-	)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
 	}
 
-	span.End()
+	b.producerTracer.End(context.Background(), span, err, attrs...)
 }
 
 func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Message) (context.Context, trace.Span) {
-	if b.opts.Tracer.Tracer == nil {
+	if b.consumerTracer == nil {
 		return ctx, nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("kafka"),
@@ -479,24 +479,17 @@ func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Messag
 		semConv.MessagingMessageIDKey.String(strconv.FormatInt(msg.Offset, 10)),
 		semConv.MessagingKafkaPartitionKey.Int64(int64(msg.Partition)),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindConsumer),
-	}
-	newCtx, span := b.opts.Tracer.Tracer.Start(ctx, "kafka.consume", opts...)
 
-	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
+	var span trace.Span
+	ctx, span = b.consumerTracer.Start(ctx, carrier, attrs...)
 
-	return newCtx, span
+	return ctx, span
 }
 
 func (b *kafkaBroker) finishConsumerSpan(span trace.Span) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if b.consumerTracer == nil {
 		return
 	}
 
-	span.End()
+	b.consumerTracer.End(context.Background(), span, nil)
 }

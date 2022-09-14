@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 
 	aliyun "github.com/aliyunmq/mq-http-go-sdk"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gogap/errors"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
 )
 
 type aliyunBroker struct {
@@ -36,6 +37,9 @@ type aliyunBroker struct {
 
 	client    aliyun.MQClient
 	producers map[string]aliyun.MQProducer
+
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func newAliyunHttpBroker(options broker.Options) broker.Broker {
@@ -92,6 +96,11 @@ func (r *aliyunBroker) Init(opts ...broker.Option) error {
 	}
 	if v, ok := r.opts.Context.Value(groupNameKey{}).(string); ok {
 		r.groupName = v
+	}
+
+	if len(r.opts.Tracings) > 0 {
+		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("rocketmq-producer"))
+		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("rocketmq-consumer"))
 	}
 
 	return nil
@@ -327,56 +336,44 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 }
 
 func (r *aliyunBroker) startProducerSpan(ctx context.Context, topicName string, msg *aliyun.PublishMessageRequest) trace.Span {
-	if r.opts.Tracer.Tracer == nil {
+	if r.producerTracer == nil {
 		return nil
 	}
 
 	carrier := NewAliyunProducerMessageCarrier(msg)
-	ctx = r.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(topicName),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindProducer),
-	}
-	ctx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.produce", opts...)
 
-	r.opts.Tracer.Propagators.Inject(ctx, carrier)
+	var span trace.Span
+	ctx, span = r.producerTracer.Start(ctx, carrier, attrs...)
 
 	return span
 }
 
 func (r *aliyunBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if r.producerTracer == nil {
 		return
 	}
 
-	span.SetAttributes(
+	attrs := []attribute.KeyValue{
 		semConv.MessagingMessageIDKey.String(messageId),
 		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
 		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
-	)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
 	}
 
-	span.End()
+	r.producerTracer.End(context.Background(), span, err, attrs...)
 }
 
 func (r *aliyunBroker) startConsumerSpan(ctx context.Context, msg *aliyun.ConsumeMessageEntry) (context.Context, trace.Span) {
-	if r.opts.Tracer.Tracer == nil {
+	if r.consumerTracer == nil {
 		return ctx, nil
 	}
 
 	carrier := NewAliyunConsumerMessageCarrier(msg)
-	ctx = r.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
@@ -385,24 +382,17 @@ func (r *aliyunBroker) startConsumerSpan(ctx context.Context, msg *aliyun.Consum
 		semConv.MessagingOperationReceive,
 		semConv.MessagingMessageIDKey.String(msg.MessageId),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindConsumer),
-	}
-	newCtx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.consume", opts...)
 
-	r.opts.Tracer.Propagators.Inject(newCtx, carrier)
+	var span trace.Span
+	ctx, span = r.consumerTracer.Start(ctx, carrier, attrs...)
 
-	return newCtx, span
+	return ctx, span
 }
 
 func (r *aliyunBroker) finishConsumerSpan(span trace.Span) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if r.consumerTracer == nil {
 		return
 	}
 
-	span.End()
+	r.consumerTracer.End(context.Background(), span, nil)
 }

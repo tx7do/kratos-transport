@@ -4,18 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
-	"go.opentelemetry.io/otel/trace"
 	"net"
 	"net/url"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/go-stomp/stomp/v3"
 	"github.com/go-stomp/stomp/v3/frame"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
 )
 
 const (
@@ -27,6 +30,9 @@ type stompBroker struct {
 	endpoint *url.URL
 
 	stompConn *stomp.Conn
+
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -79,6 +85,11 @@ func (b *stompBroker) Init(opts ...broker.Option) error {
 		cAddrs = []string{defaultAddr}
 	}
 	b.opts.Addrs = cAddrs
+
+	if len(b.opts.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("stomp-producer"))
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("stomp-consumer"))
+	}
 
 	return nil
 }
@@ -272,49 +283,38 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 }
 
 func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *[]func(*frame.Frame) error) trace.Span {
-	if b.opts.Tracer.Tracer == nil {
-		fmt.Printf("No tracer found, skipping tracing for %s\n", topic)
+	if b.producerTracer == nil {
 		return nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("stomp"),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(topic),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindProducer),
-	}
-	ctx, span := b.opts.Tracer.Tracer.Start(ctx, "stomp.produce", opts...)
 
-	b.opts.Tracer.Propagators.Inject(ctx, carrier)
+	var span trace.Span
+	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
 	return span
 }
 
 func (b *stompBroker) finishProducerSpan(span trace.Span, err error) {
-	if span == nil {
+	if b.producerTracer == nil {
 		return
 	}
 
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-	}
-
-	span.End()
+	b.producerTracer.End(context.Background(), span, err)
 }
 
 func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stomp.Message) (context.Context, trace.Span) {
-	if b.opts.Tracer.Tracer == nil {
+	if b.consumerTracer == nil {
 		return ctx, nil
 	}
 
 	carrier := NewConsumerMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("stomp"),
@@ -323,21 +323,17 @@ func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stomp.Message)
 		semConv.MessagingOperationReceive,
 		semConv.MessagingMessageIDKey.String(msg.Header.Get("message-id")),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindConsumer),
-	}
-	newCtx, span := b.opts.Tracer.Tracer.Start(ctx, "stomp.consume", opts...)
 
-	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
+	var span trace.Span
+	ctx, span = b.consumerTracer.Start(ctx, carrier, attrs...)
 
-	return newCtx, span
+	return ctx, span
 }
 
 func (b *stompBroker) finishConsumerSpan(span trace.Span) {
-	if span == nil {
+	if b.consumerTracer == nil {
 		return
 	}
 
-	span.End()
+	b.consumerTracer.End(context.Background(), span, nil)
 }

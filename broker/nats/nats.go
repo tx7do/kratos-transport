@@ -3,16 +3,18 @@ package nats
 import (
 	"context"
 	"errors"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
-	"go.opentelemetry.io/otel/trace"
 	"strings"
 	"sync"
 
 	"github.com/go-kratos/kratos/v2/log"
 	NATS "github.com/nats-io/nats.go"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
+
+	"go.opentelemetry.io/otel/attribute"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -32,6 +34,9 @@ type natsBroker struct {
 
 	drain   bool
 	closeCh chan error
+
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -66,6 +71,12 @@ func (b *natsBroker) Options() broker.Options {
 
 func (b *natsBroker) Init(opts ...broker.Option) error {
 	b.setOption(opts...)
+
+	if len(b.opts.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("nats-producer"))
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("nats-consumer"))
+	}
+
 	return nil
 }
 
@@ -312,48 +323,38 @@ func (b *natsBroker) onDisconnectedError(_ *NATS.Conn, err error) {
 }
 
 func (b *natsBroker) startProducerSpan(ctx context.Context, msg *NATS.Msg) trace.Span {
-	if b.opts.Tracer.Tracer == nil {
+	if b.producerTracer == nil {
 		return nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("nats"),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Subject),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindProducer),
-	}
-	ctx, span := b.opts.Tracer.Tracer.Start(ctx, "nats.produce", opts...)
 
-	b.opts.Tracer.Propagators.Inject(ctx, carrier)
+	var span trace.Span
+	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
 	return span
 }
 
 func (b *natsBroker) finishProducerSpan(span trace.Span, err error) {
-	if span == nil {
+	if b.producerTracer == nil {
 		return
 	}
 
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
-	}
-
-	span.End()
+	b.producerTracer.End(context.Background(), span, err)
 }
 
 func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *NATS.Msg) (context.Context, trace.Span) {
-	if b.opts.Tracer.Tracer == nil {
+	if b.consumerTracer == nil {
 		return ctx, nil
 	}
 
 	carrier := NewMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("nats"),
@@ -361,21 +362,17 @@ func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *NATS.Msg) (cont
 		semConv.MessagingDestinationKey.String(msg.Subject),
 		semConv.MessagingOperationReceive,
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindConsumer),
-	}
-	newCtx, span := b.opts.Tracer.Tracer.Start(ctx, "nats.consume", opts...)
 
-	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
+	var span trace.Span
+	ctx, span = b.consumerTracer.Start(ctx, carrier, attrs...)
 
-	return newCtx, span
+	return ctx, span
 }
 
 func (b *natsBroker) finishConsumerSpan(span trace.Span) {
-	if span == nil {
+	if b.consumerTracer == nil {
 		return
 	}
 
-	span.End()
+	b.consumerTracer.End(context.Background(), span, nil)
 }

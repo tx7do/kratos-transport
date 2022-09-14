@@ -3,8 +3,7 @@ package broker
 import (
 	"context"
 	"crypto/tls"
-
-	"go.opentelemetry.io/otel"
+	"github.com/tx7do/kratos-transport/tracing"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
@@ -12,17 +11,8 @@ import (
 )
 
 var (
-	DefaultCodec      encoding.Codec = nil
-	DefaultTracerName                = "kratos-broker"
+	DefaultCodec encoding.Codec = nil
 )
-
-///////////////////////////////////////////////////////////////////////////////
-
-type TracingOptions struct {
-	TracerProvider trace.TracerProvider
-	Propagators    propagation.TextMapPropagator
-	Tracer         trace.Tracer
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -38,7 +28,7 @@ type Options struct {
 
 	Context context.Context
 
-	Tracer TracingOptions
+	Tracings []tracing.Option
 }
 
 type Option func(*Options)
@@ -60,6 +50,8 @@ func NewOptions() Options {
 		TLSConfig: nil,
 
 		Context: context.Background(),
+
+		Tracings: []tracing.Option{},
 	}
 
 	return opt
@@ -120,37 +112,25 @@ func WithTLSConfig(config *tls.Config) Option {
 
 func WithTracerProvider(provider trace.TracerProvider, tracerName string) Option {
 	return func(opt *Options) {
-		if provider != nil {
-			opt.Tracer.TracerProvider = provider
-		} else {
-			opt.Tracer.TracerProvider = otel.GetTracerProvider()
-		}
-
-		if opt.Tracer.Propagators == nil {
-			//opt.Tracer.Propagators = otel.GetTextMapPropagator()
-			opt.Tracer.Propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
-		}
-
-		if len(tracerName) == 0 {
-			tracerName = DefaultTracerName
-		}
-
-		opt.Tracer.Tracer = opt.Tracer.TracerProvider.Tracer(tracerName)
+		opt.Tracings = append(opt.Tracings, tracing.WithTracerProvider(provider))
 	}
 }
 
-func WithPropagators(propagators propagation.TextMapPropagator) Option {
+func WithPropagator(propagators propagation.TextMapPropagator) Option {
 	return func(opt *Options) {
-		if propagators != nil {
-			opt.Tracer.Propagators = propagators
-		} else {
-			//opt.Tracer.Propagators = otel.GetTextMapPropagator()
-			opt.Tracer.Propagators = propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
-		}
-		if opt.Tracer.TracerProvider == nil {
-			opt.Tracer.TracerProvider = otel.GetTracerProvider()
-			opt.Tracer.Tracer = opt.Tracer.TracerProvider.Tracer(DefaultTracerName)
-		}
+		opt.Tracings = append(opt.Tracings, tracing.WithPropagator(propagators))
+	}
+}
+
+func WithGlobalTracerProvider() Option {
+	return func(opt *Options) {
+		opt.Tracings = append(opt.Tracings, tracing.WithGlobalTracerProvider())
+	}
+}
+
+func WithGlobalPropagator() Option {
+	return func(opt *Options) {
+		opt.Tracings = append(opt.Tracings, tracing.WithGlobalPropagator())
 	}
 }
 
@@ -246,27 +226,4 @@ func WithSubscribeContext(ctx context.Context) SubscribeOption {
 	return func(o *SubscribeOptions) {
 		o.Context = ctx
 	}
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-type TracingOption func(*TracingOptions)
-
-func (o *TracingOptions) Apply(opts ...TracingOption) {
-	for _, opt := range opts {
-		opt(o)
-	}
-}
-
-func NewTracingOptions(opts ...TracingOption) TracingOptions {
-	opt := TracingOptions{
-		Propagators:    otel.GetTextMapPropagator(),
-		TracerProvider: otel.GetTracerProvider(),
-	}
-
-	opt.Apply(opts...)
-
-	opt.Tracer = opt.TracerProvider.Tracer(DefaultTracerName)
-
-	return opt
 }

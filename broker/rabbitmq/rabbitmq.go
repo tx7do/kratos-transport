@@ -8,10 +8,11 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/streadway/amqp"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -22,14 +23,19 @@ type rabbitBroker struct {
 
 	conn *rabbitConnection
 	opts broker.Options
+
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
-	return &rabbitBroker{
+	b := &rabbitBroker{
 		opts: options,
 	}
+
+	return b
 }
 
 func (b *rabbitBroker) Name() string {
@@ -64,6 +70,11 @@ func (b *rabbitBroker) Init(opts ...broker.Option) error {
 		addrs = []string{DefaultRabbitURL}
 	}
 	b.opts.Addrs = addrs
+
+	if len(b.opts.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("rabbitmq-producer"))
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("rabbitmq-consumer"))
+	}
 
 	return nil
 }
@@ -280,12 +291,11 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 }
 
 func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string, msg *amqp.Publishing) trace.Span {
-	if b.opts.Tracer.Tracer == nil {
+	if b.producerTracer == nil {
 		return nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rabbitmq"),
@@ -295,45 +305,31 @@ func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string,
 		semConv.MessagingProtocolKey.String("AMQP"),
 		semConv.MessagingProtocolVersionKey.String("0.9.1"),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindProducer),
-	}
-	newCtx, span := b.opts.Tracer.Tracer.Start(ctx, "rabbitmq.produce", opts...)
 
-	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
+	var span trace.Span
+	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
 	return span
 }
 
 func (b *rabbitBroker) finishProducerSpan(span trace.Span, routingKey string, err error) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if b.producerTracer == nil {
 		return
 	}
 
-	span.SetAttributes(
+	attrs := []attribute.KeyValue{
 		semConv.MessagingRabbitmqRoutingKeyKey.String(routingKey),
-	)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	} else {
-		span.SetStatus(codes.Ok, "OK")
 	}
 
-	span.End()
+	b.producerTracer.End(context.Background(), span, err, attrs...)
 }
 
 func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, msg *amqp.Delivery) (context.Context, trace.Span) {
-	if b.opts.Tracer.Tracer == nil {
+	if b.consumerTracer == nil {
 		return ctx, nil
 	}
 
 	carrier := NewConsumerMessageCarrier(msg)
-	ctx = b.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rabbitmq"),
@@ -345,32 +341,17 @@ func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, 
 		semConv.MessagingProtocolKey.String("AMQP"),
 		semConv.MessagingProtocolVersionKey.String("0.9.1"),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindConsumer),
-	}
 
-	newCtx, span := b.opts.Tracer.Tracer.Start(ctx, "rabbitmq.consume", opts...)
+	var span trace.Span
+	ctx, span = b.consumerTracer.Start(ctx, carrier, attrs...)
 
-	b.opts.Tracer.Propagators.Inject(newCtx, carrier)
-
-	return newCtx, span
+	return ctx, span
 }
 
 func (b *rabbitBroker) finishConsumerSpan(span trace.Span, err error) {
-	if span == nil {
-		return
-	}
-	if !span.IsRecording() {
+	if b.consumerTracer == nil {
 		return
 	}
 
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	} else {
-		span.SetStatus(codes.Ok, "OK")
-	}
-
-	span.End()
+	b.consumerTracer.End(context.Background(), span, err)
 }

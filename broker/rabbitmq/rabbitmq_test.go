@@ -211,7 +211,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 		createTracerProvider("jaeger", "publish_tracer_tester"),
-		//broker.WithPropagators(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
+		//broker.WithPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
 	)
 
 	_ = b.Init()
@@ -250,7 +250,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 		createTracerProvider("jaeger", "subscribe_tracer_tester"),
-		//broker.WithPropagators(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
+		//broker.WithPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
 		WithExchangeName(testExchange),
 		WithDurableExchange(),
 	)

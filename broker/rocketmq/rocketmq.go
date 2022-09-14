@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 
@@ -16,7 +15,9 @@ import (
 	"github.com/apache/rocketmq-client-go/v2/producer"
 
 	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
 )
 
 const (
@@ -43,6 +44,9 @@ type rocketmqBroker struct {
 	opts broker.Options
 
 	producers map[string]rocketmq.Producer
+
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -109,6 +113,11 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	}
 	if v, ok := r.opts.Context.Value(enableTraceKey{}).(bool); ok {
 		r.enableTrace = v
+	}
+
+	if len(r.opts.Tracings) > 0 {
+		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("rocketmq-producer"))
+		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("rocketmq-consumer"))
 	}
 
 	return nil
@@ -437,53 +446,44 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 }
 
 func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *primitive.Message) trace.Span {
-	if r.opts.Tracer.Tracer == nil {
+	if r.producerTracer == nil {
 		return nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
-	ctx = r.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Topic),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindProducer),
-	}
-	ctx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.produce", opts...)
 
-	r.opts.Tracer.Propagators.Inject(ctx, carrier)
+	var span trace.Span
+	ctx, span = r.producerTracer.Start(ctx, carrier, attrs...)
 
 	return span
 }
 
 func (r *rocketmqBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
-	if span == nil {
+	if r.producerTracer == nil {
 		return
 	}
 
-	span.SetAttributes(
+	attrs := []attribute.KeyValue{
 		semConv.MessagingMessageIDKey.String(messageId),
 		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
 		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
-	)
-	if err != nil {
-		span.SetStatus(codes.Error, err.Error())
 	}
 
-	span.End()
+	r.producerTracer.End(context.Background(), span, err, attrs...)
 }
 
 func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *primitive.MessageExt) (context.Context, trace.Span) {
-	if r.opts.Tracer.Tracer == nil {
+	if r.consumerTracer == nil {
 		return ctx, nil
 	}
 
 	carrier := NewConsumerMessageCarrier(msg)
-	ctx = r.opts.Tracer.Propagators.Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
@@ -492,21 +492,17 @@ func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *primitive.M
 		semConv.MessagingOperationReceive,
 		semConv.MessagingMessageIDKey.String(msg.MsgId),
 	}
-	opts := []trace.SpanStartOption{
-		trace.WithAttributes(attrs...),
-		trace.WithSpanKind(trace.SpanKindConsumer),
-	}
-	newCtx, span := r.opts.Tracer.Tracer.Start(ctx, "rocketmq.consume", opts...)
 
-	r.opts.Tracer.Propagators.Inject(newCtx, carrier)
+	var span trace.Span
+	ctx, span = r.consumerTracer.Start(ctx, carrier, attrs...)
 
-	return newCtx, span
+	return ctx, span
 }
 
 func (r *rocketmqBroker) finishConsumerSpan(span trace.Span) {
-	if span == nil {
+	if r.consumerTracer == nil {
 		return
 	}
 
-	span.End()
+	r.consumerTracer.End(context.Background(), span, nil)
 }

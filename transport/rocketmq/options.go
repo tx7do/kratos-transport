@@ -84,14 +84,26 @@ func WithCodec(c encoding.Codec) ServerOption {
 	}
 }
 
+func WithGlobalTracerProvider() ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, broker.WithGlobalTracerProvider())
+	}
+}
+
+func WithGlobalPropagator() ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, broker.WithGlobalPropagator())
+	}
+}
+
 func WithTracerProvider(provider trace.TracerProvider, tracerName string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithTracerProvider(provider, tracerName))
 	}
 }
 
-func WithPropagators(propagators propagation.TextMapPropagator) ServerOption {
+func WithPropagator(propagators propagation.TextMapPropagator) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, broker.WithPropagators(propagators))
+		s.brokerOpts = append(s.brokerOpts, broker.WithPropagator(propagators))
 	}
 }
