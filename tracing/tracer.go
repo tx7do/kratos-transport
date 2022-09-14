@@ -17,7 +17,7 @@ type Tracer struct {
 	opt    *options
 }
 
-func NewTracer(kind trace.SpanKind, opts ...Option) *Tracer {
+func NewTracer(kind trace.SpanKind, spanName string, opts ...Option) *Tracer {
 	op := options{
 		propagator: propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{}),
 		kind:       kind,
@@ -29,6 +29,7 @@ func NewTracer(kind trace.SpanKind, opts ...Option) *Tracer {
 	if op.tracerProvider != nil {
 		otel.SetTracerProvider(op.tracerProvider)
 	}
+	op.spanName = spanName
 
 	switch kind {
 	case trace.SpanKindProducer, trace.SpanKindConsumer:

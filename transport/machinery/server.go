@@ -7,6 +7,10 @@ import (
 	"strings"
 	"sync"
 
+	"go.opentelemetry.io/otel/attribute"
+	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/RichardKnop/machinery/v2"
 	"github.com/RichardKnop/machinery/v2/config"
 	machineryLog "github.com/RichardKnop/machinery/v2/log"
@@ -26,6 +30,8 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
+
+	"github.com/tx7do/kratos-transport/tracing"
 )
 
 var (
@@ -60,6 +66,10 @@ type Server struct {
 
 	redisOption    redisOption
 	consumerOption consumerOption
+
+	tracingOpts    []tracing.Option
+	producerTracer *tracing.Tracer
+	consumerTracer *tracing.Tracer
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -94,6 +104,11 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 	if len(s.redisOption.backends) > 0 && s.cfg.ResultBackend == "" {
 		s.cfg.ResultBackend = s.redisOption.backends[0]
+	}
+
+	if len(s.tracingOpts) > 0 {
+		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-consumer", s.tracingOpts...)
+		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
 	}
 
 	s.initLogger()
@@ -149,10 +164,16 @@ func (s *Server) NewTask(typeName string, values map[string]interface{}) error {
 		signature.Args = append(signature.Args, tasks.Arg{Type: k, Value: v})
 	}
 
-	_, err := s.machineryServer.SendTask(signature)
+	var err error
+
+	span := s.startProducerSpan(context.Background(), signature)
+	defer s.finishProducerSpan(span, err)
+
+	_, err = s.machineryServer.SendTask(signature)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -166,15 +187,21 @@ func (s *Server) NewPeriodicTask(spec, typeName string, values map[string]interf
 		signature.Args = append(signature.Args, tasks.Arg{Type: k, Value: v})
 	}
 
-	err := s.machineryServer.RegisterPeriodicTask(spec, typeName, signature)
+	var err error
+
+	err = s.machineryServer.RegisterPeriodicTask(spec, typeName, signature)
 	if err != nil {
 		return err
 	}
+
+	span := s.startProducerSpan(context.Background(), signature)
+	defer s.finishProducerSpan(span, err)
 
 	_, err = s.machineryServer.SendTask(signature)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -245,4 +272,58 @@ func (s *Server) newWorker(consumerTag string, concurrency int) error {
 		return errors.New("[machinery] create worker failed")
 	}
 	return worker.Launch()
+}
+
+func (s *Server) startProducerSpan(ctx context.Context, msg *tasks.Signature) trace.Span {
+	if s.producerTracer == nil {
+		return nil
+	}
+
+	carrier := NewMessageCarrier(&msg.Headers)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("machinery"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingDestinationKey.String(msg.Name),
+	}
+
+	var span trace.Span
+	ctx, span = s.producerTracer.Start(ctx, carrier, attrs...)
+
+	return span
+}
+
+func (s *Server) finishProducerSpan(span trace.Span, err error) {
+	if s.producerTracer == nil {
+		return
+	}
+
+	s.producerTracer.End(context.Background(), span, err)
+}
+
+func (s *Server) startConsumerSpan(ctx context.Context, msg *tasks.Signature) (context.Context, trace.Span) {
+	if s.consumerTracer == nil {
+		return ctx, nil
+	}
+
+	carrier := NewMessageCarrier(&msg.Headers)
+
+	attrs := []attribute.KeyValue{
+		semConv.MessagingSystemKey.String("machinery"),
+		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingOperationReceive,
+	}
+
+	var span trace.Span
+	ctx, span = s.consumerTracer.Start(ctx, carrier, attrs...)
+
+	return ctx, span
+}
+
+func (s *Server) finishConsumerSpan(span trace.Span) {
+	if s.consumerTracer == nil {
+		return
+	}
+
+	s.consumerTracer.End(context.Background(), span, nil)
 }

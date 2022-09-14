@@ -134,8 +134,8 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	}
 
 	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, tracing.WithSpanName("kafka-producer"))
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, tracing.WithSpanName("kafka-consumer"))
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "kafka-consumer", b.opts.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "kafka-consumer", b.opts.Tracings...)
 	}
 
 	return nil
@@ -326,9 +326,12 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 	}
 	b.Unlock()
 
-	span := b.startProducerSpan(options.Context, &kMsg)
+	var err error
 
-	err := writer.WriteMessages(options.Context, kMsg)
+	span := b.startProducerSpan(options.Context, &kMsg)
+	defer b.finishProducerSpan(span, int32(kMsg.Partition), kMsg.Offset, err)
+
+	err = writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
 		switch cached {
 		case false:
@@ -358,8 +361,6 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 			}
 		}
 	}
-
-	b.finishProducerSpan(span, int32(kMsg.Partition), kMsg.Offset, err)
 
 	return err
 }

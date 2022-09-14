@@ -22,12 +22,6 @@ func WithTracerName(tracerName string) Option {
 	}
 }
 
-func WithSpanName(spanName string) Option {
-	return func(opts *options) {
-		opts.spanName = spanName
-	}
-}
-
 func WithPropagator(propagator propagation.TextMapPropagator) Option {
 	return func(opts *options) {
 		opts.propagator = propagator
