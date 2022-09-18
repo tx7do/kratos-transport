@@ -16,8 +16,9 @@ import (
 const (
 	localRedisAddr = "127.0.0.1:6379"
 
-	testTask1     = "test_task_1"
-	testTaskDelay = "test_task_delay"
+	testTask1        = "test_task_1"
+	testTaskDelay    = "test_task_delay"
+	testPeriodicTask = "test_periodic_task"
 )
 
 func TestNewTask(t *testing.T) {
@@ -52,7 +53,12 @@ func handleTask1(_ context.Context, task *asynq.Task) error {
 }
 
 func handleDelayTask(_ context.Context, task *asynq.Task) error {
-	log.Infof("Task Type: [%s], Payload: [%s]", task.Type(), string(task.Payload()))
+	log.Infof("Delay Task Type: [%s], Payload: [%s]", task.Type(), string(task.Payload()))
+	return nil
+}
+
+func handlePeriodicTask(_ context.Context, task *asynq.Task) error {
+	log.Infof("Periodic Task Type: [%s], Payload: [%s]", task.Type(), string(task.Payload()))
 	return nil
 }
 
@@ -108,6 +114,38 @@ func TestAllInOne(t *testing.T) {
 
 	// 延迟队列
 	err = srv.NewTask(testTaskDelay, []byte("delay task"), asynq.ProcessIn(3*time.Second))
+	assert.Nil(t, err)
+
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
+
+	<-interrupt
+}
+
+func TestPeriodicTask(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	srv := NewServer(
+		WithAddress(localRedisAddr),
+	)
+
+	var err error
+
+	err = srv.HandleFunc(testPeriodicTask, handlePeriodicTask)
+	assert.Nil(t, err)
+
+	// 每分钟执行一次
+	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, []byte("delay task"))
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {

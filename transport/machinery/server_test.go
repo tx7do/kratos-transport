@@ -15,10 +15,10 @@ import (
 const (
 	localRedisAddr = "127.0.0.1:6379"
 
-	testTask1     = "test_task_1"
-	testTaskDelay = "test_task_delay"
-	sumTask       = "sum_task"
-	periodicTask  = "periodic_task"
+	testTask1        = "test_task_1"
+	testTaskDelay    = "test_task_delay"
+	testPeriodicTask = "test_periodic_task"
+	sumTask          = "sum_task"
 )
 
 func TestNewTask(t *testing.T) {
@@ -158,12 +158,12 @@ func TestPeriodicTask(t *testing.T) {
 
 	var err error
 
-	err = srv.HandleFunc(periodicTask, handlePeriodicTask)
+	err = srv.HandleFunc(testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 
 	var args = map[string]interface{}{}
 	// 每分钟执行一次
-	err = srv.NewPeriodicTask("*/1 * * * ?", periodicTask, args)
+	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, args)
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {
