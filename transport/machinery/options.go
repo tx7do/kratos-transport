@@ -110,3 +110,21 @@ func WithPriority(priority uint8) TaskOption {
 		o.Priority = priority
 	}
 }
+
+func WithArgument(typeName string, value interface{}) TaskOption {
+	return func(o *tasks.Signature) {
+		o.Args = append(o.Args, tasks.Arg{Type: typeName, Value: value})
+	}
+}
+
+type TasksOption func(o *[]*tasks.Signature)
+
+func WithTask(typeName string, opts ...TaskOption) TasksOption {
+	return func(s *[]*tasks.Signature) {
+		signature := &tasks.Signature{Name: typeName}
+		for _, o := range opts {
+			o(signature)
+		}
+		*s = append(*s, signature)
+	}
+}
