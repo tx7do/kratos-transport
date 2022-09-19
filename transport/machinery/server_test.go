@@ -10,13 +10,14 @@ import (
 	"os/signal"
 	"syscall"
 	"testing"
+	"time"
 )
 
 const (
 	localRedisAddr = "127.0.0.1:6379"
 
 	testTask1        = "test_task_1"
-	testTaskDelay    = "test_task_delay"
+	testDelayTask    = "test_delay_task"
 	testPeriodicTask = "test_periodic_task"
 	sumTask          = "sum_task"
 )
@@ -91,7 +92,9 @@ func TestTaskProcess(t *testing.T) {
 	err = srv.HandleFunc(testTask1, handleTask1)
 	err = srv.HandleFunc(testTask1, handleTask1)
 	assert.Nil(t, err)
-	err = srv.HandleFunc(testTaskDelay, handleDelayTask)
+	err = srv.HandleFunc(testDelayTask, handleDelayTask)
+	assert.Nil(t, err)
+	err = srv.HandleFunc(testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 	err = srv.HandleFunc(sumTask, handleAdd)
 	assert.Nil(t, err)
@@ -123,7 +126,9 @@ func TestAllInOne(t *testing.T) {
 
 	err = srv.HandleFunc(testTask1, handleTask1)
 	assert.Nil(t, err)
-	err = srv.HandleFunc(testTaskDelay, handleDelayTask)
+	err = srv.HandleFunc(testDelayTask, handleDelayTask)
+	assert.Nil(t, err)
+	err = srv.HandleFunc(testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 	err = srv.HandleFunc(sumTask, handleAdd)
 	assert.Nil(t, err)
@@ -131,6 +136,49 @@ func TestAllInOne(t *testing.T) {
 	var args = map[string]interface{}{}
 	args["int64"] = 1
 	err = srv.NewTask(sumTask, args)
+	assert.Nil(t, err)
+
+	// 每分钟执行一次
+	args = map[string]interface{}{}
+	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, args)
+	assert.Nil(t, err)
+
+	// 延迟5秒执行任务
+	args = map[string]interface{}{}
+	err = srv.NewTask(testDelayTask, args, WithDelayTime(time.Now().UTC().Add(time.Second*5)))
+	assert.Nil(t, err)
+
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
+
+	<-interrupt
+}
+
+func TestDelayTask(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	srv := NewServer(
+		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+	)
+
+	var err error
+
+	err = srv.HandleFunc(testDelayTask, handleDelayTask)
+	assert.Nil(t, err)
+
+	var args = map[string]interface{}{}
+	// 延迟5秒执行任务
+	err = srv.NewTask(testDelayTask, args, WithDelayTime(time.Now().UTC().Add(time.Second*5)))
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {
@@ -177,4 +225,16 @@ func TestPeriodicTask(t *testing.T) {
 	}()
 
 	<-interrupt
+}
+
+func TestWorkflows_Groups(t *testing.T) {
+
+}
+
+func TestWorkflows_Chords(t *testing.T) {
+
+}
+
+func TestWorkflows_Chains(t *testing.T) {
+
 }

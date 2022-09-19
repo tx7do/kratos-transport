@@ -155,13 +155,17 @@ func (s *Server) HandleFunc(name string, handler interface{}) error {
 }
 
 // NewTask enqueue a new task
-func (s *Server) NewTask(typeName string, values map[string]interface{}) error {
+func (s *Server) NewTask(typeName string, values map[string]interface{}, opts ...TaskOption) error {
 	signature := &tasks.Signature{
 		Name: typeName,
 	}
 
 	for k, v := range values {
 		signature.Args = append(signature.Args, tasks.Arg{Type: k, Value: v})
+	}
+
+	for _, o := range opts {
+		o(signature)
 	}
 
 	var err error
@@ -177,8 +181,8 @@ func (s *Server) NewTask(typeName string, values map[string]interface{}) error {
 	return nil
 }
 
-// NewPeriodicTask 定时任务，不支持秒级任务
-func (s *Server) NewPeriodicTask(spec, typeName string, values map[string]interface{}) error {
+// NewPeriodicTask 周期性定时任务，不支持秒级任务，最大精度只到分钟。
+func (s *Server) NewPeriodicTask(cronSpec, typeName string, values map[string]interface{}, opts ...TaskOption) error {
 	signature := &tasks.Signature{
 		Name: typeName,
 	}
@@ -187,9 +191,13 @@ func (s *Server) NewPeriodicTask(spec, typeName string, values map[string]interf
 		signature.Args = append(signature.Args, tasks.Arg{Type: k, Value: v})
 	}
 
+	for _, o := range opts {
+		o(signature)
+	}
+
 	var err error
 
-	err = s.machineryServer.RegisterPeriodicTask(spec, typeName, signature)
+	err = s.machineryServer.RegisterPeriodicTask(cronSpec, typeName, signature)
 	if err != nil {
 		return err
 	}

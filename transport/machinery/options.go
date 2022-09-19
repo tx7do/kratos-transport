@@ -3,7 +3,9 @@ package machinery
 import (
 	"crypto/tls"
 	"github.com/RichardKnop/machinery/v2/config"
+	"github.com/RichardKnop/machinery/v2/tasks"
 	"github.com/go-kratos/kratos/v2/log"
+	"time"
 )
 
 type ServerOption func(o *Server)
@@ -59,5 +61,52 @@ func WithRedisAddress(brokers, backends []string) ServerOption {
 		}
 		s.redisOption.brokers = brokers
 		s.redisOption.backends = backends
+	}
+}
+
+type TaskOption func(o *tasks.Signature)
+
+func WithDelayTime(delayTime time.Time) TaskOption {
+	return func(o *tasks.Signature) {
+		o.ETA = &delayTime
+	}
+}
+
+func WithRetryCount(count int) TaskOption {
+	return func(o *tasks.Signature) {
+		o.RetryCount = count
+	}
+}
+
+func WithRetryTimeout(timeout int) TaskOption {
+	return func(o *tasks.Signature) {
+		o.RetryTimeout = timeout
+	}
+}
+
+func WithHeaders(headers tasks.Headers) TaskOption {
+	return func(o *tasks.Signature) {
+		o.Headers = headers
+	}
+}
+
+func WithHeader(key string, value interface{}) TaskOption {
+	return func(o *tasks.Signature) {
+		if o.Headers == nil {
+			o.Headers = tasks.Headers{}
+		}
+		o.Headers[key] = value
+	}
+}
+
+func WithRoutingKey(key string) TaskOption {
+	return func(o *tasks.Signature) {
+		o.RoutingKey = key
+	}
+}
+
+func WithPriority(priority uint8) TaskOption {
+	return func(o *tasks.Signature) {
+		o.Priority = priority
 	}
 }

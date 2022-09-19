@@ -2,13 +2,13 @@ package asynq
 
 import (
 	"context"
-	"github.com/go-kratos/kratos/v2/log"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +17,7 @@ const (
 	localRedisAddr = "127.0.0.1:6379"
 
 	testTask1        = "test_task_1"
-	testTaskDelay    = "test_task_delay"
+	testDelayTask    = "test_delay_task"
 	testPeriodicTask = "test_periodic_task"
 )
 
@@ -74,7 +74,7 @@ func TestTaskProcess(t *testing.T) {
 
 	err := srv.HandleFunc(testTask1, handleTask1)
 	assert.Nil(t, err)
-	err = srv.HandleFunc(testTaskDelay, handleDelayTask)
+	err = srv.HandleFunc(testDelayTask, handleDelayTask)
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {
@@ -102,7 +102,9 @@ func TestAllInOne(t *testing.T) {
 
 	err := srv.HandleFunc(testTask1, handleTask1)
 	assert.Nil(t, err)
-	err = srv.HandleFunc(testTaskDelay, handleDelayTask)
+	err = srv.HandleFunc(testDelayTask, handleDelayTask)
+	assert.Nil(t, err)
+	err = srv.HandleFunc(testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 
 	// 最多重试3次，10秒超时，20秒后过期
@@ -112,8 +114,44 @@ func TestAllInOne(t *testing.T) {
 		asynq.Deadline(time.Now().Add(20*time.Second)))
 	assert.Nil(t, err)
 
+	// 延迟任务
+	err = srv.NewTask(testDelayTask, []byte("delay task"), asynq.ProcessIn(3*time.Second))
+	assert.Nil(t, err)
+
+	// 周期性任务，每分钟执行一次
+	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, []byte("periodic task"))
+	assert.Nil(t, err)
+
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
+
+	<-interrupt
+}
+
+func TestDelayTask(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	srv := NewServer(
+		WithAddress(localRedisAddr),
+	)
+
+	var err error
+
+	err = srv.HandleFunc(testDelayTask, handleDelayTask)
+	assert.Nil(t, err)
+
 	// 延迟队列
-	err = srv.NewTask(testTaskDelay, []byte("delay task"), asynq.ProcessIn(3*time.Second))
+	err = srv.NewTask(testDelayTask, []byte("delay task"), asynq.ProcessIn(3*time.Second))
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {
@@ -145,7 +183,7 @@ func TestPeriodicTask(t *testing.T) {
 	assert.Nil(t, err)
 
 	// 每分钟执行一次
-	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, []byte("delay task"))
+	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, []byte("periodic task"))
 	assert.Nil(t, err)
 
 	if err := srv.Start(ctx); err != nil {
