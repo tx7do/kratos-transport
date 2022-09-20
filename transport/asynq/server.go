@@ -178,11 +178,10 @@ func (s *Server) Stop(_ context.Context) error {
 }
 
 func (s *Server) init(opts ...ServerOption) {
-	_ = s.createAsynqServer()
-
 	for _, o := range opts {
 		o(s)
 	}
+	_ = s.createAsynqServer()
 }
 
 func (s *Server) createAsynqServer() error {
@@ -200,7 +199,7 @@ func (s *Server) createAsynqServer() error {
 }
 
 func (s *Server) runAsynqServer() error {
-	if s.asynqServer != nil {
+	if s.asynqServer == nil {
 		log.Errorf("[asynq] asynq server is nil")
 		return errors.New("asynq server is nil")
 	}
@@ -243,7 +242,7 @@ func (s *Server) createAsynqScheduler() error {
 }
 
 func (s *Server) runAsynqScheduler() error {
-	if s.asynqScheduler != nil {
+	if s.asynqScheduler == nil {
 		log.Errorf("[asynq] asynq scheduler is nil")
 		return errors.New("asynq scheduler is nil")
 	}
