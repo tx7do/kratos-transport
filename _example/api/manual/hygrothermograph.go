@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -23,13 +24,16 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 		switch t := event.Message().Body.(type) {
 		case []byte:
 			if err := json.Unmarshal(t, &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
 				return err
 			}
 		case string:
 			if err := json.Unmarshal([]byte(t), &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
 				return err
 			}
 		default:
+			log.Error("unknown type Unmarshal failed: ", t)
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 

@@ -2,8 +2,9 @@ package thrift
 
 import (
 	"context"
-	"github.com/tx7do/kratos-transport/_example/api/thrift/gen-go/api"
 	"testing"
+
+	"github.com/tx7do/kratos-transport/_example/api/thrift/gen-go/api"
 )
 
 func TestClient(t *testing.T) {

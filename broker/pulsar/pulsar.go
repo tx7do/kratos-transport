@@ -361,9 +361,11 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 
 			if binder != nil {
 				m.Body = binder()
+			} else {
+				m.Body = cm.Payload()
 			}
 
-			if err := broker.Unmarshal(pb.opts.Codec, cm.Payload(), m.Body); err != nil {
+			if err := broker.Unmarshal(pb.opts.Codec, cm.Payload(), &m.Body); err != nil {
 				p.err = err
 				log.Error(err)
 				continue

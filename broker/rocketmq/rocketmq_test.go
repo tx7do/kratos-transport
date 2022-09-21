@@ -12,9 +12,12 @@ import (
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/stretchr/testify/assert"
+
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
 )
 
 const (
@@ -177,7 +180,7 @@ func Test_Aliyun_Subscribe(t *testing.T) {
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
 	case "jaeger":
-		return broker.WithTracerProvider(broker.NewTracerProvider(exporterName,
+		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
 			"http://localhost:14268/api/traces",
 			serviceName,
 			"",
@@ -187,7 +190,7 @@ func createTracerProvider(exporterName, serviceName string) broker.Option {
 			"rocketmq-tracer",
 		)
 	case "zipkin":
-		return broker.WithTracerProvider(broker.NewTracerProvider(exporterName,
+		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
 			"http://localhost:9411/api/v2/spans",
 			serviceName,
 			"test",

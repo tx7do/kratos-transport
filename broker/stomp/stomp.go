@@ -262,9 +262,11 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if binder != nil {
 					m.Body = binder()
+				} else {
+					m.Body = msg.Body
 				}
 
-				if err := broker.Unmarshal(b.opts.Codec, msg.Body, m.Body); err != nil {
+				if err := broker.Unmarshal(b.opts.Codec, msg.Body, &m.Body); err != nil {
 					p.err = err
 					log.Error(err)
 				}

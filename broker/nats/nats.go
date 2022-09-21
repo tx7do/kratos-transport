@@ -262,11 +262,13 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if binder != nil {
 			m.Body = binder()
+		} else {
+			m.Body = msg.Data
 		}
 
-		if err := broker.Unmarshal(b.opts.Codec, msg.Data, m.Body); err != nil {
+		if err := broker.Unmarshal(b.opts.Codec, msg.Data, &m.Body); err != nil {
 			pub.err = err
-			log.Error(err)
+			log.Errorf("[nats]: unmarshal message failed: %v", err)
 			if eh != nil {
 				_ = eh(b.opts.Context, pub)
 			}
@@ -275,7 +277,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if err := handler(ctx, pub); err != nil {
 			pub.err = err
-			log.Error(err)
+			log.Errorf("[nats]: process message failed: %v", err)
 			if eh != nil {
 				_ = eh(b.opts.Context, pub)
 			}

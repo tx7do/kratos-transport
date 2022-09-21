@@ -281,11 +281,13 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		if binder != nil {
 			m.Body = binder()
+		} else {
+			m.Body = nm.Body
 		}
 
 		p := &publication{topic: topic, nsqMsg: nm, msg: &m}
 
-		if err := broker.Unmarshal(b.opts.Codec, nm.Body, m.Body); err != nil {
+		if err := broker.Unmarshal(b.opts.Codec, nm.Body, &m.Body); err != nil {
 			p.err = err
 			return err
 		}

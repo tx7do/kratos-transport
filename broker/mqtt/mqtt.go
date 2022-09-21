@@ -163,9 +163,11 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if binder != nil {
 			msg.Body = binder()
+		} else {
+			msg.Body = mq.Payload()
 		}
 
-		if err := broker.Unmarshal(m.opts.Codec, mq.Payload(), msg.Body); err != nil {
+		if err := broker.Unmarshal(m.opts.Codec, mq.Payload(), &msg.Body); err != nil {
 			p.err = err
 			log.Error(err)
 			return

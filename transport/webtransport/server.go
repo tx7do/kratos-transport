@@ -217,9 +217,11 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 
 	if handlerData.Binder != nil {
 		payload = handlerData.Binder()
+	} else {
+		payload = msg.Body
 	}
 
-	if err := broker.Unmarshal(s.codec, msg.Body, payload); err != nil {
+	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
 		log.Errorf("[webtransport] unmarshal message exception: %s", err)
 		return err
 	}

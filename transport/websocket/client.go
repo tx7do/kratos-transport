@@ -177,9 +177,11 @@ func (c *Client) messageHandler(buf []byte) error {
 
 	if handlerData.Binder != nil {
 		payload = handlerData.Binder()
+	} else {
+		payload = msg.Body
 	}
 
-	if err := broker.Unmarshal(c.codec, msg.Body, payload); err != nil {
+	if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
 		log.Errorf("[websocket] unmarshal message exception: %s", err)
 		return err
 	}

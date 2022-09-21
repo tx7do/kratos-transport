@@ -238,9 +238,11 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 
 		if binder != nil {
 			m.Body = binder()
+		} else {
+			m.Body = msg.Body
 		}
 
-		if err := broker.Unmarshal(b.opts.Codec, msg.Body, m.Body); err != nil {
+		if err := broker.Unmarshal(b.opts.Codec, msg.Body, &m.Body); err != nil {
 			p.err = err
 			log.Error(err)
 		}

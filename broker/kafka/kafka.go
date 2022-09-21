@@ -409,10 +409,13 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if binder != nil {
 					m.Body = binder()
+				} else {
+					m.Body = msg.Value
 				}
 
-				if err := broker.Unmarshal(b.opts.Codec, msg.Value, m.Body); err != nil {
+				if err := broker.Unmarshal(b.opts.Codec, msg.Value, &m.Body); err != nil {
 					p.err = err
+					log.Errorf("[kafka]: unmarshal message failed: %v", err)
 				}
 
 				err = sub.handler(ctx, p)

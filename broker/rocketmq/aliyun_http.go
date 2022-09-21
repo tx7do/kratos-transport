@@ -271,9 +271,11 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 
 						if sub.binder != nil {
 							m.Body = sub.binder()
+						} else {
+							m.Body = msg.MessageBody
 						}
 
-						if err := broker.Unmarshal(r.opts.Codec, []byte(msg.MessageBody), m.Body); err != nil {
+						if err := broker.Unmarshal(r.opts.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
 							p.err = err
 							log.Error("[rocketmq]: ", err)
 						}

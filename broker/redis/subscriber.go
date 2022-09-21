@@ -32,6 +32,8 @@ func (s *subscriber) recv() {
 
 			if s.binder != nil {
 				m.Body = s.binder()
+			} else {
+				m.Body = x.Data
 			}
 
 			p := publication{
@@ -39,7 +41,7 @@ func (s *subscriber) recv() {
 				message: &m,
 			}
 
-			if err := broker.Unmarshal(s.codec, x.Data, m.Body); err != nil {
+			if err := broker.Unmarshal(s.codec, x.Data, &m.Body); err != nil {
 				p.err = err
 				//log.Error("[redis]", err)
 				break
