@@ -121,7 +121,7 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	}
 
 	if len(pb.opts.Tracings) > 0 {
-		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "pulsar-consumer", pb.opts.Tracings...)
+		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "pulsar-producer", pb.opts.Tracings...)
 		pb.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "pulsar-consumer", pb.opts.Tracings...)
 	}
 

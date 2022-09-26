@@ -73,7 +73,7 @@ func (b *natsBroker) Init(opts ...broker.Option) error {
 	b.setOption(opts...)
 
 	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "nats-consumer", b.opts.Tracings...)
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "nats-producer", b.opts.Tracings...)
 		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "nats-consumer", b.opts.Tracings...)
 	}
 

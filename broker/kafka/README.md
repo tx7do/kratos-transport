@@ -49,7 +49,9 @@ docker run -itd \
     bitnami/kafka:latest
 ```
 
-管理工具: [Offset Explorer](https://www.kafkatool.com/download.html)
+## 管理工具
+
+- [Offset Explorer](https://www.kafkatool.com/download.html)
 
 ## 参考资料
 

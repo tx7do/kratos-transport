@@ -106,7 +106,7 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	if len(s.tracingOpts) > 0 {
-		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-consumer", s.tracingOpts...)
+		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-producer", s.tracingOpts...)
 		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
 	}
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
-
 	"strconv"
 	"sync"
 	"time"
@@ -134,7 +133,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	}
 
 	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "kafka-consumer", b.opts.Tracings...)
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "kafka-producer", b.opts.Tracings...)
 		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "kafka-consumer", b.opts.Tracings...)
 	}
 

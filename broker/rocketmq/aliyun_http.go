@@ -99,7 +99,7 @@ func (r *aliyunBroker) Init(opts ...broker.Option) error {
 	}
 
 	if len(r.opts.Tracings) > 0 {
-		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rocketmq-consumer", r.opts.Tracings...)
+		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rocketmq-producer", r.opts.Tracings...)
 		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rocketmq-consumer", r.opts.Tracings...)
 	}
 

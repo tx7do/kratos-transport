@@ -87,7 +87,7 @@ func (b *stompBroker) Init(opts ...broker.Option) error {
 	b.opts.Addrs = cAddrs
 
 	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "stomp-consumer", b.opts.Tracings...)
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "stomp-producer", b.opts.Tracings...)
 		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "stomp-consumer", b.opts.Tracings...)
 	}
 

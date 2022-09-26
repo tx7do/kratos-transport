@@ -72,7 +72,7 @@ func (b *rabbitBroker) Init(opts ...broker.Option) error {
 	b.opts.Addrs = addrs
 
 	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rabbitmq-consumer", b.opts.Tracings...)
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rabbitmq-producer", b.opts.Tracings...)
 		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rabbitmq-consumer", b.opts.Tracings...)
 	}
 
