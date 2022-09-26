@@ -2,10 +2,10 @@ package redis
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gomodule/redigo/redis"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -34,10 +34,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		writeTimeout:   DefaultWriteTimeout,
 	}
 
-	options := broker.NewOptions()
-
-	opts = append(opts, WithCommonOptions())
-	options.Apply(opts...)
+	options := broker.NewOptionsAndApply(opts...)
 
 	return &redisBroker{
 		opts:       options,
@@ -62,18 +59,6 @@ func (b *redisBroker) Init(opts ...broker.Option) error {
 		return errors.New("redis: cannot init while connected")
 	}
 
-	for _, o := range opts {
-		o(&b.opts)
-	}
-
-	return nil
-}
-
-func (b *redisBroker) Connect() error {
-	if b.pool != nil {
-		return nil
-	}
-
 	var addr string
 
 	if len(b.opts.Addrs) == 0 || b.opts.Addrs[0] == "" {
@@ -88,6 +73,20 @@ func (b *redisBroker) Connect() error {
 
 	b.addr = addr
 
+	b.opts.Apply(opts...)
+
+	if v, ok := b.opts.Context.Value(optionsKey).(*commonOptions); ok {
+		b.commonOpts = v
+	}
+
+	return nil
+}
+
+func (b *redisBroker) Connect() error {
+	if b.pool != nil {
+		return nil
+	}
+
 	b.pool = &redis.Pool{
 		MaxIdle:     b.commonOpts.maxIdle,
 		MaxActive:   b.commonOpts.maxActive,
@@ -96,13 +95,15 @@ func (b *redisBroker) Connect() error {
 			return redis.DialURL(
 				b.addr,
 				redis.DialConnectTimeout(b.commonOpts.connectTimeout),
-				redis.DialReadTimeout(b.commonOpts.readTimeout),
+				redis.DialReadTimeout(DefaultHealthCheckPeriod+b.commonOpts.readTimeout),
 				redis.DialWriteTimeout(b.commonOpts.writeTimeout),
 			)
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			_, err := c.Do("PING")
-			fmt.Printf("TestOnBorrow error: %X\n", err)
+			if nil != err {
+				log.Error("[redis] ping error:" + err.Error())
+			}
 			return err
 		},
 	}
@@ -148,11 +149,11 @@ func (b *redisBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		opts:    options,
 	}
 
-	go s.recv()
-
 	if err := s.conn.Subscribe(s.topic); err != nil {
 		return nil, err
 	}
+
+	go s.recv()
 
 	return &s, nil
 }

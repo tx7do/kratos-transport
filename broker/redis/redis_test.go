@@ -39,7 +39,6 @@ func Test_Publish_WithRawData(t *testing.T) {
 	b := NewBroker(
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
-		ReadTimeout(24*time.Hour),
 	)
 
 	_ = b.Init()
@@ -77,9 +76,10 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	b := NewBroker(
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
-		ReadTimeout(24*time.Hour),
 	)
 	defer b.Disconnect()
+
+	_ = b.Init()
 
 	_ = b.Connect()
 
@@ -103,7 +103,6 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
-		ReadTimeout(24*time.Hour),
 	)
 
 	_ = b.Init()
@@ -141,9 +140,10 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
-		ReadTimeout(24*time.Hour),
 	)
 	defer b.Disconnect()
+
+	_ = b.Init()
 
 	_ = b.Connect()
 

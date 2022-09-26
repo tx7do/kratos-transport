@@ -11,24 +11,14 @@ import (
 
 type ServerOption func(o *Server)
 
+// WithAddress Redis服务器地址
 func WithAddress(addr string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithAddress(addr))
 	}
 }
 
-func WithReadTimeout(timeout time.Duration) ServerOption {
-	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, redis.ReadTimeout(timeout))
-	}
-}
-
-func WithIdleTimeout(timeout time.Duration) ServerOption {
-	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, redis.IdleTimeout(timeout))
-	}
-}
-
+// WithTLSConfig TLS配置
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
 		if c != nil {
@@ -38,8 +28,51 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
+// WithCodec 编解码器
 func WithCodec(c encoding.Codec) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))
+	}
+}
+
+// WithConnectTimeout 连接Redis超时时间
+func WithConnectTimeout(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, redis.WithConnectTimeout(timeout))
+	}
+}
+
+// WithReadTimeout 从Redis读取数据超时时间
+func WithReadTimeout(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, redis.WithReadTimeout(timeout))
+	}
+}
+
+// WithWriteTimeout 向Redis写入数据超时时间
+func WithWriteTimeout(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, redis.WithWriteTimeout(timeout))
+	}
+}
+
+// WithIdleTimeout 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭。如果设置成0，空闲连接将不会被关闭。应该设置一个比redis服务端超时时间更短的时间。
+func WithIdleTimeout(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, redis.WithIdleTimeout(timeout))
+	}
+}
+
+// WithMaxIdle 最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态。
+func WithMaxIdle(n int) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, redis.WithMaxIdle(n))
+	}
+}
+
+// WithMaxActive 最大的连接数，表示同时最多有N个连接。0表示不限制。
+func WithMaxActive(n int) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, redis.WithMaxActive(n))
 	}
 }
