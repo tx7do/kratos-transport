@@ -71,5 +71,5 @@ docker run -itd \
     /nsqadmin --lookupd-http-address=nsqlookupd:4161
 ```
 
-控制台访问地址： <http://127.0.0.1:4171>
-直接使用REST API查看节点信息： <http://127.0.0.1:4161/nodes>
+- 控制台访问地址： <http://127.0.0.1:4171>
+- 直接使用REST API查看节点信息： <http://127.0.0.1:4161/nodes>

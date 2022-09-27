@@ -435,6 +435,10 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 	return sub, nil
 }
 
+func (b *kafkaBroker) onMessage() {
+
+}
+
 func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) trace.Span {
 	if b.producerTracer == nil {
 		return nil

@@ -36,8 +36,8 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 		cOpts.SetTLSConfig(opts.TLSConfig)
 	}
 	if auth, ok := AuthFromContext(opts.Context); ok && auth != nil {
-		cOpts.SetUsername(auth.username)
-		cOpts.SetPassword(auth.password)
+		cOpts.SetUsername(auth.Username)
+		cOpts.SetPassword(auth.Password)
 	}
 	if clientId, ok := ClientIdFromContext(opts.Context); ok && clientId != "" {
 		cOpts.SetClientID(clientId)

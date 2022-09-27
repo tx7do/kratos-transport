@@ -9,9 +9,9 @@ type cleanSessionKey struct{}
 type authKey struct{}
 type clientIdKey struct{}
 
-type authRecord struct {
-	username string
-	password string
+type AuthRecord struct {
+	Username string
+	Password string
 }
 
 func WithCleanSession(enable bool) broker.Option {
@@ -24,14 +24,14 @@ func CleanSessionFromContext(ctx context.Context) (bool, bool) {
 }
 
 func WithAuth(username string, password string) broker.Option {
-	return broker.OptionContextWithValue(authKey{}, &authRecord{
-		username: username,
-		password: password,
+	return broker.OptionContextWithValue(authKey{}, &AuthRecord{
+		Username: username,
+		Password: password,
 	})
 }
 
-func AuthFromContext(ctx context.Context) (*authRecord, bool) {
-	v, ok := ctx.Value(authKey{}).(*authRecord)
+func AuthFromContext(ctx context.Context) (*AuthRecord, bool) {
+	v, ok := ctx.Value(authKey{}).(*AuthRecord)
 	return v, ok
 }
 

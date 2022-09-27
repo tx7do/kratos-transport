@@ -68,8 +68,8 @@ docker run -d \
 | 1883  | MQTT  |
 | 61614 | WS    |
 
-管理后台：<http://localhost:8161/admin/>
-默认账号名密码：admin/admin
+* 管理后台：<http://localhost:8161/admin/>
+* 默认账号名密码：admin/admin
 
 ### Apache Apollo
 
