@@ -1,4 +1,4 @@
-package gin
+package fasthttp
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindGin transport.Kind = "gin"
+	KindFastHttp transport.Kind = "fasthttp"
 )
 
 var _ Transporter = &Transport{}
@@ -32,7 +32,7 @@ type Transport struct {
 
 // Kind returns the transport kind.
 func (tr *Transport) Kind() transport.Kind {
-	return KindGin
+	return KindFastHttp
 }
 
 // Endpoint returns the transport endpoint.

@@ -37,17 +37,14 @@ type Server struct {
 	dec     kHttp.DecodeRequestFunc
 	enc     kHttp.EncodeResponseFunc
 	ene     kHttp.EncodeErrorFunc
-
-	strictSlash bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		timeout:     1 * time.Second,
-		dec:         kHttp.DefaultRequestDecoder,
-		enc:         kHttp.DefaultResponseEncoder,
-		ene:         kHttp.DefaultErrorEncoder,
-		strictSlash: true,
+		timeout: 1 * time.Second,
+		dec:     kHttp.DefaultRequestDecoder,
+		enc:     kHttp.DefaultResponseEncoder,
+		ene:     kHttp.DefaultErrorEncoder,
 	}
 
 	srv.init(opts...)
