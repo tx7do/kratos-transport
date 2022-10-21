@@ -25,8 +25,8 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithAddress(":8800"),
-		WithPath("/ws"),
+		WithAddress(":8100"),
+		WithPath("/"),
 		WithConnectHandle(handleConnect),
 		WithCodec(encoding.GetCodec("json")),
 	)

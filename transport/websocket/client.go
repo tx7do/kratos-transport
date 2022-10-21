@@ -59,8 +59,9 @@ func (c *Client) Connect() error {
 
 	log.Infof("[websocket] connecting to %s", c.endpoint.String())
 
-	conn, _, err := ws.DefaultDialer.Dial(c.endpoint.String(), nil)
+	conn, resp, err := ws.DefaultDialer.Dial(c.endpoint.String(), nil)
 	if err != nil {
+		log.Errorf("%s [%v]", err.Error(), resp)
 		return err
 	}
 	c.conn = conn
