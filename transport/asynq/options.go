@@ -70,6 +70,60 @@ func WithQueues(queues map[string]int) ServerOption {
 	}
 }
 
+func WithRetryDelayFunc(fn asynq.RetryDelayFunc) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.RetryDelayFunc = fn
+	}
+}
+
+func WithStrictPriority(val bool) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.StrictPriority = val
+	}
+}
+
+func WithErrorHandler(fn asynq.ErrorHandler) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.ErrorHandler = fn
+	}
+}
+
+func WithHealthCheckFunc(fn func(error)) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.HealthCheckFunc = fn
+	}
+}
+
+func WithHealthCheckInterval(tm time.Duration) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.HealthCheckInterval = tm
+	}
+}
+
+func WithDelayedTaskCheckInterval(tm time.Duration) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.DelayedTaskCheckInterval = tm
+	}
+}
+
+func WithGroupGracePeriod(tm time.Duration) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.GroupGracePeriod = tm
+	}
+}
+
+func WithGroupMaxDelay(tm time.Duration) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.GroupMaxDelay = tm
+	}
+}
+
+func WithGroupMaxSize(sz int) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.GroupMaxSize = sz
+	}
+}
+
 func WithMiddleware(m ...asynq.MiddlewareFunc) ServerOption {
 	return func(o *Server) {
 		o.mux.Use(m...)
