@@ -129,3 +129,9 @@ func WithMiddleware(m ...asynq.MiddlewareFunc) ServerOption {
 		o.mux.Use(m...)
 	}
 }
+
+func WithLocation(loc *time.Location) ServerOption {
+	return func(s *Server) {
+		s.schedulerOpts.Location = loc
+	}
+}

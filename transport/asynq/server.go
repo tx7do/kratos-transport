@@ -32,9 +32,10 @@ type Server struct {
 	asynqClient    *asynq.Client
 	asynqScheduler *asynq.Scheduler
 
-	mux         *asynq.ServeMux
-	asynqConfig asynq.Config
-	redisOpt    asynq.RedisClientOpt
+	mux           *asynq.ServeMux
+	asynqConfig   asynq.Config
+	redisOpt      asynq.RedisClientOpt
+	schedulerOpts *asynq.SchedulerOpts
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -49,7 +50,8 @@ func NewServer(opts ...ServerOption) *Server {
 			Concurrency: 10,
 			Logger:      newLogger(),
 		},
-		mux: asynq.NewServeMux(),
+		schedulerOpts: &asynq.SchedulerOpts{},
+		mux:           asynq.NewServeMux(),
 	}
 
 	srv.init(opts...)
@@ -232,7 +234,7 @@ func (s *Server) createAsynqScheduler() error {
 		return errors.New("asynq scheduler already created")
 	}
 
-	s.asynqScheduler = asynq.NewScheduler(s.redisOpt, nil)
+	s.asynqScheduler = asynq.NewScheduler(s.redisOpt, s.schedulerOpts)
 	if s.asynqScheduler == nil {
 		log.Errorf("[asynq] create asynq scheduler failed")
 		return errors.New("create asynq scheduler failed")
@@ -247,8 +249,8 @@ func (s *Server) runAsynqScheduler() error {
 		return errors.New("asynq scheduler is nil")
 	}
 
-	if err := s.asynqScheduler.Run(); err != nil {
-		log.Errorf("[asynq] asynq scheduler run failed: %s", err.Error())
+	if err := s.asynqScheduler.Start(); err != nil {
+		log.Errorf("[asynq] asynq scheduler start failed: %s", err.Error())
 		return err
 	}
 	return nil
