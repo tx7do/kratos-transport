@@ -7,8 +7,8 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v0.0.0-00010101000000-000000000000
-	github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20221113025348-873670a5cc0e
+	github.com/tx7do/kratos-transport v0.0.0-20221113032139-18b97ca54b9d
+	github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20221113032139-18b97ca54b9d
 )
 
 require (
@@ -28,8 +28,8 @@ require (
 	go.opentelemetry.io/otel/sdk v1.11.1 // indirect
 	go.opentelemetry.io/otel/trace v1.11.1 // indirect
 	golang.org/x/sys v0.2.0 // indirect
-	google.golang.org/genproto v0.0.0-20221010155953-15ba04fc1c0e // indirect
-	google.golang.org/grpc v1.50.0 // indirect
+	google.golang.org/genproto v0.0.0-20221111202108-142d8a6fa32e // indirect
+	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

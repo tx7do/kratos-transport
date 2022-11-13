@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/go-stomp/stomp/v3 v3.0.5
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v0.0.0-20221113031415-02ae4c73429f
+	github.com/tx7do/kratos-transport v0.0.0-20221113032139-18b97ca54b9d
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/trace v1.11.1
 )
