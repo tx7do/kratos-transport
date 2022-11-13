@@ -2,8 +2,6 @@ module github.com/tx7do/kratos-transport/broker/rabbitmq
 
 go 1.19
 
-replace github.com/tx7do/kratos-transport => ../../
-
 require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/google/uuid v1.3.0
@@ -27,3 +25,5 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../

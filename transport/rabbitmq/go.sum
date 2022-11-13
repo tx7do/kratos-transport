@@ -99,6 +99,8 @@ github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221113034830-dfbf3750
 github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221113034830-dfbf3750cca3/go.mod h1:P623bhkpkYaicVtYpsunBC/y9paeCF8YJGAysrI4Qcg=
 github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221113040852-3d36932f71c7 h1:dpBGvT5GnwLVU5ItCZgOAPSVFkKw3XSZot1i/ikxAOo=
 github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221113040852-3d36932f71c7/go.mod h1:AESiXIopLnt1MUa7iLoc+5PXnJnqmadyL1Z2CMaP45c=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221113041618-fe2280f213d2 h1:wxqlHBBzxvOojxWJgLEZp9UG+pnjv1ACn7YTne4JJck=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221113041618-fe2280f213d2/go.mod h1:AESiXIopLnt1MUa7iLoc+5PXnJnqmadyL1Z2CMaP45c=
 go.opentelemetry.io/otel v1.7.0/go.mod h1:5BdUoMIz5WEs0vt0CUEMtSSaTSHBBVwrhnz7+nrD5xk=
 go.opentelemetry.io/otel v1.11.1 h1:4WLLAmcfkmDk2ukNXJyq3/kiz/3UzCaYq6PskJsaou4=
 go.opentelemetry.io/otel v1.11.1/go.mod h1:1nNhXBbWSD0nsL38H6btgnFN2k4i0sNLHNNMZMSbUGE=
