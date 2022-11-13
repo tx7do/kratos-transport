@@ -3,7 +3,6 @@ module github.com/tx7do/kratos-transport
 go 1.18
 
 require (
-	github.com/99designs/gqlgen v0.17.14
 	github.com/RichardKnop/logging v0.0.0-20190827224416-1a693bdd4fae
 	github.com/RichardKnop/machinery/v2 v2.0.11
 	github.com/aliyunmq/mq-http-go-sdk v1.0.3
@@ -14,28 +13,25 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.1
 	github.com/fasthttp/router v1.4.12
 	github.com/gin-gonic/gin v1.8.1
-	github.com/go-kratos/kratos/v2 v2.5.0
+	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/go-stomp/stomp/v3 v3.0.5
 	github.com/gogap/errors v0.0.0-20210818113853-edfbba0ddea9
 	github.com/golang/mock v1.6.0
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/hibiken/asynq v0.23.0
 	github.com/lucas-clemente/quic-go v0.29.0
 	github.com/nats-io/nats.go v1.16.0
 	github.com/nsqio/go-nsq v1.1.0
-	github.com/segmentio/kafka-go v0.4.33
 	github.com/streadway/amqp v1.0.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/valyala/fasthttp v1.40.0
-	github.com/vektah/gqlparser/v2 v2.4.8
-	go.opentelemetry.io/otel v1.9.0
+	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/exporters/jaeger v1.9.0
 	go.opentelemetry.io/otel/exporters/zipkin v1.9.0
 	go.opentelemetry.io/otel/sdk v1.9.0
-	go.opentelemetry.io/otel/trace v1.9.0
+	go.opentelemetry.io/otel/trace v1.11.1
 	google.golang.org/protobuf v1.28.1
 )
 
@@ -46,7 +42,6 @@ require (
 	github.com/99designs/keyring v1.2.1 // indirect
 	github.com/AthenZ/athenz v1.11.8 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
-	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/pulsar-client-go/oauth2 v0.0.0-20220729050033-bd19458b32ff // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
@@ -84,12 +79,12 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/go-cmp v0.5.8 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0 // indirect
-	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/henrylee2cn/ameda v1.4.10 // indirect
 	github.com/henrylee2cn/goutil v0.0.0-20210127050712-89660552f6f8 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
@@ -105,7 +100,6 @@ require (
 	github.com/marten-seemann/qtls-go1-19 v0.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/mitchellh/mapstructure v1.4.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
@@ -121,7 +115,6 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
-	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
