@@ -463,10 +463,11 @@ github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKs
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
-github.com/tx7do/kratos-transport v1.0.0 h1:eiujSaflp7BkVEEZVmWhPJrRRWNLhG80dYY/3kuDCjg=
-github.com/tx7do/kratos-transport v1.0.0/go.mod h1:eTW0l9FG+kwcAQVbyQX8ZdS7DVpY0Sjnk9RNAmFk9Rw=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.1 h1:nbwX3LpHcztVjgxABlucHc0VCILMe17AgmSDtBG53kw=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.1/go.mod h1:Z12EoGQm/hw2zwDBGbg9lTt+W98/XtSh5zD8bx2KIgg=
+github.com/tx7do/kratos-transport v0.0.1/go.mod h1:eTW0l9FG+kwcAQVbyQX8ZdS7DVpY0Sjnk9RNAmFk9Rw=
+github.com/tx7do/kratos-transport v1.0.1 h1:R7WU25QScsHMcDHaXmo/P3RaVuzaE1tOHqlhc/ekvvI=
+github.com/tx7do/kratos-transport v1.0.1/go.mod h1:eTW0l9FG+kwcAQVbyQX8ZdS7DVpY0Sjnk9RNAmFk9Rw=
+github.com/tx7do/kratos-transport/broker/mqtt v1.0.1 h1:NfjLARvbng5SKp4nL9hFuJDxR/IF+X/JmnLokkqer0k=
+github.com/tx7do/kratos-transport/broker/mqtt v1.0.1/go.mod h1:TkruyYSNOp0e8QUCivBJwtfMsmPht2+IbL5tv1HXN6I=
 github.com/urfave/cli/v2 v2.11.0/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.1/go.mod h1:RaEWvsqvNKKvBPvcKeFjrG2cJqOkHTiyTpzz23ni57g=

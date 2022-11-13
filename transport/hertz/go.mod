@@ -8,7 +8,7 @@ require (
 	github.com/cloudwego/hertz v0.4.0
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v0.0.1
+	github.com/tx7do/kratos-transport v1.0.1
 )
 
 require (
@@ -27,7 +27,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/henrylee2cn/ameda v1.5.1 // indirect
-	github.com/henrylee2cn/goutil v0.0.0-20220704075712-42f2ec55fe8d // indirect
 	github.com/klauspost/cpuid/v2 v2.2.0 // indirect
 	github.com/nyaruka/phonenumbers v1.1.2 // indirect
 	github.com/openzipkin/zipkin-go v0.4.1 // indirect
