@@ -35,7 +35,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/streadway/amqp v1.0.0 // indirect
 	github.com/tidwall/gjson v1.14.2 // indirect
-	github.com/tx7do/kratos-transport v0.0.0-20221113032139-18b97ca54b9d
+	github.com/tx7do/kratos-transport v1.0.0
 	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221113032139-18b97ca54b9d
 	github.com/valyala/fasthttp v1.38.0 // indirect
 	go.opentelemetry.io/otel v1.11.1 // indirect
