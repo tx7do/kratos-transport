@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v0.0.0-20221113033509-bf286a6c1a76
+	github.com/tx7do/kratos-transport v1.0.0
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/trace v1.11.1
 )
