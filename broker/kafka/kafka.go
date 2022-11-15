@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
+	"github.com/segmentio/kafka-go/sasl"
 	"strconv"
 	"sync"
 	"time"
@@ -32,6 +33,8 @@ type kafkaBroker struct {
 
 	readerConfig kafkaGo.ReaderConfig
 	writers      map[string]*kafkaGo.Writer
+
+	saslMechanism sasl.Mechanism
 
 	connected    bool
 	opts         broker.Options
@@ -127,6 +130,25 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	if value, ok := b.opts.Context.Value(maxAttemptsKey{}).(int); ok {
 		b.readerConfig.MaxAttempts = value
 	}
+	if value, ok := b.opts.Context.Value(mechanismKey{}).(sasl.Mechanism); ok {
+		b.saslMechanism = value
+		if b.readerConfig.Dialer == nil {
+			dialer := &kafkaGo.Dialer{
+				Timeout:       10 * time.Second,
+				DualStack:     true,
+				SASLMechanism: b.saslMechanism,
+			}
+			b.readerConfig.Dialer = dialer
+		} else {
+			b.readerConfig.Dialer.SASLMechanism = b.saslMechanism
+		}
+	}
+	if value, ok := b.opts.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
+		b.readerConfig = value
+	}
+	if value, ok := b.opts.Context.Value(dialerConfigKey{}).(*kafkaGo.Dialer); ok {
+		b.readerConfig.Dialer = value
+	}
 
 	if cnt, ok := b.opts.Context.Value(retriesCountKey{}).(int); ok {
 		b.retriesCount = cnt
@@ -206,6 +228,12 @@ func (b *kafkaBroker) createProducer(opts ...broker.PublishOption) *kafkaGo.Writ
 	writer := &kafkaGo.Writer{
 		Addr:     kafkaGo.TCP(b.opts.Addrs...),
 		Balancer: &kafkaGo.LeastBytes{},
+	}
+
+	if b.saslMechanism != nil {
+		writer.Transport = &kafkaGo.Transport{
+			SASL: b.saslMechanism,
+		}
 	}
 
 	if value, ok := options.Context.Value(balancerKey{}).(string); ok {

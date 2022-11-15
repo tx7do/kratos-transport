@@ -1,6 +1,6 @@
 module github.com/tx7do/kratos-transport
 
-go 1.18
+go 1.19
 
 require (
 	github.com/go-kratos/kratos/v2 v2.5.3

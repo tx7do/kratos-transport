@@ -1,6 +1,9 @@
 package kafka
 
 import (
+	kafkaGo "github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/segmentio/kafka-go/sasl/scram"
 	"github.com/tx7do/kratos-transport/broker"
 	"time"
 )
@@ -32,6 +35,17 @@ type sessionTimeoutKey struct{}
 type rebalanceTimeoutKey struct{}
 type retentionTimeKey struct{}
 type startOffsetKey struct{}
+type mechanismKey struct{}
+type readerConfigKey struct{}
+type dialerConfigKey struct{}
+
+// WithReaderConfig .
+func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
+	return broker.OptionContextWithValue(readerConfigKey{}, cfg)
+}
+func WithDialer(cfg *kafkaGo.Dialer) broker.Option {
+	return broker.OptionContextWithValue(dialerConfigKey{}, cfg)
+}
 
 // WithRetries 设置消息重发的次数
 func WithRetries(cnt int) broker.Option {
@@ -106,6 +120,22 @@ func WithStartOffset(offset int64) broker.Option {
 // WithMaxAttempts .
 func WithMaxAttempts(cnt int) broker.Option {
 	return broker.OptionContextWithValue(maxAttemptsKey{}, cnt)
+}
+
+func WithPlainMechanism(username, password string) broker.Option {
+	mechanism := plain.Mechanism{
+		Username: username,
+		Password: password,
+	}
+	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
+}
+
+func WithScramMechanism(algo scram.Algorithm, username, password string) broker.Option {
+	mechanism, err := scram.Mechanism(algo, username, password)
+	if err != nil {
+		panic(err)
+	}
+	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
 }
 
 ///
