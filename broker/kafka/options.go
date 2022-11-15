@@ -38,13 +38,21 @@ type startOffsetKey struct{}
 type mechanismKey struct{}
 type readerConfigKey struct{}
 type dialerConfigKey struct{}
+type dialerTimeoutKey struct{}
 
 // WithReaderConfig .
 func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
 	return broker.OptionContextWithValue(readerConfigKey{}, cfg)
 }
+
+// WithDialer .
 func WithDialer(cfg *kafkaGo.Dialer) broker.Option {
 	return broker.OptionContextWithValue(dialerConfigKey{}, cfg)
+}
+
+// WithDialerTimeout .
+func WithDialerTimeout(tm time.Duration) broker.Option {
+	return broker.OptionContextWithValue(dialerTimeoutKey{}, tm)
 }
 
 // WithRetries 设置消息重发的次数
@@ -122,6 +130,7 @@ func WithMaxAttempts(cnt int) broker.Option {
 	return broker.OptionContextWithValue(maxAttemptsKey{}, cnt)
 }
 
+// WithPlainMechanism .
 func WithPlainMechanism(username, password string) broker.Option {
 	mechanism := plain.Mechanism{
 		Username: username,
@@ -130,6 +139,7 @@ func WithPlainMechanism(username, password string) broker.Option {
 	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
 }
 
+// WithScramMechanism .
 func WithScramMechanism(algo scram.Algorithm, username, password string) broker.Option {
 	mechanism, err := scram.Mechanism(algo, username, password)
 	if err != nil {

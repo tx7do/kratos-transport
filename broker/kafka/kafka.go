@@ -149,6 +149,11 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	if value, ok := b.opts.Context.Value(dialerConfigKey{}).(*kafkaGo.Dialer); ok {
 		b.readerConfig.Dialer = value
 	}
+	if value, ok := b.opts.Context.Value(dialerTimeoutKey{}).(time.Duration); ok {
+		if b.readerConfig.Dialer != nil {
+			b.readerConfig.Dialer.Timeout = value
+		}
+	}
 
 	if cnt, ok := b.opts.Context.Value(retriesCountKey{}).(int); ok {
 		b.retriesCount = cnt
