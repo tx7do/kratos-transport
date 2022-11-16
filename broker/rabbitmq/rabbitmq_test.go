@@ -76,10 +76,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		WithExchangeName(testExchange),
 		WithDurableExchange(),
@@ -95,7 +92,6 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_, err := b.Subscribe(testRouting,
 		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
-		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
 		WithDurableQueue(),
@@ -145,10 +141,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 		WithExchangeName(testExchange),
@@ -165,7 +158,6 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	_, err := b.Subscribe(testRouting,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
 		WithDurableQueue(),
@@ -245,10 +237,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 		createTracerProvider("jaeger", "subscribe_tracer_tester"),
@@ -267,7 +256,6 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	_, err := b.Subscribe(testRouting,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
 		WithDurableQueue(),

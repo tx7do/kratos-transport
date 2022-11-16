@@ -76,10 +76,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(LocalRabbitBroker),
 	)
 	defer b.Disconnect()
@@ -89,7 +86,6 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_, err := b.Subscribe("topic/bobo/#",
 		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
-		broker.WithSubscribeContext(ctx),
 	)
 	assert.Nil(t, err)
 
@@ -137,10 +133,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(LocalRabbitBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)
@@ -151,7 +144,6 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	_, err := b.Subscribe("topic/bobo/#",
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
 	)
 	assert.Nil(t, err)
 

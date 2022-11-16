@@ -66,13 +66,10 @@ func TestClient(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := redis.NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
-		redis.ReadTimeout(24*time.Hour),
+		redis.WithReadTimeout(24*time.Hour),
 	)
 
 	_ = b.Init()

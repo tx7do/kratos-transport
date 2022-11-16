@@ -30,13 +30,10 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 }
 
 func main() {
-	ctx := context.Background()
-
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := mqtt.NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		broker.WithAddress(LocalEmqxBroker),
 		mqtt.WithCleanSession(false),
@@ -62,7 +59,6 @@ func main() {
 	_, err := b.Subscribe(topic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
 	)
 	if err != nil {
 		fmt.Println(err)

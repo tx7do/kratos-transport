@@ -69,10 +69,7 @@ func TestClient(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := mqtt.NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(LocalRabbitBroker),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)

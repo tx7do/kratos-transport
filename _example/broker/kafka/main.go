@@ -26,13 +26,10 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 }
 
 func main() {
-	ctx := context.Background()
-
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := kafka.NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBrokers),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)
@@ -40,7 +37,6 @@ func main() {
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testGroupId),
 	)
 	if err != nil {

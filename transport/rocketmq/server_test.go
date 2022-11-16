@@ -66,10 +66,7 @@ func TestClient(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := rocketmq.NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		rocketmq.WithEnableTrace(),
 		rocketmq.WithNameServer([]string{testBroker}),

@@ -25,13 +25,10 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 }
 
 func main() {
-	ctx := context.Background()
-
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := redis.NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithCodec(encoding.GetCodec("json")),
 		broker.WithAddress(localBroker),
 	)
@@ -51,7 +48,6 @@ func main() {
 	_, _ = b.Subscribe(testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
 	)
 
 	<-interrupt

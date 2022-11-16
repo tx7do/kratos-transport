@@ -65,8 +65,6 @@ func TestClient(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	b := kafka.NewBroker(
 		broker.WithAddress(testBrokers),
 		broker.WithCodec(encoding.GetCodec("json")),
@@ -82,7 +80,6 @@ func TestClient(t *testing.T) {
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
 		broker.WithQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
