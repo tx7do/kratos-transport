@@ -12,7 +12,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/segmentio/kafka-go v0.4.38 // indirect
 	github.com/tx7do/kratos-transport v1.0.3
-	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116081608-d6b43ab59804
+	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116082336-ec60e57def5e
 	github.com/xdg/scram v1.0.5 // indirect
 	github.com/xdg/stringprep v1.0.3 // indirect
 	go.opentelemetry.io/otel v1.11.1 // indirect
