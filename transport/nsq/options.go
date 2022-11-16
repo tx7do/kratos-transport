@@ -9,6 +9,13 @@ import (
 
 type ServerOption func(o *Server)
 
+// WithBrokerOptions MQ代理配置
+func WithBrokerOptions(opts ...broker.Option) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, opts...)
+	}
+}
+
 func WithAddress(addrs []string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithAddress(addrs...))

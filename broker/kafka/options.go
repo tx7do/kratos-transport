@@ -1,11 +1,13 @@
 package kafka
 
 import (
+	"time"
+
 	kafkaGo "github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
+
 	"github.com/tx7do/kratos-transport/broker"
-	"time"
 )
 
 const (
@@ -48,6 +50,24 @@ func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
 // WithDialer .
 func WithDialer(cfg *kafkaGo.Dialer) broker.Option {
 	return broker.OptionContextWithValue(dialerConfigKey{}, cfg)
+}
+
+// WithPlainMechanism PLAIN认证信息
+func WithPlainMechanism(username, password string) broker.Option {
+	mechanism := plain.Mechanism{
+		Username: username,
+		Password: password,
+	}
+	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
+}
+
+// WithScramMechanism SCRAM认证信息
+func WithScramMechanism(algo scram.Algorithm, username, password string) broker.Option {
+	mechanism, err := scram.Mechanism(algo, username, password)
+	if err != nil {
+		panic(err)
+	}
+	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
 }
 
 // WithDialerTimeout .
@@ -128,24 +148,6 @@ func WithStartOffset(offset int64) broker.Option {
 // WithMaxAttempts .
 func WithMaxAttempts(cnt int) broker.Option {
 	return broker.OptionContextWithValue(maxAttemptsKey{}, cnt)
-}
-
-// WithPlainMechanism .
-func WithPlainMechanism(username, password string) broker.Option {
-	mechanism := plain.Mechanism{
-		Username: username,
-		Password: password,
-	}
-	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
-}
-
-// WithScramMechanism .
-func WithScramMechanism(algo scram.Algorithm, username, password string) broker.Option {
-	mechanism, err := scram.Mechanism(algo, username, password)
-	if err != nil {
-		panic(err)
-	}
-	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
 }
 
 ///
