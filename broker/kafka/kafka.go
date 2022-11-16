@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
-	"github.com/segmentio/kafka-go/sasl"
 	"strconv"
 	"sync"
 	"time"
@@ -19,6 +18,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 
 	kafkaGo "github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
@@ -162,9 +162,8 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 				DualStack: true,
 			}
 			b.readerConfig.Dialer = dialer
-		} else {
-			b.readerConfig.Dialer.TLS = b.opts.TLSConfig
 		}
+		b.readerConfig.Dialer.TLS = b.opts.TLSConfig
 	}
 
 	if cnt, ok := b.opts.Context.Value(retriesCountKey{}).(int); ok {
@@ -379,6 +378,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 
 	err = writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
+		log.Errorf("WriteMessages error: %s", err.Error())
 		switch cached {
 		case false:
 			if kerr, ok := err.(kafkaGo.Error); ok {
@@ -441,6 +441,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 			default:
 				msg, err := sub.reader.FetchMessage(options.Context)
 				if err != nil {
+					log.Errorf("FetchMessage error: %s", err.Error())
 					return
 				}
 

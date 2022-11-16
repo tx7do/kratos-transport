@@ -109,6 +109,9 @@ func WithEnableSecure(enable bool) Option {
 func WithTLSConfig(config *tls.Config) Option {
 	return func(o *Options) {
 		o.TLSConfig = config
+		if o.TLSConfig != nil {
+			o.Secure = true
+		}
 	}
 }
 
