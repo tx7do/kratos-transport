@@ -664,11 +664,11 @@ github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
 github.com/tx7do/kratos-transport v1.0.4 h1:YREEy4tWKTyWKC1ODkJqAsAV24pGFhjwwoF70XSyPv0=
 github.com/tx7do/kratos-transport v1.0.4/go.mod h1:YgWUk+YrICesPdzCEBR1T6oYmNtgSfYNXMDFcdgCACY=
-github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221116092601-696bb1fa7168/go.mod h1:YWL+VXHxr0ROhPRIwomPux2tslIzrNEnbQGriAa7jcI=
-github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221116093156-cd0f53c1fcf6 h1:8b7dztcLTNlvB16uX/XwLsTK4Ip+bjRznrbrxMDTr1g=
-github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221116093156-cd0f53c1fcf6/go.mod h1:YWL+VXHxr0ROhPRIwomPux2tslIzrNEnbQGriAa7jcI=
-github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20221116093156-cd0f53c1fcf6 h1:dSaV3ZZCzev+D6PCkGNHIKiog1uGgMXOc7G0X4Fy754=
-github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20221116093156-cd0f53c1fcf6/go.mod h1:f7f8B4v+iotp1G91nWTXKDs5zO/vFXqGbxtdqESSPsQ=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221116095804-9632017831c2/go.mod h1:YWL+VXHxr0ROhPRIwomPux2tslIzrNEnbQGriAa7jcI=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221116101215-a9c570e6b4b7 h1:XuU4vLpt5qqQ61B6P3neQ1TUkpQPPmEhxlBxvbrXQV4=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221116101215-a9c570e6b4b7/go.mod h1:YWL+VXHxr0ROhPRIwomPux2tslIzrNEnbQGriAa7jcI=
+github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20221116101215-a9c570e6b4b7 h1:YEkhecDPRC7yFswmKHHNC7OvWn1sbST15gqUhuBnxJM=
+github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20221116101215-a9c570e6b4b7/go.mod h1:dZQwDUz6twK1/x1HUjBgNaRllVdf2aNlDeGOVOCuWfg=
 github.com/urfave/cli/v2 v2.11.0/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.1/go.mod h1:RaEWvsqvNKKvBPvcKeFjrG2cJqOkHTiyTpzz23ni57g=
