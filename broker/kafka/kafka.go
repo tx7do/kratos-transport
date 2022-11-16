@@ -155,6 +155,18 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		}
 	}
 
+	if b.opts.Secure && b.opts.TLSConfig != nil {
+		if b.readerConfig.Dialer == nil {
+			dialer := &kafkaGo.Dialer{
+				Timeout:   10 * time.Second,
+				DualStack: true,
+			}
+			b.readerConfig.Dialer = dialer
+		} else {
+			b.readerConfig.Dialer.TLS = b.opts.TLSConfig
+		}
+	}
+
 	if cnt, ok := b.opts.Context.Value(retriesCountKey{}).(int); ok {
 		b.retriesCount = cnt
 	}
@@ -230,15 +242,15 @@ func (b *kafkaBroker) createProducer(opts ...broker.PublishOption) *kafkaGo.Writ
 		o(&options)
 	}
 
-	writer := &kafkaGo.Writer{
-		Addr:     kafkaGo.TCP(b.opts.Addrs...),
-		Balancer: &kafkaGo.LeastBytes{},
+	sharedTransport := &kafkaGo.Transport{
+		SASL: b.saslMechanism,
+		TLS:  b.opts.TLSConfig,
 	}
 
-	if b.saslMechanism != nil {
-		writer.Transport = &kafkaGo.Transport{
-			SASL: b.saslMechanism,
-		}
+	writer := &kafkaGo.Writer{
+		Addr:      kafkaGo.TCP(b.opts.Addrs...),
+		Balancer:  &kafkaGo.LeastBytes{},
+		Transport: sharedTransport,
 	}
 
 	if value, ok := options.Context.Value(balancerKey{}).(string); ok {
