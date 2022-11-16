@@ -189,16 +189,18 @@ func (b *kafkaBroker) Connect() error {
 
 	kAddrs := make([]string, 0, len(b.opts.Addrs))
 	for _, addr := range b.opts.Addrs {
-		conn, err := kafkaGo.DialContext(b.opts.Context, "tcp", addr)
-		if err != nil {
-			continue
-		}
-		if _, err = conn.Brokers(); err != nil {
-			_ = conn.Close()
-			continue
-		}
+		//conn, err := kafkaGo.DialContext(b.opts.Context, "tcp", addr)
+		//if err != nil {
+		//	log.Errorf("connect kafka server error: %s", err.Error())
+		//	continue
+		//}
+		//if _, err = conn.Brokers(); err != nil {
+		//	log.Errorf("get broker error: %s", err.Error())
+		//	_ = conn.Close()
+		//	continue
+		//}
+		//_ = conn.Close()
 		kAddrs = append(kAddrs, addr)
-		_ = conn.Close()
 	}
 
 	if len(kAddrs) == 0 {
