@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
 	github.com/tx7do/kratos-transport v1.0.3
-	github.com/tx7do/kratos-transport/broker/nats v1.0.1
+	github.com/tx7do/kratos-transport/broker/nats v0.0.0-20221116060318-fc62ac858ea3
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/trace v1.11.1
 )
@@ -20,7 +20,8 @@ require (
 	github.com/go-playground/form/v4 v4.2.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/nats-io/nats-server/v2 v2.9.6 // indirect
+	github.com/minio/highwayhash v1.0.2 // indirect
+	github.com/nats-io/jwt/v2 v2.3.0 // indirect
 	github.com/nats-io/nats.go v1.20.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
@@ -31,6 +32,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.11.1 // indirect
 	golang.org/x/crypto v0.2.0 // indirect
 	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	google.golang.org/genproto v0.0.0-20221114212237-e4508ebdbee1 // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect

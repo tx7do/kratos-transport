@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
 	github.com/tx7do/kratos-transport v1.0.3
-	github.com/tx7do/kratos-transport/broker/rocketmq v1.0.1
+	github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20221116060318-fc62ac858ea3
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/trace v1.11.1
 )
@@ -19,7 +19,6 @@ require (
 	github.com/apache/rocketmq-client-go/v2 v2.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.2.0 // indirect

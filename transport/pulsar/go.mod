@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
 	github.com/tx7do/kratos-transport v1.0.3
-	github.com/tx7do/kratos-transport/broker/pulsar v1.0.1
+	github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20221116060318-fc62ac858ea3
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/trace v1.11.1
 )
@@ -25,7 +25,6 @@ require (
 	github.com/danieljoos/wincred v1.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
-	github.com/frankban/quicktest v1.14.3 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.2.0 // indirect
@@ -37,6 +36,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/klauspost/compress v1.15.12 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/linkedin/goavro/v2 v2.12.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect

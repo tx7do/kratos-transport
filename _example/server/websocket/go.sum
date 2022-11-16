@@ -467,10 +467,11 @@ github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKs
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
-github.com/tx7do/kratos-transport v1.0.0 h1:eiujSaflp7BkVEEZVmWhPJrRRWNLhG80dYY/3kuDCjg=
-github.com/tx7do/kratos-transport v1.0.0/go.mod h1:eTW0l9FG+kwcAQVbyQX8ZdS7DVpY0Sjnk9RNAmFk9Rw=
-github.com/tx7do/kratos-transport/transport/websocket v0.0.1 h1:bDeAxVrlJaxFMSinS22ZkyOs/s+qI9IuijB5CAQ7MGU=
-github.com/tx7do/kratos-transport/transport/websocket v0.0.1/go.mod h1:s5rB67qnUwMi3Ul5WCbzCisRVue/Zmc+aZSnf4MGdyc=
+github.com/tx7do/kratos-transport v0.0.1/go.mod h1:eTW0l9FG+kwcAQVbyQX8ZdS7DVpY0Sjnk9RNAmFk9Rw=
+github.com/tx7do/kratos-transport v1.0.3 h1:tML+ll6XCgqOGqX/Oi9DGFwNZ0WEppCgBa5GZgnl5/w=
+github.com/tx7do/kratos-transport v1.0.3/go.mod h1:YgWUk+YrICesPdzCEBR1T6oYmNtgSfYNXMDFcdgCACY=
+github.com/tx7do/kratos-transport/transport/websocket v1.0.1 h1:y2wmMkgUcg7Y5IY44zwZBB52x28qivhT5QPlyOeJ+zg=
+github.com/tx7do/kratos-transport/transport/websocket v1.0.1/go.mod h1:2unDvx43XF3Dvk7CmYk59Q0E0xMwjU33jJhPrCIXm0I=
 github.com/urfave/cli/v2 v2.11.0/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.1/go.mod h1:RaEWvsqvNKKvBPvcKeFjrG2cJqOkHTiyTpzz23ni57g=
@@ -642,8 +643,9 @@ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJ
 golang.org/x/sync v0.0.0-20220513210516-0976fa681c29/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
-golang.org/x/sync v0.0.0-20220923202941-7f9b1623fab7 h1:ZrnxWX62AgTKOSagEqxvb3ffipvEDX2pl7E1TdqLqIc=
 golang.org/x/sync v0.0.0-20220923202941-7f9b1623fab7/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+golang.org/x/sync v0.1.0 h1:wsuoTGHzEhffawBOhz5CYhcrV4IdKZbEyZjBMuTp12o=
+golang.org/x/sync v0.1.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20180905080454-ebe1bf3edb33/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
