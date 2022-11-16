@@ -467,6 +467,8 @@ github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
 github.com/tx7do/kratos-transport v1.0.3 h1:tML+ll6XCgqOGqX/Oi9DGFwNZ0WEppCgBa5GZgnl5/w=
 github.com/tx7do/kratos-transport v1.0.3/go.mod h1:YgWUk+YrICesPdzCEBR1T6oYmNtgSfYNXMDFcdgCACY=
+github.com/tx7do/kratos-transport v1.0.4 h1:YREEy4tWKTyWKC1ODkJqAsAV24pGFhjwwoF70XSyPv0=
+github.com/tx7do/kratos-transport v1.0.4/go.mod h1:YgWUk+YrICesPdzCEBR1T6oYmNtgSfYNXMDFcdgCACY=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116061541-70cf8a8dee5c h1:P5EZ/idTI5YQEPvO65s5OCzHuntjR2qo5g8lYJSSkhc=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116061541-70cf8a8dee5c/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116073429-1ab1e80f2816 h1:w0gxrjHp3kF+bgfTWJZGo+yyhhpht5NjpOCenKIj0WU=
@@ -477,6 +479,10 @@ github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116081608-d6b43ab5980
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116081608-d6b43ab59804/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116082336-ec60e57def5e h1:2v25i+6DCdHYTGZ8TL8quH4dj27j1B1f18/04RLXGdA=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116082336-ec60e57def5e/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116090041-4efa85b9401b h1:zYQ3PL6tZnqVEnV9JScqYiodap3KXEKoAlaejxD6268=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116090041-4efa85b9401b/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116091410-c46ee7b37366 h1:PSBVjxkMAjZ54nDcCyAVR2gE+RA2KMae8+AqE1ddePI=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116091410-c46ee7b37366/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
 github.com/urfave/cli/v2 v2.11.0/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.1/go.mod h1:RaEWvsqvNKKvBPvcKeFjrG2cJqOkHTiyTpzz23ni57g=
