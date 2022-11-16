@@ -99,6 +99,8 @@ github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116081608-d6b43ab5980
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116081608-d6b43ab59804/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116082336-ec60e57def5e h1:2v25i+6DCdHYTGZ8TL8quH4dj27j1B1f18/04RLXGdA=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116082336-ec60e57def5e/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116085419-30a50aa6f8ed h1:8soFgqWik9VQeitOhPxOUgO1p4yrtzOdRc8YPIOXIE4=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116085419-30a50aa6f8ed/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
 github.com/xdg/scram v1.0.5 h1:TuS0RFmt5Is5qm9Tm2SoD89OPqe4IRiFtyFY4iwWXsw=
 github.com/xdg/scram v1.0.5/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.3 h1:cmL5Enob4W83ti/ZHuZLuKD/xqJfus4fVPwE+/BDm+4=
