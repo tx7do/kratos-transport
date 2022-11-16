@@ -48,7 +48,11 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &kafkaBroker{
-		readerConfig: kafkaGo.ReaderConfig{WatchPartitionChanges: true},
+		readerConfig: kafkaGo.ReaderConfig{
+			WatchPartitionChanges: true,
+			Logger:                Logger{},
+			ErrorLogger:           ErrorLogger{},
+		},
 		writers:      make(map[string]*kafkaGo.Writer),
 		opts:         options,
 		retriesCount: 1,
@@ -249,9 +253,11 @@ func (b *kafkaBroker) createProducer(opts ...broker.PublishOption) *kafkaGo.Writ
 	}
 
 	writer := &kafkaGo.Writer{
-		Addr:      kafkaGo.TCP(b.opts.Addrs...),
-		Balancer:  &kafkaGo.LeastBytes{},
-		Transport: sharedTransport,
+		Addr:        kafkaGo.TCP(b.opts.Addrs...),
+		Balancer:    &kafkaGo.LeastBytes{},
+		Transport:   sharedTransport,
+		Logger:      Logger{},
+		ErrorLogger: ErrorLogger{},
 	}
 
 	if value, ok := options.Context.Value(balancerKey{}).(string); ok {
