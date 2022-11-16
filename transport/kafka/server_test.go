@@ -68,10 +68,16 @@ func TestClient(t *testing.T) {
 	ctx := context.Background()
 
 	b := kafka.NewBroker(
-		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBrokers),
 		broker.WithCodec(encoding.GetCodec("json")),
 	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
 
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),

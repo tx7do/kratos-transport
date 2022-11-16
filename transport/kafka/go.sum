@@ -97,6 +97,8 @@ github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116060318-fc62ac858ea3 h1:wX4EsaBBtKpjrVdk6E5R8eaImPcklHyDtMRbXsdfQRs=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116060318-fc62ac858ea3/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116073429-1ab1e80f2816 h1:w0gxrjHp3kF+bgfTWJZGo+yyhhpht5NjpOCenKIj0WU=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221116073429-1ab1e80f2816/go.mod h1:UDLTpEwrI4iyDHOMUOssLTvgfrLmlaly1k5pDmTmx90=
 github.com/xdg/scram v1.0.5 h1:TuS0RFmt5Is5qm9Tm2SoD89OPqe4IRiFtyFY4iwWXsw=
 github.com/xdg/scram v1.0.5/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.3 h1:cmL5Enob4W83ti/ZHuZLuKD/xqJfus4fVPwE+/BDm+4=
