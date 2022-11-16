@@ -75,7 +75,11 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	_ = s.Init()
+	s.err = s.Init()
+	if s.err != nil {
+		log.Errorf("[rocketmq] init broker failed: [%s]", s.err.Error())
+		return s.err
+	}
 
 	s.err = s.Connect()
 	if s.err != nil {

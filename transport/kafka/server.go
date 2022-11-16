@@ -49,14 +49,14 @@ func NewServer(opts ...ServerOption) *Server {
 		started:        false,
 	}
 
-	srv.init(opts...)
+	srv.doInjectOptions(opts...)
 
 	srv.Broker = kafka.NewBroker(srv.brokerOpts...)
 
 	return srv
 }
 
-func (s *Server) init(opts ...ServerOption) {
+func (s *Server) doInjectOptions(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
@@ -86,6 +86,12 @@ func (s *Server) Start(ctx context.Context) error {
 
 	if s.started {
 		return nil
+	}
+
+	s.err = s.Init()
+	if s.err != nil {
+		log.Errorf("[kafka] init broker failed: [%s]", s.err.Error())
+		return s.err
 	}
 
 	s.err = s.Connect()
