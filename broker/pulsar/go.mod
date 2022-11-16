@@ -9,7 +9,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/google/uuid v1.3.0
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v1.0.1
+	github.com/tx7do/kratos-transport v1.0.3
 	go.opentelemetry.io/otel v1.11.1
 	go.opentelemetry.io/otel/trace v1.11.1
 )
@@ -25,6 +25,7 @@ require (
 	github.com/danieljoos/wincred v1.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.5.0 // indirect
+	github.com/frankban/quicktest v1.14.3 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect

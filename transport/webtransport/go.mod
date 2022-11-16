@@ -9,7 +9,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/lucas-clemente/quic-go v0.30.0
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v1.0.1
+	github.com/tx7do/kratos-transport v1.0.3
 )
 
 require (
@@ -33,7 +33,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.11.1 // indirect
 	go.opentelemetry.io/otel/trace v1.11.1 // indirect
 	golang.org/x/crypto v0.2.0 // indirect
-	golang.org/x/exp v0.0.0-20221111204811-129d8d6c17ab // indirect
+	golang.org/x/exp v0.0.0-20221114191408-850992195362 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/sys v0.2.0 // indirect

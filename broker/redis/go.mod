@@ -6,9 +6,9 @@ replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/go-kratos/kratos/v2 v2.5.3
-	github.com/gomodule/redigo v2.0.0+incompatible
+	github.com/gomodule/redigo v1.8.9
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v1.0.1
+	github.com/tx7do/kratos-transport v1.0.3
 )
 
 require (
