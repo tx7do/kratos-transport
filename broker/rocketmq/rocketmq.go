@@ -248,26 +248,27 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocke
 
 	resolver := r.createNsResolver()
 
-	var traceCfg *primitive.TraceConfig = nil
-	if r.enableTrace {
-		traceCfg = &primitive.TraceConfig{
-			GroupName:   options.Queue,
-			Credentials: credentials,
-			Access:      primitive.Cloud,
-			Resolver:    resolver,
-		}
-	}
-
-	c, _ := rocketmq.NewPushConsumer(
+	consumerOptions := []consumer.Option{
 		consumer.WithNsResolver(resolver),
 		consumer.WithCredentials(credentials),
-		consumer.WithTrace(traceCfg),
 		consumer.WithGroupName(options.Queue),
 		consumer.WithAutoCommit(options.AutoAck),
 		consumer.WithRetry(r.retryCount),
 		consumer.WithNamespace(r.namespace),
 		consumer.WithInstance(r.instanceName),
-	)
+	}
+
+	if r.enableTrace {
+		traceCfg := &primitive.TraceConfig{
+			GroupName:   options.Queue,
+			Credentials: credentials,
+			Access:      primitive.Cloud,
+			Resolver:    resolver,
+		}
+		consumerOptions = append(consumerOptions, consumer.WithTrace(traceCfg))
+	}
+
+	c, _ := rocketmq.NewPushConsumer(consumerOptions...)
 
 	if c == nil {
 		return nil, errors.New("create consumer error")
