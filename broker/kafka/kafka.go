@@ -448,7 +448,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 				msg, err := sub.reader.FetchMessage(options.Context)
 				if err != nil {
 					log.Errorf("FetchMessage error: %s", err.Error())
-					return
+					continue
 				}
 
 				ctx, span := b.startConsumerSpan(options.Context, &msg)
