@@ -179,6 +179,13 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "kafka-consumer", b.opts.Tracings...)
 	}
 
+	if value, ok := b.opts.Context.Value(loggerKey{}).(kafkaGo.Logger); ok {
+		b.readerConfig.Logger = value
+	}
+	if value, ok := b.opts.Context.Value(errorLoggerKey{}).(kafkaGo.Logger); ok {
+		b.readerConfig.ErrorLogger = value
+	}
+
 	return nil
 }
 

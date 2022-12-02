@@ -41,6 +41,8 @@ type mechanismKey struct{}
 type readerConfigKey struct{}
 type dialerConfigKey struct{}
 type dialerTimeoutKey struct{}
+type loggerKey struct{}
+type errorLoggerKey struct{}
 
 // WithReaderConfig .
 func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
@@ -148,6 +150,16 @@ func WithStartOffset(offset int64) broker.Option {
 // WithMaxAttempts .
 func WithMaxAttempts(cnt int) broker.Option {
 	return broker.OptionContextWithValue(maxAttemptsKey{}, cnt)
+}
+
+// WithLogger .
+func WithLogger(l kafkaGo.Logger) broker.Option {
+	return broker.OptionContextWithValue(loggerKey{}, l)
+}
+
+// WithErrorLogger .
+func WithErrorLogger(l kafkaGo.Logger) broker.Option {
+	return broker.OptionContextWithValue(errorLoggerKey{}, l)
 }
 
 ///
