@@ -13,6 +13,50 @@ MQTT(Message Queuing Telemetry Transport，消息队列遥测传输) 协议是IB
 | Mosquitto  | test.mosquitto.org	      | 1883 | 8883, 8884	 | 80        |
 | HiveMQ     | broker.hivemq.com	       | 1883 | N/A	        | 8000      |
 
+## 基本概念
+
+### Message ID
+
+消息的全局唯一标识，由微消息队列MQTT版系统自动生成，唯一标识某条消息。Message ID可用于回溯消息轨迹，排查问题。
+
+### MQTT服务器
+
+微消息队列MQTT版提供的MQTT协议交互的服务端节点，用于完成与MQTT客户端和消息队列各自的消息收发。
+
+###  MQTT客户端
+
+用于和MQTT服务器交互的移动端节点，全称为微消息队列MQTT版客户端。
+
+### QoS
+
+QoS（Quality of Service）指消息传输的服务质量。分别可在消息发送端和消息消费端设置。
+
+- 发送端的QoS设置：影响发送端发送消息到微消息队列MQTT版的传输质量。
+- 消费端的QoS设置：影响微消息队列MQTT版服务端投递消息到消费端的传输质量。
+
+QoS包括以下级别：
+
+- QoS0：代表最多分发一次。
+- QoS1：代表至少达到一次。
+- QoS2：代表仅分发一次。
+
+### cleanSession
+
+cleanSession标志是MQTT协议中对一个消费者客户端建立TCP连接后是否关心之前状态的定义，与消息发送端的设置无关。具体语义如下：
+
+- cleanSession=true：消费者客户端再次上线时，将不再关心之前所有的订阅关系以及离线消息。
+- cleanSession=false：消费者客户端再次上线时，还需要处理之前的离线消息，而之前的订阅关系也会持续生效。
+
+消费端QoS和cleanSession的不同组合产生的结果如表 1所示。
+
+表 1. QoS和cleanSession的组合关系
+
+| QoS级别	 | cleanSession=true	 | cleanSession=false |
+|--------|--------------------|--------------------|
+| QoS0   | 无离线消息，在线消息只尝试推一次。  | 无离线消息，在线消息只尝试推一次。  |
+| QoS1   | 无离线消息，在线消息保证可达。    | 有离线消息，所有消息保证可达。    |
+| QoS2   | 无离线消息，在线消息保证只推一次。  | 暂不支持。              |
+
 ## Docker部署开发环境
 
 ### RabbitMQ

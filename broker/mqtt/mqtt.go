@@ -24,32 +24,51 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 
 func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	cOpts := MQTT.NewClientOptions()
-	cOpts.SetCleanSession(true)
-	cOpts.SetAutoReconnect(false)
-	//cOpts.SetKeepAlive(60)
-	//cOpts.SetMaxReconnectInterval(30)
 
+	// 是否清除会话，如果true，mqtt服务端将会清除掉
+	cOpts.SetCleanSession(true)
+	// 设置自动重连接
+	cOpts.SetAutoReconnect(false)
+	// 设置连接之后恢复订阅
+	cOpts.SetResumeSubs(true)
+	// 设置保活时间
+	//cOpts.SetKeepAlive(60)
+	// 设置最大重连时间间隔
+	//cOpts.SetMaxReconnectInterval(30)
+	// 默认设置Client ID
+	cOpts.SetClientID(generateClientId())
+
+	// 连接成功回调
 	cOpts.OnConnect = b.onConnect
+	// 连接丢失回调
 	cOpts.OnConnectionLost = b.onConnectionLost
+
+	// 加入服务器地址列表
+	for _, addr := range addrs {
+		cOpts.AddBroker(addr)
+	}
 
 	if opts.TLSConfig != nil {
 		cOpts.SetTLSConfig(opts.TLSConfig)
 	}
-	if auth, ok := AuthFromContext(opts.Context); ok && auth != nil {
+	if auth, ok := opts.Context.Value(authKey{}).(*AuthRecord); ok && auth != nil {
 		cOpts.SetUsername(auth.Username)
 		cOpts.SetPassword(auth.Password)
 	}
-	if clientId, ok := ClientIdFromContext(opts.Context); ok && clientId != "" {
+	if clientId, ok := opts.Context.Value(clientIdKey{}).(string); ok && clientId != "" {
 		cOpts.SetClientID(clientId)
-	} else {
-		cOpts.SetClientID(generateClientId())
 	}
-	if enabled, ok := CleanSessionFromContext(opts.Context); ok {
+	if enabled, ok := opts.Context.Value(cleanSessionKey{}).(bool); ok {
 		cOpts.SetCleanSession(enabled)
 	}
-
-	for _, addr := range addrs {
-		cOpts.AddBroker(addr)
+	if enabled, ok := opts.Context.Value(autoReconnectKey{}).(bool); ok {
+		cOpts.SetAutoReconnect(enabled)
+	}
+	if enabled, ok := opts.Context.Value(resumeSubsKey{}).(bool); ok {
+		cOpts.SetResumeSubs(enabled)
+	}
+	if enabled, ok := opts.Context.Value(orderMattersKey{}).(bool); ok {
+		cOpts.SetOrderMatters(enabled)
 	}
 
 	return MQTT.NewClient(cOpts)
