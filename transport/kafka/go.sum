@@ -95,8 +95,8 @@ github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKs
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
-github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221220103810-c9269b0b6c80 h1:R3WAEIImZ3UywYyeSbOpWLbLur6PZojyuE2+Jsy95Fo=
-github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221220103810-c9269b0b6c80/go.mod h1:JuQAet2ZWr/n8tOgHqtOli2YSYGDfj25doOJCA+l2Pg=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221220104642-e974d66866a9 h1:GG9ZgtGxCUA1F8gmB8u40GiJoO3QDX1YteAc38qkdvA=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20221220104642-e974d66866a9/go.mod h1:JuQAet2ZWr/n8tOgHqtOli2YSYGDfj25doOJCA+l2Pg=
 github.com/xdg/scram v1.0.5 h1:TuS0RFmt5Is5qm9Tm2SoD89OPqe4IRiFtyFY4iwWXsw=
 github.com/xdg/scram v1.0.5/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=
 github.com/xdg/stringprep v1.0.3 h1:cmL5Enob4W83ti/ZHuZLuKD/xqJfus4fVPwE+/BDm+4=

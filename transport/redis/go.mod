@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
 	github.com/tx7do/kratos-transport v1.0.5
-	github.com/tx7do/kratos-transport/broker/redis v0.0.0-20221220103613-12db65c0dad2
+	github.com/tx7do/kratos-transport/broker/redis v0.0.0-20221220104642-e974d66866a9
 )
 
 require (
