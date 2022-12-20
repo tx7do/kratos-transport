@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +37,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress([]string{testBroker}),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 	)
 
 	_ = srv.RegisterSubscriber(ctx, testTopic,
@@ -65,7 +64,7 @@ func TestClient(t *testing.T) {
 
 	b := stomp.NewBroker(
 		broker.WithAddress(testBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 	)
 
 	_ = b.Init()

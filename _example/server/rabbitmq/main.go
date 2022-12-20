@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
@@ -30,7 +29,7 @@ func main() {
 
 	rabbitmqSrv := rabbitmq.NewServer(
 		rabbitmq.WithAddress([]string{testBroker}),
-		rabbitmq.WithCodec(encoding.GetCodec("json")),
+		rabbitmq.WithCodec("json"),
 		rabbitmq.WithExchange(testExchange, true),
 	)
 

@@ -42,7 +42,7 @@ func TestServer(t *testing.T) {
 		WithPath("/webtransport"),
 		WithConnectHandle(handleConnect),
 		WithTLSConfig(NewTlsConfig("./cert/server.key", "./cert/server.crt", "")),
-		//WithCodec(encoding.GetCodec("json")),
+		//WithCodec("json"),
 	)
 
 	srv.RegisterMessageHandler(api.MessageTypeChat,

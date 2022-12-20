@@ -51,9 +51,9 @@ func WithListener(lis net.Listener) ServerOption {
 	}
 }
 
-func WithCodec(c encoding.Codec) ServerOption {
+func WithCodec(c string) ServerOption {
 	return func(s *Server) {
-		s.codec = c
+		s.codec = encoding.GetCodec(c)
 	}
 }
 
@@ -61,9 +61,9 @@ func WithCodec(c encoding.Codec) ServerOption {
 
 type ClientOption func(o *Client)
 
-func WithClientCodec(c encoding.Codec) ClientOption {
+func WithClientCodec(c string) ClientOption {
 	return func(o *Client) {
-		o.codec = c
+		o.codec = encoding.GetCodec(c)
 	}
 }
 

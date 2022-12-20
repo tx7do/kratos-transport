@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	encoding2 "github.com/tx7do/kratos-transport/broker"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,7 +15,6 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	ws "github.com/gorilla/websocket"
-	"github.com/tx7do/kratos-transport/broker"
 )
 
 type Binder func() Any
@@ -125,7 +125,7 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 	var err error
 	var msg Message
 	msg.Type = messageType
-	msg.Body, err = broker.Marshal(s.codec, message)
+	msg.Body, err = encoding2.Marshal(s.codec, message)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 		payload = msg.Body
 	}
 
-	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
+	if err := encoding2.Unmarshal(s.codec, msg.Body, &payload); err != nil {
 		log.Errorf("[websocket] unmarshal message exception: %s", err)
 		return err
 	}

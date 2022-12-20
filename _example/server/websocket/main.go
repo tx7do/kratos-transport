@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/transport/websocket"
 )
@@ -26,7 +25,7 @@ func main() {
 		websocket.WithAddress(":8800"),
 		websocket.WithPath("/ws"),
 		websocket.WithConnectHandle(handleConnect),
-		websocket.WithCodec(encoding.GetCodec("json")),
+		websocket.WithCodec("json"),
 	)
 
 	testServer = wsSrv

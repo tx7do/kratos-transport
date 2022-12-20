@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/stretchr/testify/assert"
@@ -43,7 +42,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress([]string{EmqxCnBroker}),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 	)
 
 	_ = srv.RegisterSubscriber(ctx,
@@ -71,7 +70,7 @@ func TestClient(t *testing.T) {
 
 	b := mqtt.NewBroker(
 		broker.WithAddress(LocalRabbitBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 	)
 
 	_ = b.Init()

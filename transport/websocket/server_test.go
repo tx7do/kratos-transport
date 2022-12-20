@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/stretchr/testify/assert"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 )
@@ -28,7 +27,7 @@ func TestServer(t *testing.T) {
 		WithAddress(":8100"),
 		WithPath("/"),
 		WithConnectHandle(handleConnect),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 	)
 
 	srv.RegisterMessageHandler(api.MessageTypeChat,

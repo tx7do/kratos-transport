@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
@@ -31,7 +30,7 @@ func main() {
 
 	b := kafka.NewBroker(
 		broker.WithAddress(testBrokers),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 	)
 
 	_, err := b.Subscribe(testTopic,

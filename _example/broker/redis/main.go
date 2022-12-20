@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
@@ -29,7 +28,7 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := redis.NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		broker.WithAddress(localBroker),
 	)
 

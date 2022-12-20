@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/stretchr/testify/assert"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
@@ -40,7 +39,7 @@ func TestServer(t *testing.T) {
 	srv := NewServer(
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain("http://nsaddr.rmq.cloud.tencent.com"),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 	)
 
 	err := srv.RegisterSubscriber(ctx, testTopic, testGroupName,
@@ -67,7 +66,7 @@ func TestClient(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := rocketmq.NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		rocketmq.WithEnableTrace(),
 		rocketmq.WithNameServer([]string{testBroker}),
 		//rocketmq.WithNameServerDomain(testBroker),
@@ -112,7 +111,7 @@ func TestAliyunServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAliyunHttpSupport(),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),
 		WithCredentials(accessKey, secretKey, ""),
@@ -152,7 +151,7 @@ func TestAliyunClient(t *testing.T) {
 
 	b := rocketmq.NewBroker(
 		broker.WithOptionContext(ctx),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		rocketmq.WithAliyunHttpSupport(),
 		rocketmq.WithEnableTrace(),
 		rocketmq.WithNameServerDomain(endpoint),

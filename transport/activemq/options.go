@@ -3,10 +3,10 @@ package activemq
 import (
 	"crypto/tls"
 
-	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/tx7do/kratos-transport/broker"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 type ServerOption func(o *Server)
@@ -33,7 +33,7 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
-func WithCodec(c encoding.Codec) ServerOption {
+func WithCodec(c string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))
 	}

@@ -5,7 +5,6 @@ import (
 	"github.com/tx7do/kratos-transport/tracing"
 
 	"github.com/go-kratos/kratos/v2"
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -57,7 +56,7 @@ func main() {
 
 	kafkaSrv := kafka.NewServer(
 		kafka.WithAddress([]string{testBrokers}),
-		kafka.WithCodec(encoding.GetCodec("json")),
+		kafka.WithCodec("json"),
 		kafka.WithBrokerOptions(createTracerProvider("jaeger", "tracer_tester")),
 	)
 

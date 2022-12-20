@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/stretchr/testify/assert"
@@ -40,7 +39,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress([]string{testBrokers}),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 	)
 
 	_ = srv.RegisterSubscriber(ctx,
@@ -68,7 +67,7 @@ func TestClient(t *testing.T) {
 
 	b := kafka.NewBroker(
 		broker.WithAddress(testBrokers),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 	)
 
 	_ = b.Init()
@@ -123,7 +122,7 @@ func TestServerWithTracer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress([]string{testBrokers}),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 		WithBrokerOptions(createTracerProvider("jaeger", "tracer_tester")),
 	)
 

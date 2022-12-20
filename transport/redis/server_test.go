@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/stretchr/testify/assert"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
@@ -36,7 +35,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localBroker),
-		WithCodec(encoding.GetCodec("json")),
+		WithCodec("json"),
 	)
 
 	err := srv.RegisterSubscriber(testTopic,
@@ -68,7 +67,7 @@ func TestClient(t *testing.T) {
 
 	b := redis.NewBroker(
 		broker.WithAddress(localBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		redis.WithReadTimeout(24*time.Hour),
 	)
 

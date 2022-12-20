@@ -2,7 +2,7 @@ package nsq
 
 import (
 	"crypto/tls"
-	"github.com/go-kratos/kratos/v2/encoding"
+
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/nsq"
 )
@@ -37,7 +37,7 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
-func WithCodec(c encoding.Codec) ServerOption {
+func WithCodec(c string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))
 	}

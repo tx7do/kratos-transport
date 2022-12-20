@@ -2,9 +2,10 @@ package webtransport
 
 import (
 	"crypto/tls"
+	"time"
+
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/lucas-clemente/quic-go"
-	"time"
 )
 
 type ServerOption func(*Server)
@@ -57,9 +58,9 @@ func WithConnectHandle(h ConnectHandler) ServerOption {
 	}
 }
 
-func WithCodec(c encoding.Codec) ServerOption {
+func WithCodec(c string) ServerOption {
 	return func(s *Server) {
-		s.codec = c
+		s.codec = encoding.GetCodec(c)
 	}
 }
 
@@ -79,9 +80,9 @@ func WithEndpoint(url string) ClientOption {
 	}
 }
 
-func WithClientCodec(c encoding.Codec) ClientOption {
+func WithClientCodec(c string) ClientOption {
 	return func(o *Client) {
-		o.codec = c
+		o.codec = encoding.GetCodec(c)
 	}
 }
 

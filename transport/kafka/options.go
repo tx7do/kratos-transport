@@ -3,7 +3,6 @@ package kafka
 import (
 	"crypto/tls"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/segmentio/kafka-go/sasl/scram"
 
 	"go.opentelemetry.io/otel/propagation"
@@ -40,7 +39,7 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 }
 
 // WithCodec 编解码器
-func WithCodec(c encoding.Codec) ServerOption {
+func WithCodec(c string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))
 	}

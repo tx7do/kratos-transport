@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/redis"
 )
@@ -36,7 +35,7 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 }
 
 // WithCodec 编解码器
-func WithCodec(c encoding.Codec) ServerOption {
+func WithCodec(c string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))
 	}
