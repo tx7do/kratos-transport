@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/stretchr/testify/assert"
@@ -96,7 +95,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithAddress(localBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 	)
 
 	_ = b.Init()
@@ -130,7 +129,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithAddress(localBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 	)
 	defer b.Disconnect()
 
@@ -183,7 +182,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithAddress(localBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		createTracerProvider("jaeger", "publish_tracer_tester"),
 	)
 
@@ -218,7 +217,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithAddress(localBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		createTracerProvider("jaeger", "subscribe_tracer_tester"),
 	)
 	defer b.Disconnect()

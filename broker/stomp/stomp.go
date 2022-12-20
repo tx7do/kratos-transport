@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 
-	"github.com/go-stomp/stomp/v3"
 	"github.com/go-stomp/stomp/v3/frame"
 
 	"github.com/tx7do/kratos-transport/broker"

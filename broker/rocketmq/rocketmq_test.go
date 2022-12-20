@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/stretchr/testify/assert"
@@ -36,7 +35,7 @@ func TestSubscribe(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
 	)
@@ -63,7 +62,7 @@ func TestPublish(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		WithEnableTrace(),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
@@ -105,7 +104,7 @@ func Test_Aliyun_Publish(t *testing.T) {
 	topicName := ""
 
 	b := NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),
@@ -151,7 +150,7 @@ func Test_Aliyun_Subscribe(t *testing.T) {
 	groupName := "GID_DEFAULT"
 
 	b := NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		WithAliyunHttpSupport(),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),
@@ -209,7 +208,7 @@ func TestSubscribe_WithTracer(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		createTracerProvider("jaeger", "subscribe_tracer_tester"),
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain(testBroker),
@@ -237,7 +236,7 @@ func TestPublish_WithTracer(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		createTracerProvider("jaeger", "publish_tracer_tester"),
 		WithEnableTrace(),
 		WithNameServer([]string{testBroker}),

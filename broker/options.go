@@ -82,15 +82,17 @@ func OptionContextWithValue(k, v interface{}) Option {
 	}
 }
 
+// WithAddress set broker address
 func WithAddress(addressList ...string) Option {
 	return func(o *Options) {
 		o.Addrs = addressList
 	}
 }
 
-func WithCodec(codec encoding.Codec) Option {
+// WithCodec set codec, support: json, proto.
+func WithCodec(name string) Option {
 	return func(o *Options) {
-		o.Codec = codec
+		o.Codec = encoding.GetCodec(name)
 	}
 }
 

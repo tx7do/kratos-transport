@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/stretchr/testify/assert"
@@ -109,7 +108,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithAddress(testBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 	)
 
 	_ = b.Init()
@@ -143,7 +142,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithAddress(testBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		WithExchangeName(testExchange),
 		WithDurableExchange(),
 	)
@@ -203,7 +202,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 	b := NewBroker(
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		createTracerProvider("jaeger", "publish_tracer_tester"),
 		//broker.WithPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
 	)
@@ -239,7 +238,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithAddress(testBroker),
-		broker.WithCodec(encoding.GetCodec("json")),
+		broker.WithCodec("json"),
 		createTracerProvider("jaeger", "subscribe_tracer_tester"),
 		//broker.WithPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
 		WithExchangeName(testExchange),
