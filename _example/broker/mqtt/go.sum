@@ -465,8 +465,8 @@ github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
 github.com/tx7do/kratos-transport v1.0.5 h1:942TM6dzdBlJ+YC4buCS0usFny+L9qRlO8O+txIroa8=
 github.com/tx7do/kratos-transport v1.0.5/go.mod h1:gI68frGFLIwIbVCAm/f/FRc0JfyANIhnSHe2mAQidbM=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20221220103810-c9269b0b6c80 h1:RvZjVb/IvHSVz83OxbJyYycfuaABAHCFkRkdVfBmiNE=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20221220103810-c9269b0b6c80/go.mod h1:PsQaIlZ5cA2s1phq0zCqbcN8LIEEu8yCc7k/k/Rxc3c=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20221220110310-6e536d718b0a h1:KQ3RZ9lhYv01TnQWT9legyb3nPkEjDxERsxyZFrx7eU=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20221220110310-6e536d718b0a/go.mod h1:PsQaIlZ5cA2s1phq0zCqbcN8LIEEu8yCc7k/k/Rxc3c=
 github.com/urfave/cli/v2 v2.11.0/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.1/go.mod h1:RaEWvsqvNKKvBPvcKeFjrG2cJqOkHTiyTpzz23ni57g=
