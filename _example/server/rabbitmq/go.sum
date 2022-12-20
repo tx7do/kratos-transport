@@ -685,8 +685,8 @@ github.com/tx7do/kratos-transport v1.0.4/go.mod h1:YgWUk+YrICesPdzCEBR1T6oYmNtgS
 github.com/tx7do/kratos-transport v1.0.5 h1:942TM6dzdBlJ+YC4buCS0usFny+L9qRlO8O+txIroa8=
 github.com/tx7do/kratos-transport v1.0.5/go.mod h1:gI68frGFLIwIbVCAm/f/FRc0JfyANIhnSHe2mAQidbM=
 github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221220093805-5e713c98fb9d/go.mod h1:zr4E2NUT4Was0rAyQNvcTSQxK2vq5Tj4RRqPdjvhlLE=
-github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221220103310-0b3aae1d8f0d h1:l4ZJCk524lGT3AQKO/yAfXsfCu/TBX9ZRSLExgeovbY=
-github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221220103310-0b3aae1d8f0d/go.mod h1:zr4E2NUT4Was0rAyQNvcTSQxK2vq5Tj4RRqPdjvhlLE=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221220103810-c9269b0b6c80 h1:wUTlfESumT71xC/8i/Ws0jvSOk6cGdFh/YBzJdFqNdY=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20221220103810-c9269b0b6c80/go.mod h1:igqjZRUZNSKJWULp1ucmJUYH6oykBB881TXC4vx2GLI=
 github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20221220103310-0b3aae1d8f0d h1:RmP4ao3mkB8+UYHCf0klAlrBm5Nh+hhhX/OBW5UI0TQ=
 github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20221220103310-0b3aae1d8f0d/go.mod h1:7m92DTjzAk4VQxtwyBMXfrrZevFnXfd7E31pAIb3oQw=
 github.com/urfave/cli/v2 v2.11.0/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
