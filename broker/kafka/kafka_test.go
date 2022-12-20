@@ -190,7 +190,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 	b := NewBroker(
 		broker.WithAddress(testBrokers),
 		broker.WithCodec(encoding.GetCodec("json")),
-		createTracerProvider("jaeger", "publish_tracer_tester"),
+		createTracerProvider("jaeger", "tracer_tester"),
 	)
 
 	_ = b.Init()

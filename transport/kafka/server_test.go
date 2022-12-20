@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"github.com/tx7do/kratos-transport/tracing"
 	"net"
 	"net/url"
 	"os"
@@ -83,6 +84,64 @@ func TestClient(t *testing.T) {
 		broker.WithQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
+
+	<-interrupt
+}
+
+func createTracerProvider(exporterName, serviceName string) broker.Option {
+	switch exporterName {
+	case "jaeger":
+		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
+			"http://localhost:14268/api/traces",
+			serviceName,
+			"",
+			"1.0.0",
+			1.0,
+		),
+			"kafka-tracer",
+		)
+	case "zipkin":
+		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
+			"http://localhost:9411/api/v2/spans",
+			serviceName,
+			"test",
+			"1.0.0",
+			1.0,
+		),
+			"kafka-tracer",
+		)
+	}
+
+	return nil
+}
+
+func TestServerWithTracer(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	srv := NewServer(
+		WithAddress([]string{testBrokers}),
+		WithCodec(encoding.GetCodec("json")),
+		WithBrokerOptions(createTracerProvider("jaeger", "tracer_tester")),
+	)
+
+	_ = srv.RegisterSubscriber(ctx,
+		testTopic, testGroupId, false,
+		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		api.HygrothermographCreator,
+	)
+
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
 
 	<-interrupt
 }
