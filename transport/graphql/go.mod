@@ -8,7 +8,7 @@ require (
 	github.com/99designs/gqlgen v0.17.22
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/gorilla/mux v1.8.0
-	github.com/tx7do/kratos-transport v1.0.4
+	github.com/tx7do/kratos-transport v1.0.5
 )
 
 require (

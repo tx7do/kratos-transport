@@ -7,7 +7,7 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
-	github.com/tx7do/kratos-transport v1.0.4
+	github.com/tx7do/kratos-transport v1.0.5
 	github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20221220102914-5b12db1503dc
 	go.opentelemetry.io/otel v1.11.2
 	go.opentelemetry.io/otel/trace v1.11.2
