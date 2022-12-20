@@ -50,7 +50,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	b := &kafkaBroker{
 		readerConfig: kafkaGo.ReaderConfig{
 			WatchPartitionChanges: true,
-			Logger:                Logger{},
+			Logger:                nil,
 			ErrorLogger:           ErrorLogger{},
 		},
 		writers:      make(map[string]*kafkaGo.Writer),
