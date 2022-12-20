@@ -407,8 +407,8 @@ github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
-github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20221220093805-5e713c98fb9d h1:9al7xw6LVjCuhIg6LiBleYaoV2nglKCveZ011KxxGK0=
-github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20221220093805-5e713c98fb9d/go.mod h1:LPGUoVPRQs1bGLXPnOb14v95ssNlo1jO92I0qSmp+SI=
+github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20221220102914-5b12db1503dc h1:/yAmZxbHf8Uexy6yhm6ZyGNltP/0jW5O9WiFZnPVkhc=
+github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20221220102914-5b12db1503dc/go.mod h1:LPGUoVPRQs1bGLXPnOb14v95ssNlo1jO92I0qSmp+SI=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
