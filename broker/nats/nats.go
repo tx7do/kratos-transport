@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/go-kratos/kratos/v2/log"
-	NATS "github.com/nats-io/nats.go"
+	natsGo "github.com/nats-io/nats.go"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
@@ -29,8 +29,8 @@ type natsBroker struct {
 
 	opts broker.Options
 
-	conn     *NATS.Conn
-	natsOpts NATS.Options
+	conn     *natsGo.Conn
+	natsOpts natsGo.Options
 
 	drain   bool
 	closeCh chan error
@@ -93,7 +93,7 @@ func (b *natsBroker) setAddrs(addrs []string) []string {
 		cAddrs = append(cAddrs, addr)
 	}
 	if len(cAddrs) == 0 {
-		cAddrs = []string{NATS.DefaultURL}
+		cAddrs = []string{natsGo.DefaultURL}
 	}
 	return cAddrs
 }
@@ -104,10 +104,10 @@ func (b *natsBroker) setOption(opts ...broker.Option) {
 	}
 
 	b.Once.Do(func() {
-		b.natsOpts = NATS.GetDefaultOptions()
+		b.natsOpts = natsGo.GetDefaultOptions()
 	})
 
-	if value, ok := b.opts.Context.Value(optionsKey{}).(NATS.Options); ok {
+	if value, ok := b.opts.Context.Value(optionsKey{}).(natsGo.Options); ok {
 		b.natsOpts = value
 	}
 
@@ -141,13 +141,13 @@ func (b *natsBroker) Connect() error {
 		return nil
 	}
 
-	status := NATS.CLOSED
+	status := natsGo.CLOSED
 	if b.conn != nil {
 		status = b.conn.Status()
 	}
 
 	switch status {
-	case NATS.CONNECTED, NATS.RECONNECTING, NATS.CONNECTING:
+	case natsGo.CONNECTED, natsGo.RECONNECTING, natsGo.CONNECTING:
 		b.connected = true
 		return nil
 	default: // DISCONNECTED or CLOSED or DRAINING
@@ -210,7 +210,7 @@ func (b *natsBroker) publish(topic string, buf []byte, opts ...broker.PublishOpt
 		o(&options)
 	}
 
-	m := NATS.NewMsg(topic)
+	m := natsGo.NewMsg(topic)
 	m.Data = buf
 
 	if headers, ok := options.Context.Value(headersKey{}).(map[string][]string); ok {
@@ -248,7 +248,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 	subs := &subscriber{s: nil, opts: options}
 
-	fn := func(msg *NATS.Msg) {
+	fn := func(msg *natsGo.Msg) {
 		m := &broker.Message{
 			Headers: natsHeaderToMap(msg.Header),
 			Body:    nil,
@@ -291,7 +291,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		b.finishConsumerSpan(span)
 	}
 
-	var sub *NATS.Subscription
+	var sub *natsGo.Subscription
 	var err error
 
 	b.RLock()
@@ -310,21 +310,21 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	return subs, nil
 }
 
-func (b *natsBroker) onClose(_ *NATS.Conn) {
+func (b *natsBroker) onClose(_ *natsGo.Conn) {
 	b.closeCh <- nil
 }
 
-func (b *natsBroker) onAsyncError(_ *NATS.Conn, _ *NATS.Subscription, err error) {
-	if err == NATS.ErrDrainTimeout {
+func (b *natsBroker) onAsyncError(_ *natsGo.Conn, _ *natsGo.Subscription, err error) {
+	if err == natsGo.ErrDrainTimeout {
 		b.closeCh <- err
 	}
 }
 
-func (b *natsBroker) onDisconnectedError(_ *NATS.Conn, err error) {
+func (b *natsBroker) onDisconnectedError(_ *natsGo.Conn, err error) {
 	b.closeCh <- err
 }
 
-func (b *natsBroker) startProducerSpan(ctx context.Context, msg *NATS.Msg) trace.Span {
+func (b *natsBroker) startProducerSpan(ctx context.Context, msg *natsGo.Msg) trace.Span {
 	if b.producerTracer == nil {
 		return nil
 	}
@@ -351,7 +351,7 @@ func (b *natsBroker) finishProducerSpan(span trace.Span, err error) {
 	b.producerTracer.End(context.Background(), span, err)
 }
 
-func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *NATS.Msg) (context.Context, trace.Span) {
+func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *natsGo.Msg) (context.Context, trace.Span) {
 	if b.consumerTracer == nil {
 		return ctx, nil
 	}

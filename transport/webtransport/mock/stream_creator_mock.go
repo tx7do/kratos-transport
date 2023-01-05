@@ -36,6 +36,22 @@ func (m *MockStreamCreator) EXPECT() *MockStreamCreatorMockRecorder {
 	return m.recorder
 }
 
+// ConnectionState mocks base method.
+func (m *MockStreamCreator) ConnectionState() quic.ConnectionState {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConnectionState")
+	ret0, _ := ret[0].(quic.ConnectionState)
+	return ret0
+}
+
+// Context mocks base method.
+func (m *MockStreamCreator) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
 // LocalAddr mocks base method.
 func (m *MockStreamCreator) LocalAddr() net.Addr {
 	m.ctrl.T.Helper()

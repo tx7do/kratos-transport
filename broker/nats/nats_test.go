@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
+	natsGo "github.com/nats-io/nats.go"
 
 	"github.com/stretchr/testify/assert"
 
@@ -78,7 +79,7 @@ func TestInitAddrs(t *testing.T) {
 				// we know that there are just two addrs in the dict
 				_ = br.Init(broker.WithAddress(addrs[0], addrs[1]))
 			case "natsOpts":
-				nopts := nats.GetDefaultOptions()
+				nopts := natsGo.GetDefaultOptions()
 				nopts.Servers = addrs
 				br = NewBroker(Options(nopts))
 				_ = br.Init()

@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 )
 
@@ -30,7 +29,7 @@ func TestClient(t *testing.T) {
 
 	cli := NewClient(
 		WithEndpoint("ws://localhost:8100/"),
-		WithClientCodec(encoding.GetCodec("json")),
+		WithClientCodec("json"),
 	)
 	defer cli.Disconnect()
 

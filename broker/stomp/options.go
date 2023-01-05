@@ -2,8 +2,9 @@ package stomp
 
 import (
 	"context"
-	"github.com/tx7do/kratos-transport/broker"
 	"time"
+
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -14,7 +14,8 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 
-	"github.com/go-stomp/stomp/v3/frame"
+	stompV3 "github.com/go-stomp/stomp/v3"
+	frameV3 "github.com/go-stomp/stomp/v3/frame"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
@@ -28,7 +29,7 @@ type stompBroker struct {
 	opts     broker.Options
 	endpoint *url.URL
 
-	stompConn *stomp.Conn
+	stompConn *stompV3.Conn
 
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
@@ -118,37 +119,37 @@ func (b *stompBroker) Connect() error {
 		return fmt.Errorf("failed to dial %s: %v", uri.Host, err)
 	}
 
-	var stompOpts []func(*stomp.Conn) error
+	var stompOpts []func(*stompV3.Conn) error
 	if uri.User != nil && uri.User.Username() != "" {
 		password, _ := uri.User.Password()
-		stompOpts = append(stompOpts, stomp.ConnOpt.Login(uri.User.Username(), password))
+		stompOpts = append(stompOpts, stompV3.ConnOpt.Login(uri.User.Username(), password))
 	}
 	if v, ok := b.opts.Context.Value(authKey{}).(*authRecord); ok {
-		stompOpts = append(stompOpts, stomp.ConnOpt.Login(v.username, v.password))
+		stompOpts = append(stompOpts, stompV3.ConnOpt.Login(v.username, v.password))
 	}
 	if headers, ok := b.opts.Context.Value(connectHeaderKey{}).(map[string]string); ok {
 		for k, v := range headers {
-			stompOpts = append(stompOpts, stomp.ConnOpt.Header(k, v))
+			stompOpts = append(stompOpts, stompV3.ConnOpt.Header(k, v))
 		}
 	}
 	if host, ok := b.opts.Context.Value(vHostKey{}).(string); ok {
 		log.Infof("Adding host: %s", host)
-		stompOpts = append(stompOpts, stomp.ConnOpt.Host(host))
+		stompOpts = append(stompOpts, stompV3.ConnOpt.Host(host))
 	}
 	if v, ok := b.opts.Context.Value(heartBeatKey{}).(*heartbeatTimeout); ok {
-		stompOpts = append(stompOpts, stomp.ConnOpt.HeartBeat(v.sendTimeout, v.recvTimeout))
+		stompOpts = append(stompOpts, stompV3.ConnOpt.HeartBeat(v.sendTimeout, v.recvTimeout))
 	}
 	if v, ok := b.opts.Context.Value(heartBeatErrorKey{}).(time.Duration); ok {
-		stompOpts = append(stompOpts, stomp.ConnOpt.HeartBeatError(v))
+		stompOpts = append(stompOpts, stompV3.ConnOpt.HeartBeatError(v))
 	}
 	if v, ok := b.opts.Context.Value(msgSendTimeoutKey{}).(time.Duration); ok {
-		stompOpts = append(stompOpts, stomp.ConnOpt.MsgSendTimeout(v))
+		stompOpts = append(stompOpts, stompV3.ConnOpt.MsgSendTimeout(v))
 	}
 	if v, ok := b.opts.Context.Value(rcvReceiptTimeoutKey{}).(time.Duration); ok {
-		stompOpts = append(stompOpts, stomp.ConnOpt.RcvReceiptTimeout(v))
+		stompOpts = append(stompOpts, stompV3.ConnOpt.RcvReceiptTimeout(v))
 	}
 
-	b.stompConn, err = stomp.Connect(netConn, stompOpts...)
+	b.stompConn, err = stompV3.Connect(netConn, stompOpts...)
 	if err != nil {
 		_ = netConn.Close()
 		return fmt.Errorf("failed to connect to %s: %v", uri.Host, err)
@@ -182,20 +183,20 @@ func (b *stompBroker) publish(topic string, msg []byte, opts ...broker.PublishOp
 		o(&options)
 	}
 
-	stompOpt := make([]func(*frame.Frame) error, 0, 0)
+	stompOpt := make([]func(*frameV3.Frame) error, 0, 0)
 
 	span := b.startProducerSpan(options.Context, topic, &stompOpt)
 
 	if headers, ok := options.Context.Value(headerKey{}).(map[string]string); ok {
 		for k, v := range headers {
-			stompOpt = append(stompOpt, stomp.SendOpt.Header(k, v))
+			stompOpt = append(stompOpt, stompV3.SendOpt.Header(k, v))
 		}
 	}
 	if withReceipt, ok := options.Context.Value(receiptKey{}).(bool); ok && withReceipt {
-		stompOpt = append(stompOpt, stomp.SendOpt.Receipt)
+		stompOpt = append(stompOpt, stompV3.SendOpt.Receipt)
 	}
 	if withoutContentLength, ok := options.Context.Value(suppressContentLengthKey{}).(bool); ok && withoutContentLength {
-		stompOpt = append(stompOpt, stomp.SendOpt.NoContentLength)
+		stompOpt = append(stompOpt, stompV3.SendOpt.NoContentLength)
 	}
 
 	err := b.stompConn.Send(topic, "", msg, stompOpt...)
@@ -218,15 +219,15 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		o(&options)
 	}
 
-	stompOpt := make([]func(*frame.Frame) error, 0, len(opts))
+	stompOpt := make([]func(*frameV3.Frame) error, 0, len(opts))
 
 	if durableQueue, ok := options.Context.Value(durableQueueKey{}).(bool); ok && durableQueue {
-		stompOpt = append(stompOpt, stomp.SubscribeOpt.Header("persistent", "true"))
+		stompOpt = append(stompOpt, stompV3.SubscribeOpt.Header("persistent", "true"))
 	}
 
 	if headers, ok := options.Context.Value(subscribeHeaderKey{}).(map[string]string); ok && len(headers) > 0 {
 		for k, v := range headers {
-			stompOpt = append(stompOpt, stomp.SubscribeOpt.Header(k, v))
+			stompOpt = append(stompOpt, stompV3.SubscribeOpt.Header(k, v))
 		}
 	}
 
@@ -236,11 +237,11 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		ackSuccess = true
 	}
 
-	var ackMode stomp.AckMode
+	var ackMode stompV3.AckMode
 	if options.AutoAck {
-		ackMode = stomp.AckAuto
+		ackMode = stompV3.AckAuto
 	} else {
-		ackMode = stomp.AckClientIndividual
+		ackMode = stompV3.AckClientIndividual
 	}
 
 	sub, err := b.stompConn.Subscribe(topic, ackMode, stompOpt...)
@@ -250,7 +251,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 	go func() {
 		for msg := range sub.C {
-			go func(msg *stomp.Message) {
+			go func(msg *stompV3.Message) {
 				m := &broker.Message{
 					Headers: stompHeaderToMap(msg.Header),
 				}
@@ -283,7 +284,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 	return &subscriber{sub: sub, topic: topic, opts: options}, nil
 }
 
-func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *[]func(*frame.Frame) error) trace.Span {
+func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *[]func(*frameV3.Frame) error) trace.Span {
 	if b.producerTracer == nil {
 		return nil
 	}
@@ -310,7 +311,7 @@ func (b *stompBroker) finishProducerSpan(span trace.Span, err error) {
 	b.producerTracer.End(context.Background(), span, err)
 }
 
-func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stomp.Message) (context.Context, trace.Span) {
+func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stompV3.Message) (context.Context, trace.Span) {
 	if b.consumerTracer == nil {
 		return ctx, nil
 	}

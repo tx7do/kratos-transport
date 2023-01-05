@@ -1,9 +1,11 @@
 package kafka
 
 import (
-	kafkago "github.com/segmentio/kafka-go"
-	"github.com/tx7do/kratos-transport/broker"
 	"sync"
+
+	kafkaGo "github.com/segmentio/kafka-go"
+
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 type subscriber struct {
@@ -11,7 +13,7 @@ type subscriber struct {
 	topic   string
 	opts    broker.SubscribeOptions
 	handler broker.Handler
-	reader  *kafkago.Reader
+	reader  *kafkaGo.Reader
 	closed  bool
 	done    chan struct{}
 	sync.RWMutex

@@ -1,12 +1,12 @@
 package nats
 
 import (
-	"github.com/nats-io/nats.go"
+	natsGo "github.com/nats-io/nats.go"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
 type subscriber struct {
-	s    *nats.Subscription
+	s    *natsGo.Subscription
 	opts broker.SubscribeOptions
 }
 
