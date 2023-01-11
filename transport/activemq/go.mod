@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.3
 	github.com/stretchr/testify v1.8.1
 	github.com/tx7do/kratos-transport v1.0.5
-	github.com/tx7do/kratos-transport/broker/stomp v0.0.0-20221220104642-e974d66866a9
+	github.com/tx7do/kratos-transport/broker/stomp v0.0.0-20230105065111-79a5a68a4b33
 	go.opentelemetry.io/otel v1.11.2
 	go.opentelemetry.io/otel/trace v1.11.2
 )
@@ -26,8 +26,8 @@ require (
 	go.opentelemetry.io/otel/exporters/jaeger v1.11.2 // indirect
 	go.opentelemetry.io/otel/exporters/zipkin v1.11.2 // indirect
 	go.opentelemetry.io/otel/sdk v1.11.2 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	google.golang.org/genproto v0.0.0-20230104163317-caabf589fcbf // indirect
 	google.golang.org/grpc v1.51.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
