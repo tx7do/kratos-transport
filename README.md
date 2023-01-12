@@ -1,8 +1,10 @@
 # kratos-transport
 
-把消息队列、任务队列，以及Websocket等网络协议实现为微服务框架[Kratos](https://go-kratos.dev/docs/) 的`transport.Server`。
+把消息队列、任务队列，以及Websocket、HTTP3等网络协议实现为微服务框架 [Kratos](https://go-kratos.dev/docs/) 的`transport.Server`。
 
 在使用的时候,可以调用`kratos.Server()`方法，将之注册成为一个`Server`。
+
+各种缝合，请叫我：缝合怪。
 
 ## 支持的服务（Server）
 
@@ -25,6 +27,11 @@
 
 - [Thrift](https://thrift.apache.org/)
 - [GraphQL](https://graphql.org/)
+- [FastHttp](https://github.com/valyala/fasthttp)
+- [Gin](https://gin-gonic.com)
+- [Go-Zero](https://go-zero.dev)
+- [Hertz](https://www.cloudwego.io/zh/docs/hertz)
+- [Iris](https://docs.iris-go.com)
 
 ### 任务队列
 
@@ -58,4 +65,4 @@
 - [kratos-cqrs](https://github.com/tx7do/kratos-cqrs) 一个CQRS架构模式的示例
 - [kratos-realtimemap](https://github.com/tx7do/kratos-realtimemap) 一个物联网的公共交通实时显示地图的示例
 
-以上示例程序在官方的[示例代码库](https://github.com/go-kratos/examples)中也可以找到。
+以上示例程序在[Kratos官方示例代码库](https://github.com/go-kratos/examples)中也可以找到。
