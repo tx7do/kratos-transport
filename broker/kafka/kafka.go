@@ -31,12 +31,11 @@ const (
 type kafkaBroker struct {
 	sync.RWMutex
 
-	readerConfig kafkaGo.ReaderConfig
-	writerConfig WriterConfig
-
-	writers map[string]*kafkaGo.Writer
-
+	readerConfig  kafkaGo.ReaderConfig
+	writerConfig  WriterConfig
 	saslMechanism sasl.Mechanism
+
+	writer *kafkaGo.Writer
 
 	connected    bool
 	opts         broker.Options
@@ -63,7 +62,6 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 			BatchTimeout: 10 * time.Millisecond, // 内部默认为1秒，那么会造成什么情况呢？同步发送的时候，发送一次要等待1秒的时间。
 			Async:        true,                  // 默认设置为异步发送，效率比较高。
 		},
-		writers:      make(map[string]*kafkaGo.Writer),
 		opts:         options,
 		retriesCount: 1,
 	}
@@ -317,11 +315,7 @@ func (b *kafkaBroker) Disconnect() error {
 
 	b.Lock()
 	defer b.Unlock()
-	for _, writer := range b.writers {
-		if err := writer.Close(); err != nil {
-			return err
-		}
-	}
+	_ = b.writer.Close()
 
 	b.connected = false
 	return nil
@@ -410,10 +404,8 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 
 	var cached bool
 	b.Lock()
-	writer, ok := b.writers[topic]
-	if !ok {
-		writer = b.createProducer(topic, opts...)
-		b.writers[topic] = writer
+	if b.writer == nil {
+		b.writer = b.createProducer(topic, opts...)
 	} else {
 		cached = true
 	}
@@ -424,7 +416,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 	span := b.startProducerSpan(options.Context, &kMsg)
 	defer b.finishProducerSpan(span, int32(kMsg.Partition), kMsg.Offset, err)
 
-	err = writer.WriteMessages(options.Context, kMsg)
+	err = b.writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
 		log.Errorf("WriteMessages error: %s", err.Error())
 		switch cached {
@@ -432,23 +424,23 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 			if kerr, ok := err.(kafkaGo.Error); ok {
 				if kerr.Temporary() && !kerr.Timeout() {
 					time.Sleep(200 * time.Millisecond)
-					err = writer.WriteMessages(options.Context, kMsg)
+					err = b.writer.WriteMessages(options.Context, kMsg)
 				}
 			}
 		case true:
 			b.Lock()
-			if err = writer.Close(); err != nil {
+			if err = b.writer.Close(); err != nil {
 				b.Unlock()
 				break
 			}
-			delete(b.writers, topic)
+			b.writer = nil
 			b.Unlock()
 
 			writer := b.createProducer(topic, opts...)
 			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
 					b.Lock()
-					b.writers[topic] = writer
+					b.writer = writer
 					b.Unlock()
 					break
 				}
