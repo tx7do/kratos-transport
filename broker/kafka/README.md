@@ -57,3 +57,5 @@ docker run -itd \
 
 * [使用kafka-go导致的消费延时问题](https://loesspie.com/2020/12/28/kafka-golang-segmentio-kafka-go-slow-cousume/)
 * [kafka-go 读取kafka消息丢失数据的问题定位和解决](https://cloud.tencent.com/developer/article/1809467)
+* [Go社区主流Kafka客户端简要对比](https://tonybai.com/2022/03/28/the-comparison-of-the-go-community-leading-kakfa-clients/)
+* [kafka go Writer 写入消息过慢的原因分析](http://timd.cn/kafka-go-writer/)

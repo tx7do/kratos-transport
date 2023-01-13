@@ -43,6 +43,18 @@ type dialerConfigKey struct{}
 type dialerTimeoutKey struct{}
 type loggerKey struct{}
 type errorLoggerKey struct{}
+type enableLoggerKey struct{}
+type enableErrorLoggerKey struct{}
+
+type batchSizeKey struct{}
+type batchTimeoutKey struct{}
+type batchBytesKey struct{}
+type asyncKey struct{}
+type maxAttemptsKey struct{}
+type readTimeoutKey struct{}
+type writeTimeoutKey struct{}
+type allowAutoTopicCreationKey struct{}
+type balancerKey struct{}
 
 // WithReaderConfig .
 func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
@@ -87,7 +99,7 @@ func WithQueueCapacity(cap int) broker.Option {
 	return broker.OptionContextWithValue(queueCapacityKey{}, cap)
 }
 
-// WithMinBytes .
+// WithMinBytes fetch.min.bytes
 func WithMinBytes(bytes int) broker.Option {
 	return broker.OptionContextWithValue(minBytesKey{}, bytes)
 }
@@ -97,7 +109,7 @@ func WithMaxBytes(bytes int) broker.Option {
 	return broker.OptionContextWithValue(maxBytesKey{}, bytes)
 }
 
-// WithMaxWait .
+// WithMaxWait fetch.max.wait.ms
 func WithMaxWait(time time.Duration) broker.Option {
 	return broker.OptionContextWithValue(maxWaitKey{}, time)
 }
@@ -152,82 +164,76 @@ func WithMaxAttempts(cnt int) broker.Option {
 	return broker.OptionContextWithValue(maxAttemptsKey{}, cnt)
 }
 
-// WithLogger .
+// WithLogger inject info logger
 func WithLogger(l kafkaGo.Logger) broker.Option {
 	return broker.OptionContextWithValue(loggerKey{}, l)
 }
 
-// WithErrorLogger .
+// WithErrorLogger inject error logger
 func WithErrorLogger(l kafkaGo.Logger) broker.Option {
 	return broker.OptionContextWithValue(errorLoggerKey{}, l)
 }
 
-///
-/// PublishOption
-///
-
-type batchSizeKey struct{}
-type batchTimeoutKey struct{}
-type batchBytesKey struct{}
-type asyncKey struct{}
-type maxAttemptsKey struct{}
-type readTimeoutKey struct{}
-type writeTimeoutKey struct{}
-type allowAutoTopicCreationKey struct{}
-type balancerKey struct{}
-
-type messageHeadersKey struct{}
-type messageKeyKey struct{}
-type messageOffsetKey struct{}
-
-// WithBatchSize 发送批次大小
-//
-//	默认：100条
-func WithBatchSize(size int) broker.PublishOption {
-	return broker.PublishContextWithValue(batchSizeKey{}, size)
+// WithEnableLogger enable kratos info logger
+func WithEnableLogger(enable bool) broker.Option {
+	return broker.OptionContextWithValue(enableLoggerKey{}, enable)
 }
 
-// WithBatchTimeout 默认：
-func WithBatchTimeout(timeout time.Duration) broker.PublishOption {
-	return broker.PublishContextWithValue(batchTimeoutKey{}, timeout)
+// WithEnableErrorLogger enable kratos error logger
+func WithEnableErrorLogger(enable bool) broker.Option {
+	return broker.OptionContextWithValue(enableErrorLoggerKey{}, enable)
+}
+
+// WithBatchSize 发送批次大小 batch.size
+//
+//	default：100
+func WithBatchSize(size int) broker.Option {
+	return broker.OptionContextWithValue(batchSizeKey{}, size)
+}
+
+// WithBatchTimeout linger.ms
+//
+// default：10ms
+func WithBatchTimeout(timeout time.Duration) broker.Option {
+	return broker.OptionContextWithValue(batchTimeoutKey{}, timeout)
 }
 
 // WithBatchBytes
 //
-//	默认：1048576字节
-func WithBatchBytes(by int64) broker.PublishOption {
-	return broker.PublishContextWithValue(batchBytesKey{}, by)
+// default：1048576 bytes
+func WithBatchBytes(by int64) broker.Option {
+	return broker.OptionContextWithValue(batchBytesKey{}, by)
 }
 
 // WithAsync 异步发送消息
 //
-//	默认为：false
-func WithAsync(enable bool) broker.PublishOption {
-	return broker.PublishContextWithValue(asyncKey{}, enable)
+// default：true
+func WithAsync(enable bool) broker.Option {
+	return broker.OptionContextWithValue(asyncKey{}, enable)
 }
 
 // WithPublishMaxAttempts .
-func WithPublishMaxAttempts(cnt int) broker.PublishOption {
-	return broker.PublishContextWithValue(maxAttemptsKey{}, cnt)
+func WithPublishMaxAttempts(cnt int) broker.Option {
+	return broker.OptionContextWithValue(maxAttemptsKey{}, cnt)
 }
 
 // WithReadTimeout 读取超时时间
 //
-//	默认：10秒
-func WithReadTimeout(timeout time.Duration) broker.PublishOption {
-	return broker.PublishContextWithValue(readTimeoutKey{}, timeout)
+// default：10s
+func WithReadTimeout(timeout time.Duration) broker.Option {
+	return broker.OptionContextWithValue(readTimeoutKey{}, timeout)
 }
 
 // WithWriteTimeout 写入超时时间
 //
-//	默认：10秒
-func WithWriteTimeout(timeout time.Duration) broker.PublishOption {
-	return broker.PublishContextWithValue(writeTimeoutKey{}, timeout)
+// default：10s
+func WithWriteTimeout(timeout time.Duration) broker.Option {
+	return broker.OptionContextWithValue(writeTimeoutKey{}, timeout)
 }
 
 // WithAllowAutoTopicCreation .
-func WithAllowAutoTopicCreation(enable bool) broker.PublishOption {
-	return broker.PublishContextWithValue(allowAutoTopicCreationKey{}, enable)
+func WithAllowAutoTopicCreation(enable bool) broker.Option {
+	return broker.OptionContextWithValue(allowAutoTopicCreationKey{}, enable)
 }
 
 // WithBalancer 负载均衡器
@@ -238,6 +244,14 @@ func WithAllowAutoTopicCreation(enable bool) broker.PublishOption {
 func WithBalancer(balancer string) broker.PublishOption {
 	return broker.PublishContextWithValue(balancerKey{}, balancer)
 }
+
+///
+/// PublishOption
+///
+
+type messageHeadersKey struct{}
+type messageKeyKey struct{}
+type messageOffsetKey struct{}
 
 // WithHeaders 消息头
 func WithHeaders(headers map[string]interface{}) broker.PublishOption {

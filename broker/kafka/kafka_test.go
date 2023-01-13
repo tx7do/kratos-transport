@@ -97,6 +97,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	b := NewBroker(
 		broker.WithAddress(testBrokers),
 		broker.WithCodec("json"),
+		//WithAsync(false),
 	)
 
 	_ = b.Init()
