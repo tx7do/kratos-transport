@@ -86,12 +86,6 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 		broker.WithQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
-
-	_, err = b.Subscribe("test",
-		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
-		nil,
-		broker.WithQueueName(testGroupId),
-	)
 	assert.Nil(t, err)
 
 	<-interrupt
@@ -127,8 +121,6 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		msg.Temperature = float64(rand.Intn(100))
 		err := b.Publish(testTopic, msg, WithHeaders(headers))
 		assert.Nil(t, err)
-		err = b.Publish("test", msg, WithHeaders(headers))
-		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		log.Infof("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
 			i, elapsedTime, msg.Humidity, msg.Temperature)
@@ -156,13 +148,6 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	}
 
 	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupId),
-	)
-	assert.Nil(t, err)
-
-	_, err = b.Subscribe("test",
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testGroupId),
