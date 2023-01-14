@@ -35,7 +35,7 @@ type kafkaBroker struct {
 	writerConfig  WriterConfig
 	saslMechanism sasl.Mechanism
 
-	writer *kafkaGo.Writer
+	writer *Writer
 
 	connected    bool
 	opts         broker.Options
@@ -99,6 +99,17 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	}
 	b.opts.Addrs = addrs
 	b.readerConfig.Brokers = addrs
+	b.writerConfig.Brokers = addrs
+
+	enableOneTopicOneWriter := true
+	if value, ok := b.opts.Context.Value(enableOneTopicOneWriterKey{}).(bool); ok {
+		enableOneTopicOneWriter = value
+	}
+	b.writer = NewWriter(enableOneTopicOneWriter)
+
+	if value, ok := b.opts.Context.Value(writerConfigKey{}).(WriterConfig); ok {
+		b.writerConfig = value
+	}
 
 	if b.readerConfig.Dialer == nil {
 		b.readerConfig.Dialer = kafkaGo.DefaultDialer
@@ -315,44 +326,10 @@ func (b *kafkaBroker) Disconnect() error {
 
 	b.Lock()
 	defer b.Unlock()
-	_ = b.writer.Close()
+	b.writer.Close()
 
 	b.connected = false
 	return nil
-}
-
-func (b *kafkaBroker) createProducer(_ string, opts ...broker.PublishOption) *kafkaGo.Writer {
-	options := broker.PublishOptions{
-		Context: context.Background(),
-	}
-	for _, o := range opts {
-		o(&options)
-	}
-
-	sharedTransport := &kafkaGo.Transport{
-		SASL: b.saslMechanism,
-		TLS:  b.opts.TLSConfig,
-	}
-
-	writer := &kafkaGo.Writer{
-		Transport: sharedTransport,
-
-		Addr:                   kafkaGo.TCP(b.opts.Addrs...),
-		Balancer:               b.writerConfig.Balancer,
-		MaxAttempts:            b.writerConfig.MaxAttempts,
-		BatchSize:              b.writerConfig.BatchSize,
-		BatchBytes:             b.writerConfig.BatchBytes,
-		BatchTimeout:           b.writerConfig.BatchTimeout,
-		ReadTimeout:            b.writerConfig.ReadTimeout,
-		WriteTimeout:           b.writerConfig.WriteTimeout,
-		RequiredAcks:           b.writerConfig.RequiredAcks,
-		Async:                  b.writerConfig.Async,
-		Logger:                 b.writerConfig.Logger,
-		ErrorLogger:            b.writerConfig.ErrorLogger,
-		AllowAutoTopicCreation: b.writerConfig.AllowAutoTopicCreation,
-	}
-
-	return writer
 }
 
 func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
@@ -361,10 +338,14 @@ func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.Publi
 		return err
 	}
 
-	return b.publish(topic, buf, opts...)
+	if b.writer.EnableOneTopicOneWriter {
+		return b.publishMultipleWriter(topic, buf, opts...)
+	} else {
+		return b.publishOneWriter(topic, buf, opts...)
+	}
 }
 
-func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: context.Background(),
 	}
@@ -404,8 +385,10 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 
 	var cached bool
 	b.Lock()
-	if b.writer == nil {
-		b.writer = b.createProducer(topic, opts...)
+	writer, ok := b.writer.Writers[topic]
+	if !ok {
+		writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+		b.writer.Writers[topic] = writer
 	} else {
 		cached = true
 	}
@@ -416,7 +399,7 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 	span := b.startProducerSpan(options.Context, &kMsg)
 	defer b.finishProducerSpan(span, int32(kMsg.Partition), kMsg.Offset, err)
 
-	err = b.writer.WriteMessages(options.Context, kMsg)
+	err = writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
 		log.Errorf("WriteMessages error: %s", err.Error())
 		switch cached {
@@ -424,23 +407,110 @@ func (b *kafkaBroker) publish(topic string, buf []byte, opts ...broker.PublishOp
 			if kerr, ok := err.(kafkaGo.Error); ok {
 				if kerr.Temporary() && !kerr.Timeout() {
 					time.Sleep(200 * time.Millisecond)
-					err = b.writer.WriteMessages(options.Context, kMsg)
+					err = writer.WriteMessages(options.Context, kMsg)
 				}
 			}
 		case true:
 			b.Lock()
-			if err = b.writer.Close(); err != nil {
+			if err = writer.Close(); err != nil {
+				b.Unlock()
+				break
+			}
+			delete(b.writer.Writers, topic)
+			b.Unlock()
+
+			writer := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+			for i := 0; i < b.retriesCount; i++ {
+				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
+					b.Lock()
+					b.writer.Writers[topic] = writer
+					b.Unlock()
+					break
+				}
+			}
+		}
+	}
+
+	return err
+}
+
+func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.PublishOption) error {
+	options := broker.PublishOptions{
+		Context: context.Background(),
+	}
+	for _, o := range opts {
+		o(&options)
+	}
+
+	kMsg := kafkaGo.Message{Topic: topic, Value: buf}
+
+	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]interface{}); ok {
+		for k, v := range headers {
+			header := kafkaGo.Header{Key: k}
+			switch t := v.(type) {
+			case string:
+				header.Value = []byte(t)
+			case []byte:
+				header.Value = t
+			default:
+				var buf bytes.Buffer
+				enc := gob.NewEncoder(&buf)
+				if err := enc.Encode(v); err != nil {
+					continue
+				}
+				header.Value = buf.Bytes()
+			}
+			kMsg.Headers = append(kMsg.Headers, header)
+		}
+	}
+
+	if value, ok := options.Context.Value(messageKeyKey{}).([]byte); ok {
+		kMsg.Key = value
+	}
+
+	if value, ok := options.Context.Value(messageOffsetKey{}).(int64); ok {
+		kMsg.Offset = value
+	}
+
+	var cached bool
+	b.Lock()
+	if b.writer.Writer == nil {
+		b.writer.Writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+	} else {
+		cached = true
+	}
+	b.Unlock()
+
+	var err error
+
+	span := b.startProducerSpan(options.Context, &kMsg)
+	defer b.finishProducerSpan(span, int32(kMsg.Partition), kMsg.Offset, err)
+
+	err = b.writer.Writer.WriteMessages(options.Context, kMsg)
+	if err != nil {
+		log.Errorf("WriteMessages error: %s", err.Error())
+		switch cached {
+		case false:
+			if kerr, ok := err.(kafkaGo.Error); ok {
+				if kerr.Temporary() && !kerr.Timeout() {
+					time.Sleep(200 * time.Millisecond)
+					err = b.writer.Writer.WriteMessages(options.Context, kMsg)
+				}
+			}
+		case true:
+			b.Lock()
+			if err = b.writer.Writer.Close(); err != nil {
 				b.Unlock()
 				break
 			}
 			b.writer = nil
 			b.Unlock()
 
-			writer := b.createProducer(topic, opts...)
+			writer := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
 			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
 					b.Lock()
-					b.writer = writer
+					b.writer.Writer = writer
 					b.Unlock()
 					break
 				}

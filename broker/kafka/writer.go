@@ -1,12 +1,17 @@
 package kafka
 
 import (
+	"crypto/tls"
 	"time"
 
 	kafkaGo "github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl"
 )
 
 type WriterConfig struct {
+	// The list of broker addresses used to connect to the kafka cluster.
+	Brokers []string
+
 	// The balancer used to distribute messages across partitions.
 	//
 	// The default is to use a round-robin distribution.
@@ -62,13 +67,65 @@ type WriterConfig struct {
 	Async bool
 
 	// If not nil, specifies a logger used to report internal changes within the
-	// writer.
+	// Writer.
 	Logger kafkaGo.Logger
 
-	// ErrorLogger is the logger used to report errors. If nil, the writer falls
+	// ErrorLogger is the logger used to report errors. If nil, the Writer falls
 	// back to using Logger instead.
 	ErrorLogger kafkaGo.Logger
 
-	// AllowAutoTopicCreation notifies writer to create topic if missing.
+	// AllowAutoTopicCreation notifies Writer to create topic if missing.
 	AllowAutoTopicCreation bool
+}
+
+type Writer struct {
+	Writer                  *kafkaGo.Writer
+	Writers                 map[string]*kafkaGo.Writer
+	EnableOneTopicOneWriter bool
+}
+
+func NewWriter(enableOneTopicOneWriter bool) *Writer {
+	return &Writer{
+		Writers:                 make(map[string]*kafkaGo.Writer),
+		EnableOneTopicOneWriter: enableOneTopicOneWriter,
+	}
+}
+
+func (w *Writer) Close() {
+	if w.Writer != nil {
+		_ = w.Writer.Close()
+	}
+	for _, writer := range w.Writers {
+		_ = writer.Close()
+	}
+	w.Writer = nil
+	w.Writers = nil
+}
+
+// CreateProducer create kafka-go Writer
+func (w *Writer) CreateProducer(writerConfig WriterConfig, saslMechanism sasl.Mechanism, tlsConfig *tls.Config) *kafkaGo.Writer {
+	sharedTransport := &kafkaGo.Transport{
+		SASL: saslMechanism,
+		TLS:  tlsConfig,
+	}
+
+	writer := &kafkaGo.Writer{
+		Transport: sharedTransport,
+
+		Addr:                   kafkaGo.TCP(writerConfig.Brokers...),
+		Balancer:               writerConfig.Balancer,
+		MaxAttempts:            writerConfig.MaxAttempts,
+		BatchSize:              writerConfig.BatchSize,
+		BatchBytes:             writerConfig.BatchBytes,
+		BatchTimeout:           writerConfig.BatchTimeout,
+		ReadTimeout:            writerConfig.ReadTimeout,
+		WriteTimeout:           writerConfig.WriteTimeout,
+		RequiredAcks:           writerConfig.RequiredAcks,
+		Async:                  writerConfig.Async,
+		Logger:                 writerConfig.Logger,
+		ErrorLogger:            writerConfig.ErrorLogger,
+		AllowAutoTopicCreation: writerConfig.AllowAutoTopicCreation,
+	}
+
+	return writer
 }

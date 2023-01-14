@@ -39,12 +39,14 @@ type retentionTimeKey struct{}
 type startOffsetKey struct{}
 type mechanismKey struct{}
 type readerConfigKey struct{}
+type writerConfigKey struct{}
 type dialerConfigKey struct{}
 type dialerTimeoutKey struct{}
 type loggerKey struct{}
 type errorLoggerKey struct{}
 type enableLoggerKey struct{}
 type enableErrorLoggerKey struct{}
+type enableOneTopicOneWriterKey struct{}
 
 type batchSizeKey struct{}
 type batchTimeoutKey struct{}
@@ -59,6 +61,16 @@ type balancerKey struct{}
 // WithReaderConfig .
 func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
 	return broker.OptionContextWithValue(readerConfigKey{}, cfg)
+}
+
+// WithWriterConfig .
+func WithWriterConfig(cfg WriterConfig) broker.Option {
+	return broker.OptionContextWithValue(writerConfigKey{}, cfg)
+}
+
+// WithEnableOneTopicOneWriter .
+func WithEnableOneTopicOneWriter(enable bool) broker.Option {
+	return broker.OptionContextWithValue(enableOneTopicOneWriterKey{}, enable)
 }
 
 // WithDialer .
