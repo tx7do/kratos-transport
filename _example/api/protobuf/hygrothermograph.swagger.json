@@ -4,6 +4,11 @@
     "title": "hygrothermograph.proto",
     "version": "version not set"
   },
+  "tags": [
+    {
+      "name": "HygrothermographService"
+    }
+  ],
   "consumes": [
     "application/json"
   ],
@@ -12,6 +17,17 @@
   ],
   "paths": {},
   "definitions": {
+    "apiHygrothermograph": {
+      "type": "object",
+      "properties": {
+        "humidity": {
+          "type": "string"
+        },
+        "temperature": {
+          "type": "string"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {

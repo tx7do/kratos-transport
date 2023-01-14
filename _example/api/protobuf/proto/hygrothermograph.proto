@@ -4,7 +4,13 @@ package protobuf.api;
 
 option go_package = "kratos-transport/api/protobuf;api";
 
+import "google/protobuf/empty.proto";
+
 message Hygrothermograph {
   string Humidity = 1 [json_name = "humidity"];
   string Temperature = 2 [json_name = "temperature"];
+}
+
+service HygrothermographService {
+  rpc GetHygrothermograph (google.protobuf.Empty) returns (Hygrothermograph) {}
 }
