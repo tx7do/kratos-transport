@@ -5,7 +5,7 @@ go 1.19
 replace github.com/tx7do/kratos-transport => ../../
 
 require (
-	github.com/go-kratos/kratos/v2 v2.5.3
+	github.com/go-kratos/kratos/v2 v2.5.4
 	github.com/hibiken/asynq v0.24.0
 	github.com/stretchr/testify v1.8.1
 )
