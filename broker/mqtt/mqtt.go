@@ -157,7 +157,14 @@ func (m *mqttBroker) publish(topic string, buf []byte, opts ...broker.PublishOpt
 	}
 
 	var qos byte = 1
-	const retained bool = false
+	var retained = false
+
+	if value, ok := options.Context.Value(qosPublishKey{}).(byte); ok {
+		qos = value
+	}
+	if value, ok := options.Context.Value(retainedPublishKey{}).(bool); ok {
+		retained = value
+	}
 
 	ret := m.client.Publish(topic, qos, retained, buf)
 	return ret.Error()
@@ -174,6 +181,10 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	}
 
 	var qos byte = 1
+
+	if value, ok := options.Context.Value(qosSubscribeKey{}).(byte); ok {
+		qos = value
+	}
 
 	t := m.client.Subscribe(topic, qos, func(c MQTT.Client, mq MQTT.Message) {
 		var msg broker.Message
