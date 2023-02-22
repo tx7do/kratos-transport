@@ -92,8 +92,8 @@ github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKs
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/numcpus v0.3.0/go.mod h1:yFGUr7TUHQRAhyqBcEg0Ge34zDBAsIvJJcyE6boqnA8=
-github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230222031908-cd92d2f6217e h1:05GDGip1nwnB81uJdB9PHPkwByGbjLLy74Tyl3tfEHc=
-github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230222031908-cd92d2f6217e/go.mod h1:mSn1HdUPRzOgOzHzsfhE6FYTrJ4q2e3t2IrTyYTDw1g=
+github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230222034741-8b2cd6b928d9 h1:zwBaH3qDpr1g6ie6gKCM+i/Wtkpb/XMzPlvNm8uPdBU=
+github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230222034741-8b2cd6b928d9/go.mod h1:mSn1HdUPRzOgOzHzsfhE6FYTrJ4q2e3t2IrTyYTDw1g=
 go.opentelemetry.io/otel v1.7.0/go.mod h1:5BdUoMIz5WEs0vt0CUEMtSSaTSHBBVwrhnz7+nrD5xk=
 go.opentelemetry.io/otel v1.13.0 h1:1ZAKnNQKwBBxFtww/GwxNUyTf0AxkZzrukO8MeXqe4Y=
 go.opentelemetry.io/otel v1.13.0/go.mod h1:FH3RtdZCzRkJYFTCsAKDy9l/XYjMdNv6QrkFFB8DvVg=
