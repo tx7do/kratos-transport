@@ -2,12 +2,14 @@ package rabbitmq
 
 import (
 	"crypto/tls"
+	"errors"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/streadway/amqp"
+
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -218,7 +220,7 @@ func (r *rabbitConnection) Close() error {
 	}
 
 	if r.Connection == nil {
-		return nil
+		return errors.New("connection is nil")
 	}
 
 	return r.Connection.Close()
