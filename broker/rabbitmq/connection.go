@@ -217,6 +217,10 @@ func (r *rabbitConnection) Close() error {
 		r.connected = false
 	}
 
+	if r.Connection == nil {
+		return nil
+	}
+
 	return r.Connection.Close()
 }
 
