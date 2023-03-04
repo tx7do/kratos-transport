@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.5.4
 	github.com/stretchr/testify v1.8.2
 	github.com/tx7do/kratos-transport v1.0.5
-	github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230222044659-16d7fa85aab6
+	github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230304084341-73247adb770e
 )
 
 require (
