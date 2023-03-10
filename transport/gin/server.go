@@ -3,6 +3,7 @@ package gin
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -65,7 +66,11 @@ func (s *Server) init(opts ...ServerOption) {
 		TLSConfig: s.tlsConf,
 	}
 
-	s.endpoint, _ = url.Parse(s.addr)
+	var err error
+	s.endpoint, err = url.Parse(s.addr)
+	if err != nil {
+		s.endpoint, err = url.Parse(fmt.Sprint("http://", s.addr))
+	}
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
