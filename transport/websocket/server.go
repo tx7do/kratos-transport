@@ -45,7 +45,6 @@ type Server struct {
 	address     string
 	path        string
 	strictSlash bool
-	endpoint    *url.URL
 
 	timeout time.Duration
 
@@ -222,6 +221,10 @@ func (s *Server) listen() error {
 		s.lis = lis
 	}
 
+	return nil
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
 	addr := s.address
 
 	prefix := "ws://"
@@ -236,16 +239,9 @@ func (s *Server) listen() error {
 	}
 	addr = prefix + addr
 
-	s.endpoint, s.err = url.Parse(addr)
-
-	return nil
-}
-
-func (s *Server) Endpoint() (*url.URL, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	return s.endpoint, nil
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(addr)
+	return endpoint, nil
 }
 
 func (s *Server) run() {

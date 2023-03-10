@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -30,8 +31,8 @@ type Server struct {
 	*http3.Server
 
 	tlsConf  *tls.Config
-	endpoint *url.URL
 	timeout  time.Duration
+	endpoint *url.URL
 
 	err error
 
@@ -79,11 +80,27 @@ func (s *Server) init(opts ...ServerOption) {
 
 	s.Server.Handler = kHttp.FilterChain(s.filters...)(s.router)
 
-	s.endpoint, _ = url.Parse(s.Addr)
+	_, _ = s.Endpoint()
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	return s.endpoint, nil
+	addr := s.Addr
+
+	prefix := "http://"
+	if s.tlsConf == nil {
+		if !strings.HasPrefix(addr, "http://") {
+			prefix = "http://"
+		}
+	} else {
+		if !strings.HasPrefix(addr, "https://") {
+			prefix = "https://"
+		}
+	}
+	addr = prefix + addr
+
+	s.endpoint, s.err = url.Parse(addr)
+
+	return s.endpoint, s.err
 }
 
 func (s *Server) Start(ctx context.Context) error {

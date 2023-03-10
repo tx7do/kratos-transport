@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net/url"
+	"strings"
 	"time"
 
 	hertz "github.com/cloudwego/hertz/pkg/app/server"
@@ -22,10 +23,9 @@ var (
 type Server struct {
 	*hertz.Hertz
 
-	tlsConf  *tls.Config
-	endpoint *url.URL
-	timeout  time.Duration
-	addr     string
+	tlsConf *tls.Config
+	timeout time.Duration
+	addr    string
 
 	err error
 
@@ -55,12 +55,27 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	s.Hertz = hertz.Default(hertz.WithHostPorts(s.addr), hertz.WithTLS(s.tlsConf))
-
-	s.endpoint, _ = url.Parse(s.addr)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	return s.endpoint, nil
+	addr := s.addr
+
+	prefix := "http://"
+	if s.tlsConf == nil {
+		if !strings.HasPrefix(addr, "http://") {
+			prefix = "http://"
+		}
+	} else {
+		if !strings.HasPrefix(addr, "https://") {
+			prefix = "https://"
+		}
+	}
+	addr = prefix + addr
+
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(addr)
+
+	return endpoint, s.err
 }
 
 func (s *Server) Start(ctx context.Context) error {

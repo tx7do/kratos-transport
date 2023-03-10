@@ -28,10 +28,9 @@ type Server struct {
 	*http.Server
 	es graphql.ExecutableSchema
 
-	lis      net.Listener
-	tlsConf  *tls.Config
-	endpoint *url.URL
-	router   *mux.Router
+	lis     net.Listener
+	tlsConf *tls.Config
+	router  *mux.Router
 
 	network string
 	address string
@@ -90,6 +89,10 @@ func (s *Server) listenAndEndpoint() error {
 		s.lis = lis
 	}
 
+	return nil
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
 	addr := s.address
 
 	prefix := "http://"
@@ -104,16 +107,10 @@ func (s *Server) listenAndEndpoint() error {
 	}
 	addr = prefix + addr
 
-	s.endpoint, s.err = url.Parse(addr)
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(addr)
 
-	return nil
-}
-
-func (s *Server) Endpoint() (*url.URL, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	return s.endpoint, nil
+	return endpoint, s.err
 }
 
 func (s *Server) Start(ctx context.Context) error {

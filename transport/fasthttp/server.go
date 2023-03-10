@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/fasthttp/router"
@@ -25,10 +26,9 @@ var (
 type Server struct {
 	*fasthttp.Server
 
-	tlsConf  *tls.Config
-	endpoint *url.URL
-	timeout  time.Duration
-	addr     string
+	tlsConf *tls.Config
+	timeout time.Duration
+	addr    string
 
 	err error
 
@@ -68,12 +68,27 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	s.router.RedirectTrailingSlash = s.strictSlash
-
-	s.endpoint, _ = url.Parse(s.addr)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	return s.endpoint, nil
+	addr := s.addr
+
+	prefix := "http://"
+	if s.tlsConf == nil {
+		if !strings.HasPrefix(addr, "http://") {
+			prefix = "http://"
+		}
+	} else {
+		if !strings.HasPrefix(addr, "https://") {
+			prefix = "https://"
+		}
+	}
+	addr = prefix + addr
+
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(addr)
+
+	return endpoint, s.err
 }
 
 func (s *Server) Start(ctx context.Context) error {

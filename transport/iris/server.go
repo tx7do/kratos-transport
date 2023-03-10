@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/kataras/iris/v12"
@@ -51,7 +52,24 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	return s.endpoint, nil
+	addr := s.addr
+
+	prefix := "http://"
+	if len(s.certFile) == 0 && len(s.keyFile) == 0 {
+		if !strings.HasPrefix(addr, "http://") {
+			prefix = "http://"
+		}
+	} else {
+		if !strings.HasPrefix(addr, "https://") {
+			prefix = "https://"
+		}
+	}
+	addr = prefix + addr
+
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(addr)
+
+	return endpoint, s.err
 }
 
 func (s *Server) Start(ctx context.Context) error {

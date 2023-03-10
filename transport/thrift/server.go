@@ -24,8 +24,7 @@ var (
 type Server struct {
 	Server *thrift.TSimpleServer
 
-	tlsConf  *tls.Config
-	endpoint *url.URL
+	tlsConf *tls.Config
 
 	address string
 
@@ -61,15 +60,10 @@ func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
-
-	s.endpoint, s.err = url.Parse("tcp://" + s.address)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	return s.endpoint, nil
+	return url.Parse("tcp://" + s.address)
 }
 
 func (s *Server) Start(ctx context.Context) error {

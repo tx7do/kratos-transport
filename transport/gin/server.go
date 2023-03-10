@@ -3,9 +3,9 @@ package gin
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,10 +26,9 @@ type Server struct {
 	*gin.Engine
 	server *http.Server
 
-	tlsConf  *tls.Config
-	endpoint *url.URL
-	timeout  time.Duration
-	addr     string
+	tlsConf *tls.Config
+	timeout time.Duration
+	addr    string
 
 	err error
 
@@ -65,16 +64,27 @@ func (s *Server) init(opts ...ServerOption) {
 		Handler:   s.Engine,
 		TLSConfig: s.tlsConf,
 	}
-
-	var err error
-	s.endpoint, err = url.Parse(s.addr)
-	if err != nil {
-		s.endpoint, err = url.Parse(fmt.Sprint("http://", s.addr))
-	}
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	return s.endpoint, nil
+	addr := s.addr
+
+	prefix := "http://"
+	if s.tlsConf == nil {
+		if !strings.HasPrefix(addr, "http://") {
+			prefix = "http://"
+		}
+	} else {
+		if !strings.HasPrefix(addr, "https://") {
+			prefix = "https://"
+		}
+	}
+	addr = prefix + addr
+
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(addr)
+
+	return endpoint, s.err
 }
 
 func (s *Server) Start(ctx context.Context) error {

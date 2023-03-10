@@ -2,6 +2,7 @@ package gozero
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -49,7 +50,17 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	return nil, nil
+	prefix := "http://"
+	if len(s.cfg.CertFile) == 0 && len(s.cfg.KeyFile) == 0 {
+		prefix = "http://"
+	} else {
+		prefix = "https://"
+	}
+
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(fmt.Sprint(prefix, ":", s.cfg.Port))
+
+	return endpoint, s.err
 }
 
 func (s *Server) Start(ctx context.Context) error {
