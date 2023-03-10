@@ -7,7 +7,7 @@ type infoLogger struct {
 }
 
 func (l *infoLogger) Write(p []byte) (n int, err error) {
-	err = l.Logger.Log(log.LevelInfo, p)
+	err = l.Logger.Log(log.LevelInfo, "info", p)
 	return
 }
 
@@ -16,6 +16,6 @@ type errLogger struct {
 }
 
 func (l *errLogger) Write(p []byte) (n int, err error) {
-	err = l.Logger.Log(log.LevelError, p)
+	err = l.Logger.Log(log.LevelError, "error", p)
 	return
 }
