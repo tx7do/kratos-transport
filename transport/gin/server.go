@@ -53,7 +53,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) init(opts ...ServerOption) {
-	s.Engine = gin.Default()
+	s.Engine = gin.New()
 
 	for _, o := range opts {
 		o(s)
