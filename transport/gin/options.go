@@ -2,8 +2,10 @@ package gin
 
 import (
 	"crypto/tls"
+	"github.com/gin-gonic/gin"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
 )
@@ -61,5 +63,13 @@ func WithErrorEncoder(en kHttp.EncodeErrorFunc) ServerOption {
 func WithStrictSlash(strictSlash bool) ServerOption {
 	return func(o *Server) {
 		o.Engine.RedirectTrailingSlash = strictSlash
+	}
+}
+
+// WithLogger inject info logger
+func WithLogger(l log.Logger) ServerOption {
+	return func(o *Server) {
+		gin.DefaultWriter = &infoLogger{Logger: l}
+		gin.DefaultErrorWriter = &errLogger{Logger: l}
 	}
 }
