@@ -2,19 +2,24 @@ package gin
 
 import (
 	"crypto/tls"
-	"github.com/gin-gonic/gin"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ServerOption func(*Server)
 
 func WithTLSConfig(c *tls.Config) ServerOption {
-	return func(o *Server) {
-		o.tlsConf = c
+	return func(s *Server) {
+		s.tlsConf = c
 	}
 }
 
@@ -31,45 +36,60 @@ func WithTimeout(timeout time.Duration) ServerOption {
 }
 
 func WithMiddleware(m ...middleware.Middleware) ServerOption {
-	return func(o *Server) {
-		o.ms = m
+	return func(s *Server) {
+		s.ms = m
 	}
 }
 
 func WithFilter(filters ...kHttp.FilterFunc) ServerOption {
-	return func(o *Server) {
-		o.filters = filters
+	return func(s *Server) {
+		s.filters = filters
 	}
 }
 
 func WithRequestDecoder(dec kHttp.DecodeRequestFunc) ServerOption {
-	return func(o *Server) {
-		o.dec = dec
+	return func(s *Server) {
+		s.dec = dec
 	}
 }
 
 func WithResponseEncoder(en kHttp.EncodeResponseFunc) ServerOption {
-	return func(o *Server) {
-		o.enc = en
+	return func(s *Server) {
+		s.enc = en
 	}
 }
 
 func WithErrorEncoder(en kHttp.EncodeErrorFunc) ServerOption {
-	return func(o *Server) {
-		o.ene = en
+	return func(s *Server) {
+		s.ene = en
 	}
 }
 
 func WithStrictSlash(strictSlash bool) ServerOption {
-	return func(o *Server) {
-		o.Engine.RedirectTrailingSlash = strictSlash
+	return func(s *Server) {
+		s.Engine.RedirectTrailingSlash = strictSlash
 	}
 }
 
 // WithLogger inject info logger
 func WithLogger(l log.Logger) ServerOption {
-	return func(o *Server) {
+	return func(s *Server) {
 		gin.DefaultWriter = &infoLogger{Logger: l}
 		gin.DefaultErrorWriter = &errLogger{Logger: l}
+		s.Engine.Use(GinLogger(l), GinRecovery(l, true))
+	}
+}
+
+// WithGlobalTracerProvider 注入全局的链路追踪器的Provider
+func WithGlobalTracerProvider() ServerOption {
+	return func(s *Server) {
+		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithTracerProvider(otel.GetTracerProvider())))
+	}
+}
+
+// WithTracerProvider 注入链路追踪器的Provider
+func WithTracerProvider(provider trace.TracerProvider, tracerName string) ServerOption {
+	return func(s *Server) {
+		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithTracerProvider(provider)))
 	}
 }
