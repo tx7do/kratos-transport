@@ -3,7 +3,6 @@ package mqtt
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -221,11 +220,11 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 }
 
 func (m *mqttBroker) onConnect(_ MQTT.Client) {
-	fmt.Println("on connect")
+	log.Debug("on connect")
 }
 
 func (m *mqttBroker) onConnectionLost(client MQTT.Client, _ error) {
-	fmt.Println("on connect lost, try to reconnect")
+	log.Debug("on connect lost, try to reconnect")
 	m.loopConnect(client)
 }
 
@@ -233,7 +232,7 @@ func (m *mqttBroker) loopConnect(client MQTT.Client) {
 	for {
 		token := client.Connect()
 		if rs, err := checkClientToken(token); !rs {
-			fmt.Printf("connect error: %s\n", err.Error())
+			log.Errorf("connect error: %s", err.Error())
 		} else {
 			break
 		}
