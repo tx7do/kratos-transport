@@ -81,30 +81,22 @@ func WithLogger(l log.Logger) ServerOption {
 	}
 }
 
-// WithGlobalTracerProvider 注入全局的链路追踪器的Provider
-func WithGlobalTracerProvider() ServerOption {
+// WithGlobalTracer 注入全局的链路追踪器
+func WithGlobalTracer() ServerOption {
 	return func(s *Server) {
-		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithTracerProvider(otel.GetTracerProvider())))
+		s.Engine.Use(otelgin.Middleware("gin",
+			otelgin.WithTracerProvider(otel.GetTracerProvider()),
+			otelgin.WithPropagators(otel.GetTextMapPropagator()),
+		))
 	}
 }
 
-// WithGlobalPropagator 注入全局的链路追踪器的Propagator
-func WithGlobalPropagator() ServerOption {
+// WithCustomTracer 注入链路追踪器
+func WithCustomTracer(provider trace.TracerProvider, propagator propagation.TextMapPropagator) ServerOption {
 	return func(s *Server) {
-		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithPropagators(otel.GetTextMapPropagator())))
-	}
-}
-
-// WithTracerProvider 注入链路追踪器的Provider
-func WithTracerProvider(provider trace.TracerProvider, tracerName string) ServerOption {
-	return func(s *Server) {
-		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithTracerProvider(provider)))
-	}
-}
-
-// WithPropagator 注入链路追踪器的Propagator
-func WithPropagator(propagator propagation.TextMapPropagator) ServerOption {
-	return func(s *Server) {
-		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithPropagators(propagator)))
+		s.Engine.Use(otelgin.Middleware("gin",
+			otelgin.WithTracerProvider(provider),
+			otelgin.WithPropagators(propagator),
+		))
 	}
 }
