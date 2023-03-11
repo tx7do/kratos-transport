@@ -12,6 +12,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -87,9 +88,23 @@ func WithGlobalTracerProvider() ServerOption {
 	}
 }
 
+// WithGlobalPropagator 注入全局的链路追踪器的Propagator
+func WithGlobalPropagator() ServerOption {
+	return func(s *Server) {
+		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithPropagators(otel.GetTextMapPropagator())))
+	}
+}
+
 // WithTracerProvider 注入链路追踪器的Provider
 func WithTracerProvider(provider trace.TracerProvider, tracerName string) ServerOption {
 	return func(s *Server) {
 		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithTracerProvider(provider)))
+	}
+}
+
+// WithPropagator 注入链路追踪器的Propagator
+func WithPropagator(propagator propagation.TextMapPropagator) ServerOption {
+	return func(s *Server) {
+		s.Engine.Use(otelgin.Middleware("gin", otelgin.WithPropagators(propagator)))
 	}
 }
