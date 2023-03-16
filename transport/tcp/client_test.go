@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	cli := NewClient(
-		WithEndpoint("tcp://localhost:8100"),
+		WithEndpoint("localhost:8100"),
 		WithClientCodec("json"),
 	)
 	defer cli.Disconnect()
@@ -48,10 +48,10 @@ func TestClient(t *testing.T) {
 		t.Error(err)
 	}
 
-	//chatMsg := &api.ChatMessage{
-	//	Message: "Hello, World!",
-	//}
-	//_ = cli.SendMessage(api.MessageTypeChat, chatMsg)
+	chatMsg := &api.ChatMessage{
+		Message: "Hello, World!",
+	}
+	_ = cli.SendMessage(api.MessageTypeChat, chatMsg)
 
 	<-interrupt
 }
