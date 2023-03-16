@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -113,20 +114,33 @@ func (s *Server) DeregisterMessageHandler(messageType MessageType) {
 	delete(s.messageHandlers, messageType)
 }
 
-func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
-	c, ok := s.sessions[sessionId]
+// SendRawData send raw data to client
+func (s *Server) SendRawData(sessionId SessionID, message []byte) error {
+	session, ok := s.sessions[sessionId]
 	if !ok {
 		log.Error("[tcp] session not found:", sessionId)
-		return
+		return errors.New(fmt.Sprintf("[tcp] session not found: %s", sessionId))
 	}
 
+	session.SendMessage(message)
+
+	return nil
+}
+
+func (s *Server) BroadcastRawData(message []byte) {
+	for _, c := range s.sessions {
+		c.SendMessage(message)
+	}
+}
+
+func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) error {
 	buf, err := s.marshalMessage(messageType, message)
 	if err != nil {
 		log.Error("[tcp] marshal message exception:", err)
-		return
+		return errors.New(fmt.Sprintf("[tcp] marshal message exception: %s", err.Error()))
 	}
 
-	c.SendMessage(buf)
+	return s.SendRawData(sessionId, buf)
 }
 
 func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
@@ -136,9 +150,7 @@ func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 		return
 	}
 
-	for _, c := range s.sessions {
-		c.SendMessage(buf)
-	}
+	s.BroadcastRawData(buf)
 }
 
 func (s *Server) init(opts ...ServerOption) {

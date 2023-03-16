@@ -93,6 +93,13 @@ func (c *Client) DeregisterMessageHandler(messageType MessageType) {
 	delete(c.messageHandlers, messageType)
 }
 
+func (c *Client) SendRawData(message []byte) error {
+	if _, err := c.conn.Write(message); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Client) SendMessage(messageType int, message interface{}) error {
 	var msg Message
 	msg.Type = MessageType(messageType)
@@ -105,11 +112,7 @@ func (c *Client) SendMessage(messageType int, message interface{}) error {
 		return err
 	}
 
-	if _, err = c.conn.Write(buff); err != nil {
-		return err
-	}
-
-	return nil
+	return c.SendRawData(buff)
 }
 
 func (c *Client) run() {
