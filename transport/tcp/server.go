@@ -22,6 +22,8 @@ type ConnectHandler func(SessionID, bool)
 
 type MessageHandler func(SessionID, MessagePayload) error
 
+type RawMessageHandler func(SessionID, []byte) error
+
 type HandlerData struct {
 	Handler MessageHandler
 	Binder  Binder
@@ -45,8 +47,9 @@ type Server struct {
 	err   error
 	codec encoding.Codec
 
-	messageHandlers MessageHandlerMap
-	connectHandler  ConnectHandler
+	messageHandlers   MessageHandlerMap
+	rawMessageHandler RawMessageHandler
+	connectHandler    ConnectHandler
 
 	sessions   SessionMap
 	register   chan *Session
@@ -210,6 +213,14 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
+		if s.rawMessageHandler != nil {
+			if err := s.rawMessageHandler(sessionId, buf); err != nil {
+				log.Errorf("[tcp] raw data handler exception: %s", err)
+				return err
+			}
+			return nil
+		}
+
 		log.Error("[tcp] message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}

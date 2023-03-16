@@ -2,19 +2,12 @@ package tcp
 
 import (
 	"crypto/tls"
-	"net"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 )
 
 type ServerOption func(o *Server)
-
-func WithNetwork(network string) ServerOption {
-	return func(s *Server) {
-		s.network = network
-	}
-}
 
 func WithAddress(addr string) ServerOption {
 	return func(s *Server) {
@@ -28,21 +21,21 @@ func WithTimeout(timeout time.Duration) ServerOption {
 	}
 }
 
-func WithConnectHandle(h ConnectHandler) ServerOption {
+func WithConnectHandler(h ConnectHandler) ServerOption {
 	return func(s *Server) {
 		s.connectHandler = h
+	}
+}
+
+func WithRawDataHandler(h RawMessageHandler) ServerOption {
+	return func(s *Server) {
+		s.rawMessageHandler = h
 	}
 }
 
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(o *Server) {
 		o.tlsConf = c
-	}
-}
-
-func WithListener(lis net.Listener) ServerOption {
-	return func(s *Server) {
-		s.lis = lis
 	}
 }
 
