@@ -51,3 +51,19 @@ func WithCodec(c string) ServerOption {
 		s.codec = encoding.GetCodec(c)
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+type ClientOption func(o *Client)
+
+func WithClientCodec(c string) ClientOption {
+	return func(o *Client) {
+		o.codec = encoding.GetCodec(c)
+	}
+}
+
+func WithEndpoint(uri string) ClientOption {
+	return func(o *Client) {
+		o.url = uri
+	}
+}

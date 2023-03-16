@@ -91,14 +91,17 @@ func (c *Session) readPump() {
 	defer c.Close()
 
 	buf := make([]byte, 102400)
+	var err error
+	var readLen int
 
 	for {
-		readLen, err := c.conn.Read(buf)
-		if err != nil {
+		if readLen, err = c.conn.Read(buf); err != nil {
 			log.Errorf("[tcp] read message error: %v", err)
 			return
 		}
 
-		_ = c.server.messageHandler(c.SessionID(), buf[:readLen])
+		if err = c.server.messageHandler(c.SessionID(), buf[:readLen]); err != nil {
+			log.Errorf("[tcp] process message error: %v", err)
+		}
 	}
 }
