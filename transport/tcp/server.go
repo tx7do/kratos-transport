@@ -1,12 +1,10 @@
-package websocket
+package tcp
 
 import (
 	"context"
 	"crypto/tls"
 	"errors"
-
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -14,7 +12,6 @@ import (
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
-	ws "github.com/gorilla/websocket"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -36,16 +33,11 @@ var (
 )
 
 type Server struct {
-	*http.Server
+	lis     net.Listener
+	tlsConf *tls.Config
 
-	lis      net.Listener
-	tlsConf  *tls.Config
-	upgrader *ws.Upgrader
-
-	network     string
-	address     string
-	path        string
-	strictSlash bool
+	network string
+	address string
 
 	timeout time.Duration
 
@@ -62,19 +54,13 @@ type Server struct {
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		network:     "tcp",
-		address:     ":0",
-		timeout:     1 * time.Second,
-		strictSlash: true,
+		network: "tcp",
+		address: ":0",
+		timeout: 1 * time.Second,
 
 		messageHandlers: make(MessageHandlerMap),
 
 		sessions: SessionMap{},
-		upgrader: &ws.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-			CheckOrigin:     func(r *http.Request) bool { return true },
-		},
 
 		register:   make(chan *Session),
 		unregister: make(chan *Session),
@@ -82,25 +68,31 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.init(opts...)
 
-	srv.err = srv.listen()
-
 	return srv
 }
 
 func (s *Server) Name() string {
-	return "websocket"
+	return "tcp"
 }
 
-func (s *Server) init(opts ...ServerOption) {
-	for _, o := range opts {
-		o(s)
-	}
+func (s *Server) Endpoint() (*url.URL, error) {
+	addr := s.address
 
-	s.Server = &http.Server{
-		TLSConfig: s.tlsConf,
+	prefix := "tcp://"
+	if s.tlsConf == nil {
+		if !strings.HasPrefix(addr, "tcp://") {
+			prefix = "tcp://"
+		}
+	} else {
+		if !strings.HasPrefix(addr, "tcp://") {
+			prefix = "tcp://"
+		}
 	}
+	addr = prefix + addr
 
-	http.HandleFunc(s.path, s.wsHandler)
+	var endpoint *url.URL
+	endpoint, s.err = url.Parse(addr)
+	return endpoint, nil
 }
 
 func (s *Server) SessionCount() int {
@@ -121,6 +113,65 @@ func (s *Server) DeregisterMessageHandler(messageType MessageType) {
 	delete(s.messageHandlers, messageType)
 }
 
+func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
+	c, ok := s.sessions[sessionId]
+	if !ok {
+		log.Error("[tcp] session not found:", sessionId)
+		return
+	}
+
+	buf, err := s.marshalMessage(messageType, message)
+	if err != nil {
+		log.Error("[tcp] marshal message exception:", err)
+		return
+	}
+
+	c.SendMessage(buf)
+}
+
+func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
+	buf, err := s.marshalMessage(messageType, message)
+	if err != nil {
+		log.Error(" [tcp] marshal message exception:", err)
+		return
+	}
+
+	for _, c := range s.sessions {
+		c.SendMessage(buf)
+	}
+}
+
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if s.err = s.listen(); s.err != nil {
+		return s.err
+	}
+
+	log.Infof("[tcp] server listening on: %s", s.lis.Addr().String())
+
+	go s.run()
+
+	go s.doAccept()
+
+	return nil
+}
+
+func (s *Server) Stop(_ context.Context) error {
+	log.Info("[tcp] server stopping")
+
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+	}
+
+	return nil
+}
+
 func (s *Server) marshalMessage(messageType MessageType, message MessagePayload) ([]byte, error) {
 	var err error
 	var msg Message
@@ -138,44 +189,16 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 	return buff, nil
 }
 
-func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
-	c, ok := s.sessions[sessionId]
-	if !ok {
-		log.Error("[websocket] session not found:", sessionId)
-		return
-	}
-
-	buf, err := s.marshalMessage(messageType, message)
-	if err != nil {
-		log.Error("[websocket] marshal message exception:", err)
-		return
-	}
-
-	c.SendMessage(buf)
-}
-
-func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
-	buf, err := s.marshalMessage(messageType, message)
-	if err != nil {
-		log.Error(" [websocket] marshal message exception:", err)
-		return
-	}
-
-	for _, c := range s.sessions {
-		c.SendMessage(buf)
-	}
-}
-
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
-		log.Errorf("[websocket] decode message exception: %s", err)
+		log.Errorf("[tcp] decode message exception: %s", err)
 		return err
 	}
 
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
-		log.Error("[websocket] message type not found:", msg.Type)
+		log.Error("[tcp] message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}
 
@@ -188,29 +211,16 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	}
 
 	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
-		log.Errorf("[websocket] unmarshal message exception: %s", err)
+		log.Errorf("[tcp] unmarshal message exception: %s", err)
 		return err
 	}
 
 	if err := handlerData.Handler(sessionId, payload); err != nil {
-		log.Errorf("[websocket] message handler exception: %s", err)
+		log.Errorf("[tcp] message handler exception: %s", err)
 		return err
 	}
 
 	return nil
-}
-
-func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
-	conn, err := s.upgrader.Upgrade(res, req, nil)
-	if err != nil {
-		log.Error("[websocket] upgrade exception:", err)
-		return
-	}
-
-	session := NewSession(conn, s)
-	session.server.register <- session
-
-	session.Listen()
 }
 
 func (s *Server) listen() error {
@@ -225,26 +235,6 @@ func (s *Server) listen() error {
 	return nil
 }
 
-func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.address
-
-	prefix := "ws://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "ws://") {
-			prefix = "ws://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "wss://") {
-			prefix = "wss://"
-		}
-	}
-	addr = prefix + addr
-
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-	return endpoint, nil
-}
-
 func (s *Server) run() {
 	for {
 		select {
@@ -256,36 +246,23 @@ func (s *Server) run() {
 	}
 }
 
-func (s *Server) Start(ctx context.Context) error {
-	if s.err != nil {
-		return s.err
-	}
-	s.BaseContext = func(net.Listener) context.Context {
-		return ctx
-	}
-	log.Infof("[websocket] server listening on: %s", s.lis.Addr().String())
+func (s *Server) doAccept() {
+	for {
+		conn, err := s.lis.Accept()
+		if err != nil {
+			log.Error("[tcp] accept exception:", err)
+			continue
+		}
 
-	go s.run()
+		session := NewSession(conn, s)
+		session.server.register <- session
 
-	var err error
-	if s.tlsConf != nil {
-		err = s.ServeTLS(s.lis, "", "")
-	} else {
-		err = s.Serve(s.lis)
+		session.Listen()
 	}
-	if !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-	return nil
-}
-
-func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[websocket] server stopping")
-	return s.Shutdown(ctx)
 }
 
 func (s *Server) addSession(c *Session) {
-	//log.Info("[websocket] add session: ", c.SessionID())
+	//log.Info("[tcp] add session: ", c.SessionID())
 	s.sessions[c.SessionID()] = c
 
 	if s.connectHandler != nil {
@@ -296,7 +273,7 @@ func (s *Server) addSession(c *Session) {
 func (s *Server) removeSession(c *Session) {
 	for k, v := range s.sessions {
 		if c == v {
-			//log.Info("[websocket] remove session: ", c.SessionID())
+			//log.Info("[tcp] remove session: ", c.SessionID())
 			if s.connectHandler != nil {
 				s.connectHandler(c.SessionID(), false)
 			}

@@ -5,16 +5,17 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/lucas-clemente/quic-go/quicvarint"
-	encoding2 "github.com/tx7do/kratos-transport/broker"
-	"io"
-	"net/http"
-	"net/url"
-	"time"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 type ClientMessageHandler func(MessagePayload) error
@@ -166,7 +167,7 @@ func (c *Client) DeregisterMessageHandler(messageType MessageType) {
 func (c *Client) SendMessage(messageType int, message interface{}) error {
 	var msg Message
 	msg.Type = MessageType(messageType)
-	msg.Body, _ = encoding2.Marshal(c.codec, message)
+	msg.Body, _ = broker.Marshal(c.codec, message)
 
 	buff, err := msg.Marshal()
 	if err != nil {
@@ -275,7 +276,7 @@ func (c *Client) messageHandler(buf []byte) error {
 		payload = msg.Body
 	}
 
-	if err := encoding2.Unmarshal(c.codec, msg.Body, &payload); err != nil {
+	if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
 		log.Errorf("[webtransport] unmarshal message exception: %s", err)
 		return err
 	}
