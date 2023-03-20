@@ -34,8 +34,8 @@ func WithRawDataHandler(h RawMessageHandler) ServerOption {
 }
 
 func WithTLSConfig(c *tls.Config) ServerOption {
-	return func(o *Server) {
-		o.tlsConf = c
+	return func(s *Server) {
+		s.tlsConf = c
 	}
 }
 
@@ -61,14 +61,20 @@ func WithRecvBufferSize(size int) ServerOption {
 
 type ClientOption func(o *Client)
 
-func WithClientCodec(c string) ClientOption {
-	return func(o *Client) {
-		o.codec = encoding.GetCodec(c)
+func WithClientCodec(codec string) ClientOption {
+	return func(c *Client) {
+		c.codec = encoding.GetCodec(codec)
 	}
 }
 
 func WithEndpoint(uri string) ClientOption {
-	return func(o *Client) {
-		o.url = uri
+	return func(c *Client) {
+		c.url = uri
+	}
+}
+
+func WithClientRawDataHandler(h ClientRawMessageHandler) ClientOption {
+	return func(c *Client) {
+		c.rawMessageHandler = h
 	}
 }

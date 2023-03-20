@@ -205,6 +205,14 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 }
 
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
+	if s.rawMessageHandler != nil {
+		if err := s.rawMessageHandler(sessionId, buf); err != nil {
+			log.Errorf("[tcp] raw data handler exception: %s", err)
+			return err
+		}
+		return nil
+	}
+
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
 		log.Errorf("[tcp] decode message exception: %s", err)
@@ -213,14 +221,6 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
-		if s.rawMessageHandler != nil {
-			if err := s.rawMessageHandler(sessionId, buf); err != nil {
-				log.Errorf("[tcp] raw data handler exception: %s", err)
-				return err
-			}
-			return nil
-		}
-
 		log.Error("[tcp] message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}

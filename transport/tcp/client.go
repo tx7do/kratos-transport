@@ -13,6 +13,8 @@ import (
 
 type ClientMessageHandler func(MessagePayload) error
 
+type ClientRawMessageHandler func([]byte) error
+
 type ClientHandlerData struct {
 	Handler ClientMessageHandler
 	Binder  Binder
@@ -25,8 +27,9 @@ type Client struct {
 	url      string
 	endpoint *url.URL
 
-	codec           encoding.Codec
-	messageHandlers ClientMessageHandlerMap
+	codec             encoding.Codec
+	messageHandlers   ClientMessageHandlerMap
+	rawMessageHandler ClientRawMessageHandler
 
 	timeout time.Duration
 }
@@ -127,6 +130,14 @@ func (c *Client) run() {
 		if readLen, err = c.conn.Read(buf); err != nil {
 			log.Errorf("[tcp] read message error: %v", err)
 			return
+		}
+
+		if c.rawMessageHandler != nil {
+			if err := c.rawMessageHandler(buf); err != nil {
+				log.Errorf("[tcp] raw data handler exception: %s", err)
+				continue
+			}
+			continue
 		}
 
 		if err = c.messageHandler(buf[:readLen]); err != nil {
