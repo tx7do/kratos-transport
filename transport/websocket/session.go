@@ -6,7 +6,7 @@ import (
 	ws "github.com/gorilla/websocket"
 )
 
-var sendBufferSize = 256000
+var channelBufSize = 256
 
 type SessionID string
 
@@ -29,7 +29,7 @@ func NewSession(conn *ws.Conn, server *Server) *Session {
 	c := &Session{
 		id:     SessionID(u1.String()),
 		conn:   conn,
-		send:   make(chan []byte, sendBufferSize),
+		send:   make(chan []byte, channelBufSize),
 		server: server,
 	}
 

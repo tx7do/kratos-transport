@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var sendBufferSize = 256000
+var channelBufSize = 256
 var recvBufferSize = 256000
 
 type SessionID string
@@ -31,7 +31,7 @@ func NewSession(conn net.Conn, server *Server) *Session {
 	c := &Session{
 		id:     SessionID(u1.String()),
 		conn:   conn,
-		send:   make(chan []byte, sendBufferSize),
+		send:   make(chan []byte, channelBufSize),
 		server: server,
 	}
 

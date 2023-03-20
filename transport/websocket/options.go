@@ -57,9 +57,9 @@ func WithCodec(c string) ServerOption {
 	}
 }
 
-func WithSendBufferSize(size int) ServerOption {
+func WithChannelBufferSize(size int) ServerOption {
 	return func(_ *Server) {
-		sendBufferSize = size
+		channelBufSize = size
 	}
 }
 
