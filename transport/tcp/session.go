@@ -7,7 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
-var channelBufSize = 256000
+var sendBufferSize = 256000
+var recvBufferSize = 256000
 
 type SessionID string
 
@@ -30,7 +31,7 @@ func NewSession(conn net.Conn, server *Server) *Session {
 	c := &Session{
 		id:     SessionID(u1.String()),
 		conn:   conn,
-		send:   make(chan []byte, channelBufSize),
+		send:   make(chan []byte, sendBufferSize),
 		server: server,
 	}
 
@@ -90,7 +91,7 @@ func (c *Session) writePump() {
 func (c *Session) readPump() {
 	defer c.Close()
 
-	buf := make([]byte, 102400)
+	buf := make([]byte, recvBufferSize)
 	var err error
 	var readLen int
 
