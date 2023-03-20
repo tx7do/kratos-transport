@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const channelBufSize = 256
+var channelBufSize = 256000
 
 type SessionID string
 
