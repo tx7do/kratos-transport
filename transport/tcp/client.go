@@ -141,7 +141,7 @@ func (c *Client) run() {
 		}
 
 		if c.rawMessageHandler != nil {
-			if err := c.rawMessageHandler(buf); err != nil {
+			if err := c.rawMessageHandler(buf[:readLen]); err != nil {
 				log.Errorf("[tcp] raw data handler exception: %s", err)
 				continue
 			}
