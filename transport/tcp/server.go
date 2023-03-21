@@ -271,6 +271,10 @@ func (s *Server) run() {
 
 func (s *Server) doAccept() {
 	for {
+		if s.lis == nil {
+			return
+		}
+
 		conn, err := s.lis.Accept()
 		if err != nil {
 			log.Error("[tcp] accept exception:", err)
