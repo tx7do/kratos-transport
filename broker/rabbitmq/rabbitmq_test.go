@@ -43,6 +43,8 @@ func Test_Publish_WithRawData(t *testing.T) {
 	b := NewBroker(
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
+		WithExchangeName(testExchange),
+		WithDurableExchange(),
 	)
 
 	_ = b.Init()
@@ -56,7 +58,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
-		msg.Humidity = float64(rand.Intn(100))
+		msg.Humidity = float64(i)
 		msg.Temperature = float64(rand.Intn(100))
 		buf, _ := json.Marshal(&msg)
 		err := b.Publish(testRouting, buf)
@@ -109,6 +111,8 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	b := NewBroker(
 		broker.WithAddress(testBroker),
 		broker.WithCodec("json"),
+		WithExchangeName(testExchange),
+		WithDurableExchange(),
 	)
 
 	_ = b.Init()
@@ -122,7 +126,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
-		msg.Humidity = float64(rand.Intn(100))
+		msg.Humidity = float64(i)
 		msg.Temperature = float64(rand.Intn(100))
 		err := b.Publish(testRouting, msg)
 		assert.Nil(t, err)
@@ -203,6 +207,8 @@ func Test_Publish_WithTracer(t *testing.T) {
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(testBroker),
 		broker.WithCodec("json"),
+		WithExchangeName(testExchange),
+		WithDurableExchange(),
 		createTracerProvider("jaeger", "publish_tracer_tester"),
 		//broker.WithPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
 	)
