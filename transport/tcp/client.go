@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -52,7 +53,15 @@ func (c *Client) init(opts ...ClientOption) {
 		o(c)
 	}
 
-	c.endpoint, _ = url.Parse(c.url)
+	addr := c.url
+
+	prefix := "tcp://"
+	if !strings.HasPrefix(addr, "tcp://") {
+		prefix = "tcp://"
+	}
+	addr = prefix + addr
+
+	c.endpoint, _ = url.Parse(addr)
 }
 
 func (c *Client) Connect() error {
