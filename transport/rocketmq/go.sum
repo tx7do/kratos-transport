@@ -97,8 +97,8 @@ github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JT
 github.com/tidwall/pretty v1.2.0/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=
 github.com/tidwall/pretty v1.2.1 h1:qjsOFOWWQl+N3RsoF5/ssm1pHmJJwhjlSbZ51I6wMl4=
 github.com/tidwall/pretty v1.2.1/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=
-github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230321134528-b29b00248507 h1:sbHVhabHGuTn5v2t0hzM6LybCo2XT/5MA9KjxV3ABXA=
-github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230321134528-b29b00248507/go.mod h1:M/AvHYsbHgGJPKvesm+bPbq8Ylc4uOEBOodVgBxX1Vc=
+github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230321141157-22992c8f3db8 h1:dfZeg7T1N7CESbut3WFU1iRZR4tJqmpHXsY/USdBigI=
+github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230321141157-22992c8f3db8/go.mod h1:M/AvHYsbHgGJPKvesm+bPbq8Ylc4uOEBOodVgBxX1Vc=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.45.0 h1:zPkkzpIn8tdHZUrVa6PzYd0i5verqiPSkgTd3bSUcpA=
