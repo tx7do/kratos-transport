@@ -3,6 +3,8 @@ package nats
 import (
 	"context"
 	"errors"
+	kProto "github.com/go-kratos/kratos/v2/encoding/proto"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"sync"
 
@@ -261,7 +263,11 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		eh := b.opts.ErrorHandler
 
 		if binder != nil {
-			m.Body = binder()
+			if b.opts.Codec.Name() == kProto.Name {
+				m.Body = binder().(proto.Message)
+			} else {
+				m.Body = binder()
+			}
 		} else {
 			m.Body = msg.Data
 		}
