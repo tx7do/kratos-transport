@@ -84,3 +84,8 @@ func (hc headerCarrier) Keys() []string {
 func (hc headerCarrier) Add(key string, value string) {
 	http.Header(hc).Add(key, value)
 }
+
+// Values returns a slice of values associated with the passed key.
+func (hc headerCarrier) Values(key string) []string {
+	return http.Header(hc).Values(key)
+}

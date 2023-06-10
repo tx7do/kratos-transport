@@ -88,3 +88,8 @@ func (hc headerCarrier) Keys() []string {
 // Add append value to key-values pair.
 func (hc headerCarrier) Add(_ string, _ string) {
 }
+
+// Values returns a slice of values associated with the passed key.
+func (hc headerCarrier) Values(_ string) []string {
+	return []string{}
+}
