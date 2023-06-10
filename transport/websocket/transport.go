@@ -93,3 +93,8 @@ func (hc headerCarrier) Keys() []string {
 	}
 	return keys
 }
+
+// Add append value to key-values pair.
+func (hc headerCarrier) Add(key string, value string) {
+	http.Header(hc).Add(key, value)
+}

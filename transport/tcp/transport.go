@@ -84,3 +84,7 @@ func (hc headerCarrier) Set(key, value string) {
 func (hc headerCarrier) Keys() []string {
 	return []string{}
 }
+
+// Add append value to key-values pair.
+func (hc headerCarrier) Add(_ string, _ string) {
+}
