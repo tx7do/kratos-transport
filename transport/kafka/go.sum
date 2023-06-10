@@ -49,6 +49,8 @@ github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230321151037-8a932b1b3c0
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230321151037-8a932b1b3c0b/go.mod h1:4OB4KrGuXWtubJ5KdR1VvyUCrk6uDkovZTyLGW2Z6nk=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230610014840-f460fb71fc1a h1:94UUsl68qlqgVULEPezotSFFvHcB/1J9UsvKNJVA384=
 github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230610014840-f460fb71fc1a/go.mod h1:GM0av9NmbM5kH01l91V7zLoCrBewio5YbXnj/yJL1yU=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230610043245-c11bffa0b31f h1:LvHYV+h40v/WZlgEX0/9dYNVfHEr27oouwOmlB3M79o=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230610043245-c11bffa0b31f/go.mod h1:cpdmOMczwIK4/n5rtG7i4CUunCpMm6PnyUhhL0W92qA=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.2 h1:FHX5I5B4i4hKRVRBCFRxq1iQRej7WO3hhBuJf+UUySY=

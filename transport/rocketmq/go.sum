@@ -107,6 +107,8 @@ github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230321151037-8a932b1b
 github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230321151037-8a932b1b3c0b/go.mod h1:M/AvHYsbHgGJPKvesm+bPbq8Ylc4uOEBOodVgBxX1Vc=
 github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230610014840-f460fb71fc1a h1:Zd8Gb03tPHnaYehjKYxeA5+Rb+IvDHmhpgwM8yPXYsQ=
 github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230610014840-f460fb71fc1a/go.mod h1:93g0o3/H7bCYG+pJxkVuuqaNbTurIQ1b5ZeT0a3lO3A=
+github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230610043245-c11bffa0b31f h1:alv1O3OQN1NyH1TnUiMjjgDwoga+GgOxg1WX81opGdc=
+github.com/tx7do/kratos-transport/broker/rocketmq v0.0.0-20230610043245-c11bffa0b31f/go.mod h1:LbCs3YsJv6f9827fmaqVob48LDIxMpDR2wJnewHopaM=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.46.0 h1:6ZRhrFg8zBXTRYY6vdzbFhqsBd7FVv123pV2m9V87U4=
