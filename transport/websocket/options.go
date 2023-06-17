@@ -2,9 +2,10 @@ package websocket
 
 import (
 	"crypto/tls"
-	"github.com/go-kratos/kratos/v2/encoding"
 	"net"
 	"time"
+
+	"github.com/go-kratos/kratos/v2/encoding"
 )
 
 type ServerOption func(o *Server)
@@ -35,7 +36,7 @@ func WithPath(path string) ServerOption {
 
 func WithConnectHandle(h ConnectHandler) ServerOption {
 	return func(s *Server) {
-		s.connectHandler = h
+		s.sessionMgr.RegisterConnectHandler(h)
 	}
 }
 

@@ -17,8 +17,6 @@ type Session struct {
 	server *Server
 }
 
-type SessionMap map[SessionID]*Session
-
 func NewSession(conn *ws.Conn, server *Server) *Session {
 	if conn == nil {
 		panic("conn cannot be nil")

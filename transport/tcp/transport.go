@@ -72,12 +72,12 @@ func SetOperation(ctx context.Context, op string) {
 type headerCarrier struct{}
 
 // Get returns the value associated with the passed key.
-func (hc headerCarrier) Get(key string) string {
+func (hc headerCarrier) Get(_ string) string {
 	return ""
 }
 
 // Set stores the key-value pair.
-func (hc headerCarrier) Set(key, value string) {
+func (hc headerCarrier) Set(_, _ string) {
 }
 
 // Keys lists the keys stored in this carrier.

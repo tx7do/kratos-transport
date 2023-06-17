@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-
 	"net"
 	"net/http"
 	"net/url"
@@ -53,9 +52,9 @@ type Server struct {
 	codec encoding.Codec
 
 	messageHandlers MessageHandlerMap
-	connectHandler  ConnectHandler
 
-	sessions   SessionMap
+	sessionMgr *SessionManager
+
 	register   chan *Session
 	unregister chan *Session
 }
@@ -69,7 +68,7 @@ func NewServer(opts ...ServerOption) *Server {
 
 		messageHandlers: make(MessageHandlerMap),
 
-		sessions: SessionMap{},
+		sessionMgr: NewSessionManager(),
 		upgrader: &ws.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -104,7 +103,7 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) SessionCount() int {
-	return len(s.sessions)
+	return s.sessionMgr.Count()
 }
 
 func (s *Server) RegisterMessageHandler(messageType MessageType, handler MessageHandler, binder Binder) {
@@ -139,7 +138,7 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 }
 
 func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
-	c, ok := s.sessions[sessionId]
+	c, ok := s.sessionMgr.Get(sessionId)
 	if !ok {
 		log.Error("[websocket] session not found:", sessionId)
 		return
@@ -161,9 +160,9 @@ func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 		return
 	}
 
-	for _, c := range s.sessions {
-		c.SendMessage(buf)
-	}
+	s.sessionMgr.Range(func(session *Session) {
+		session.SendMessage(buf)
+	})
 }
 
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
@@ -249,9 +248,9 @@ func (s *Server) run() {
 	for {
 		select {
 		case client := <-s.register:
-			s.addSession(client)
+			s.sessionMgr.Add(client)
 		case client := <-s.unregister:
-			s.removeSession(client)
+			s.sessionMgr.Remove(client)
 		}
 	}
 }
@@ -282,26 +281,4 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	log.Info("[websocket] server stopping")
 	return s.Shutdown(ctx)
-}
-
-func (s *Server) addSession(c *Session) {
-	//log.Info("[websocket] add session: ", c.SessionID())
-	s.sessions[c.SessionID()] = c
-
-	if s.connectHandler != nil {
-		s.connectHandler(c.SessionID(), true)
-	}
-}
-
-func (s *Server) removeSession(c *Session) {
-	for k, v := range s.sessions {
-		if c == v {
-			//log.Info("[websocket] remove session: ", c.SessionID())
-			if s.connectHandler != nil {
-				s.connectHandler(c.SessionID(), false)
-			}
-			delete(s.sessions, k)
-			return
-		}
-	}
 }

@@ -53,16 +53,26 @@ func (tr *Transport) NodeFilters() []selector.NodeFilter {
 type headerCarrier struct{}
 
 // Get returns the value associated with the passed key.
-func (mc headerCarrier) Get(_ string) string {
+func (hc headerCarrier) Get(_ string) string {
 	return ""
 }
 
 // Set stores the key-value pair.
-func (mc headerCarrier) Set(_ string, _ string) {
+func (hc headerCarrier) Set(_ string, _ string) {
 
 }
 
 // Keys lists the keys stored in this carrier.
-func (mc headerCarrier) Keys() []string {
+func (hc headerCarrier) Keys() []string {
+	return nil
+}
+
+// Add append value to key-values pair.
+func (hc headerCarrier) Add(_ string, _ string) {
+
+}
+
+// Values returns a slice of values associated with the passed key.
+func (hc headerCarrier) Values(_ string) []string {
 	return nil
 }
