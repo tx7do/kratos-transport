@@ -10,7 +10,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.6.2
 	github.com/gogap/errors v0.0.0-20210818113853-edfbba0ddea9
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.5
+	github.com/tx7do/kratos-transport v1.0.6
 	go.opentelemetry.io/otel v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
 )
@@ -40,7 +40,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.47.0 // indirect
+	github.com/valyala/fasthttp v1.48.0 // indirect
 	go.opentelemetry.io/otel/exporters/jaeger v1.16.0 // indirect
 	go.opentelemetry.io/otel/exporters/zipkin v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
