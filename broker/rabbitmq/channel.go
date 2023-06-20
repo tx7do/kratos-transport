@@ -1,9 +1,10 @@
 package rabbitmq
 
 import (
+	"context"
 	"errors"
 
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type rabbitChannel struct {
@@ -47,7 +48,7 @@ func (r *rabbitChannel) Publish(exchangeName, key string, message amqp.Publishin
 	if r.channel == nil {
 		return errors.New("channel is nil")
 	}
-	return r.channel.Publish(exchangeName, key, false, false, message)
+	return r.channel.PublishWithContext(context.Background(), exchangeName, key, false, false, message)
 }
 
 func (r *rabbitChannel) DeclareExchange(exchangeName, kind string, durable, autoDelete bool) error {

@@ -1,9 +1,10 @@
 package rabbitmq
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/tx7do/kratos-transport/broker"
-	"testing"
 )
 
 func TestNewRabbitMQConnURL(t *testing.T) {

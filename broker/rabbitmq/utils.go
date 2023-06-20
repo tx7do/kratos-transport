@@ -1,9 +1,10 @@
 package rabbitmq
 
 import (
-	"github.com/google/uuid"
-	"github.com/streadway/amqp"
 	"regexp"
+
+	"github.com/google/uuid"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 var re = regexp.MustCompile("^amqp(s)?://.*")

@@ -1,10 +1,11 @@
 package rabbitmq
 
 import (
-	"github.com/streadway/amqp"
-	"github.com/tx7do/kratos-transport/broker"
 	"sync"
 	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 const (

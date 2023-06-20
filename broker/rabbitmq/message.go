@@ -1,9 +1,10 @@
 package rabbitmq
 
 import (
-	"github.com/streadway/amqp"
-	"go.opentelemetry.io/otel/propagation"
 	"strconv"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 var _ propagation.TextMapCarrier = (*ProducerMessageCarrier)(nil)
@@ -46,7 +47,7 @@ func (c ProducerMessageCarrier) Set(key, val string) {
 func (c ProducerMessageCarrier) Keys() []string {
 	out := make([]string, len(c.msg.Headers))
 	var i = 0
-	for k, _ := range c.msg.Headers {
+	for k := range c.msg.Headers {
 		out[i] = k
 		i++
 	}
@@ -93,7 +94,7 @@ func (c ConsumerMessageCarrier) Set(key, val string) {
 func (c ConsumerMessageCarrier) Keys() []string {
 	out := make([]string, len(c.msg.Headers))
 	var i = 0
-	for k, _ := range c.msg.Headers {
+	for k := range c.msg.Headers {
 		out[i] = k
 		i++
 	}
