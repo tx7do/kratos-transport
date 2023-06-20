@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>SSE Client</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+</head>
+<body>
+<div>
+    <ul id="messages">
+    </ul>
+</div>
+
+<script>
+    if (window.EventSource == null) {
+        alert('The browser does not support Server-Sent Events');
+    }
+
+    const eventSource = new EventSource("http://localhost:8800/events?stream=test")
+
+    eventSource.onopen = function () {
+        console.log('connection is established');
+    };
+
+    eventSource.onerror = function (error) {
+        console.log('connection state: ' + eventSource.readyState + ', error: ' + error);
+    };
+
+    eventSource.onmessage = (event) => {
+        console.log('id: ' + event.lastEventId + ', data: ' + event.data);
+        //console.log(JSON.parse(event.data))
+        const ul = document.getElementById("messages");
+        const li = document.createElement("li");
+        li.appendChild(document.createTextNode(`${event.data}`));
+        li.setAttribute("id", "element4");
+        ul.appendChild(li);
+    }
+</script>
+</body>
+</html>

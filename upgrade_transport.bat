@@ -74,4 +74,12 @@ cd ..\..\transport\webtransport\
 go get all
 go mod tidy
 
+cd ..\..\transport\sse\
+go get all
+go mod tidy
+
+cd ..\..\transport\tcp\
+go get all
+go mod tidy
+
 pause
