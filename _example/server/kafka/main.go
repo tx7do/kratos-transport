@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/tx7do/kratos-transport/tracing"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/tracing"
 	"github.com/tx7do/kratos-transport/transport/kafka"
 
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
