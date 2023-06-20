@@ -64,6 +64,8 @@ github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230610043245-c11bffa0b31f
 github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230610043245-c11bffa0b31f/go.mod h1:TBe2MjVtQk9x84yh9qCLgDHZhcNxPt3gvrOjlq1wj2w=
 github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230620065016-d36b71d0fffb h1:lxKN3flJgHJT08dncmxY9KF/bpie7lF9MRYIvDSHqaA=
 github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230620065016-d36b71d0fffb/go.mod h1:TBe2MjVtQk9x84yh9qCLgDHZhcNxPt3gvrOjlq1wj2w=
+github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230620083843-f635aa697d52 h1:ZksJLmeITxzd2Q2y/lRGwE4WdWcgJPBBQ83W1A86ubQ=
+github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230620083843-f635aa697d52/go.mod h1:SF8iijdeizN1l59C+d8E0p8/2szYtnajxLgu43pX8DE=
 go.opentelemetry.io/otel v1.14.0 h1:/79Huy8wbf5DnIPhemGB+zEPVwnN6fuQybr/SRXa6hM=
 go.opentelemetry.io/otel v1.14.0/go.mod h1:o4buv+dJzx8rohcUeRmWUZhqupFvzWis188WlggnNeU=
 go.opentelemetry.io/otel v1.16.0 h1:Z7GVAX/UkAXPKsy94IU+i6thsQS4nb7LviLpnaNeW8s=

@@ -7,8 +7,8 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/go-kratos/kratos/v2 v2.6.2
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.5
-	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230620065016-d36b71d0fffb
+	github.com/tx7do/kratos-transport v1.0.6
+	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230620083843-f635aa697d52
 	go.opentelemetry.io/otel v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
 )
@@ -22,6 +22,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/openzipkin/zipkin-go v0.4.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rabbitmq/amqp091-go v1.8.1 // indirect
 	github.com/streadway/amqp v1.1.0 // indirect
 	go.opentelemetry.io/otel/exporters/jaeger v1.16.0 // indirect
 	go.opentelemetry.io/otel/exporters/zipkin v1.16.0 // indirect

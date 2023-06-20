@@ -3,7 +3,6 @@ package kafka
 import (
 	"context"
 	"fmt"
-	"github.com/tx7do/kratos-transport/tracing"
 	"net"
 	"net/url"
 	"os"
@@ -18,6 +17,7 @@ import (
 	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/kafka"
+	"github.com/tx7do/kratos-transport/tracing"
 )
 
 const (

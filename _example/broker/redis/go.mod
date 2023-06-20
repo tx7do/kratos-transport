@@ -4,8 +4,6 @@ go 1.16
 
 require (
 	github.com/go-kratos/kratos/v2 v2.6.2
-	github.com/tx7do/kratos-transport v1.0.5
-	github.com/tx7do/kratos-transport/broker/redis v0.0.0-20230610014840-f460fb71fc1a
-	go.opentelemetry.io/otel/exporters/jaeger v1.16.0 // indirect
-	go.opentelemetry.io/otel/exporters/zipkin v1.16.0 // indirect
+	github.com/tx7do/kratos-transport v1.0.6
+	github.com/tx7do/kratos-transport/broker/redis v0.0.0-20230620083843-f635aa697d52
 )

@@ -7,7 +7,7 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/go-kratos/kratos/v2 v2.6.2
 	github.com/google/uuid v1.3.0
-	github.com/tx7do/kratos-transport v1.0.5
+	github.com/tx7do/kratos-transport v1.0.6
 )
 
 require (

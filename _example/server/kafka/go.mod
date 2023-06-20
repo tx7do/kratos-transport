@@ -9,13 +9,14 @@ require (
 	github.com/go-playground/form/v4 v4.2.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/klauspost/compress v1.16.5 // indirect
+	github.com/klauspost/compress v1.16.6 // indirect
 	github.com/openzipkin/zipkin-go v0.4.1 // indirect
-	github.com/pierrec/lz4/v4 v4.1.17 // indirect
+	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/segmentio/kafka-go v0.4.40 // indirect
-	github.com/tx7do/kratos-transport v1.0.5
-	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230610014840-f460fb71fc1a // indirect
-	github.com/tx7do/kratos-transport/transport/kafka v0.0.0-20230610043245-c11bffa0b31f
+	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/tx7do/kratos-transport v1.0.6
+	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230620083843-f635aa697d52 // indirect
+	github.com/tx7do/kratos-transport/transport/kafka v0.0.0-20230620083843-f635aa697d52
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
@@ -28,11 +29,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.16.0 // indirect
 	go.opentelemetry.io/otel/trace v1.16.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
-	golang.org/x/sync v0.2.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sync v0.3.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
-	google.golang.org/grpc v1.55.0 // indirect
+	google.golang.org/grpc v1.56.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -5,19 +5,19 @@ go 1.19
 replace github.com/tx7do/kratos-transport => ../../
 
 require (
-	github.com/cloudwego/hertz v0.4.0
+	github.com/cloudwego/hertz v0.6.5
 	github.com/go-kratos/kratos/v2 v2.6.2
-	github.com/stretchr/testify v1.8.3
-	github.com/tx7do/kratos-transport v1.0.5
+	github.com/stretchr/testify v1.8.4
+	github.com/tx7do/kratos-transport v1.0.6
 )
 
 require (
 	github.com/andeya/goutil v0.0.0-20220704075712-42f2ec55fe8d // indirect
 	github.com/bytedance/go-tagexpr/v2 v2.9.6 // indirect
 	github.com/bytedance/gopkg v0.0.0-20221028032628-1c5718bfa764 // indirect
-	github.com/bytedance/sonic v1.6.0 // indirect
+	github.com/bytedance/sonic v1.8.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/cloudwego/netpoll v0.3.1 // indirect
+	github.com/cloudwego/netpoll v0.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-kratos/aegis v0.2.0 // indirect
