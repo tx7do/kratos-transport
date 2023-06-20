@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -136,6 +137,7 @@ func (b *redisBroker) publish(topic string, msg []byte, _ ...broker.PublishOptio
 
 func (b *redisBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	var options broker.SubscribeOptions
+	options.Context = context.Background()
 	for _, o := range opts {
 		o(&options)
 	}

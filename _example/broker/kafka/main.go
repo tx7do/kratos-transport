@@ -33,6 +33,8 @@ func main() {
 		broker.WithCodec("json"),
 	)
 
+	_ = b.Init()
+
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,

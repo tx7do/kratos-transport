@@ -30,8 +30,8 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/tx7do/kratos-transport v1.0.6 h1:sOhLMQ5CMqsw0tP5/qLbE8nrMa+fTIbO+xmIxm7iHHg=
 github.com/tx7do/kratos-transport v1.0.6/go.mod h1:KtqMwJY54V32Ww6RGTjAzIzl97sDKy4ZMufJ8lWBGUU=
-github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230620102913-29fa3fb6e659 h1:Kz/2458eK/Hi3qTCW+j0KqZ/9476nC/e7dkdwTyHv98=
-github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230620102913-29fa3fb6e659/go.mod h1:pjnjapZqarrimyL37eci+fPIWLN18Otbj3MzW/KQpiM=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230620162823-f4e4038e4327 h1:Q1rTqMgb9SG2kbOIPKIKWtQa3vaN5eZ9dP2Nh9vv4+w=
+github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230620162823-f4e4038e4327/go.mod h1:pjnjapZqarrimyL37eci+fPIWLN18Otbj3MzW/KQpiM=
 go.opentelemetry.io/otel v1.16.0 h1:Z7GVAX/UkAXPKsy94IU+i6thsQS4nb7LviLpnaNeW8s=
 go.opentelemetry.io/otel v1.16.0/go.mod h1:vl0h9NUa1D5s1nv3A5vZOYWn8av4K8Ml6JDeHrT/bx4=
 go.opentelemetry.io/otel/exporters/jaeger v1.16.0 h1:YhxxmXZ011C0aDZKoNw+juVWAmEfv/0W2XBOv9aHTaA=
