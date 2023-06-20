@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/go-kratos/kratos/v2 v2.6.2
 	github.com/tx7do/kratos-transport v1.0.6
-	github.com/tx7do/kratos-transport/broker/redis v0.0.0-20230620105535-5e89f29faa3d
+	github.com/tx7do/kratos-transport/broker/redis v0.0.0-20230620164308-882eae354e39
 )
 
 require (
