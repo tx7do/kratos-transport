@@ -11,13 +11,15 @@ type StreamID string
 type SubscriberFunction func(streamID StreamID, sub *Subscriber)
 
 type Stream struct {
-	ID           StreamID
-	event        chan *Event
-	quit         chan struct{}
-	quitOnce     sync.Once
-	EventLog     EventLog
-	AutoReplay   bool
-	isAutoStream bool
+	id StreamID
+
+	event    chan *Event
+	quit     chan struct{}
+	quitOnce sync.Once
+	eventLog EventLog
+
+	autoReplay bool
+	autoStream bool
 
 	register   chan *Subscriber
 	deregister chan *Subscriber
@@ -25,28 +27,28 @@ type Stream struct {
 	subscribers     []*Subscriber
 	subscriberCount int32
 
-	OnSubscribe   SubscriberFunction
-	OnUnsubscribe SubscriberFunction
+	onSubscribe   SubscriberFunction
+	onUnsubscribe SubscriberFunction
 }
 
-func newStream(id StreamID, buffSize int, replay, isAutoStream bool, onSubscribe, onUnsubscribe SubscriberFunction) *Stream {
+func newStream(id StreamID, buffSize int, replay, autoStream bool, onSubscribe, onUnsubscribe SubscriberFunction) *Stream {
 	return &Stream{
-		ID:            id,
-		AutoReplay:    replay,
+		id:            id,
+		autoStream:    autoStream,
+		autoReplay:    replay,
 		subscribers:   make([]*Subscriber, 0),
-		isAutoStream:  isAutoStream,
 		register:      make(chan *Subscriber),
 		deregister:    make(chan *Subscriber),
 		event:         make(chan *Event, buffSize),
 		quit:          make(chan struct{}),
-		EventLog:      make(EventLog, 0),
-		OnSubscribe:   onSubscribe,
-		OnUnsubscribe: onUnsubscribe,
+		eventLog:      make(EventLog, 0),
+		onSubscribe:   onSubscribe,
+		onUnsubscribe: onUnsubscribe,
 	}
 }
 
 func (s *Stream) StreamID() StreamID {
-	return s.ID
+	return s.id
 }
 
 func (s *Stream) run() {
@@ -55,8 +57,8 @@ func (s *Stream) run() {
 			select {
 			case subscriber := <-stream.register:
 				stream.subscribers = append(stream.subscribers, subscriber)
-				if stream.AutoReplay {
-					stream.EventLog.Replay(subscriber)
+				if stream.autoReplay {
+					stream.eventLog.Replay(subscriber)
 				}
 
 			case subscriber := <-stream.deregister:
@@ -65,13 +67,13 @@ func (s *Stream) run() {
 					stream.removeSubscriber(i)
 				}
 
-				if stream.OnUnsubscribe != nil {
-					go stream.OnUnsubscribe(stream.ID, subscriber)
+				if stream.onUnsubscribe != nil {
+					go stream.onUnsubscribe(stream.id, subscriber)
 				}
 
 			case event := <-stream.event:
-				if stream.AutoReplay {
-					stream.EventLog.Add(event)
+				if stream.autoReplay {
+					stream.eventLog.Add(event)
 				}
 				for i := range stream.subscribers {
 					stream.subscribers[i].connection <- event
@@ -109,14 +111,14 @@ func (s *Stream) addSubscriber(eventId int, url *url.URL) *Subscriber {
 		URL:        url,
 	}
 
-	if s.isAutoStream {
+	if s.autoStream {
 		sub.removed = make(chan struct{}, 1)
 	}
 
 	s.register <- sub
 
-	if s.OnSubscribe != nil {
-		go s.OnSubscribe(s.ID, sub)
+	if s.onSubscribe != nil {
+		go s.onSubscribe(s.id, sub)
 	}
 
 	return sub

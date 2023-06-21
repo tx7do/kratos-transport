@@ -36,7 +36,7 @@ func setup(empty bool) {
 
 func setupMultiline() {
 	srv = newServer()
-	srv.SplitData = true
+	srv.splitData = true
 	go publishMultilineMessages(srv, 100000000)
 }
 

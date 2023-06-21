@@ -56,7 +56,7 @@ func TestStreamDisableAutoReplay(t *testing.T) {
 	s.run()
 	defer s.close()
 
-	s.AutoReplay = false
+	s.autoReplay = false
 	s.event <- &Event{Data: []byte("test")}
 	time.Sleep(time.Millisecond * 100)
 	sub := s.addSubscriber(0, nil)

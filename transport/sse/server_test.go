@@ -1,7 +1,11 @@
 package sse
 
 import (
+	"context"
 	"errors"
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
@@ -32,29 +36,55 @@ func waitEvent(ch chan *Event, duration time.Duration) (*Event, error) {
 }
 
 func TestServerExistingStreamPublish(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
 	s := NewServer(
 		WithAddress(":8800"),
 	)
-	defer s.Stop(nil)
+	defer s.Stop(ctx)
 
+	s.HandleServeHTTP("/events")
 	s.CreateStream("test")
+
 	stream := s.streamMgr.Get("test")
 	sub := stream.addSubscriber(0, nil)
+
+	go func() {
+		s.Start(ctx)
+	}()
 
 	s.Publish("test", &Event{Data: []byte("test")})
 
 	msg, err := wait(sub.connection, time.Second*1)
 	require.Nil(t, err)
 	assert.Equal(t, []byte(`test`), msg)
+
+	<-interrupt
 }
 
 func TestServerNonExistentStreamPublish(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
 	s := NewServer(
 		WithAddress(":8800"),
 	)
-	defer s.Stop(nil)
+	defer s.Stop(ctx)
 
-	s.streamMgr.RemoveWithID("test")
+	s.HandleServeHTTP("/events")
+	s.CreateStream("test")
+
+	go func() {
+		s.streamMgr.RemoveWithID("test")
+		s.Start(ctx)
+	}()
 
 	assert.NotPanics(t, func() { s.Publish("test", &Event{Data: []byte("test")}) })
+
+	<-interrupt
 }

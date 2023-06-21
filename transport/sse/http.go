@@ -16,7 +16,7 @@ func (s *Server) prepareHeaderForSSE(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-	for k, v := range s.Headers {
+	for k, v := range s.headers {
 		w.Header().Set(k, v)
 	}
 }
@@ -38,7 +38,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	stream := s.streamMgr.Get(StreamID(streamID))
 	if stream == nil {
-		if !s.AutoStream {
+		if !s.autoStream {
 			writeError(w, "Stream not found!", http.StatusInternalServerError)
 			return
 		}
@@ -63,7 +63,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		sub.close()
 
-		if s.AutoStream && !s.AutoReplay && stream.getSubscriberCount() == 0 {
+		if s.autoStream && !s.autoReplay && stream.getSubscriberCount() == 0 {
 			s.streamMgr.RemoveWithID(StreamID(streamID))
 		}
 	}()
@@ -76,14 +76,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		if s.EventTTL != 0 && time.Now().After(ev.timestamp.Add(s.EventTTL)) {
+		if s.eventTTL != 0 && time.Now().After(ev.timestamp.Add(s.eventTTL)) {
 			continue
 		}
 
 		if len(ev.Data) > 0 {
 			_, _ = writeData(w, FieldId, ev.ID)
 
-			if s.SplitData {
+			if s.splitData {
 				sd := bytes.Split(ev.Data, []byte("\n"))
 				for i := range sd {
 					_, _ = writeData(w, FieldData, sd[i])

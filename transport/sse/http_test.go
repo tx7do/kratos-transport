@@ -129,7 +129,7 @@ func TestHTTPStreamHandlerEventTTL(t *testing.T) {
 	)
 	defer s.Stop(nil)
 
-	s.EventTTL = time.Second * 1
+	s.eventTTL = time.Second * 1
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", s.ServeHTTP)
@@ -200,9 +200,9 @@ func TestHTTPStreamHandlerAutoStream(t *testing.T) {
 	sseServer := NewServer()
 	defer sseServer.Stop(nil)
 
-	sseServer.AutoReplay = false
+	sseServer.autoReplay = false
 
-	sseServer.AutoStream = true
+	sseServer.autoStream = true
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", sseServer.ServeHTTP)

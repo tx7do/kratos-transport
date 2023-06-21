@@ -14,7 +14,11 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/gorilla/mux"
+	"github.com/tx7do/kratos-transport/broker"
 )
+
+type Any interface{}
+type MessagePayload Any
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -39,19 +43,17 @@ type Server struct {
 	router      *mux.Router
 	strictSlash bool
 
-	Headers      map[string]string
-	EventTTL     time.Duration
-	bufferSize   int
+	headers    map[string]string
+	eventTTL   time.Duration
+	bufferSize int
+
 	encodeBase64 bool
-	SplitData    bool
-	AutoStream   bool
-	AutoReplay   bool
+	splitData    bool
+	autoStream   bool
+	autoReplay   bool
 
 	OnSubscribe   SubscriberFunction
 	OnUnsubscribe SubscriberFunction
-
-	subscriber   chan *Subscriber
-	unsubscriber chan *Subscriber
 
 	streamMgr *StreamManager
 }
@@ -67,9 +69,9 @@ func NewServer(opts ...ServerOption) *Server {
 		bufferSize:   DefaultBufferSize,
 		encodeBase64: false,
 
-		AutoStream: false,
-		AutoReplay: true,
-		Headers:    map[string]string{},
+		autoStream: false,
+		autoReplay: true,
+		headers:    map[string]string{},
 
 		streamMgr: NewStreamManager(),
 	}
@@ -207,19 +209,25 @@ func (s *Server) TryPublish(id StreamID, event *Event) bool {
 	}
 }
 
+func (s *Server) PublishData(id StreamID, data MessagePayload) error {
+	event := &Event{}
+
+	var err error
+	event.Data, err = broker.Marshal(s.codec, data)
+	if err != nil {
+		return err
+	}
+
+	s.Publish(id, event)
+
+	return nil
+}
+
 func (s *Server) run() {
-	//for {
-	//	select {
-	//	case client := <-s.subscriber:
-	//		s.CreateStream(client)
-	//	case client := <-s.unsubscriber:
-	//		s.removeStream(client)
-	//	}
-	//}
 }
 
 func (s *Server) createStream(id StreamID) *Stream {
-	stream := newStream(id, s.bufferSize, s.AutoReplay, s.AutoStream, s.OnSubscribe, s.OnUnsubscribe)
+	stream := newStream(id, s.bufferSize, s.autoReplay, s.autoStream, s.OnSubscribe, s.OnUnsubscribe)
 	stream.run()
 	return stream
 }

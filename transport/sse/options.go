@@ -54,6 +54,36 @@ func WithCodec(c string) ServerOption {
 	}
 }
 
+func WithEncodeBase64(enable bool) ServerOption {
+	return func(s *Server) {
+		s.encodeBase64 = enable
+	}
+}
+
+func WithAutoStream(enable bool) ServerOption {
+	return func(s *Server) {
+		s.autoStream = enable
+	}
+}
+
+func WithAutoReply(enable bool) ServerOption {
+	return func(s *Server) {
+		s.autoReplay = enable
+	}
+}
+
+func WithSplitData(enable bool) ServerOption {
+	return func(s *Server) {
+		s.splitData = enable
+	}
+}
+
+func WithHeaders(headers map[string]string) ServerOption {
+	return func(s *Server) {
+		s.headers = headers
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type ClientOption func(o *Client)
