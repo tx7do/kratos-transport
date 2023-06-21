@@ -231,29 +231,29 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		}
 	}
 
-	if value, ok := b.opts.Context.Value(balancerKey{}).(string); ok {
-		switch value {
-		default:
-		case BalancerLeastBytes:
-			b.writerConfig.Balancer = &kafkaGo.LeastBytes{}
-			break
-		case BalancerRoundRobin:
-			b.writerConfig.Balancer = &kafkaGo.RoundRobin{}
-			break
-		case BalancerHash:
-			b.writerConfig.Balancer = &kafkaGo.Hash{}
-			break
-		case BalancerReferenceHash:
-			b.writerConfig.Balancer = &kafkaGo.ReferenceHash{}
-			break
-		case BalancerCRC32Balancer:
-			b.writerConfig.Balancer = &kafkaGo.CRC32Balancer{}
-			break
-		case BalancerMurmur2Balancer:
-			b.writerConfig.Balancer = &kafkaGo.Murmur2Balancer{}
-			break
-		}
-	}
+	//if value, ok := b.opts.Context.Value(balancerKey{}).(string); ok {
+	//	switch value {
+	//	default:
+	//	case LeastBytesBalancer:
+	//		b.writerConfig.Balancer = &kafkaGo.LeastBytes{}
+	//		break
+	//	case RoundRobinBalancer:
+	//		b.writerConfig.Balancer = &kafkaGo.RoundRobin{}
+	//		break
+	//	case HashBalancer:
+	//		b.writerConfig.Balancer = &kafkaGo.Hash{}
+	//		break
+	//	case ReferenceHashBalancer:
+	//		b.writerConfig.Balancer = &kafkaGo.ReferenceHash{}
+	//		break
+	//	case Crc32Balancer:
+	//		b.writerConfig.Balancer = &kafkaGo.CRC32Balancer{}
+	//		break
+	//	case Murmur2Balancer:
+	//		b.writerConfig.Balancer = &kafkaGo.Murmur2Balancer{}
+	//		break
+	//	}
+	//}
 
 	if value, ok := b.opts.Context.Value(batchSizeKey{}).(int); ok {
 		b.writerConfig.BatchSize = value
@@ -332,6 +332,41 @@ func (b *kafkaBroker) Disconnect() error {
 	return nil
 }
 
+func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.PublishOptions) {
+	//writer.Balancer = b.writerConfig.Balancer
+	if value, ok := options.Context.Value(balancerKey{}).(*balancerValue); ok {
+		switch value.Name {
+		default:
+		case LeastBytesBalancer:
+			writer.Balancer = &kafkaGo.LeastBytes{}
+			break
+		case RoundRobinBalancer:
+			writer.Balancer = &kafkaGo.RoundRobin{}
+			break
+		case HashBalancer:
+			writer.Balancer = &kafkaGo.Hash{
+				Hasher: value.Hasher,
+			}
+			break
+		case ReferenceHashBalancer:
+			writer.Balancer = &kafkaGo.ReferenceHash{
+				Hasher: value.Hasher,
+			}
+			break
+		case Crc32Balancer:
+			writer.Balancer = &kafkaGo.CRC32Balancer{
+				Consistent: value.Consistent,
+			}
+			break
+		case Murmur2Balancer:
+			writer.Balancer = &kafkaGo.Murmur2Balancer{
+				Consistent: value.Consistent,
+			}
+			break
+		}
+	}
+}
+
 func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.opts.Codec, msg)
 	if err != nil {
@@ -353,7 +388,10 @@ func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...br
 		o(&options)
 	}
 
-	kMsg := kafkaGo.Message{Topic: topic, Value: buf}
+	kMsg := kafkaGo.Message{
+		Topic: topic,
+		Value: buf,
+	}
 
 	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]interface{}); ok {
 		for k, v := range headers {
@@ -388,6 +426,7 @@ func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...br
 	writer, ok := b.writer.Writers[topic]
 	if !ok {
 		writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+		b.initPublishOption(writer, options)
 		b.writer.Writers[topic] = writer
 	} else {
 		cached = true
@@ -419,7 +458,8 @@ func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...br
 			delete(b.writer.Writers, topic)
 			b.Unlock()
 
-			writer := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+			writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+			b.initPublishOption(writer, options)
 			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
 					b.Lock()
@@ -442,7 +482,10 @@ func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.
 		o(&options)
 	}
 
-	kMsg := kafkaGo.Message{Topic: topic, Value: buf}
+	kMsg := kafkaGo.Message{
+		Topic: topic,
+		Value: buf,
+	}
 
 	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]interface{}); ok {
 		for k, v := range headers {
@@ -476,6 +519,7 @@ func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.
 	b.Lock()
 	if b.writer.Writer == nil {
 		b.writer.Writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+		b.initPublishOption(b.writer.Writer, options)
 	} else {
 		cached = true
 	}
@@ -507,6 +551,7 @@ func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.
 			b.Unlock()
 
 			writer := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+			b.initPublishOption(writer, options)
 			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
 					b.Lock()

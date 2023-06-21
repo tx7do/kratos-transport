@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"hash"
 	"time"
 
 	kafkaGo "github.com/segmentio/kafka-go"
@@ -11,12 +12,12 @@ import (
 )
 
 const (
-	BalancerLeastBytes      = "LeastBytes"
-	BalancerRoundRobin      = "RoundRobin"
-	BalancerHash            = "Hash"
-	BalancerReferenceHash   = "ReferenceHash"
-	BalancerCRC32Balancer   = "CRC32Balancer"
-	BalancerMurmur2Balancer = "Murmur2Balancer"
+	LeastBytesBalancer    = "LeastBytes"
+	RoundRobinBalancer    = "RoundRobin"
+	HashBalancer          = "Hash"
+	ReferenceHashBalancer = "ReferenceHash"
+	Crc32Balancer         = "CRC32Balancer"
+	Murmur2Balancer       = "Murmur2Balancer"
 )
 
 ///
@@ -56,7 +57,6 @@ type maxAttemptsKey struct{}
 type readTimeoutKey struct{}
 type writeTimeoutKey struct{}
 type allowAutoTopicCreationKey struct{}
-type balancerKey struct{}
 
 // WithReaderConfig .
 func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
@@ -248,15 +248,6 @@ func WithAllowAutoTopicCreation(enable bool) broker.Option {
 	return broker.OptionContextWithValue(allowAutoTopicCreationKey{}, enable)
 }
 
-// WithBalancer 负载均衡器
-//
-//	默认： BalancerLeastBytes
-//
-//	所有支持的均衡器有： BalancerLeastBytes BalancerRoundRobin BalancerHash BalancerReferenceHash BalancerCRC32Balancer BalancerMurmur2Balancer
-func WithBalancer(balancer string) broker.PublishOption {
-	return broker.PublishContextWithValue(balancerKey{}, balancer)
-}
-
 ///
 /// PublishOption
 ///
@@ -264,6 +255,12 @@ func WithBalancer(balancer string) broker.PublishOption {
 type messageHeadersKey struct{}
 type messageKeyKey struct{}
 type messageOffsetKey struct{}
+type balancerKey struct{}
+type balancerValue struct {
+	Name       string
+	Consistent bool
+	Hasher     hash.Hash32
+}
 
 // WithHeaders 消息头
 func WithHeaders(headers map[string]interface{}) broker.PublishOption {
@@ -278,6 +275,64 @@ func WithMessageKey(key []byte) broker.PublishOption {
 // WithMessageOffset 消息偏移
 func WithMessageOffset(offset int64) broker.PublishOption {
 	return broker.PublishContextWithValue(messageOffsetKey{}, offset)
+}
+
+// WithLeastBytesBalancer LeastBytes负载均衡器
+func WithLeastBytesBalancer() broker.PublishOption {
+	return broker.PublishContextWithValue(balancerKey{},
+		&balancerValue{
+			Name: LeastBytesBalancer,
+		},
+	)
+}
+
+// WithRoundRobinBalancer RoundRobin负载均衡器，默认均衡器。
+func WithRoundRobinBalancer() broker.PublishOption {
+	return broker.PublishContextWithValue(balancerKey{},
+		&balancerValue{
+			Name: RoundRobinBalancer,
+		},
+	)
+}
+
+// WithHashBalancer Hash负载均衡器
+func WithHashBalancer(hasher hash.Hash32) broker.PublishOption {
+	return broker.PublishContextWithValue(balancerKey{},
+		&balancerValue{
+			Name:   HashBalancer,
+			Hasher: hasher,
+		},
+	)
+}
+
+// WithReferenceHashBalancer ReferenceHash负载均衡器
+func WithReferenceHashBalancer(hasher hash.Hash32) broker.PublishOption {
+	return broker.PublishContextWithValue(balancerKey{},
+		&balancerValue{
+			Name:   ReferenceHashBalancer,
+			Hasher: hasher,
+		},
+	)
+}
+
+// WithCrc32Balancer CRC32负载均衡器
+func WithCrc32Balancer(consistent bool) broker.PublishOption {
+	return broker.PublishContextWithValue(balancerKey{},
+		&balancerValue{
+			Name:       Crc32Balancer,
+			Consistent: consistent,
+		},
+	)
+}
+
+// WithMurmur2Balancer Murmur2负载均衡器
+func WithMurmur2Balancer(consistent bool) broker.PublishOption {
+	return broker.PublishContextWithValue(balancerKey{},
+		&balancerValue{
+			Name:       Murmur2Balancer,
+			Consistent: consistent,
+		},
+	)
 }
 
 ///
