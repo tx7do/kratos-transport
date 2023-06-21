@@ -52,8 +52,8 @@ type Server struct {
 	autoStream   bool
 	autoReplay   bool
 
-	OnSubscribe   SubscriberFunction
-	OnUnsubscribe SubscriberFunction
+	subscribeFunc   SubscriberFunction
+	unsubscribeFunc SubscriberFunction
 
 	streamMgr *StreamManager
 }
@@ -183,8 +183,8 @@ func (s *Server) listen() error {
 	return nil
 }
 
-func (s *Server) Publish(id StreamID, event *Event) {
-	stream := s.streamMgr.Get(id)
+func (s *Server) Publish(streamId StreamID, event *Event) {
+	stream := s.streamMgr.Get(streamId)
 	if stream == nil {
 		return
 	}
@@ -195,8 +195,8 @@ func (s *Server) Publish(id StreamID, event *Event) {
 	}
 }
 
-func (s *Server) TryPublish(id StreamID, event *Event) bool {
-	stream := s.streamMgr.Get(id)
+func (s *Server) TryPublish(streamId StreamID, event *Event) bool {
+	stream := s.streamMgr.Get(streamId)
 	if stream == nil {
 		return false
 	}
@@ -209,7 +209,7 @@ func (s *Server) TryPublish(id StreamID, event *Event) bool {
 	}
 }
 
-func (s *Server) PublishData(id StreamID, data MessagePayload) error {
+func (s *Server) PublishData(streamId StreamID, data MessagePayload) error {
 	event := &Event{}
 
 	var err error
@@ -218,7 +218,7 @@ func (s *Server) PublishData(id StreamID, data MessagePayload) error {
 		return err
 	}
 
-	s.Publish(id, event)
+	s.Publish(streamId, event)
 
 	return nil
 }
@@ -226,19 +226,19 @@ func (s *Server) PublishData(id StreamID, data MessagePayload) error {
 func (s *Server) run() {
 }
 
-func (s *Server) createStream(id StreamID) *Stream {
-	stream := newStream(id, s.bufferSize, s.autoReplay, s.autoStream, s.OnSubscribe, s.OnUnsubscribe)
+func (s *Server) createStream(streamId StreamID) *Stream {
+	stream := newStream(streamId, s.bufferSize, s.autoReplay, s.autoStream, s.subscribeFunc, s.unsubscribeFunc)
 	stream.run()
 	return stream
 }
 
-func (s *Server) CreateStream(id StreamID) *Stream {
-	stream := s.streamMgr.Get(id)
+func (s *Server) CreateStream(streamId StreamID) *Stream {
+	stream := s.streamMgr.Get(streamId)
 	if stream != nil {
 		return stream
 	}
 
-	stream = s.createStream(id)
+	stream = s.createStream(streamId)
 
 	s.streamMgr.Add(stream)
 

@@ -84,6 +84,19 @@ func WithHeaders(headers map[string]string) ServerOption {
 	}
 }
 
+func WithSubscriberFunction(sub SubscriberFunction, unsub SubscriberFunction) ServerOption {
+	return func(s *Server) {
+		s.subscribeFunc = sub
+		s.unsubscribeFunc = unsub
+	}
+}
+
+func WithEventTTL(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		s.eventTTL = timeout
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type ClientOption func(o *Client)
