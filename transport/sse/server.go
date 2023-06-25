@@ -84,7 +84,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return "sse"
+	return string(KindSSE)
 }
 
 func (s *Server) Start(ctx context.Context) error {

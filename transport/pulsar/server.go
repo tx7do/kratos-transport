@@ -63,7 +63,7 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return "pulsar"
+	return string(KindPulsar)
 }
 
 func (s *Server) Start(ctx context.Context) error {

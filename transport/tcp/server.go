@@ -76,7 +76,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return "tcp"
+	return string(KindTcp)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

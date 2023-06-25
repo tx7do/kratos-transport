@@ -66,7 +66,7 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return "redis"
+	return string(KindRedis)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

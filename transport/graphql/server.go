@@ -57,7 +57,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return "graphql"
+	return string(KindGraphQL)
 }
 
 func (s *Server) Handle(path string, es graphql.ExecutableSchema) {

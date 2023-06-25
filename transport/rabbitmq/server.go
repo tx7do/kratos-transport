@@ -63,7 +63,7 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return "rabbitmq"
+	return string(KindRabbitMQ)
 }
 
 func (s *Server) Start(ctx context.Context) error {

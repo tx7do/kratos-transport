@@ -63,7 +63,7 @@ func (s *Server) doInjectOptions(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return "kafka"
+	return string(KindKafka)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

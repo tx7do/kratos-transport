@@ -1,4 +1,4 @@
-# SSE Server
+# Server-Sent Events (SSE)
 
 Server-Sent Events（简称 SSE）
 
@@ -153,7 +153,7 @@ const source = new EventSource("http://localhost:3000/sse")
       }
 ```
 
-## 参考资料
+## 参考资料 (Reference)
 
 - [Server-sent events - Wikipedia](https://en.wikipedia.org/wiki/Server-sent_events)
 - [What is Server-Sent Events (SSE) and how to implement it?](https://medium.com/yemeksepeti-teknoloji/what-is-server-sent-events-sse-and-how-to-implement-it-904938bffd73)
@@ -161,3 +161,4 @@ const source = new EventSource("http://localhost:3000/sse")
 - [Golang and Server-Sent Events (SSE)](https://dev.to/rafaelgfirmino/golang-and-sse-3l56)
 - [SSE - Server Sent Events Client/Server Library for Go](https://github.com/r3labs/sse)
 - [Go言語でServerSentEvents(SSE)](https://qiita.com/taqm/items/e132a1aa55690a22b655)
+- [[Go] Try Server-Sent Events](https://dev.to/masanori_msl/go-try-server-sent-events-19fh)

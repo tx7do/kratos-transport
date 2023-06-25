@@ -63,7 +63,7 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return "nats"
+	return string(KindNATS)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

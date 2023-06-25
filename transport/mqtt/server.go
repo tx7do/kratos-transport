@@ -63,7 +63,7 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return "mqtt"
+	return string(KindMQTT)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

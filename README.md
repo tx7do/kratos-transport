@@ -43,6 +43,9 @@
 - [WebSocket](https://zh.wikipedia.org/zh-hant/WebSocket)
 - [HTTP3](https://www.chromium.org/quic/)
 - [WebTransport](https://web.dev/webtransport/)
+- [SSE](https://en.wikipedia.org/wiki/Server-sent_events)
+- [SignalR](https://learn.microsoft.com/en-us/aspnet/signalr/overview/getting-started/introduction-to-signalr)
+- [Socket.IO](https://socket.io/zh-CN/docs/v4/)
 
 ## 支持的消息代理（Broker）
 
@@ -65,4 +68,4 @@
 - [kratos-cqrs](https://github.com/tx7do/kratos-cqrs) 一个CQRS架构模式的示例
 - [kratos-realtimemap](https://github.com/tx7do/kratos-realtimemap) 一个物联网的公共交通实时显示地图的示例
 
-以上示例程序在[Kratos官方示例代码库](https://github.com/go-kratos/examples)中也可以找到。
+以上示例在[Kratos官方示例代码库](https://github.com/go-kratos/examples)中也可以找到。

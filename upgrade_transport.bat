@@ -82,4 +82,12 @@ cd ..\..\transport\tcp\
 go get all
 go mod tidy
 
+cd ..\..\transport\signalr\
+go get all
+go mod tidy
+
+cd ..\..\transport\socketio\
+go get all
+go mod tidy
+
 pause

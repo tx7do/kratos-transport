@@ -65,6 +65,7 @@ func NewServer(opts ...ServerOption) *Server {
 		address:     ":0",
 		timeout:     1 * time.Second,
 		strictSlash: true,
+		path:        "/",
 
 		messageHandlers: make(MessageHandlerMap),
 
@@ -87,7 +88,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return "websocket"
+	return string(KindWebsocket)
 }
 
 func (s *Server) init(opts ...ServerOption) {
@@ -216,6 +217,7 @@ func (s *Server) listen() error {
 	if s.lis == nil {
 		lis, err := net.Listen(s.network, s.address)
 		if err != nil {
+			s.err = err
 			return err
 		}
 		s.lis = lis

@@ -53,7 +53,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return "thrift"
+	return string(KindThrift)
 }
 
 func (s *Server) init(opts ...ServerOption) {
