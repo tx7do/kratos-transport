@@ -26,7 +26,6 @@ func TestServer(t *testing.T) {
 	srv.RegisterConnectHandler("/", func(s socketio.Conn) error {
 		s.SetContext("")
 		log.Info("connected:", s.ID())
-		s.Join("chat")
 		return nil
 	})
 
