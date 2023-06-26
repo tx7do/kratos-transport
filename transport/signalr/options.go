@@ -2,6 +2,7 @@ package signalr
 
 import (
 	"crypto/tls"
+	"github.com/philippseith/signalr"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -54,6 +55,12 @@ func WithStreamBufferCapacity(capacity uint) ServerOption {
 func WithDebug(enable bool) ServerOption {
 	return func(s *Server) {
 		s.debug = enable
+	}
+}
+
+func WithHub(hub signalr.HubInterface) ServerOption {
+	return func(s *Server) {
+		s.hub = hub
 	}
 }
 

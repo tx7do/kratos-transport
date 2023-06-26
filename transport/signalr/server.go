@@ -13,11 +13,11 @@ import (
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
+
 	"github.com/gorilla/mux"
+
 	"github.com/philippseith/signalr"
 )
-
-type ConnectHandler func(HubID, bool)
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -43,7 +43,7 @@ type Server struct {
 	err   error
 	codec encoding.Codec
 
-	hubMgr *HubManager
+	hub signalr.HubInterface
 
 	router *mux.Router
 }
@@ -56,7 +56,6 @@ func NewServer(opts ...ServerOption) *Server {
 		keepAliveInterval:    2 * time.Second,
 		chanReceiveTimeout:   200 * time.Millisecond,
 		streamBufferCapacity: 5,
-		hubMgr:               NewHubManager(),
 		debug:                false,
 	}
 
@@ -78,11 +77,21 @@ func (s *Server) Start(ctx context.Context) error {
 
 	log.Infof("[signalr] server listening on: %s", s.lis.Addr().String())
 
+	//handler := handlers.CORS(
+	//	handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"}),
+	//	handlers.AllowedOrigins([]string{"http://localhost:63342"}),
+	//	handlers.AllowedHeaders([]string{"x-requested-with", "x-signalr-user-agent"}),
+	//	handlers.ExposedHeaders([]string{"x-requested-with", "x-signalr-user-agent"}),
+	//	handlers.AllowCredentials(),
+	//)(s.router)
+
+	handler := s.CORS(s.router)
+
 	var err error
 	if s.tlsConf != nil {
-		err = http.ServeTLS(s.lis, s.router, "", "")
+		err = http.ServeTLS(s.lis, handler, "", "")
 	} else {
-		err = http.Serve(s.lis, s.router)
+		err = http.Serve(s.lis, handler)
 	}
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -116,6 +125,26 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return endpoint, nil
 }
 
+func (s *Server) HandleFunc(pattern string, handler func(w http.ResponseWriter, r *http.Request)) {
+	s.router.HandleFunc(pattern, handler).
+		Methods("GET", "POST", "OPTIONS")
+}
+
+func (s *Server) Handle(pattern string, handler http.Handler) {
+	s.router.Handle(pattern, handler).
+		Methods("GET", "POST", "OPTIONS")
+}
+
+func (s *Server) withHTTPServeMux() func() signalr.MappableRouter {
+	return func() signalr.MappableRouter {
+		return s
+	}
+}
+
+func (s *Server) MapHTTP(path string) {
+	s.Server.MapHTTP(s.withHTTPServeMux(), path)
+}
+
 func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
@@ -123,7 +152,8 @@ func (s *Server) init(opts ...ServerOption) {
 
 	server, err := signalr.NewServer(context.Background(),
 		signalr.Logger(&logger{}, s.debug),
-		signalr.HubFactory(s.createHub),
+		//signalr.HubFactory(s.createHub),
+		signalr.SimpleHubFactory(s.hub),
 		signalr.KeepAliveInterval(s.keepAliveInterval),
 		signalr.ChanReceiveTimeout(s.chanReceiveTimeout),
 		signalr.StreamBufferCapacity(s.streamBufferCapacity),
@@ -146,14 +176,4 @@ func (s *Server) listen() error {
 	}
 
 	return nil
-}
-
-func (s *Server) createHub() signalr.HubInterface {
-	hub := NewHub(s)
-	s.hubMgr.Add(hub)
-	return hub
-}
-
-func (s *Server) SessionCount() int {
-	return s.hubMgr.Count()
 }

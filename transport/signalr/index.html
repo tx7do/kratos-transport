@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>SignalR Client</title>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+</head>
+
+<body>
+<input type="text" id="message"/>
+<input type="button" value="Broadcast" id="broadcast"/>
+<input type="button" value="Echo" id="echo"/>
+<input type="button" value="Panic" id="panic"/>
+<input type="button" value="RequestTuple" id="requesttuple"/>
+<input type="button" value="RequestAsync" id="requestasync"/>
+<input type="button" value="Stream" id="stream"/>
+<input type="button" value="Stop Stream" id="stopstream"/>
+<input type="button" value="Upstream" id="upstream"/>
+<input type="button" value="Stop/Start Client Connection" id="stop"/>
+<input type="button" value="Abort Server Connection" id="abort"/>
+<ul id="messages">
+</ul>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.7/signalr.js"></script>
+
+<script>
+    let subscription;
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl('http://localhost:8100/chat')
+        .withAutomaticReconnect()
+        .build();
+
+    document.getElementById('broadcast').addEventListener('click', () => {
+        let val = document.getElementById('message').value;
+        if (val) {
+            connection.invoke('broadcast', val);
+        }
+    });
+    document.getElementById('echo').addEventListener('click', () => {
+        let val = document.getElementById('message').value;
+        if (val) {
+            connection.invoke('echo', val);
+        }
+    });
+    document.getElementById('panic').addEventListener('click', () => {
+        connection.invoke('panic').catch((err) => {
+            let li = document.createElement('li');
+            li.innerText = err;
+            document.getElementById('messages').appendChild(li);
+        });
+    });
+
+    document.getElementById('requestasync').addEventListener('click', () => {
+        let val = document.getElementById('message').value;
+        if (val) {
+            connection.invoke('requestasync', val).then(val => {
+                let li = document.createElement('li');
+                li.innerText = 'received finally ' + JSON.stringify(val);
+                document.getElementById('messages').appendChild(li);
+            })
+        }
+    });
+
+    document.getElementById('requesttuple').addEventListener('click', () => {
+        let val = document.getElementById('message').value;
+        if (val) {
+            connection.invoke('requesttuple', val).then(val => {
+                let li = document.createElement('li');
+                li.innerText = 'received ' + JSON.stringify(val);
+                document.getElementById('messages').appendChild(li);
+            })
+        }
+    });
+    document.getElementById('stream').addEventListener('click', () => {
+        subscription = connection.stream('datestream').subscribe({
+            next: (item) => {
+                let li = document.createElement('li');
+                li.innerText = 'item ' + item;
+                document.getElementById('messages').appendChild(li);
+            },
+            complete: () => {
+                let li = document.createElement('li');
+                li.innerText = 'complete';
+                document.getElementById('messages').appendChild(li);
+            }
+        })
+    });
+    document.getElementById('stopstream').addEventListener('click', () => {
+        if (subscription) {
+            subscription.dispose()
+        }
+    });
+    document.getElementById('upstream').addEventListener('click', () => {
+        const subject1 = new signalR.Subject();
+        const subject2 = new signalR.Subject();
+        connection.send("uploadstream", subject1, 3, subject2);
+        let iteration1 = 0;
+        const intervalHandle1 = setInterval(() => {
+            iteration1++;
+            subject1.next(iteration1);
+            if (iteration1 === 5) {
+                clearInterval(intervalHandle1);
+                subject1.complete();
+            }
+        }, 500);
+        let iteration2 = 0;
+        const intervalHandle2 = setInterval(() => {
+            iteration2++;
+            subject2.next(iteration2);
+            if (iteration2 === 10) {
+                clearInterval(intervalHandle2);
+                subject2.complete();
+            }
+        }, 100);
+    });
+    document.getElementById('stop').addEventListener('click', () => {
+        connection.stop().then(() => {
+            connection.start();
+        });
+    });
+    document.getElementById('abort').addEventListener('click', () => {
+        connection.send('abort')
+    });
+
+    connection.on('receive', message => {
+        let li = document.createElement('li');
+        li.innerText = 'sent ' + message;
+        document.getElementById('messages').appendChild(li);
+    });
+
+    connection.onclose(error => {
+        console.assert(connection.state === signalR.HubConnectionState.Disconnected);
+        console.log('Connection closed due to error. Try refreshing this page to restart the connection', error);
+    });
+    connection.onreconnecting(error => {
+        console.assert(connection.state === signalR.HubConnectionState.Reconnecting);
+        console.log('Connection lost due to error. Reconnecting.', error);
+    });
+    connection.onreconnected(connectionId => {
+        console.assert(connection.state === signalR.HubConnectionState.Connected);
+        console.log('Connection reestablished. Connected with connectionId', connectionId);
+    });
+
+    async function start() {
+        try {
+            await connection.start();
+            console.assert(connection.state === signalR.HubConnectionState.Connected);
+            console.log('SignalR connection established');
+        } catch (err) {
+            console.assert(connection.state === signalR.HubConnectionState.Disconnected);
+            console.error('SignalR Connection Error: ', err);
+            setTimeout(() => this.start(), 5000);
+        }
+    }
+
+    start();
+
+</script>
+</body>
+
+</html>
