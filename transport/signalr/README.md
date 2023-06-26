@@ -19,3 +19,4 @@ SignalR 在可用的情况下使用新的 WebSocket 传输，并在必要时回�
 - [Introduction to SignalR](https://learn.microsoft.com/en-us/aspnet/signalr/overview/getting-started/introduction-to-signalr)
 - [go-signalr](https://github.com/philippseith/signalr)
 - [SignalR vs. Socket.IO: which one is best for you?](https://ably.com/topic/signalr-vs-socketio)
+- [SignalR 从开发到生产部署闭坑指南](https://juejin.cn/post/7021724750942568456)

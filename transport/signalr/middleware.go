@@ -12,9 +12,6 @@ const (
 	corsAllowMethodsHeader     string = "Access-Control-Allow-Methods"
 	corsAllowHeadersHeader     string = "Access-Control-Allow-Headers"
 	corsAllowCredentialsHeader string = "Access-Control-Allow-Credentials"
-	corsRequestMethodHeader    string = "Access-Control-Request-Method"
-	corsRequestHeadersHeader   string = "Access-Control-Request-Headers"
-	corsOriginMatchAll         string = "*"
 )
 
 func (s *Server) CORS(next http.Handler) http.Handler {
@@ -24,11 +21,10 @@ func (s *Server) CORS(next http.Handler) http.Handler {
 		// 接受指定域的请求
 		w.Header().Set(corsAllowOriginHeader, r.Header.Get("Origin"))
 		// 设置服务器支持的所有跨域请求的方法
-		w.Header().Set(corsAllowMethodsHeader, "POST,GET,OPTIONS")
+		w.Header().Set(corsAllowMethodsHeader, "POST,GET,OPTIONS,PUT,DELETE")
 
 		// 服务器支持的所有头信息字段，不限于浏览器在"预检"中请求的字段
-		w.Header().Set(corsAllowHeadersHeader, "x-requested-with, x-signalr-user-agent")
-		w.Header().Set(corsExposeHeadersHeader, "x-requested-with, x-signalr-user-agent")
+		w.Header().Set(corsAllowHeadersHeader, "Content-Type,x-requested-with,x-signalr-user-agent,Upgrade,Connection")
 		w.Header().Set(corsAllowCredentialsHeader, "true")
 
 		// 放行所有OPTIONS方法

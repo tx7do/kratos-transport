@@ -14,8 +14,6 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 
-	"github.com/gorilla/mux"
-
 	"github.com/philippseith/signalr"
 )
 
@@ -45,14 +43,14 @@ type Server struct {
 
 	hub signalr.HubInterface
 
-	router *mux.Router
+	router *http.ServeMux
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		network:              "tcp",
 		address:              ":0",
-		router:               mux.NewRouter(),
+		router:               http.NewServeMux(),
 		keepAliveInterval:    2 * time.Second,
 		chanReceiveTimeout:   200 * time.Millisecond,
 		streamBufferCapacity: 5,
@@ -125,24 +123,8 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return endpoint, nil
 }
 
-func (s *Server) HandleFunc(pattern string, handler func(w http.ResponseWriter, r *http.Request)) {
-	s.router.HandleFunc(pattern, handler).
-		Methods("GET", "POST", "OPTIONS")
-}
-
-func (s *Server) Handle(pattern string, handler http.Handler) {
-	s.router.Handle(pattern, handler).
-		Methods("GET", "POST", "OPTIONS")
-}
-
-func (s *Server) withHTTPServeMux() func() signalr.MappableRouter {
-	return func() signalr.MappableRouter {
-		return s
-	}
-}
-
 func (s *Server) MapHTTP(path string) {
-	s.Server.MapHTTP(s.withHTTPServeMux(), path)
+	s.Server.MapHTTP(signalr.WithHTTPServeMux(s.router), path)
 }
 
 func (s *Server) init(opts ...ServerOption) {
