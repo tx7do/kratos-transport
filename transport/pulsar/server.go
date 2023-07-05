@@ -2,8 +2,8 @@ package pulsar
 
 import (
 	"context"
+	"github.com/tx7do/kratos-transport/utils"
 	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -38,6 +38,8 @@ type Server struct {
 
 	baseCtx context.Context
 	err     error
+
+	keepAlive *utils.KeepAliveService
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -47,6 +49,7 @@ func NewServer(opts ...ServerOption) *Server {
 		subscriberOpts: SubscribeOptionMap{},
 		brokerOpts:     []broker.Option{},
 		started:        false,
+		keepAlive:      utils.NewKeepAliveService(nil),
 	}
 
 	srv.init(opts...)
@@ -86,6 +89,10 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
+	go func() {
+		_ = s.keepAlive.Start()
+	}()
+
 	log.Infof("[pulsar] server listening on: %s", s.Address())
 
 	s.err = s.doRegisterSubscriberMap()
@@ -110,12 +117,7 @@ func (s *Server) Endpoint() (*url.URL, error) {
 		return nil, s.err
 	}
 
-	addr := s.Address()
-	if !strings.HasPrefix(addr, "pulsar://") {
-		addr = "pulsar://" + addr
-	}
-
-	return url.Parse(addr)
+	return s.keepAlive.Endpoint()
 }
 
 func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {

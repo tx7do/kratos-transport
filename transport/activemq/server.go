@@ -3,13 +3,14 @@ package activemq
 import (
 	"context"
 	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
+
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/stomp"
+	"github.com/tx7do/kratos-transport/utils"
 )
 
 var (
@@ -38,6 +39,8 @@ type Server struct {
 
 	baseCtx context.Context
 	err     error
+
+	keepAlive *utils.KeepAliveService
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -47,6 +50,7 @@ func NewServer(opts ...ServerOption) *Server {
 		subscriberOpts: SubscribeOptionMap{},
 		brokerOpts:     []broker.Option{},
 		started:        false,
+		keepAlive:      utils.NewKeepAliveService(nil),
 	}
 
 	srv.init(opts...)
@@ -86,6 +90,10 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
+	go func() {
+		_ = s.keepAlive.Start()
+	}()
+
 	log.Infof("[activemq] server listening on: %s", s.Address())
 
 	s.err = s.doRegisterSubscriberMap()
@@ -110,12 +118,7 @@ func (s *Server) Endpoint() (*url.URL, error) {
 		return nil, s.err
 	}
 
-	addr := s.Address()
-	if !strings.HasPrefix(addr, "stomp://") {
-		addr = "stomp://" + addr
-	}
-
-	return url.Parse(addr)
+	return s.keepAlive.Endpoint()
 }
 
 func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {

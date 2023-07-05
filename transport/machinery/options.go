@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	DefaultRedisAddress = "127.0.0.1:6379"
+)
+
 type ServerOption func(o *Server)
 
 func WithYamlConfig(cnfPath string, keepReloading bool) ServerOption {

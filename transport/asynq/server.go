@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
+
 	"github.com/hibiken/asynq"
+
+	"github.com/tx7do/kratos-transport/utils"
 )
 
 var (
@@ -36,6 +38,8 @@ type Server struct {
 	asynqConfig   asynq.Config
 	redisOpt      asynq.RedisClientOpt
 	schedulerOpts *asynq.SchedulerOpts
+
+	keepAlive *utils.KeepAliveService
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -52,6 +56,8 @@ func NewServer(opts ...ServerOption) *Server {
 		},
 		schedulerOpts: &asynq.SchedulerOpts{},
 		mux:           asynq.NewServeMux(),
+
+		keepAlive: utils.NewKeepAliveService(nil),
 	}
 
 	srv.init(opts...)
@@ -68,12 +74,7 @@ func (s *Server) Endpoint() (*url.URL, error) {
 		return nil, s.err
 	}
 
-	addr := s.redisOpt.Addr
-	if !strings.HasPrefix(addr, "tcp://") {
-		addr = "tcp://" + addr
-	}
-
-	return url.Parse(addr)
+	return s.keepAlive.Endpoint()
 }
 
 func (s *Server) HandleFunc(pattern string, handler func(context.Context, *asynq.Task) error) error {
@@ -148,6 +149,10 @@ func (s *Server) Start(ctx context.Context) error {
 	if err := s.runAsynqServer(); err != nil {
 		return err
 	}
+
+	go func() {
+		_ = s.keepAlive.Start()
+	}()
 
 	log.Infof("[asynq] server listening on: %s", s.redisOpt.Addr)
 

@@ -3,12 +3,12 @@ package machinery
 import (
 	"context"
 	"errors"
+	"net/url"
+	"sync"
+
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
-	"net/url"
-	"strings"
-	"sync"
 
 	"github.com/RichardKnop/machinery/v2"
 	"github.com/RichardKnop/machinery/v2/config"
@@ -31,15 +31,12 @@ import (
 	"github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/tracing"
+	"github.com/tx7do/kratos-transport/utils"
 )
 
 var (
 	_ transport.Server     = (*Server)(nil)
 	_ transport.Endpointer = (*Server)(nil)
-)
-
-const (
-	defaultRedisAddress = "127.0.0.1:6379"
 )
 
 type redisOption struct {
@@ -69,6 +66,8 @@ type Server struct {
 	tracingOpts    []tracing.Option
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
+
+	keepAlive *utils.KeepAliveService
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -86,6 +85,8 @@ func NewServer(opts ...ServerOption) *Server {
 			consumerTag: "machinery_worker",
 			concurrency: 0,
 		},
+
+		keepAlive: utils.NewKeepAliveService(nil),
 	}
 
 	srv.init(opts...)
@@ -131,21 +132,8 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	if s.cfg == nil {
-		return nil, nil
-	}
 
-	var addr string
-	if len(s.redisOption.brokers) > 0 {
-		addr = s.redisOption.brokers[0]
-		if !strings.HasPrefix(addr, "redis://") {
-			addr = "redis://" + addr
-		}
-	} else {
-		addr = defaultRedisAddress
-	}
-
-	return url.Parse(addr)
+	return s.keepAlive.Endpoint()
 }
 
 func (s *Server) HandleFunc(name string, handler interface{}) error {
@@ -203,6 +191,11 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	endpoint, _ := s.Endpoint()
+
+	go func() {
+		_ = s.keepAlive.Start()
+	}()
+
 	log.Infof("[machinery] server listening on: %s", endpoint.String())
 
 	s.baseCtx = ctx
