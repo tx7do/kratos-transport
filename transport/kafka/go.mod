@@ -4,14 +4,12 @@ go 1.19
 
 replace github.com/tx7do/kratos-transport => ../../
 
-replace google.golang.org/grpc => google.golang.org/grpc v1.46.2
-
 require (
 	github.com/go-kratos/kratos/v2 v2.6.3
 	github.com/segmentio/kafka-go v0.4.40
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.7
-	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230705082858-94b7f93483bc
+	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230705083925-7c3bb5ae5351
 	go.opentelemetry.io/otel v1.16.0
 	go.opentelemetry.io/otel/trace v1.16.0
 )

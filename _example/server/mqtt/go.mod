@@ -2,8 +2,6 @@ module github.com/tx7do/kratos-transport/_example/server/mqtt
 
 go 1.19
 
-replace google.golang.org/grpc => google.golang.org/grpc v1.46.2
-
 require (
 	github.com/go-kratos/kratos/v2 v2.6.2
 	github.com/tx7do/kratos-transport v1.0.6
