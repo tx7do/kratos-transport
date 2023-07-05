@@ -67,5 +67,6 @@
 - [kratos-chatroom](https://github.com/tx7do/kratos-chatroom) 一个简单的Websocket聊天室的示例
 - [kratos-cqrs](https://github.com/tx7do/kratos-cqrs) 一个CQRS架构模式的示例
 - [kratos-realtimemap](https://github.com/tx7do/kratos-realtimemap) 一个物联网的公共交通实时显示地图的示例
+- [kratos-bi](https://github.com/tx7do/kratos-bi) 一个BI系统的示例
 
 以上示例在[Kratos官方示例代码库](https://github.com/go-kratos/examples)中也可以找到。
