@@ -145,34 +145,64 @@ func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, messa
 		return
 	}
 
-	buf, err := s.marshalMessage(messageType, message)
-	if err != nil {
-		log.Error("[websocket] marshal message exception:", err)
-		return
+	switch messageType {
+	case ws.BinaryMessage:
+		buf, err := s.marshalMessage(messageType, message)
+		if err != nil {
+			log.Error("[websocket] marshal message exception:", err)
+			return
+		}
+
+		c.SendMessage(buf)
+		break
+	case ws.TextMessage:
+		buf, err := s.codec.Marshal(message)
+		if err != nil {
+			log.Error("[websocket] marshal message exception:", err)
+			return
+		}
+
+		c.sendTextMessage(string(buf))
+		break
 	}
 
-	c.SendMessage(buf)
 }
 
 func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
-	buf, err := s.marshalMessage(messageType, message)
-	if err != nil {
-		log.Error(" [websocket] marshal message exception:", err)
-		return
+	switch messageType {
+	case ws.BinaryMessage:
+		buf, err := s.marshalMessage(messageType, message)
+		if err != nil {
+			log.Error(" [websocket] marshal message exception:", err)
+			return
+		}
+
+		s.sessionMgr.Range(func(session *Session) {
+			session.SendMessage(buf)
+		})
+		break
+	case ws.TextMessage:
+		buf, err := s.codec.Marshal(message)
+		if err != nil {
+			log.Error("[websocket] marshal message exception:", err)
+			return
+		}
+
+		s.sessionMgr.Range(func(session *Session) {
+			session.sendTextMessage(string(buf))
+		})
+		break
 	}
 
-	s.sessionMgr.Range(func(session *Session) {
-		session.SendMessage(buf)
-	})
 }
 
-func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
+func (s *Server) messageHandler(sessionId SessionID, messageType MessageType, buf []byte) error {
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
 		log.Errorf("[websocket] decode message exception: %s", err)
 		return err
 	}
-
+	msg.Type = messageType
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
 		log.Error("[websocket] message type not found:", msg.Type)
@@ -181,6 +211,11 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 
 	var payload MessagePayload
 
+	switch messageType {
+	case ws.TextMessage:
+		msg.Body = buf
+		break
+	}
 	if handlerData.Binder != nil {
 		payload = handlerData.Binder()
 	} else {
@@ -191,12 +226,11 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 		log.Errorf("[websocket] unmarshal message exception: %s", err)
 		return err
 	}
-
-	if err := handlerData.Handler(sessionId, payload); err != nil {
+	// log.Debug(msg.Body)
+	if err := handlerData.Handler(sessionId, msg.Body); err != nil {
 		log.Errorf("[websocket] message handler exception: %s", err)
 		return err
 	}
-
 	return nil
 }
 
