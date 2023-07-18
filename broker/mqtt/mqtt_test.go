@@ -85,6 +85,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_, err := b.Subscribe("topic/bobo/#",
 		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
+		broker.WithSubscribeContext(context.Background()),
 	)
 	assert.Nil(t, err)
 
@@ -143,6 +144,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	_, err := b.Subscribe("topic/bobo/#",
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
+		broker.WithSubscribeContext(context.Background()),
 	)
 	assert.Nil(t, err)
 
