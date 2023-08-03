@@ -7,7 +7,7 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/go-kratos/kratos/v2 v2.6.3
 	github.com/google/uuid v1.3.0
-	github.com/segmentio/kafka-go v0.4.40
+	github.com/segmentio/kafka-go v0.4.42
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.7
 	go.opentelemetry.io/otel v1.16.0

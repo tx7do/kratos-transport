@@ -443,7 +443,8 @@ func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...br
 		log.Errorf("WriteMessages error: %s", err.Error())
 		switch cached {
 		case false:
-			if kerr, ok := err.(kafkaGo.Error); ok {
+			var kerr kafkaGo.Error
+			if errors.As(err, &kerr) {
 				if kerr.Temporary() && !kerr.Timeout() {
 					time.Sleep(200 * time.Millisecond)
 					err = writer.WriteMessages(options.Context, kMsg)
@@ -535,7 +536,8 @@ func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.
 		log.Errorf("WriteMessages error: %s", err.Error())
 		switch cached {
 		case false:
-			if kerr, ok := err.(kafkaGo.Error); ok {
+			var kerr kafkaGo.Error
+			if errors.As(err, &kerr) {
 				if kerr.Temporary() && !kerr.Timeout() {
 					time.Sleep(200 * time.Millisecond)
 					err = b.writer.Writer.WriteMessages(options.Context, kMsg)
