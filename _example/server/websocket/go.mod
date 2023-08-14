@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/openzipkin/zipkin-go v0.4.1 // indirect
-	github.com/tx7do/kratos-transport v1.0.7 // indirect
+	github.com/tx7do/kratos-transport v1.0.8 // indirect
 	go.opentelemetry.io/otel v1.16.0 // indirect
 	go.opentelemetry.io/otel/exporters/jaeger v1.16.0 // indirect
 	go.opentelemetry.io/otel/exporters/zipkin v1.16.0 // indirect

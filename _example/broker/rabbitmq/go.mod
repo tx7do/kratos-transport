@@ -3,7 +3,7 @@ module github.com/tx7do/kratos-transport/_example/broker/rabbitmq
 go 1.19
 
 require (
-	github.com/tx7do/kratos-transport v1.0.7
+	github.com/tx7do/kratos-transport v1.0.8
 	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230705083925-7c3bb5ae5351
 )
 

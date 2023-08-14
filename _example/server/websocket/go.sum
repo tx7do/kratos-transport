@@ -28,8 +28,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/stretchr/objx v0.5.0 h1:1zr/of2m5FGMsad5YfcqgdqdWrIhu+EBEJRhR1U7z/c=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
-github.com/tx7do/kratos-transport v1.0.7 h1:AezIJ2VCrM0BIGrKIGKu+nu3U2XKRcUnRF3onRu18JA=
-github.com/tx7do/kratos-transport v1.0.7/go.mod h1:Qt0jPdBgBQAR6gib9iCyVmwDh/MObAPOD0koCraWrBE=
+github.com/tx7do/kratos-transport v1.0.8 h1:AezIJ2VCrM0BIGrKIGKu+nu3U2XKRcUnRF3onRu18JA=
+github.com/tx7do/kratos-transport v1.0.8/go.mod h1:Qt0jPdBgBQAR6gib9iCyVmwDh/MObAPOD0koCraWrBE=
 github.com/tx7do/kratos-transport/transport/websocket v0.0.0-20230705090321-4f6bb9ff3d45 h1:l082uDHhkQmGNxPqmpysrf832QQwYuLXfA10dYWvky4=
 github.com/tx7do/kratos-transport/transport/websocket v0.0.0-20230705090321-4f6bb9ff3d45/go.mod h1:wHMhaX0KSF3UFkl7fkpnjZMjGzePXh8TQAxWjyFMPwc=
 go.opentelemetry.io/otel v1.16.0 h1:Z7GVAX/UkAXPKsy94IU+i6thsQS4nb7LviLpnaNeW8s=

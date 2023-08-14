@@ -100,8 +100,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.5/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230803222306-0904a461c75e h1:ugeVpZNdtVd0wKSRJlgCCBbaQOmqOzhzA+sWKsTZuGE=
-github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230803222306-0904a461c75e/go.mod h1:JC78vk00y0AanCn/nvHBp4VLGbpKTJ+zQwE+QzQP018=
+github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230814131203-4bf39c592e53 h1:IrM9B//SrlrQL5PpE8l6GQe4BGdvcg/LKNOTotQdPvg=
+github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230814131203-4bf39c592e53/go.mod h1:BF3Fg9nHH7aN1mWJiIUYfnkkoLduSVVgM1kkfXixEXc=
 go.opentelemetry.io/otel v1.16.0 h1:Z7GVAX/UkAXPKsy94IU+i6thsQS4nb7LviLpnaNeW8s=
 go.opentelemetry.io/otel v1.16.0/go.mod h1:vl0h9NUa1D5s1nv3A5vZOYWn8av4K8Ml6JDeHrT/bx4=
 go.opentelemetry.io/otel/exporters/jaeger v1.16.0 h1:YhxxmXZ011C0aDZKoNw+juVWAmEfv/0W2XBOv9aHTaA=
