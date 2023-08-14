@@ -109,7 +109,7 @@ func TestAllInOne(t *testing.T) {
 
 	// 最多重试3次，10秒超时，20秒后过期
 	err = srv.NewTask(testTask1, []byte("test string"),
-		asynq.MaxRetry(10),
+		asynq.MaxRetry(3),
 		asynq.Timeout(10*time.Second),
 		asynq.Deadline(time.Now().Add(20*time.Second)))
 	assert.Nil(t, err)
