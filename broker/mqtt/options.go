@@ -14,10 +14,22 @@ type clientIdKey struct{}
 type autoReconnectKey struct{}
 type resumeSubsKey struct{}
 type orderMattersKey struct{}
+type errorLoggerKey struct{}
+type criticalLoggerKey struct{}
+type warnLoggerKey struct{}
+type debugLoggerKey struct{}
+type loggerKey struct{}
 
 type AuthRecord struct {
 	Username string
 	Password string
+}
+
+type LoggerOptions struct {
+	Error    bool
+	Critical bool
+	Warn     bool
+	Debug    bool
 }
 
 // WithCleanSession enable clean session option
@@ -51,6 +63,26 @@ func WithResumeSubs(enable bool) broker.Option {
 // WithOrderMatters .
 func WithOrderMatters(enable bool) broker.Option {
 	return broker.OptionContextWithValue(orderMattersKey{}, enable)
+}
+
+func WithErrorLogger() broker.Option {
+	return broker.OptionContextWithValue(errorLoggerKey{}, true)
+}
+
+func WithCriticalLogger() broker.Option {
+	return broker.OptionContextWithValue(criticalLoggerKey{}, true)
+}
+
+func WithWarnLogger() broker.Option {
+	return broker.OptionContextWithValue(warnLoggerKey{}, true)
+}
+
+func WithDebugLogger() broker.Option {
+	return broker.OptionContextWithValue(debugLoggerKey{}, true)
+}
+
+func WithLogger(opt LoggerOptions) broker.Option {
+	return broker.OptionContextWithValue(loggerKey{}, opt)
 }
 
 ///

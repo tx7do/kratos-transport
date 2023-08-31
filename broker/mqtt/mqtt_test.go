@@ -42,7 +42,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithOptionContext(ctx),
-		broker.WithAddress(LocalRabbitBroker),
+		broker.WithAddress(EmqxBroker),
 	)
 
 	_ = b.Init()
@@ -76,7 +76,11 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := NewBroker(
-		broker.WithAddress(LocalRabbitBroker),
+		broker.WithAddress(EmqxBroker),
+		WithErrorLogger(),
+		WithCriticalLogger(),
+		//WithWarnLogger(),
+		//WithDebugLogger(),
 	)
 	defer b.Disconnect()
 

@@ -1,14 +1,18 @@
 package mqtt
 
 import (
-	mqtt "github.com/eclipse/paho.mqtt.golang"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
 type subscriber struct {
-	opts   broker.SubscribeOptions
-	topic  string
-	client mqtt.Client
+	opts broker.SubscribeOptions
+
+	topic string
+	qos   byte
+
+	client   MQTT.Client
+	callback MQTT.MessageHandler
 }
 
 func (m *subscriber) Options() broker.SubscribeOptions {

@@ -12,9 +12,10 @@ import (
 )
 
 type mqttBroker struct {
-	addrs  []string
-	opts   broker.Options
-	client MQTT.Client
+	addrs       []string
+	opts        broker.Options
+	client      MQTT.Client
+	subscribers []*subscriber
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -70,6 +71,33 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 		cOpts.SetOrderMatters(enabled)
 	}
 
+	if _, ok := opts.Context.Value(errorLoggerKey{}).(bool); ok {
+		MQTT.ERROR = ErrorLogger{}
+	}
+	if _, ok := opts.Context.Value(criticalLoggerKey{}).(bool); ok {
+		MQTT.CRITICAL = CriticalLogger{}
+	}
+	if _, ok := opts.Context.Value(warnLoggerKey{}).(bool); ok {
+		MQTT.WARN = WarnLogger{}
+	}
+	if _, ok := opts.Context.Value(debugLoggerKey{}).(bool); ok {
+		MQTT.DEBUG = DebugLogger{}
+	}
+	if opt, ok := opts.Context.Value(debugLoggerKey{}).(LoggerOptions); ok {
+		if opt.Error {
+			MQTT.ERROR = ErrorLogger{}
+		}
+		if opt.Critical {
+			MQTT.CRITICAL = CriticalLogger{}
+		}
+		if opt.Warn {
+			MQTT.WARN = WarnLogger{}
+		}
+		if opt.Debug {
+			MQTT.DEBUG = DebugLogger{}
+		}
+	}
+
 	return MQTT.NewClient(cOpts)
 }
 
@@ -77,8 +105,9 @@ func newBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &mqttBroker{
-		opts:  options,
-		addrs: options.Addrs,
+		opts:        options,
+		addrs:       options.Addrs,
+		subscribers: make([]*subscriber, 0),
 	}
 
 	b.client = newClient(options.Addrs, options, b)
@@ -131,6 +160,9 @@ func (m *mqttBroker) Disconnect() error {
 		return nil
 	}
 	m.client.Disconnect(0)
+
+	m.subscribers = m.subscribers[:0]
+
 	return nil
 }
 
@@ -180,12 +212,11 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	}
 
 	var qos byte = 1
-
 	if value, ok := options.Context.Value(qosSubscribeKey{}).(byte); ok {
 		qos = value
 	}
 
-	t := m.client.Subscribe(topic, qos, func(c MQTT.Client, mq MQTT.Message) {
+	callback := func(c MQTT.Client, mq MQTT.Message) {
 		var msg broker.Message
 
 		p := &publication{topic: mq.Topic(), msg: &msg}
@@ -198,29 +229,51 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if err := broker.Unmarshal(m.opts.Codec, mq.Payload(), &msg.Body); err != nil {
 			p.err = err
-			log.Error(err)
+			log.Error("mqtt broker unmarshal message failed:", err)
 			return
 		}
 
 		if err := handler(m.opts.Context, p); err != nil {
 			p.err = err
-			log.Error(err)
+			log.Error("mqtt broker handle message failed:", err)
 		}
-	})
+	}
 
-	if rs, err := checkClientToken(t); !rs {
+	if err := m.doSubscribe(topic, qos, callback); err != nil {
 		return nil, err
 	}
 
-	return &subscriber{
-		opts:   options,
-		client: m.client,
-		topic:  topic,
-	}, nil
+	sub := &subscriber{
+		opts:     options,
+		client:   m.client,
+		topic:    topic,
+		qos:      qos,
+		callback: callback,
+	}
+
+	m.subscribers = append(m.subscribers, sub)
+
+	return sub, nil
+}
+
+func (m *mqttBroker) doSubscribe(topic string, qos byte, callback MQTT.MessageHandler) error {
+	t := m.client.Subscribe(topic, qos, callback)
+
+	if rs, err := checkClientToken(t); !rs {
+		return err
+	}
+
+	return nil
 }
 
 func (m *mqttBroker) onConnect(_ MQTT.Client) {
 	log.Debug("on connect")
+
+	for _, sub := range m.subscribers {
+		if err := m.doSubscribe(sub.topic, sub.qos, sub.callback); err != nil {
+			log.Error("mqtt broker subscribe message failed:", err)
+		}
+	}
 }
 
 func (m *mqttBroker) onConnectionLost(client MQTT.Client, _ error) {
