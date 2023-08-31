@@ -67,7 +67,7 @@ func NewServer(opts ...ServerOption) *Server {
 			DB:   0,
 		},
 		asynqConfig: asynq.Config{
-			Concurrency: 10,
+			Concurrency: 20,
 			Logger:      newLogger(),
 		},
 		schedulerOpts: &asynq.SchedulerOpts{},
@@ -142,41 +142,64 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 	}
 
 	task := asynq.NewTask(typeName, payload)
+	if task == nil {
+		return errors.New("new task failed")
+	}
+
 	info, err := s.asynqClient.Enqueue(task, opts...)
 	if err != nil {
 		LogErrorf("[%s] Enqueue failed: %s", typeName, err.Error())
 		return err
 	}
-	LogDebugf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
+
+	LogDebugf("[%s] enqueued task: id=%s queue=%s", typeName, info.ID, info.Queue)
 
 	return nil
 }
 
 // NewPeriodicTask enqueue a new crontab task
-func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts ...asynq.Option) error {
+func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts ...asynq.Option) (string, error) {
 	if s.asynqScheduler == nil {
 		if err := s.createAsynqScheduler(); err != nil {
-			return err
+			return "", err
 		}
 		if err := s.runAsynqScheduler(); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	payload, err := broker.Marshal(s.codec, msg)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	task := asynq.NewTask(typeName, payload)
+	if task == nil {
+		return "", errors.New("new task failed")
+	}
 
 	entryID, err := s.asynqScheduler.Register(cronSpec, task, opts...)
 	if err != nil {
-		LogErrorf("[%s] Enqueue failed: %s", typeName, err.Error())
+		LogErrorf("[%s] enqueue periodic task failed: %s", typeName, err.Error())
+		return "", err
+	}
+
+	LogDebugf("[%s]  registered an entry: id=%q", typeName, entryID)
+
+	return entryID, nil
+}
+
+// RemovePeriodicTask remove periodic task
+func (s *Server) RemovePeriodicTask(entryID string) error {
+	if s.asynqScheduler == nil {
+		return nil
+	}
+
+	err := s.asynqScheduler.Unregister(entryID)
+	if err != nil {
+		LogErrorf("[%s] dequeue periodic task failed: %s", entryID, err.Error())
 		return err
 	}
-	LogDebugf("registered an entry: id=%q", entryID)
-
 	return nil
 }
 

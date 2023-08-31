@@ -27,16 +27,6 @@ type DelayTask struct {
 
 func DelayTaskBinder() Any { return &DelayTask{} }
 
-func DelayTaskHandler(taskType string, payload MessagePayload) error {
-	switch t := payload.(type) {
-	case *DelayTask:
-		return handleTask1(taskType, t)
-	default:
-		LogError("invalid payload struct type:", t)
-		return errors.New("invalid payload struct type")
-	}
-}
-
 func handleTask1(taskType string, taskData *DelayTask) error {
 	LogInfof("Task Type: [%s], Payload: [%s]", taskType, taskData.Message)
 	return nil
@@ -64,7 +54,11 @@ func TestNewTask(t *testing.T) {
 		WithAddress(localRedisAddr),
 	)
 
-	err = srv.NewTask(testTask1, []byte("test string"), asynq.MaxRetry(10), asynq.Timeout(3*time.Minute))
+	err = srv.NewTask(testTask1,
+		&DelayTask{Message: "delay task"},
+		asynq.MaxRetry(10),
+		asynq.Timeout(3*time.Minute),
+	)
 	assert.Nil(t, err)
 
 	if err = srv.Start(ctx); err != nil {
@@ -183,18 +177,27 @@ func TestAllInOne(t *testing.T) {
 	assert.Nil(t, err)
 
 	// 最多重试3次，10秒超时，20秒后过期
-	err = srv.NewTask(testTask1, []byte("test string"),
+	err = srv.NewTask(testTask1,
+		&DelayTask{Message: "delay task"},
 		asynq.MaxRetry(3),
 		asynq.Timeout(10*time.Second),
-		asynq.Deadline(time.Now().Add(20*time.Second)))
+		asynq.Deadline(time.Now().Add(20*time.Second)),
+	)
 	assert.Nil(t, err)
 
 	// 延迟任务
-	err = srv.NewTask(testDelayTask, DelayTask{Message: "delay task"}, asynq.ProcessIn(3*time.Second))
+	err = srv.NewTask(testDelayTask,
+		&DelayTask{Message: "delay task"},
+		asynq.ProcessIn(3*time.Second),
+	)
 	assert.Nil(t, err)
 
 	// 周期性任务，每分钟执行一次
-	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, &DelayTask{Message: "periodic task"})
+	_, err = srv.NewPeriodicTask(
+		"*/1 * * * ?",
+		testPeriodicTask,
+		&DelayTask{Message: "periodic task"},
+	)
 	assert.Nil(t, err)
 
 	if err = srv.Start(ctx); err != nil {
@@ -237,7 +240,10 @@ func TestDelayTask(t *testing.T) {
 	assert.Nil(t, err)
 
 	// 延迟队列
-	err = srv.NewTask(testDelayTask, &DelayTask{Message: "delay task"}, asynq.ProcessIn(3*time.Second))
+	err = srv.NewTask(testDelayTask,
+		&DelayTask{Message: "delay task"},
+		asynq.ProcessIn(3*time.Second),
+	)
 	assert.Nil(t, err)
 
 	if err = srv.Start(ctx); err != nil {
@@ -261,6 +267,7 @@ func TestPeriodicTask(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
+		WithRedisAuth("", "@Abcd123456"),
 	)
 
 	var err error
@@ -280,7 +287,7 @@ func TestPeriodicTask(t *testing.T) {
 	assert.Nil(t, err)
 
 	// 每分钟执行一次
-	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, &DelayTask{Message: "periodic task"})
+	_, err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask, &DelayTask{Message: "periodic task"})
 	assert.Nil(t, err)
 
 	if err = srv.Start(ctx); err != nil {

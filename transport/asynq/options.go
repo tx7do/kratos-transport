@@ -23,15 +23,21 @@ func WithRedisAuth(userName, password string) ServerOption {
 	}
 }
 
-func WithRedisPoolSize(size int) ServerOption {
+func WithRedisPassword(password string) ServerOption {
 	return func(s *Server) {
-		s.redisOpt.PoolSize = size
+		s.redisOpt.Password = password
 	}
 }
 
 func WithRedisDatabase(db int) ServerOption {
 	return func(s *Server) {
 		s.redisOpt.DB = db
+	}
+}
+
+func WithRedisPoolSize(size int) ServerOption {
+	return func(s *Server) {
+		s.redisOpt.PoolSize = size
 	}
 }
 
