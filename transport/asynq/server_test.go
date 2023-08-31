@@ -267,7 +267,7 @@ func TestPeriodicTask(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
-		WithRedisAuth("", "@Abcd123456"),
+		WithRedisPassword("123456"),
 	)
 
 	var err error
