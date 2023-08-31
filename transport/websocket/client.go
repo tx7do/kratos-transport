@@ -1,12 +1,12 @@
 package websocket
 
 import (
+	"encoding/json"
 	"errors"
 	"net/url"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 	ws "github.com/gorilla/websocket"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -17,7 +17,7 @@ type ClientHandlerData struct {
 	Handler ClientMessageHandler
 	Binder  Binder
 }
-type ClientMessageHandlerMap map[MessageType]ClientHandlerData
+type ClientMessageHandlerMap map[MessageType]*ClientHandlerData
 
 type Client struct {
 	conn *ws.Conn
@@ -29,6 +29,8 @@ type Client struct {
 	messageHandlers ClientMessageHandlerMap
 
 	timeout time.Duration
+
+	payloadType PayloadType
 }
 
 func NewClient(opts ...ClientOption) *Client {
@@ -37,6 +39,7 @@ func NewClient(opts ...ClientOption) *Client {
 		timeout:         1 * time.Second,
 		codec:           encoding.GetCodec("json"),
 		messageHandlers: make(ClientMessageHandlerMap),
+		payloadType:     PayloadTypeBinary,
 	}
 
 	cli.init(opts...)
@@ -57,11 +60,11 @@ func (c *Client) Connect() error {
 		return errors.New("endpoint is nil")
 	}
 
-	log.Infof("[websocket] connecting to %s", c.endpoint.String())
+	LogInfof("connecting to %s", c.endpoint.String())
 
 	conn, resp, err := ws.DefaultDialer.Dial(c.endpoint.String(), nil)
 	if err != nil {
-		log.Errorf("%s [%v]", err.Error(), resp)
+		LogErrorf("%s [%v]", err.Error(), resp)
 		return err
 	}
 	c.conn = conn
@@ -74,7 +77,7 @@ func (c *Client) Connect() error {
 func (c *Client) Disconnect() {
 	if c.conn != nil {
 		if err := c.conn.Close(); err != nil {
-			log.Errorf("[websocket] disconnect error: %s", err.Error())
+			LogErrorf("disconnect error: %s", err.Error())
 		}
 		c.conn = nil
 	}
@@ -85,25 +88,71 @@ func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientM
 		return
 	}
 
-	c.messageHandlers[messageType] = ClientHandlerData{handler, binder}
+	c.messageHandlers[messageType] = &ClientHandlerData{handler, binder}
 }
 
 func (c *Client) DeregisterMessageHandler(messageType MessageType) {
 	delete(c.messageHandlers, messageType)
 }
 
-func (c *Client) SendMessage(messageType int, message interface{}) error {
-	var msg Message
-	msg.Type = MessageType(messageType)
-	msg.Body, _ = broker.Marshal(c.codec, message)
+func (c *Client) marshalMessage(messageType MessageType, message MessagePayload) ([]byte, error) {
+	var err error
+	var buff []byte
 
-	buff, err := msg.Marshal()
+	switch c.payloadType {
+	case PayloadTypeBinary:
+		var msg BinaryMessage
+		msg.Type = messageType
+		msg.Body, err = broker.Marshal(c.codec, message)
+		if err != nil {
+			return nil, err
+		}
+		buff, err = msg.Marshal()
+		if err != nil {
+			return nil, err
+		}
+		break
+
+	case PayloadTypeText:
+		var buf []byte
+		var msg TextMessage
+		msg.Type = messageType
+		buf, err = broker.Marshal(c.codec, message)
+		msg.Body = string(buf)
+		if err != nil {
+			return nil, err
+		}
+		buff, err = json.Marshal(msg)
+		if err != nil {
+			return nil, err
+		}
+		break
+	}
+
+	//LogInfo("marshalMessage:", string(buff))
+
+	return buff, nil
+}
+
+func (c *Client) SendMessage(messageType MessageType, message interface{}) error {
+	buff, err := c.marshalMessage(messageType, message)
 	if err != nil {
+		LogError("marshal message exception:", err)
 		return err
 	}
 
-	if err := c.sendBinaryMessage(buff); err != nil {
-		return err
+	switch c.payloadType {
+	case PayloadTypeBinary:
+		if err = c.sendBinaryMessage(buff); err != nil {
+			return err
+		}
+		break
+
+	case PayloadTypeText:
+		if err = c.sendTextMessage(string(buff)); err != nil {
+			return err
+		}
+		break
 	}
 
 	return nil
@@ -132,7 +181,7 @@ func (c *Client) run() {
 		messageType, data, err := c.conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
-				log.Errorf("[websocket] read message error: %v", err)
+				LogErrorf("read message error: %v", err)
 			}
 			return
 		}
@@ -140,20 +189,22 @@ func (c *Client) run() {
 		switch messageType {
 		case ws.CloseMessage:
 			return
+
 		case ws.BinaryMessage:
 			_ = c.messageHandler(data)
 			break
 
 		case ws.TextMessage:
-			log.Error("[websocket] not support text message")
+			_ = c.messageHandler(data)
 			break
 
 		case ws.PingMessage:
 			if err := c.sendPongMessage(""); err != nil {
-				log.Error("[websocket] write pong message error: ", err)
+				LogError("write pong message error: ", err)
 				return
 			}
 			break
+
 		case ws.PongMessage:
 			break
 		}
@@ -161,34 +212,80 @@ func (c *Client) run() {
 	}
 }
 
-func (c *Client) messageHandler(buf []byte) error {
-	var msg Message
-	if err := msg.Unmarshal(buf); err != nil {
-		log.Errorf("[websocket] decode message exception: %s", err)
-		return err
-	}
-
-	handlerData, ok := c.messageHandlers[msg.Type]
-	if !ok {
-		log.Error("[websocket] message type not found:", msg.Type)
-		return errors.New("message handler not found")
-	}
-
+func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayload, error) {
+	var handler *ClientHandlerData
 	var payload MessagePayload
 
-	if handlerData.Binder != nil {
-		payload = handlerData.Binder()
-	} else {
-		payload = msg.Body
+	switch c.payloadType {
+	case PayloadTypeBinary:
+		var msg BinaryMessage
+		if err := msg.Unmarshal(buf); err != nil {
+			LogErrorf("decode message exception: %s", err)
+			return nil, nil, err
+		}
+
+		var ok bool
+		handler, ok = c.messageHandlers[msg.Type]
+		if !ok {
+			LogError("message handler not found:", msg.Type)
+			return nil, nil, errors.New("message handler not found")
+		}
+
+		if handler.Binder != nil {
+			payload = handler.Binder()
+		} else {
+			payload = msg.Body
+		}
+
+		if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
+			LogErrorf("unmarshal message exception: %s", err)
+			return nil, nil, err
+		}
+		//LogDebug(string(msg.Body))
+
+	case PayloadTypeText:
+		var msg TextMessage
+		if err := msg.Unmarshal(buf); err != nil {
+			LogErrorf("decode message exception: %s", err)
+			return nil, nil, err
+		}
+
+		var ok bool
+		handler, ok = c.messageHandlers[msg.Type]
+		if !ok {
+			LogError("message handler not found:", msg.Type)
+			return nil, nil, errors.New("message handler not found")
+		}
+
+		if handler.Binder != nil {
+			payload = handler.Binder()
+		} else {
+			payload = msg.Body
+		}
+
+		if err := broker.Unmarshal(c.codec, []byte(msg.Body), &payload); err != nil {
+			LogErrorf("unmarshal message exception: %s", err)
+			return nil, nil, err
+		}
+		//LogDebug(string(msg.Body))
 	}
 
-	if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
-		log.Errorf("[websocket] unmarshal message exception: %s", err)
+	return handler, payload, nil
+}
+
+func (c *Client) messageHandler(buf []byte) error {
+	var err error
+	var handler *ClientHandlerData
+	var payload MessagePayload
+
+	if handler, payload, err = c.unmarshalMessage(buf); err != nil {
+		LogErrorf("unmarshal message failed: %s", err)
 		return err
 	}
+	//LogDebug(payload)
 
-	if err := handlerData.Handler(payload); err != nil {
-		log.Errorf("[websocket] message handler exception: %s", err)
+	if err = handler.Handler(payload); err != nil {
+		LogErrorf("message handler exception: %s", err)
 		return err
 	}
 

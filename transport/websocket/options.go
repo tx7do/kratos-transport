@@ -8,6 +8,13 @@ import (
 	"github.com/go-kratos/kratos/v2/encoding"
 )
 
+type PayloadType uint8
+
+const (
+	PayloadTypeBinary = 0
+	PayloadTypeText   = 1
+)
+
 type ServerOption func(o *Server)
 
 func WithNetwork(network string) ServerOption {
@@ -64,6 +71,12 @@ func WithChannelBufferSize(size int) ServerOption {
 	}
 }
 
+func WithPayloadType(payloadType PayloadType) ServerOption {
+	return func(s *Server) {
+		s.payloadType = payloadType
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type ClientOption func(o *Client)
@@ -77,5 +90,11 @@ func WithClientCodec(c string) ClientOption {
 func WithEndpoint(uri string) ClientOption {
 	return func(o *Client) {
 		o.url = uri
+	}
+}
+
+func WithClientPayloadType(payloadType PayloadType) ClientOption {
+	return func(c *Client) {
+		c.payloadType = payloadType
 	}
 }

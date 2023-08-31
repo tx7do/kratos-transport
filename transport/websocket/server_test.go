@@ -24,10 +24,11 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithAddress(":8100"),
+		WithAddress(":10000"),
 		WithPath("/"),
 		WithConnectHandle(handleConnect),
 		WithCodec("json"),
+		//WithPayloadType(PayloadTypeText),
 	)
 
 	srv.RegisterMessageHandler(api.MessageTypeChat,
@@ -36,7 +37,8 @@ func TestServer(t *testing.T) {
 			case *api.ChatMessage:
 				return handleChatMessage(sessionId, t)
 			default:
-				return errors.New("invalid payload type")
+				LogError("invalid payload struct type:", t)
+				return errors.New("invalid payload struct type")
 			}
 		},
 		func() Any { return &api.ChatMessage{} },
@@ -74,7 +76,7 @@ func handleChatMessage(sessionId SessionID, message *api.ChatMessage) error {
 }
 
 func TestGob(t *testing.T) {
-	var msg Message
+	var msg BinaryMessage
 	msg.Type = api.MessageTypeChat
 	msg.Body = []byte("")
 
@@ -86,7 +88,7 @@ func TestGob(t *testing.T) {
 }
 
 func TestMessageMarshal(t *testing.T) {
-	var msg Message
+	var msg BinaryMessage
 	msg.Type = 10000
 	msg.Body = []byte("Hello World")
 
@@ -95,7 +97,7 @@ func TestMessageMarshal(t *testing.T) {
 
 	fmt.Printf("%s\n", string(buf))
 
-	var msg1 Message
+	var msg1 BinaryMessage
 	_ = msg1.Unmarshal(buf)
 
 	fmt.Printf("[%d] [%s]\n", msg1.Type, string(msg1.Body))

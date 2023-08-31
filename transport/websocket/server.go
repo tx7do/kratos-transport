@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -11,9 +12,10 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
+
 	ws "github.com/gorilla/websocket"
+
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -27,7 +29,7 @@ type HandlerData struct {
 	Handler MessageHandler
 	Binder  Binder
 }
-type MessageHandlerMap map[MessageType]HandlerData
+type MessageHandlerMap map[MessageType]*HandlerData
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -57,6 +59,8 @@ type Server struct {
 
 	register   chan *Session
 	unregister chan *Session
+
+	payloadType PayloadType
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -78,6 +82,8 @@ func NewServer(opts ...ServerOption) *Server {
 
 		register:   make(chan *Session),
 		unregister: make(chan *Session),
+
+		payloadType: PayloadTypeBinary,
 	}
 
 	srv.init(opts...)
@@ -112,7 +118,7 @@ func (s *Server) RegisterMessageHandler(messageType MessageType, handler Message
 		return
 	}
 
-	s.messageHandlers[messageType] = HandlerData{
+	s.messageHandlers[messageType] = &HandlerData{
 		handler, binder,
 	}
 }
@@ -123,17 +129,39 @@ func (s *Server) DeregisterMessageHandler(messageType MessageType) {
 
 func (s *Server) marshalMessage(messageType MessageType, message MessagePayload) ([]byte, error) {
 	var err error
-	var msg Message
-	msg.Type = messageType
-	msg.Body, err = broker.Marshal(s.codec, message)
-	if err != nil {
-		return nil, err
+	var buff []byte
+
+	switch s.payloadType {
+	case PayloadTypeBinary:
+		var msg BinaryMessage
+		msg.Type = messageType
+		msg.Body, err = broker.Marshal(s.codec, message)
+		if err != nil {
+			return nil, err
+		}
+		buff, err = msg.Marshal()
+		if err != nil {
+			return nil, err
+		}
+		break
+
+	case PayloadTypeText:
+		var buf []byte
+		var msg TextMessage
+		msg.Type = messageType
+		buf, err = broker.Marshal(s.codec, message)
+		msg.Body = string(buf)
+		if err != nil {
+			return nil, err
+		}
+		buff, err = json.Marshal(msg)
+		if err != nil {
+			return nil, err
+		}
+		break
 	}
 
-	buff, err := msg.Marshal()
-	if err != nil {
-		return nil, err
-	}
+	//LogInfo("marshalMessage:", string(buff))
 
 	return buff, nil
 }
@@ -141,103 +169,130 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
 	c, ok := s.sessionMgr.Get(sessionId)
 	if !ok {
-		log.Error("[websocket] session not found:", sessionId)
+		LogError("session not found:", sessionId)
 		return
 	}
 
-	switch messageType {
-	case ws.BinaryMessage:
+	switch s.payloadType {
+	case PayloadTypeBinary:
 		buf, err := s.marshalMessage(messageType, message)
 		if err != nil {
-			log.Error("[websocket] marshal message exception:", err)
+			LogError("marshal message exception:", err)
 			return
 		}
 
 		c.SendMessage(buf)
 		break
-	case ws.TextMessage:
+
+	case PayloadTypeText:
 		buf, err := s.codec.Marshal(message)
 		if err != nil {
-			log.Error("[websocket] marshal message exception:", err)
+			LogError("marshal message exception:", err)
 			return
 		}
 
-		c.sendTextMessage(string(buf))
+		c.SendMessage(buf)
 		break
 	}
 
 }
 
 func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
-	switch messageType {
-	case ws.BinaryMessage:
-		buf, err := s.marshalMessage(messageType, message)
-		if err != nil {
-			log.Error(" [websocket] marshal message exception:", err)
-			return
-		}
-
-		s.sessionMgr.Range(func(session *Session) {
-			session.SendMessage(buf)
-		})
-		break
-	case ws.TextMessage:
-		buf, err := s.codec.Marshal(message)
-		if err != nil {
-			log.Error("[websocket] marshal message exception:", err)
-			return
-		}
-
-		s.sessionMgr.Range(func(session *Session) {
-			session.sendTextMessage(string(buf))
-		})
-		break
+	buf, err := s.marshalMessage(messageType, message)
+	if err != nil {
+		LogError(" marshal message exception:", err)
+		return
 	}
 
+	s.sessionMgr.Range(func(session *Session) {
+		session.SendMessage(buf)
+	})
 }
 
-func (s *Server) messageHandler(sessionId SessionID, messageType MessageType, buf []byte) error {
-	var msg Message
-	if err := msg.Unmarshal(buf); err != nil {
-		log.Errorf("[websocket] decode message exception: %s", err)
-		return err
-	}
-	msg.Type = messageType
-	handlerData, ok := s.messageHandlers[msg.Type]
-	if !ok {
-		log.Error("[websocket] message type not found:", msg.Type)
-		return errors.New("message handler not found")
-	}
-
+func (s *Server) unmarshalMessage(buf []byte) (*HandlerData, MessagePayload, error) {
+	var handler *HandlerData
 	var payload MessagePayload
 
-	switch messageType {
-	case ws.TextMessage:
-		msg.Body = buf
-		break
-	}
-	if handlerData.Binder != nil {
-		payload = handlerData.Binder()
-	} else {
-		payload = msg.Body
+	switch s.payloadType {
+	case PayloadTypeBinary:
+		var msg BinaryMessage
+		if err := msg.Unmarshal(buf); err != nil {
+			LogErrorf("decode message exception: %s", err)
+			return nil, nil, err
+		}
+
+		var ok bool
+		handler, ok = s.messageHandlers[msg.Type]
+		if !ok {
+			LogError("message handler not found:", msg.Type)
+			return nil, nil, errors.New("message handler not found")
+		}
+
+		if handler.Binder != nil {
+			payload = handler.Binder()
+		} else {
+			payload = msg.Body
+		}
+
+		if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
+			LogErrorf("unmarshal message exception: %s", err)
+			return nil, nil, err
+		}
+		//LogDebug(string(msg.Body))
+
+	case PayloadTypeText:
+		var msg TextMessage
+		if err := msg.Unmarshal(buf); err != nil {
+			LogErrorf("decode message exception: %s", err)
+			return nil, nil, err
+		}
+
+		var ok bool
+		handler, ok = s.messageHandlers[msg.Type]
+		if !ok {
+			LogError("message handler not found:", msg.Type)
+			return nil, nil, errors.New("message handler not found")
+		}
+
+		if handler.Binder != nil {
+			payload = handler.Binder()
+		} else {
+			payload = msg.Body
+		}
+
+		if err := broker.Unmarshal(s.codec, []byte(msg.Body), &payload); err != nil {
+			LogErrorf("unmarshal message exception: %s", err)
+			return nil, nil, err
+		}
+		//LogDebug(string(msg.Body))
 	}
 
-	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
-		log.Errorf("[websocket] unmarshal message exception: %s", err)
+	return handler, payload, nil
+}
+
+func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
+	var err error
+	var handler *HandlerData
+	var payload MessagePayload
+
+	if handler, payload, err = s.unmarshalMessage(buf); err != nil {
+		LogErrorf("unmarshal message failed: %s", err)
 		return err
 	}
-	// log.Debug(msg.Body)
-	if err := handlerData.Handler(sessionId, msg.Body); err != nil {
-		log.Errorf("[websocket] message handler exception: %s", err)
+	//LogDebug(payload)
+
+	if err = handler.Handler(sessionId, payload); err != nil {
+		LogErrorf("message handler failed: %s", err)
 		return err
 	}
+
 	return nil
 }
 
 func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	conn, err := s.upgrader.Upgrade(res, req, nil)
 	if err != nil {
-		log.Error("[websocket] upgrade exception:", err)
+		LogError("upgrade exception:", err)
 		return
 	}
 
@@ -298,7 +353,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	log.Infof("[websocket] server listening on: %s", s.lis.Addr().String())
+	LogInfof("server listening on: %s", s.lis.Addr().String())
 
 	go s.run()
 
@@ -315,6 +370,6 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[websocket] server stopping")
+	LogInfo("server stopping")
 	return s.Shutdown(ctx)
 }

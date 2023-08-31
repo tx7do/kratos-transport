@@ -19,8 +19,16 @@ var testClient *Client
 
 func handleClientChatMessage(message *api.ChatMessage) error {
 	fmt.Printf("Payload: %v\n", message)
-	_ = testClient.SendMessage(api.MessageTypeChat, message)
+	_ = sendChatMessage(message.Sender, message.Message)
 	return nil
+}
+
+func sendChatMessage(sender, msg string) error {
+	chatMsg := &api.ChatMessage{
+		Sender:  sender,
+		Message: msg,
+	}
+	return testClient.SendMessage(api.MessageTypeChat, chatMsg)
 }
 
 func TestClient(t *testing.T) {
@@ -28,8 +36,9 @@ func TestClient(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	cli := NewClient(
-		WithEndpoint("ws://localhost:8100/"),
+		WithEndpoint("ws://localhost:10000/"),
 		WithClientCodec("json"),
+		//WithClientPayloadType(PayloadTypeText),
 	)
 	defer cli.Disconnect()
 
@@ -52,10 +61,7 @@ func TestClient(t *testing.T) {
 		t.Error(err)
 	}
 
-	//chatMsg := &api.ChatMessage{
-	//	Message: "Hello, World!",
-	//}
-	//_ = cli.SendMessage(api.MessageTypeChat, chatMsg)
+	_ = sendChatMessage("ws", "Hello, World!")
 
 	<-interrupt
 }

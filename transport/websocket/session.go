@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 )
@@ -59,10 +58,10 @@ func (c *Session) Listen() {
 }
 
 func (c *Session) closeConnect() {
-	//log.Info(c.SessionID(), " connection closed")
+	//LogInfo(c.SessionID(), " connection closed")
 	if c.conn != nil {
 		if err := c.conn.Close(); err != nil {
-			log.Errorf("[websocket] disconnect error: %s", err.Error())
+			LogErrorf("disconnect error: %s", err.Error())
 		}
 		c.conn = nil
 	}
@@ -90,10 +89,23 @@ func (c *Session) writePump() {
 	for {
 		select {
 		case msg := <-c.send:
-			if err := c.sendBinaryMessage(msg); err != nil {
-				log.Error("[websocket] write message error: ", err)
-				return
+			var err error
+			switch c.server.payloadType {
+			case PayloadTypeBinary:
+				if err = c.sendBinaryMessage(msg); err != nil {
+					LogError("write binary message error: ", err)
+					return
+				}
+				break
+
+			case PayloadTypeText:
+				if err = c.sendTextMessage(string(msg)); err != nil {
+					LogError("write text message error: ", err)
+					return
+				}
+				break
 			}
+
 		}
 	}
 }
@@ -105,7 +117,7 @@ func (c *Session) readPump() {
 		messageType, data, err := c.conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
-				log.Errorf("[websocket] read message error: %v", err)
+				LogErrorf("read message error: %v", err)
 			}
 			return
 		}
@@ -113,19 +125,23 @@ func (c *Session) readPump() {
 		switch messageType {
 		case ws.CloseMessage:
 			return
+
 		case ws.BinaryMessage:
-			_ = c.server.messageHandler(c.SessionID(), MessageType(messageType), data)
+			_ = c.server.messageHandler(c.SessionID(), data)
 			break
+
+		case ws.TextMessage:
+			_ = c.server.messageHandler(c.SessionID(), data)
+			break
+
 		case ws.PingMessage:
 			if err := c.sendPongMessage(""); err != nil {
-				log.Error("[websocket] write pong message error: ", err)
+				LogError("write pong message error: ", err)
 				return
 			}
 			break
+
 		case ws.PongMessage:
-			break
-		case ws.TextMessage:
-			_ = c.server.messageHandler(c.SessionID(), MessageType(messageType), data)
 			break
 		}
 
