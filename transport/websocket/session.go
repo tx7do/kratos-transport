@@ -114,7 +114,7 @@ func (c *Session) readPump() {
 		case ws.CloseMessage:
 			return
 		case ws.BinaryMessage:
-			_ = c.server.messageHandler(c.SessionID(), data)
+			_ = c.server.messageHandler(c.SessionID(), MessageType(messageType), data)
 			break
 		case ws.PingMessage:
 			if err := c.sendPongMessage(""); err != nil {
@@ -125,7 +125,7 @@ func (c *Session) readPump() {
 		case ws.PongMessage:
 			break
 		case ws.TextMessage:
-			log.Error("[websocket] not support text message")
+			_ = c.server.messageHandler(c.SessionID(), MessageType(messageType), data)
 			break
 		}
 
