@@ -196,7 +196,7 @@ func (s *Server) Start(ctx context.Context) error {
 		_ = s.keepAlive.Start()
 	}()
 
-	log.Infof("[machinery] server listening on: %s", endpoint.String())
+	LogInfof("server listening on: %s", endpoint.String())
 
 	s.baseCtx = ctx
 	s.started = true
@@ -205,7 +205,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[machinery] server stopping")
+	LogInfo("server stopping")
 	s.started = false
 
 	s.machineryServer = nil

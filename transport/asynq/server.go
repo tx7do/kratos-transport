@@ -6,13 +6,27 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/hibiken/asynq"
 
+	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/utils"
 )
+
+type Any interface{}
+type MessagePayload Any
+
+type Binder func() Any
+
+type MessageHandler func(string, MessagePayload) error
+
+type HandlerData struct {
+	Handler MessageHandler
+	Binder  Binder
+}
+type MessageHandlerMap map[string]HandlerData
 
 var (
 	_ transport.Server     = (*Server)(nil)
@@ -40,6 +54,8 @@ type Server struct {
 	schedulerOpts *asynq.SchedulerOpts
 
 	keepAlive *utils.KeepAliveService
+
+	codec encoding.Codec
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -58,6 +74,7 @@ func NewServer(opts ...ServerOption) *Server {
 		mux:           asynq.NewServeMux(),
 
 		keepAlive: utils.NewKeepAliveService(nil),
+		codec:     encoding.GetCodec("json"),
 	}
 
 	srv.init(opts...)
@@ -77,45 +94,66 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return s.keepAlive.Endpoint()
 }
 
-func (s *Server) HandleFunc(pattern string, handler func(context.Context, *asynq.Task) error) error {
+// RegisterMessageHandler register message handler
+func (s *Server) RegisterMessageHandler(taskType string, handler MessageHandler, binder Binder) error {
+	return s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
+		var payload MessagePayload
+
+		if binder != nil {
+			payload = binder()
+		} else {
+			payload = task.Payload()
+		}
+
+		if err := broker.Unmarshal(s.codec, task.Payload(), &payload); err != nil {
+			LogErrorf("unmarshal message failed: %s", err)
+			return err
+		}
+
+		if err := handler(task.Type(), payload); err != nil {
+			LogErrorf("handle message failed: %s", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (s *Server) handleFunc(pattern string, handler func(context.Context, *asynq.Task) error) error {
 	if s.started {
-		log.Errorf("[asynq] HandleFunc [%s] failed", pattern)
+		LogErrorf("handleFunc [%s] failed", pattern)
 		return errors.New("cannot handle func, server already started")
 	}
 	s.mux.HandleFunc(pattern, handler)
 	return nil
 }
 
-func (s *Server) Handle(pattern string, handler asynq.Handler) error {
-	if s.started {
-		log.Errorf("[asynq] Handle [%s] failed", pattern)
-		return errors.New("cannot handle, server already started")
-	}
-	s.mux.Handle(pattern, handler)
-	return nil
-}
-
 // NewTask enqueue a new task
-func (s *Server) NewTask(typeName string, payload []byte, opts ...asynq.Option) error {
+func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
 	if s.asynqClient == nil {
 		if err := s.createAsynqClient(); err != nil {
 			return err
 		}
 	}
 
+	payload, err := broker.Marshal(s.codec, msg)
+	if err != nil {
+		return err
+	}
+
 	task := asynq.NewTask(typeName, payload)
 	info, err := s.asynqClient.Enqueue(task, opts...)
 	if err != nil {
-		log.Errorf("[asynq] [%s] Enqueue failed: %s", typeName, err.Error())
+		LogErrorf("[%s] Enqueue failed: %s", typeName, err.Error())
 		return err
 	}
-	log.Debugf("[asynq] enqueued task: id=%s queue=%s", info.ID, info.Queue)
+	LogDebugf("enqueued task: id=%s queue=%s", info.ID, info.Queue)
 
 	return nil
 }
 
 // NewPeriodicTask enqueue a new crontab task
-func (s *Server) NewPeriodicTask(cronSpec, typeName string, payload []byte, opts ...asynq.Option) error {
+func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts ...asynq.Option) error {
 	if s.asynqScheduler == nil {
 		if err := s.createAsynqScheduler(); err != nil {
 			return err
@@ -125,18 +163,24 @@ func (s *Server) NewPeriodicTask(cronSpec, typeName string, payload []byte, opts
 		}
 	}
 
+	payload, err := broker.Marshal(s.codec, msg)
+	if err != nil {
+		return err
+	}
+
 	task := asynq.NewTask(typeName, payload)
 
 	entryID, err := s.asynqScheduler.Register(cronSpec, task, opts...)
 	if err != nil {
-		log.Errorf("[asynq] [%s] Enqueue failed: %s", typeName, err.Error())
+		LogErrorf("[%s] Enqueue failed: %s", typeName, err.Error())
 		return err
 	}
-	log.Debugf("[asynq] registered an entry: id=%q", entryID)
+	LogDebugf("registered an entry: id=%q", entryID)
 
 	return nil
 }
 
+// Start  server
 func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
@@ -154,7 +198,7 @@ func (s *Server) Start(ctx context.Context) error {
 		_ = s.keepAlive.Start()
 	}()
 
-	log.Infof("[asynq] server listening on: %s", s.redisOpt.Addr)
+	LogInfof("server listening on: %s", s.redisOpt.Addr)
 
 	s.baseCtx = ctx
 	s.started = true
@@ -162,8 +206,9 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop  server
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[asynq] server stopping")
+	LogInfo("server stopping")
 	s.started = false
 
 	if s.asynqClient != nil {
@@ -191,71 +236,76 @@ func (s *Server) init(opts ...ServerOption) {
 	_ = s.createAsynqServer()
 }
 
+// createAsynqServer create asynq server
 func (s *Server) createAsynqServer() error {
 	if s.asynqServer != nil {
-		log.Errorf("[asynq] asynq server already created")
+		LogErrorf("asynq server already created")
 		return errors.New("asynq server already created")
 	}
 
 	s.asynqServer = asynq.NewServer(s.redisOpt, s.asynqConfig)
 	if s.asynqServer == nil {
-		log.Errorf("[asynq] create asynq server failed")
+		LogErrorf("create asynq server failed")
 		return errors.New("create asynq server failed")
 	}
 	return nil
 }
 
+// runAsynqServer run asynq server
 func (s *Server) runAsynqServer() error {
 	if s.asynqServer == nil {
-		log.Errorf("[asynq] asynq server is nil")
+		LogErrorf("asynq server is nil")
 		return errors.New("asynq server is nil")
 	}
 
 	if err := s.asynqServer.Run(s.mux); err != nil {
-		log.Errorf("[asynq] asynq server run failed: %s", err.Error())
+		LogErrorf("asynq server run failed: %s", err.Error())
 		return err
 	}
 	return nil
 }
 
+// createAsynqClient create asynq client
 func (s *Server) createAsynqClient() error {
 	if s.asynqClient != nil {
-		log.Errorf("[asynq] asynq client already created")
+		LogErrorf("asynq client already created")
 		return errors.New("asynq client already created")
 	}
 
 	s.asynqClient = asynq.NewClient(s.redisOpt)
 	if s.asynqClient == nil {
-		log.Errorf("[asynq] create asynq client failed")
+		LogErrorf("create asynq client failed")
 		return errors.New("create asynq client failed")
 	}
 
 	return nil
 }
 
+// createAsynqScheduler create asynq scheduler
 func (s *Server) createAsynqScheduler() error {
 	if s.asynqScheduler != nil {
-		log.Errorf("[asynq] asynq scheduler already created")
+		LogErrorf("asynq scheduler already created")
 		return errors.New("asynq scheduler already created")
 	}
 
 	s.asynqScheduler = asynq.NewScheduler(s.redisOpt, s.schedulerOpts)
 	if s.asynqScheduler == nil {
-		log.Errorf("[asynq] create asynq scheduler failed")
+		LogErrorf("create asynq scheduler failed")
 		return errors.New("create asynq scheduler failed")
 	}
 
 	return nil
 }
 
+// runAsynqScheduler run asynq scheduler
 func (s *Server) runAsynqScheduler() error {
 	if s.asynqScheduler == nil {
-		log.Errorf("[asynq] asynq scheduler is nil")
+		LogErrorf("asynq scheduler is nil")
 		return errors.New("asynq scheduler is nil")
 	}
 
 	if err := s.asynqScheduler.Start(); err != nil {
-		log.Errorf("[asynq] asynq scheduler start failed: %s", err.Error())
+		LogErrorf("asynq scheduler start failed: %s", err.Error())
 		return err
 	}
 	return nil

@@ -2,6 +2,7 @@ package asynq
 
 import (
 	"crypto/tls"
+	"github.com/go-kratos/kratos/v2/encoding"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -133,5 +134,11 @@ func WithMiddleware(m ...asynq.MiddlewareFunc) ServerOption {
 func WithLocation(loc *time.Location) ServerOption {
 	return func(s *Server) {
 		s.schedulerOpts.Location = loc
+	}
+}
+
+func WithCodec(c string) ServerOption {
+	return func(s *Server) {
+		s.codec = encoding.GetCodec(c)
 	}
 }
