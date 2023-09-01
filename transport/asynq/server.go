@@ -94,8 +94,8 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return s.keepAlive.Endpoint()
 }
 
-// RegisterMessageHandler register message handler
-func (s *Server) RegisterMessageHandler(taskType string, handler MessageHandler, binder Binder) error {
+// RegisterSubscriber register task subscriber
+func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, binder Binder) error {
 	return s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
 		var payload MessagePayload
 
@@ -136,8 +136,10 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 		}
 	}
 
-	payload, err := broker.Marshal(s.codec, msg)
-	if err != nil {
+	var err error
+
+	var payload []byte
+	if payload, err = broker.Marshal(s.codec, msg); err != nil {
 		return err
 	}
 
@@ -146,13 +148,13 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 		return errors.New("new task failed")
 	}
 
-	info, err := s.asynqClient.Enqueue(task, opts...)
+	taskInfo, err := s.asynqClient.Enqueue(task, opts...)
 	if err != nil {
 		LogErrorf("[%s] Enqueue failed: %s", typeName, err.Error())
 		return err
 	}
 
-	LogDebugf("[%s] enqueued task: id=%s queue=%s", typeName, info.ID, info.Queue)
+	LogDebugf("[%s] enqueued task: id=%s queue=%s", typeName, taskInfo.ID, taskInfo.Queue)
 
 	return nil
 }
