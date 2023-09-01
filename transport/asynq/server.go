@@ -195,11 +195,11 @@ func (s *Server) RemovePeriodicTask(entryID string) error {
 		return nil
 	}
 
-	err := s.asynqScheduler.Unregister(entryID)
-	if err != nil {
+	if err := s.asynqScheduler.Unregister(entryID); err != nil {
 		LogErrorf("[%s] dequeue periodic task failed: %s", entryID, err.Error())
 		return err
 	}
+
 	return nil
 }
 
@@ -213,7 +213,13 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
+	if err := s.runAsynqScheduler(); err != nil {
+		LogError("run async scheduler failed", err)
+		return err
+	}
+
 	if err := s.runAsynqServer(); err != nil {
+		LogError("run async server failed", err)
 		return err
 	}
 
@@ -240,7 +246,7 @@ func (s *Server) Stop(_ context.Context) error {
 	}
 
 	if s.asynqServer != nil {
-		s.asynqServer.Stop()
+		s.asynqServer.Shutdown()
 		s.asynqServer = nil
 	}
 
@@ -256,14 +262,25 @@ func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
-	_ = s.createAsynqServer()
+	var err error
+	if err = s.createAsynqServer(); err != nil {
+		s.err = err
+		LogError("create asynq server failed:", err)
+	}
+	if err = s.createAsynqClient(); err != nil {
+		s.err = err
+		LogError("create asynq client failed:", err)
+	}
+	if err = s.createAsynqScheduler(); err != nil {
+		s.err = err
+		LogError("create asynq scheduler failed:", err)
+	}
 }
 
 // createAsynqServer create asynq server
 func (s *Server) createAsynqServer() error {
 	if s.asynqServer != nil {
-		LogErrorf("asynq server already created")
-		return errors.New("asynq server already created")
+		return nil
 	}
 
 	s.asynqServer = asynq.NewServer(s.redisOpt, s.asynqConfig)
@@ -291,8 +308,7 @@ func (s *Server) runAsynqServer() error {
 // createAsynqClient create asynq client
 func (s *Server) createAsynqClient() error {
 	if s.asynqClient != nil {
-		LogErrorf("asynq client already created")
-		return errors.New("asynq client already created")
+		return nil
 	}
 
 	s.asynqClient = asynq.NewClient(s.redisOpt)
@@ -307,8 +323,7 @@ func (s *Server) createAsynqClient() error {
 // createAsynqScheduler create asynq scheduler
 func (s *Server) createAsynqScheduler() error {
 	if s.asynqScheduler != nil {
-		LogErrorf("asynq scheduler already created")
-		return errors.New("asynq scheduler already created")
+		return nil
 	}
 
 	s.asynqScheduler = asynq.NewScheduler(s.redisOpt, s.schedulerOpts)
@@ -331,5 +346,6 @@ func (s *Server) runAsynqScheduler() error {
 		LogErrorf("asynq scheduler start failed: %s", err.Error())
 		return err
 	}
+
 	return nil
 }
