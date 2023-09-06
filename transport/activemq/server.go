@@ -2,6 +2,7 @@ package activemq
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"sync"
 
@@ -141,6 +142,28 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler b
 		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, opts: opts}
 	}
 	return nil
+}
+
+func RegisterSubscriber[T any](srv *Server, ctx context.Context, topic string, handler func(context.Context, string, broker.Headers, *T) error, opts ...broker.SubscribeOption) error {
+	return srv.RegisterSubscriber(ctx,
+		topic,
+		func(ctx context.Context, event broker.Event) error {
+			switch t := event.Message().Body.(type) {
+			case *T:
+				if err := handler(ctx, event.Topic(), event.Message().Headers, t); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported type: %T", t)
+			}
+			return nil
+		},
+		func() broker.Any {
+			var t *T
+			return t
+		},
+		opts...,
+	)
 }
 
 func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {
