@@ -2,7 +2,6 @@ package asynq
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,7 +24,7 @@ type TaskPayload struct {
 	Message string `json:"message"`
 }
 
-func DelayTaskBinder() Any { return &TaskPayload{} }
+func DelayTaskBinder() any { return &TaskPayload{} }
 
 func handleTask1(taskType string, taskData *TaskPayload) error {
 	LogInfof("Task Type: [%s], Payload: [%s]", taskType, taskData.Message)
@@ -121,16 +120,8 @@ func TestDelayTask(t *testing.T) {
 		WithAddress(localRedisAddr),
 	)
 
-	err = srv.RegisterSubscriber(testDelayTask,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handleDelayTask(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv, testDelayTask,
+		handleDelayTask,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
@@ -167,16 +158,9 @@ func TestPeriodicTask(t *testing.T) {
 		WithRedisPassword("123456"),
 	)
 
-	err = srv.RegisterSubscriber(testPeriodicTask,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handlePeriodicTask(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv,
+		testPeriodicTask,
+		handlePeriodicTask,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
@@ -214,44 +198,23 @@ func TestTaskSubscribe(t *testing.T) {
 		WithRedisPassword("123456"),
 	)
 
-	err = srv.RegisterSubscriber(testTask1,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handleTask1(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv,
+		testTask1,
+		handleTask1,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
-	err = srv.RegisterSubscriber(testDelayTask,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handleDelayTask(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv,
+		testDelayTask,
+		handleDelayTask,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
-	err = srv.RegisterSubscriber(testPeriodicTask,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handlePeriodicTask(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv,
+		testPeriodicTask,
+		handlePeriodicTask,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
@@ -281,44 +244,23 @@ func TestAllInOne(t *testing.T) {
 		WithAddress(localRedisAddr),
 	)
 
-	err = srv.RegisterSubscriber(testTask1,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handleTask1(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv,
+		testTask1,
+		handleTask1,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
-	err = srv.RegisterSubscriber(testDelayTask,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handleDelayTask(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv,
+		testDelayTask,
+		handleDelayTask,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
-	err = srv.RegisterSubscriber(testPeriodicTask,
-		func(taskType string, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *TaskPayload:
-				return handlePeriodicTask(taskType, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
+	err = RegisterSubscriber[TaskPayload](srv,
+		testPeriodicTask,
+		handlePeriodicTask,
 		DelayTaskBinder,
 	)
 	assert.Nil(t, err)

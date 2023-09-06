@@ -15,10 +15,9 @@ import (
 	"github.com/tx7do/kratos-transport/utils"
 )
 
-type Any interface{}
-type MessagePayload Any
+type MessagePayload any
 
-type Binder func() Any
+type Binder func() any
 
 type MessageHandler func(string, MessagePayload) error
 
@@ -117,6 +116,21 @@ func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, bin
 
 		return nil
 	})
+}
+
+func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string, *T) error, binder Binder) error {
+	return srv.RegisterSubscriber(taskType,
+		func(taskType string, payload MessagePayload) error {
+			switch t := payload.(type) {
+			case *T:
+				return handler(taskType, t)
+			default:
+				LogError("invalid payload struct type:", t)
+				return errors.New("invalid payload struct type")
+			}
+		},
+		binder,
+	)
 }
 
 func (s *Server) handleFunc(pattern string, handler func(context.Context, *asynq.Task) error) error {
