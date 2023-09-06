@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/nsq"
 )
@@ -24,7 +23,12 @@ const (
 	testTopic   = "test_topic"
 )
 
-func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
+type Hygrothermograph struct {
+	Humidity    float64 `json:"humidity"`
+	Temperature float64 `json:"temperature"`
+}
+
+func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error {
 	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
@@ -75,7 +79,7 @@ func TestClient(t *testing.T) {
 		t.Skip()
 	}
 
-	var msg api.Hygrothermograph
+	var msg Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()

@@ -24,8 +24,6 @@ type TaskPayload struct {
 	Message string `json:"message"`
 }
 
-func DelayTaskBinder() any { return &TaskPayload{} }
-
 func handleTask1(taskType string, taskData *TaskPayload) error {
 	LogInfof("Task Type: [%s], Payload: [%s]", taskType, taskData.Message)
 	return nil
