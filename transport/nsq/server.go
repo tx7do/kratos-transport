@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -90,7 +89,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.err = s.Init()
 	if s.err != nil {
-		log.Errorf("[nsq] init broker failed: [%s]", s.err.Error())
+		LogErrorf("[nsq] init broker failed: [%s]", s.err.Error())
 		return s.err
 	}
 
@@ -103,7 +102,7 @@ func (s *Server) Start(ctx context.Context) error {
 		_ = s.keepAlive.Start()
 	}()
 
-	log.Infof("[nsq] server listening on: %s", s.Address())
+	LogInfof("server listening on: %s", s.Address())
 
 	s.err = s.doRegisterSubscriberMap()
 	if s.err != nil {
@@ -117,7 +116,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[nsq] server stopping")
+	LogInfof("server stopping")
 	s.started = false
 	return s.Disconnect()
 }

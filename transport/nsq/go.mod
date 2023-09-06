@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.8
-	github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230906223126-6908f98df854
+	github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230906232053-7155ada8ba6a
 )
 
 require (
