@@ -158,7 +158,7 @@ func TestPeriodicTask(t *testing.T) {
 		WithRedisPassword("123456"),
 	)
 
-	err = RegisterSubscriber[TaskPayload](srv,
+	err = RegisterSubscriber(srv,
 		testPeriodicTask,
 		handlePeriodicTask,
 	)

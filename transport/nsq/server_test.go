@@ -40,9 +40,9 @@ func TestServer(t *testing.T) {
 		WithCodec("json"),
 	)
 
-	err := srv.RegisterSubscriber(testTopic,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		api.HygrothermographCreator,
+	err := RegisterSubscriber(srv,
+		testTopic,
+		handleHygrothermograph,
 	)
 	assert.Nil(t, err)
 

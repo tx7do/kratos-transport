@@ -2,6 +2,7 @@ package nsq
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"sync"
 
@@ -150,4 +151,25 @@ func (s *Server) doRegisterSubscriberMap() error {
 	}
 	s.subscriberOpts = SubscribeOptionMap{}
 	return nil
+}
+
+func RegisterSubscriber[T any](srv *Server, topic string, handler func(context.Context, string, broker.Headers, *T) error, opts ...broker.SubscribeOption) error {
+	return srv.RegisterSubscriber(topic,
+		func(ctx context.Context, event broker.Event) error {
+			switch t := event.Message().Body.(type) {
+			case *T:
+				if err := handler(ctx, event.Topic(), event.Message().Headers, t); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported type: %T", t)
+			}
+			return nil
+		},
+		func() broker.Any {
+			var t *T
+			return t
+		},
+		opts...,
+	)
 }
