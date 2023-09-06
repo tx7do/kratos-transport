@@ -118,7 +118,7 @@ func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, bin
 	})
 }
 
-func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string, *T) error, binder Binder) error {
+func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string, *T) error) error {
 	return srv.RegisterSubscriber(taskType,
 		func(taskType string, payload MessagePayload) error {
 			switch t := payload.(type) {
@@ -129,7 +129,10 @@ func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string
 				return errors.New("invalid payload struct type")
 			}
 		},
-		binder,
+		func() any {
+			var t T
+			return &t
+		},
 	)
 }
 

@@ -120,9 +120,9 @@ func TestDelayTask(t *testing.T) {
 		WithAddress(localRedisAddr),
 	)
 
-	err = RegisterSubscriber[TaskPayload](srv, testDelayTask,
+	err = RegisterSubscriber[TaskPayload](srv,
+		testDelayTask,
 		handleDelayTask,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
@@ -161,7 +161,6 @@ func TestPeriodicTask(t *testing.T) {
 	err = RegisterSubscriber[TaskPayload](srv,
 		testPeriodicTask,
 		handlePeriodicTask,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
@@ -201,21 +200,18 @@ func TestTaskSubscribe(t *testing.T) {
 	err = RegisterSubscriber[TaskPayload](srv,
 		testTask1,
 		handleTask1,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
 	err = RegisterSubscriber[TaskPayload](srv,
 		testDelayTask,
 		handleDelayTask,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
 	err = RegisterSubscriber[TaskPayload](srv,
 		testPeriodicTask,
 		handlePeriodicTask,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
@@ -247,21 +243,18 @@ func TestAllInOne(t *testing.T) {
 	err = RegisterSubscriber[TaskPayload](srv,
 		testTask1,
 		handleTask1,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
 	err = RegisterSubscriber[TaskPayload](srv,
 		testDelayTask,
 		handleDelayTask,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
 	err = RegisterSubscriber[TaskPayload](srv,
 		testPeriodicTask,
 		handlePeriodicTask,
-		DelayTaskBinder,
 	)
 	assert.Nil(t, err)
 
