@@ -1,33 +1,17 @@
-cd ..\_example\broker\kafka\
-go get all
-go mod tidy
+::指定起始文件夹
+set DIR1="%cd%\..\_example\broker"
+set DIR2="%cd%\..\_example\server"
 
-cd ..\..\..\_example\broker\mqtt\
-go get all
-go mod tidy
+for /R %DIR1% /d %%i in (*) do (
+    echo %%i
+    cd %%i
+    go get all
+    go mod tidy
+)
 
-cd ..\..\..\_example\broker\rabbitmq\
-go get all
-go mod tidy
-
-cd ..\..\..\_example\broker\redis\
-go get all
-go mod tidy
-
-cd ..\..\..\_example\server\kafka\
-go get all
-go mod tidy
-
-cd ..\..\..\_example\server\mqtt\
-go get all
-go mod tidy
-
-cd ..\..\..\_example\server\rabbitmq\
-go get all
-go mod tidy
-
-cd ..\..\..\_example\server\websocket\
-go get all
-go mod tidy
-
-pause
+for /R %DIR2% /d %%i in (*) do (
+    echo %%i
+    cd %%i
+    go get all
+    go mod tidy
+)
