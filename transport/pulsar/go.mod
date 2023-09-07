@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.8
-	github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230906234509-92233a351884
+	github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230907024821-2d179e4f27e7
 	go.opentelemetry.io/otel v1.17.0
 	go.opentelemetry.io/otel/trace v1.17.0
 )
@@ -58,7 +58,6 @@ require (
 	golang.org/x/oauth2 v0.12.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/term v0.12.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	google.golang.org/grpc v1.58.0 // indirect
