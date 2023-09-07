@@ -9,7 +9,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.42
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.10
-	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230907065350-9f4dc8808825
+	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230907071603-4549cf31adb5
 	go.opentelemetry.io/otel v1.17.0
 	go.opentelemetry.io/otel/trace v1.17.0
 )

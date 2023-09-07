@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+
 	"math/rand"
 	"net"
 	"net/http"
@@ -11,26 +12,36 @@ import (
 
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type KeepAliveService struct {
-	*http.Server
+	*grpc.Server
+	health *health.Server
+
 	lis      net.Listener
 	tlsConf  *tls.Config
 	endpoint *url.URL
-	router   *http.ServeMux
 }
 
 func NewKeepAliveService(tlsConf *tls.Config) *KeepAliveService {
 	srv := &KeepAliveService{
 		tlsConf: tlsConf,
-	}
-	srv.Server = &http.Server{
-		TLSConfig: srv.tlsConf,
+		health:  health.NewServer(),
 	}
 
-	srv.router = http.NewServeMux()
-	srv.Server.Handler = srv.router
+	var grpcOpts []grpc.ServerOption
+	if srv.tlsConf != nil {
+		grpcOpts = append(grpcOpts, grpc.Creds(credentials.NewTLS(srv.tlsConf)))
+	}
+
+	srv.Server = grpc.NewServer(grpcOpts...)
+
+	grpc_health_v1.RegisterHealthServer(srv.Server, srv.health)
 
 	return srv
 }
@@ -40,18 +51,11 @@ func (s *KeepAliveService) Start() error {
 		return err
 	}
 
-	s.router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = fmt.Fprintf(w, `{"method":"health"}`)
-	})
+	s.health.Resume()
 
-	log.Debugf("keepalive service started at %s", s.endpoint)
+	log.Debugf("keep alive service started at %s", s.lis.Addr().String())
 
-	var err error
-	if s.tlsConf != nil {
-		err = s.ServeTLS(s.lis, "", "")
-	} else {
-		err = s.Serve(s.lis)
-	}
+	err := s.Serve(s.lis)
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -60,7 +64,12 @@ func (s *KeepAliveService) Start() error {
 }
 
 func (s *KeepAliveService) Stop(ctx context.Context) error {
-	return s.Shutdown(ctx)
+	s.health.Shutdown()
+	s.GracefulStop()
+
+	log.Debug("keep alive service stopping")
+
+	return nil
 }
 
 func (s *KeepAliveService) generatePort(min, max int) int {
