@@ -28,6 +28,13 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
+// WithEnableKeepAlive enable keep alive
+func WithEnableKeepAlive(enable bool) ServerOption {
+	return func(s *Server) {
+		s.enableKeepAlive = enable
+	}
+}
+
 func WithAliyunHttpSupport() ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, rocketmq.WithAliyunHttpSupport())

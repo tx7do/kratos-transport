@@ -43,6 +43,13 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
+// WithEnableKeepAlive enable keep alive
+func WithEnableKeepAlive(enable bool) ServerOption {
+	return func(s *Server) {
+		s.enableKeepAlive = enable
+	}
+}
+
 // WithRedisAddress broker & backend address
 func WithRedisAddress(brokers, backends []string) ServerOption {
 	return func(s *Server) {

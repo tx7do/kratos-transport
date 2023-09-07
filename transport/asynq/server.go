@@ -36,7 +36,8 @@ type Server struct {
 	redisOpt      asynq.RedisClientOpt
 	schedulerOpts *asynq.SchedulerOpts
 
-	keepAlive *utils.KeepAliveService
+	keepAlive       *utils.KeepAliveService
+	enableKeepAlive bool
 
 	codec encoding.Codec
 }
@@ -56,8 +57,10 @@ func NewServer(opts ...ServerOption) *Server {
 		schedulerOpts: &asynq.SchedulerOpts{},
 		mux:           asynq.NewServeMux(),
 
-		keepAlive: utils.NewKeepAliveService(nil),
-		codec:     encoding.GetCodec("json"),
+		keepAlive:       utils.NewKeepAliveService(nil),
+		enableKeepAlive: true,
+
+		codec: encoding.GetCodec("json"),
 	}
 
 	srv.init(opts...)
@@ -227,9 +230,11 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 
-	go func() {
-		_ = s.keepAlive.Start()
-	}()
+	if s.enableKeepAlive {
+		go func() {
+			_ = s.keepAlive.Start()
+		}()
+	}
 
 	LogInfof("server listening on: %s", s.redisOpt.Addr)
 

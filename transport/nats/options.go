@@ -39,6 +39,13 @@ func WithCodec(c string) ServerOption {
 	}
 }
 
+// WithEnableKeepAlive enable keep alive
+func WithEnableKeepAlive(enable bool) ServerOption {
+	return func(s *Server) {
+		s.enableKeepAlive = enable
+	}
+}
+
 func WithGlobalTracerProvider() ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithGlobalTracerProvider())

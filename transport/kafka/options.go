@@ -45,6 +45,13 @@ func WithCodec(c string) ServerOption {
 	}
 }
 
+// WithEnableKeepAlive enable keep alive
+func WithEnableKeepAlive(enable bool) ServerOption {
+	return func(s *Server) {
+		s.enableKeepAlive = enable
+	}
+}
+
 // WithPlainMechanism PLAIN认证信息
 func WithPlainMechanism(username, password string) ServerOption {
 	return func(s *Server) {

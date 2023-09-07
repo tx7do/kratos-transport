@@ -40,17 +40,19 @@ type Server struct {
 	baseCtx context.Context
 	err     error
 
-	keepAlive *utils.KeepAliveService
+	keepAlive       *utils.KeepAliveService
+	enableKeepAlive bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		baseCtx:        context.Background(),
-		subscribers:    SubscriberMap{},
-		subscriberOpts: SubscribeOptionMap{},
-		brokerOpts:     []broker.Option{},
-		started:        false,
-		keepAlive:      utils.NewKeepAliveService(nil),
+		baseCtx:         context.Background(),
+		subscribers:     SubscriberMap{},
+		subscriberOpts:  SubscribeOptionMap{},
+		brokerOpts:      []broker.Option{},
+		started:         false,
+		keepAlive:       utils.NewKeepAliveService(nil),
+		enableKeepAlive: true,
 	}
 
 	srv.doInjectOptions(opts...)
@@ -97,9 +99,11 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	go func() {
-		_ = s.keepAlive.Start()
-	}()
+	if s.enableKeepAlive {
+		go func() {
+			_ = s.keepAlive.Start()
+		}()
+	}
 
 	LogInfof("server listening on: %s", s.Address())
 

@@ -67,7 +67,8 @@ type Server struct {
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
 
-	keepAlive *utils.KeepAliveService
+	keepAlive       *utils.KeepAliveService
+	enableKeepAlive bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -86,7 +87,8 @@ func NewServer(opts ...ServerOption) *Server {
 			concurrency: 0,
 		},
 
-		keepAlive: utils.NewKeepAliveService(nil),
+		keepAlive:       utils.NewKeepAliveService(nil),
+		enableKeepAlive: true,
 	}
 
 	srv.init(opts...)
@@ -111,12 +113,13 @@ func (s *Server) init(opts ...ServerOption) {
 		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
 	}
 
-	s.initLogger()
+	s.installLogger()
 
 	s.createMachineryServer()
 }
 
-func (s *Server) initLogger() {
+// installLogger 安装日志记录器
+func (s *Server) installLogger() {
 	machineryLog.SetDebug(newLogger(log.LevelDebug))
 	machineryLog.SetInfo(newLogger(log.LevelInfo))
 	machineryLog.SetWarning(newLogger(log.LevelWarn))
@@ -157,6 +160,7 @@ func (s *Server) NewPeriodicTask(cronSpec, typeName string, opts ...TaskOption) 
 func (s *Server) NewGroup(groupTasks ...TasksOption) error {
 	return s.newGroup("", "", 0, groupTasks...)
 }
+
 func (s *Server) NewPeriodicGroup(cronSpec string, groupTasks ...TasksOption) error {
 	return s.newGroup(cronSpec, "periodic-group", 0, groupTasks...)
 }
@@ -165,6 +169,7 @@ func (s *Server) NewPeriodicGroup(cronSpec string, groupTasks ...TasksOption) er
 func (s *Server) NewChord(chordTasks ...TasksOption) error {
 	return s.newChord("", "", 0, chordTasks...)
 }
+
 func (s *Server) NewPeriodicChord(cronSpec string, chordTasks ...TasksOption) error {
 	return s.newChord(cronSpec, "periodic-chord", 0, chordTasks...)
 }
@@ -173,6 +178,7 @@ func (s *Server) NewPeriodicChord(cronSpec string, chordTasks ...TasksOption) er
 func (s *Server) NewChain(chainTasks ...TasksOption) error {
 	return s.newChain("", "", chainTasks...)
 }
+
 func (s *Server) NewPeriodicChain(cronSpec string, chainTasks ...TasksOption) error {
 	return s.newChain(cronSpec, "periodic-chain", chainTasks...)
 }
@@ -190,12 +196,13 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 
+	if s.enableKeepAlive {
+		go func() {
+			_ = s.keepAlive.Start()
+		}()
+	}
+
 	endpoint, _ := s.Endpoint()
-
-	go func() {
-		_ = s.keepAlive.Start()
-	}()
-
 	LogInfof("server listening on: %s", endpoint.String())
 
 	s.baseCtx = ctx

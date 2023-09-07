@@ -20,6 +20,13 @@ func WithAddress(addr string) ServerOption {
 	}
 }
 
+// WithEnableKeepAlive enable keep alive
+func WithEnableKeepAlive(enable bool) ServerOption {
+	return func(s *Server) {
+		s.enableKeepAlive = enable
+	}
+}
+
 func WithRedisAuth(userName, password string) ServerOption {
 	return func(s *Server) {
 		s.redisOpt.Username = userName
