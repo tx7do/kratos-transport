@@ -35,8 +35,8 @@ github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjR
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/tx7do/kratos-transport v1.0.10 h1:7Z3oEtg8+ZvEAwQzHzEYNh+Dr79f7GGo0MYb5YOvAJ4=
 github.com/tx7do/kratos-transport v1.0.10/go.mod h1:ZfcYU1EgtLFBwwAstnFYK62iUETv7xs3ofX95tqJqLw=
-github.com/tx7do/kratos-transport/transport/websocket v0.0.0-20230907061843-be73df6a2ace h1:037IfC8PgrDumx/PhTDBBBQNwe1ZFKdUp8TUuZiD1Uo=
-github.com/tx7do/kratos-transport/transport/websocket v0.0.0-20230907061843-be73df6a2ace/go.mod h1:zkk6t9ywocdKz1toTmmFXywBWFFW4EePD7efW2tKPjI=
+github.com/tx7do/kratos-transport/transport/websocket v0.0.0-20230907063631-6abe3f39250f h1:NfbKVpN3uRrfROdVafhRYdfiuVho9yxZSvYlSWtkRB4=
+github.com/tx7do/kratos-transport/transport/websocket v0.0.0-20230907063631-6abe3f39250f/go.mod h1:zkk6t9ywocdKz1toTmmFXywBWFFW4EePD7efW2tKPjI=
 go.opentelemetry.io/otel v1.17.0 h1:MW+phZ6WZ5/uk2nd93ANk/6yJ+dVrvNWUjGhnnFU5jM=
 go.opentelemetry.io/otel v1.17.0/go.mod h1:I2vmBGtFaODIVMBSTPVDlJSzBDNf93k60E6Ft0nyjo0=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.17.0 h1:U5GYackKpVKlPrd/5gKMlrTlP2dCESAAFU682VCpieY=
