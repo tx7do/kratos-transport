@@ -2,10 +2,10 @@ package mqtt
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"sync"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -89,7 +89,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.err = s.Init()
 	if s.err != nil {
-		log.Errorf("[mqtt] init broker failed: [%s]", s.err.Error())
+		LogErrorf("init broker failed: [%s]", s.err.Error())
 		return s.err
 	}
 
@@ -102,7 +102,7 @@ func (s *Server) Start(ctx context.Context) error {
 		_ = s.keepAlive.Start()
 	}()
 
-	log.Infof("[mqtt] server listening on: %s", s.Address())
+	LogInfof("server listening on: %s", s.Address())
 
 	s.err = s.doRegisterSubscriberMap()
 	if s.err != nil {
@@ -116,7 +116,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[mqtt] server stopping")
+	LogInfo("server stopping")
 	s.started = false
 	return s.Disconnect()
 }
@@ -133,6 +133,28 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler b
 		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, opts: opts}
 	}
 	return nil
+}
+
+func RegisterSubscriber[T any](srv *Server, ctx context.Context, topic string, handler func(context.Context, string, broker.Headers, *T) error, opts ...broker.SubscribeOption) error {
+	return srv.RegisterSubscriber(ctx,
+		topic,
+		func(ctx context.Context, event broker.Event) error {
+			switch t := event.Message().Body.(type) {
+			case *T:
+				if err := handler(ctx, event.Topic(), event.Message().Headers, t); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported type: %T", t)
+			}
+			return nil
+		},
+		func() broker.Any {
+			var t T
+			return &t
+		},
+		opts...,
+	)
 }
 
 func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {

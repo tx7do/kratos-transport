@@ -14,7 +14,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/mqtt"
 )
@@ -29,7 +28,12 @@ const (
 	LocalRabbitBroker = "tcp://user:bitnami@127.0.0.1:1883"
 )
 
-func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
+type Hygrothermograph struct {
+	Humidity    float64 `json:"humidity"`
+	Temperature float64 `json:"temperature"`
+}
+
+func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error {
 	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
@@ -45,10 +49,10 @@ func TestServer(t *testing.T) {
 		WithCodec("json"),
 	)
 
-	_ = srv.RegisterSubscriber(ctx,
+	_ = RegisterSubscriber(srv,
+		ctx,
 		"topic/bobo/#",
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		api.HygrothermographCreator,
+		handleHygrothermograph,
 	)
 
 	if err := srv.Start(ctx); err != nil {
@@ -69,7 +73,7 @@ func TestClient(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := mqtt.NewBroker(
-		broker.WithAddress(LocalRabbitBroker),
+		broker.WithAddress(EmqxCnBroker),
 		broker.WithCodec("json"),
 	)
 
@@ -80,7 +84,7 @@ func TestClient(t *testing.T) {
 		t.Skip()
 	}
 
-	var msg api.Hygrothermograph
+	var msg Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
