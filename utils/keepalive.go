@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/go-kratos/kratos/v2/errors"
+	"github.com/go-kratos/kratos/v2/log"
 )
 
 type KeepAliveService struct {
@@ -17,6 +18,7 @@ type KeepAliveService struct {
 	lis      net.Listener
 	tlsConf  *tls.Config
 	endpoint *url.URL
+	router   *http.ServeMux
 }
 
 func NewKeepAliveService(tlsConf *tls.Config) *KeepAliveService {
@@ -26,6 +28,10 @@ func NewKeepAliveService(tlsConf *tls.Config) *KeepAliveService {
 	srv.Server = &http.Server{
 		TLSConfig: srv.tlsConf,
 	}
+
+	srv.router = http.NewServeMux()
+	srv.Server.Handler = srv.router
+
 	return srv
 }
 
@@ -33,6 +39,12 @@ func (s *KeepAliveService) Start() error {
 	if err := s.generateEndpoint(); err != nil {
 		return err
 	}
+
+	s.router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, `{"method":"health"}`)
+	})
+
+	log.Debugf("keepalive service started at %s", s.endpoint)
 
 	var err error
 	if s.tlsConf != nil {
@@ -43,6 +55,7 @@ func (s *KeepAliveService) Start() error {
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+
 	return nil
 }
 
