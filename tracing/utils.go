@@ -27,8 +27,6 @@ func NewExporter(exporterName, endpoint string) (traceSdk.SpanExporter, error) {
 		return NewOtlpHttpExporter(endpoint)
 	case "otlptracegrpc":
 		return NewOtlpGrpcExporter(endpoint)
-	case "prometheus":
-		return NewPrometheusExporter(endpoint)
 	default:
 		return nil, errors.New("exporter type not support")
 	}
