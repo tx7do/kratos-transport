@@ -15,25 +15,9 @@ import (
 	"github.com/tx7do/kratos-transport/utils"
 )
 
-type MessagePayload any
-
-type Binder func() any
-
-type MessageHandler func(string, MessagePayload) error
-
-type HandlerData struct {
-	Handler MessageHandler
-	Binder  Binder
-}
-type MessageHandlerMap map[string]HandlerData
-
 var (
 	_ transport.Server     = (*Server)(nil)
 	_ transport.Endpointer = (*Server)(nil)
-)
-
-const (
-	defaultRedisAddress = "127.0.0.1:6379"
 )
 
 type Server struct {
@@ -118,6 +102,7 @@ func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, bin
 	})
 }
 
+// RegisterSubscriber register task subscriber
 func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string, *T) error) error {
 	return srv.RegisterSubscriber(taskType,
 		func(taskType string, payload MessagePayload) error {

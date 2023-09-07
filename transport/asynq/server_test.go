@@ -25,17 +25,17 @@ type TaskPayload struct {
 }
 
 func handleTask1(taskType string, taskData *TaskPayload) error {
-	LogInfof("Task Type: [%s], Payload: [%s]", taskType, taskData.Message)
+	LogInfof("[%s] Task Type: [%s], Payload: [%s]", time.Now().Format("2006-01-02 15:04:05"), taskType, taskData.Message)
 	return nil
 }
 
 func handleDelayTask(taskType string, taskData *TaskPayload) error {
-	LogInfof("Delay Task Type: [%s], Payload: [%s]", taskType, taskData.Message)
+	LogInfof("[%s] Delay Task Type: [%s], Payload: [%s]", time.Now().Format("2006-01-02 15:04:05"), taskType, taskData.Message)
 	return nil
 }
 
 func handlePeriodicTask(taskType string, taskData *TaskPayload) error {
-	LogInfof("Periodic Task Type: [%s], Payload: [%s]", taskType, taskData.Message)
+	LogInfof("[%s] Periodic Task Type: [%s], Payload: [%s]", time.Now().Format("2006-01-02 15:04:05"), taskType, taskData.Message)
 	return nil
 }
 
@@ -91,6 +91,7 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 		"*/1 * * * ?",
 		testPeriodicTask,
 		&TaskPayload{Message: "periodic task"},
+		asynq.Unique(time.Second*10),
 	)
 	assert.Nil(t, err)
 

@@ -8,6 +8,10 @@ import (
 	"github.com/hibiken/asynq"
 )
 
+const (
+	defaultRedisAddress = "127.0.0.1:6379"
+)
+
 type ServerOption func(o *Server)
 
 func WithAddress(addr string) ServerOption {
