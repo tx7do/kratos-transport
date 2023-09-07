@@ -34,10 +34,8 @@ func main() {
 		rabbitmq.WithExchange(testExchange, true),
 	)
 
-	_ = rabbitmqSrv.RegisterSubscriber(ctx,
-		testRouting,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		api.HygrothermographCreator,
+	_ = rabbitmq.RegisterSubscriber(rabbitmqSrv, ctx, testRouting,
+		handleHygrothermograph,
 		broker.WithQueueName(testQueue),
 		rabbitmqBroker.WithDurableQueue())
 

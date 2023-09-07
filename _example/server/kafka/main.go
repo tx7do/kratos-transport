@@ -60,11 +60,7 @@ func main() {
 		kafka.WithBrokerOptions(createTracerProvider("jaeger", "tracer_tester")),
 	)
 
-	_ = kafkaSrv.RegisterSubscriber(ctx,
-		testTopic, testGroupId, false,
-		api.RegisterHygrothermographHandler(handleHygrothermograph),
-		api.HygrothermographCreator,
-	)
+	_ = kafka.RegisterSubscriber(kafkaSrv, ctx, testTopic, testGroupId, false, handleHygrothermograph)
 
 	app := kratos.New(
 		kratos.Name("kafka"),

@@ -33,11 +33,7 @@ func main() {
 		mqtt.WithCodec("json"),
 	)
 
-	_ = mqttSrv.RegisterSubscriber(ctx,
-		"topic/bobo/#",
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		api.HygrothermographCreator,
-	)
+	_ = mqtt.RegisterSubscriber(mqttSrv, ctx, "topic/bobo/#", handleHygrothermograph)
 
 	app := kratos.New(
 		kratos.Name("mqtt"),

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/go-kratos/kratos/v2"
@@ -30,17 +29,7 @@ func main() {
 
 	testServer = wsSrv
 
-	wsSrv.RegisterMessageHandler(MessageTypeChat,
-		func(sessionId websocket.SessionID, payload websocket.MessagePayload) error {
-			switch t := payload.(type) {
-			case *ChatMessage:
-				return handleChatMessage(sessionId, t)
-			default:
-				return errors.New("invalid payload type")
-			}
-		},
-		func() websocket.Any { return &ChatMessage{} },
-	)
+	websocket.RegisterServerMessageHandler(wsSrv, MessageTypeChat, handleChatMessage)
 
 	app := kratos.New(
 		kratos.Name("websocket"),
