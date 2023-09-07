@@ -8,7 +8,7 @@ require (
 	github.com/cloudwego/hertz v0.6.5
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.6
+	github.com/tx7do/kratos-transport v1.0.11
 )
 
 require (
