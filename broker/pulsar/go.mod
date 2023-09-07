@@ -9,7 +9,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/google/uuid v1.3.1
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.9
+	github.com/tx7do/kratos-transport v1.0.10
 	go.opentelemetry.io/otel v1.17.0
 	go.opentelemetry.io/otel/trace v1.17.0
 )

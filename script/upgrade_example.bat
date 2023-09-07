@@ -1,3 +1,5 @@
+echo off
+
 ::指定起始文件夹
 set DIR1="%cd%\..\_example\broker"
 set DIR2="%cd%\..\_example\server"

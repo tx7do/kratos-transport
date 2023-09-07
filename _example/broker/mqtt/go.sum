@@ -26,10 +26,10 @@ github.com/openzipkin/zipkin-go v0.4.2 h1:zjqfqHjUpPmB3c1GlCvvgsM1G4LkvqQbBDueDO
 github.com/openzipkin/zipkin-go v0.4.2/go.mod h1:ZeVkFjuuBiSy13y8vpSDCjMi9GoI3hPpCJSBx/EYFhY=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
-github.com/tx7do/kratos-transport v1.0.9 h1:u5jELL5rpg8qnohnRM+Hv9Vaxp0mnGm/rSIiE5bMHGw=
-github.com/tx7do/kratos-transport v1.0.9/go.mod h1:ZfcYU1EgtLFBwwAstnFYK62iUETv7xs3ofX95tqJqLw=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907040118-36ce08db1af0 h1:aFtZCK6hfp00ZzEM3DltJtjNrRph8Fc5XWEo4rHBFXQ=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907040118-36ce08db1af0/go.mod h1:NBzjrCaN6XNP4SjjMclmCbCwumS5J67vyiNT04SJwMY=
+github.com/tx7do/kratos-transport v1.0.10 h1:7Z3oEtg8+ZvEAwQzHzEYNh+Dr79f7GGo0MYb5YOvAJ4=
+github.com/tx7do/kratos-transport v1.0.10/go.mod h1:ZfcYU1EgtLFBwwAstnFYK62iUETv7xs3ofX95tqJqLw=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907054419-eb7902c7c670 h1:amapDY/IVxfUlefsLTNvCYshcISxvZNvYmvIq3RjhJM=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907054419-eb7902c7c670/go.mod h1:yyk+BR3YyQ5nsgyXZEjg4Y3UcctxbYfPMhohCb8UyDw=
 go.opentelemetry.io/otel v1.17.0 h1:MW+phZ6WZ5/uk2nd93ANk/6yJ+dVrvNWUjGhnnFU5jM=
 go.opentelemetry.io/otel v1.17.0/go.mod h1:I2vmBGtFaODIVMBSTPVDlJSzBDNf93k60E6Ft0nyjo0=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.17.0 h1:U5GYackKpVKlPrd/5gKMlrTlP2dCESAAFU682VCpieY=

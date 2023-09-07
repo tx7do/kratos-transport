@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/gorilla/mux v1.8.0
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.9
+	github.com/tx7do/kratos-transport v1.0.10
 	gopkg.in/cenkalti/backoff.v1 v1.1.0
 )
 

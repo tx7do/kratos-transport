@@ -1,3 +1,5 @@
+echo off
+
 ::指定起始文件夹
 set DIR="%cd%\..\broker"
 

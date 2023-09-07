@@ -7,7 +7,7 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.9
+	github.com/tx7do/kratos-transport v1.0.10
 	github.com/zeromicro/go-zero v1.5.5
 )
 
