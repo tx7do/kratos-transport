@@ -118,10 +118,7 @@ func TestDelayTask(t *testing.T) {
 		WithAddress(localRedisAddr),
 	)
 
-	err = RegisterSubscriber[TaskPayload](srv,
-		testDelayTask,
-		handleDelayTask,
-	)
+	err = RegisterSubscriber(srv, testDelayTask, handleDelayTask)
 	assert.Nil(t, err)
 
 	// 延迟队列
@@ -156,10 +153,7 @@ func TestPeriodicTask(t *testing.T) {
 		WithRedisPassword("123456"),
 	)
 
-	err = RegisterSubscriber(srv,
-		testPeriodicTask,
-		handlePeriodicTask,
-	)
+	err = RegisterSubscriber(srv, testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 
 	// 每分钟执行一次
@@ -195,22 +189,13 @@ func TestTaskSubscribe(t *testing.T) {
 		WithRedisPassword("123456"),
 	)
 
-	err = RegisterSubscriber[TaskPayload](srv,
-		testTask1,
-		handleTask1,
-	)
+	err = RegisterSubscriber(srv, testTask1, handleTask1)
 	assert.Nil(t, err)
 
-	err = RegisterSubscriber[TaskPayload](srv,
-		testDelayTask,
-		handleDelayTask,
-	)
+	err = RegisterSubscriber(srv, testDelayTask, handleDelayTask)
 	assert.Nil(t, err)
 
-	err = RegisterSubscriber[TaskPayload](srv,
-		testPeriodicTask,
-		handlePeriodicTask,
-	)
+	err = RegisterSubscriber(srv, testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 
 	if err = srv.Start(ctx); err != nil {
@@ -238,22 +223,13 @@ func TestAllInOne(t *testing.T) {
 		WithAddress(localRedisAddr),
 	)
 
-	err = RegisterSubscriber[TaskPayload](srv,
-		testTask1,
-		handleTask1,
-	)
+	err = RegisterSubscriber(srv, testTask1, handleTask1)
 	assert.Nil(t, err)
 
-	err = RegisterSubscriber[TaskPayload](srv,
-		testDelayTask,
-		handleDelayTask,
-	)
+	err = RegisterSubscriber(srv, testDelayTask, handleDelayTask)
 	assert.Nil(t, err)
 
-	err = RegisterSubscriber[TaskPayload](srv,
-		testPeriodicTask,
-		handlePeriodicTask,
-	)
+	err = RegisterSubscriber(srv, testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 
 	// 最多重试3次，10秒超时，20秒后过期
