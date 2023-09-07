@@ -1,4 +1,4 @@
-cd .\transport\activemq\
+cd ..\transport\activemq\
 go get all
 go mod tidy
 

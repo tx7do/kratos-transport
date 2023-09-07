@@ -1,4 +1,4 @@
-cd .\broker\kafka\
+cd ..\broker\kafka\
 go get all
 go mod tidy
 
