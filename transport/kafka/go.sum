@@ -45,8 +45,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230907063631-6abe3f39250f h1:x9x7W24TVSh4Eol5arnOeoXmAmn+r0NJ/2lL/pTfGPs=
-github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230907063631-6abe3f39250f/go.mod h1:Mi+iab6d1r5qq1uGltX4hkFpWc9RcKxwvNvRXT1w4C8=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230907064759-c42c96d45a80 h1:LKv415p7Tdjlh1w5X54poTiBIjnl+uk7RTy/f2h94iQ=
+github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20230907064759-c42c96d45a80/go.mod h1:Mi+iab6d1r5qq1uGltX4hkFpWc9RcKxwvNvRXT1w4C8=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.1.2 h1:FHX5I5B4i4hKRVRBCFRxq1iQRej7WO3hhBuJf+UUySY=
