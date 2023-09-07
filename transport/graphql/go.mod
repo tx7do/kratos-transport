@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/graphql
 
 go 1.19
 
-replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/99designs/gqlgen v0.17.36
@@ -24,3 +23,5 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../

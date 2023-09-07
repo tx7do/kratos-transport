@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/broker/rocketmq
 
 go 1.19
 
-replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/aliyunmq/mq-http-go-sdk v1.0.3
@@ -62,3 +61,5 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../

@@ -2,13 +2,12 @@ module github.com/tx7do/kratos-transport/transport/nsq
 
 go 1.19
 
-replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.11
-	github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230907071603-4549cf31adb5
+	github.com/tx7do/kratos-transport/broker/nsq v0.0.0-20230907091654-32334115fdef
 )
 
 require (
@@ -42,3 +41,7 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../
+
+replace github.com/tx7do/kratos-transport/broker/nsq => ../../broker/nsq

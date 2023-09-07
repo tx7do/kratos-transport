@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/broker/redis
 
 go 1.19
 
-replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
@@ -39,3 +38,5 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../

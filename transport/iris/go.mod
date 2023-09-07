@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/iris
 
 go 1.19
 
-replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
@@ -78,3 +77,5 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../

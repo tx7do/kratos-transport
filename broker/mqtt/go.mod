@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/broker/mqtt
 
 go 1.19
 
-replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.4.3
@@ -10,6 +9,8 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.11
 )
+
+
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -41,3 +42,6 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../
+

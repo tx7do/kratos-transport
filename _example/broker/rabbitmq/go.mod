@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/tx7do/kratos-transport v1.0.11
-	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230907064759-c42c96d45a80
+	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230907091654-32334115fdef
 )
 
 require (
@@ -34,3 +34,7 @@ require (
 	google.golang.org/grpc v1.58.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
+
+replace github.com/tx7do/kratos-transport => ../../../
+
+replace github.com/tx7do/kratos-transport/broker/rabbitmq => ../../../broker/rabbitmq
