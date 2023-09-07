@@ -37,10 +37,10 @@ github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjR
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/tx7do/kratos-transport v1.0.10 h1:7Z3oEtg8+ZvEAwQzHzEYNh+Dr79f7GGo0MYb5YOvAJ4=
 github.com/tx7do/kratos-transport v1.0.10/go.mod h1:ZfcYU1EgtLFBwwAstnFYK62iUETv7xs3ofX95tqJqLw=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907054419-eb7902c7c670 h1:amapDY/IVxfUlefsLTNvCYshcISxvZNvYmvIq3RjhJM=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907054419-eb7902c7c670/go.mod h1:yyk+BR3YyQ5nsgyXZEjg4Y3UcctxbYfPMhohCb8UyDw=
-github.com/tx7do/kratos-transport/transport/mqtt v0.0.0-20230907054419-eb7902c7c670 h1:4GSr4H/mBIPR3pPaJJkYDbUb+ZDgwZ5ORljN4xxl9wA=
-github.com/tx7do/kratos-transport/transport/mqtt v0.0.0-20230907054419-eb7902c7c670/go.mod h1:EKzqdmdtaVOLTAUStj9R9EnVvozUvEguLchR+HbnGWg=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907061843-be73df6a2ace h1:E3BxN9X7OlfHrrphYHCw524XoC8ZX9Cq45PAUkIrj1A=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907061843-be73df6a2ace/go.mod h1:NAhRkEIHcRomsIXP+9Bs30aPPlHu5gfafoHtdO/YDqc=
+github.com/tx7do/kratos-transport/transport/mqtt v0.0.0-20230907061843-be73df6a2ace h1:8zEFniA5mNepmUcxsOJRy9V8PNhSCRmq45GQ85vfIdk=
+github.com/tx7do/kratos-transport/transport/mqtt v0.0.0-20230907061843-be73df6a2ace/go.mod h1:wDRF6MC2OqBE9trP9vcHmcBIlDts9Qo96yONwWru9rI=
 go.opentelemetry.io/otel v1.17.0 h1:MW+phZ6WZ5/uk2nd93ANk/6yJ+dVrvNWUjGhnnFU5jM=
 go.opentelemetry.io/otel v1.17.0/go.mod h1:I2vmBGtFaODIVMBSTPVDlJSzBDNf93k60E6Ft0nyjo0=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.17.0 h1:U5GYackKpVKlPrd/5gKMlrTlP2dCESAAFU682VCpieY=

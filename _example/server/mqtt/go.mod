@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/tx7do/kratos-transport v1.0.10
-	github.com/tx7do/kratos-transport/transport/mqtt v0.0.0-20230907054419-eb7902c7c670
+	github.com/tx7do/kratos-transport/transport/mqtt v0.0.0-20230907061843-be73df6a2ace
 )
 
 require (
@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.17.1 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
-	github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907054419-eb7902c7c670 // indirect
+	github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907061843-be73df6a2ace // indirect
 	go.opentelemetry.io/otel v1.17.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.17.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.17.0 // indirect
