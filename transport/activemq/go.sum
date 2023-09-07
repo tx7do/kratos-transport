@@ -39,8 +39,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-github.com/tx7do/kratos-transport/broker/stomp v0.0.0-20230907040118-36ce08db1af0 h1:iBYSd/bRAIcB3WRDtrX3UeDFLXa1HSO7ds4q6mmdv3s=
-github.com/tx7do/kratos-transport/broker/stomp v0.0.0-20230907040118-36ce08db1af0/go.mod h1:9GxZWEd1Pzq8y33Pr6yQiSt3E9ue77gSzq05ySgkoaU=
+github.com/tx7do/kratos-transport/broker/stomp v0.0.0-20230907043132-020df549da17 h1:NOts2EYG2jjzrw/5yHdlH7rIMNo6An0dCr+NHKIhKWc=
+github.com/tx7do/kratos-transport/broker/stomp v0.0.0-20230907043132-020df549da17/go.mod h1:UAALFlpfemBaAWOj5MwGQ+Z6wQ/otQWsADmkmvokH9Q=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 go.opentelemetry.io/otel v1.17.0 h1:MW+phZ6WZ5/uk2nd93ANk/6yJ+dVrvNWUjGhnnFU5jM=
 go.opentelemetry.io/otel v1.17.0/go.mod h1:I2vmBGtFaODIVMBSTPVDlJSzBDNf93k60E6Ft0nyjo0=

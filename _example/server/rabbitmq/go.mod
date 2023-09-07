@@ -6,7 +6,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/tx7do/kratos-transport v1.0.9
 	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230907040118-36ce08db1af0
-	github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20230907040118-36ce08db1af0
+	github.com/tx7do/kratos-transport/transport/rabbitmq v0.0.0-20230907043132-020df549da17
 )
 
 require (
