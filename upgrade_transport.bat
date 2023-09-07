@@ -14,6 +14,10 @@ cd ..\..\transport\gin\
 go get all
 go mod tidy
 
+cd ..\..\transport\gozero\
+go get all
+go mod tidy
+
 cd ..\..\transport\graphql\
 go get all
 go mod tidy
@@ -23,6 +27,10 @@ go get all
 go mod tidy
 
 cd ..\..\transport\http3\
+go get all
+go mod tidy
+
+cd ..\..\transport\iris\
 go get all
 go mod tidy
 
@@ -62,15 +70,11 @@ cd ..\..\transport\rocketmq\
 go get all
 go mod tidy
 
-cd ..\..\transport\thrift\
+cd ..\..\transport\signalr\
 go get all
 go mod tidy
 
-cd ..\..\transport\websocket\
-go get all
-go mod tidy
-
-cd ..\..\transport\webtransport\
+cd ..\..\transport\socketio\
 go get all
 go mod tidy
 
@@ -82,11 +86,15 @@ cd ..\..\transport\tcp\
 go get all
 go mod tidy
 
-cd ..\..\transport\signalr\
+cd ..\..\transport\thrift\
 go get all
 go mod tidy
 
-cd ..\..\transport\socketio\
+cd ..\..\transport\websocket\
+go get all
+go mod tidy
+
+cd ..\..\transport\webtransport\
 go get all
 go mod tidy
 

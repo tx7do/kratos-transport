@@ -7,7 +7,7 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/apache/thrift v0.19.0
 	github.com/go-kratos/kratos/v2 v2.7.0
-	github.com/tx7do/kratos-transport v1.0.8
+	github.com/tx7do/kratos-transport v1.0.9
 )
 
 require (
