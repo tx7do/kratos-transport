@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/fasthttp
 
 go 1.19
 
-
 require (
 	github.com/fasthttp/router v1.4.20
 	github.com/go-kratos/kratos/v2 v2.7.0

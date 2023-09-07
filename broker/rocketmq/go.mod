@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/broker/rocketmq
 
 go 1.19
 
-
 require (
 	github.com/aliyunmq/mq-http-go-sdk v1.0.3
 	github.com/apache/rocketmq-client-go/v2 v2.1.1

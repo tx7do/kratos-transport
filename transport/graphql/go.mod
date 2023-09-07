@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/graphql
 
 go 1.19
 
-
 require (
 	github.com/99designs/gqlgen v0.17.36
 	github.com/go-kratos/kratos/v2 v2.7.0

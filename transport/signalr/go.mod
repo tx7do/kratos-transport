@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/signalr
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/philippseith/signalr v0.6.2

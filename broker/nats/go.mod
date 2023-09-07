@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/broker/nats
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/nats-io/nats.go v1.28.0
@@ -12,8 +11,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.17.0
 	google.golang.org/protobuf v1.31.0
 )
-
-
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -47,4 +44,3 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
-

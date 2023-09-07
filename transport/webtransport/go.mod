@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/webtransport
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/golang/mock v1.6.0

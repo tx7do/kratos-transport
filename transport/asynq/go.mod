@@ -2,15 +2,12 @@ module github.com/tx7do/kratos-transport/transport/asynq
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/hibiken/asynq v0.24.1
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.11
 )
-
-
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -47,6 +44,5 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
 
 replace github.com/tx7do/kratos-transport => ../../

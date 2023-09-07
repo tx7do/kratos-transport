@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/gin
 
 go 1.19
 
-
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-kratos/kratos/v2 v2.7.0

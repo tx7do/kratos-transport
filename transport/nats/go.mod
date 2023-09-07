@@ -2,12 +2,11 @@ module github.com/tx7do/kratos-transport/transport/nats
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.11
-	github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230907091654-32334115fdef
+	github.com/tx7do/kratos-transport/broker/nats v0.0.0-20230907094248-a7d8999b8137
 	go.opentelemetry.io/otel v1.17.0
 	go.opentelemetry.io/otel/trace v1.17.0
 )

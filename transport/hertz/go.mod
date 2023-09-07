@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/hertz
 
 go 1.19
 
-
 require (
 	github.com/cloudwego/hertz v0.6.5
 	github.com/go-kratos/kratos/v2 v2.7.0

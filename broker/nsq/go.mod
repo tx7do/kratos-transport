@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/broker/nsq
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/google/uuid v1.3.1
@@ -10,8 +9,6 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.11
 )
-
-
 
 require (
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -43,4 +40,3 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
-

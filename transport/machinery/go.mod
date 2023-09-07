@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/machinery
 
 go 1.19
 
-
 require (
 	github.com/RichardKnop/logging v0.0.0-20190827224416-1a693bdd4fae
 	github.com/RichardKnop/machinery/v2 v2.0.11
@@ -82,4 +81,3 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
-

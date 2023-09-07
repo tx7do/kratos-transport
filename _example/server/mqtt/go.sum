@@ -35,8 +35,8 @@ github.com/openzipkin/zipkin-go v0.4.2/go.mod h1:ZeVkFjuuBiSy13y8vpSDCjMi9GoI3hP
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjRBZyWFQ=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907091654-32334115fdef h1:CJ1rdMdHeaxvIsffJBiM6+vtD3EN/0O5Hk4SbwRCBCI=
-github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907091654-32334115fdef/go.mod h1:p48eNhvsKVLFbWxgFrSYihlyVGyCdmAt164PoeF6USg=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907094248-a7d8999b8137 h1:NxcsjwJGSdSaWms/Xo+u6nTnLrRtMaVJTFlEk/bVd4g=
+github.com/tx7do/kratos-transport/broker/mqtt v0.0.0-20230907094248-a7d8999b8137/go.mod h1:ir5gRVzw5jwa2mPRaogMY8nk/baUyo11Nx9/6FrdJO8=
 go.opentelemetry.io/otel v1.17.0 h1:MW+phZ6WZ5/uk2nd93ANk/6yJ+dVrvNWUjGhnnFU5jM=
 go.opentelemetry.io/otel v1.17.0/go.mod h1:I2vmBGtFaODIVMBSTPVDlJSzBDNf93k60E6Ft0nyjo0=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.17.0 h1:U5GYackKpVKlPrd/5gKMlrTlP2dCESAAFU682VCpieY=

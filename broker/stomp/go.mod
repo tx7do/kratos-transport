@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/broker/stomp
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/go-stomp/stomp/v3 v3.0.5

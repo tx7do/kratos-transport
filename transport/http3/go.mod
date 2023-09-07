@@ -2,7 +2,6 @@ module github.com/tx7do/kratos-transport/transport/http3
 
 go 1.19
 
-
 require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/gorilla/mux v1.8.0
