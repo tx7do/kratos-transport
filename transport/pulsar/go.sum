@@ -105,8 +105,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.5/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXlSw2iwfAo=
-github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230907064759-c42c96d45a80 h1:nPgIOR89PtE31DrZDJtpZYrf4vjCgIj0ah6kaU7p8PY=
-github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230907064759-c42c96d45a80/go.mod h1:TQ2ED7ZzVshP2mDHv/2L4Vb3ZHlvItfwIWxHjbcqZtk=
+github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230907065350-9f4dc8808825 h1:7U1v0638ltbqtpUXs/7yqARvUYQ7AeBsQO+QHVR1YCg=
+github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20230907065350-9f4dc8808825/go.mod h1:TQ2ED7ZzVshP2mDHv/2L4Vb3ZHlvItfwIWxHjbcqZtk=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 go.opentelemetry.io/otel v1.17.0 h1:MW+phZ6WZ5/uk2nd93ANk/6yJ+dVrvNWUjGhnnFU5jM=
 go.opentelemetry.io/otel v1.17.0/go.mod h1:I2vmBGtFaODIVMBSTPVDlJSzBDNf93k60E6Ft0nyjo0=
