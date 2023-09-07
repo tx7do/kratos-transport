@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+
 	ws "github.com/gorilla/websocket"
+
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -89,6 +91,24 @@ func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientM
 	}
 
 	c.messageHandlers[messageType] = &ClientHandlerData{handler, binder}
+}
+
+func RegisterClientMessageHandler[T any](cli *Client, messageType MessageType, handler func(*T) error) {
+	cli.RegisterMessageHandler(messageType,
+		func(payload MessagePayload) error {
+			switch t := payload.(type) {
+			case *T:
+				return handler(t)
+			default:
+				LogError("invalid payload struct type:", t)
+				return errors.New("invalid payload struct type")
+			}
+		},
+		func() Any {
+			var t T
+			return &t
+		},
+	)
 }
 
 func (c *Client) DeregisterMessageHandler(messageType MessageType) {

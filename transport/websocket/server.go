@@ -123,6 +123,24 @@ func (s *Server) RegisterMessageHandler(messageType MessageType, handler Message
 	}
 }
 
+func RegisterServerMessageHandler[T any](srv *Server, messageType MessageType, handler func(SessionID, *T) error) {
+	srv.RegisterMessageHandler(messageType,
+		func(sessionId SessionID, payload MessagePayload) error {
+			switch t := payload.(type) {
+			case *T:
+				return handler(sessionId, t)
+			default:
+				LogError("invalid payload struct type:", t)
+				return errors.New("invalid payload struct type")
+			}
+		},
+		func() Any {
+			var t T
+			return &t
+		},
+	)
+}
+
 func (s *Server) DeregisterMessageHandler(messageType MessageType) {
 	delete(s.messageHandlers, messageType)
 }

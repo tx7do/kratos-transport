@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -68,11 +67,11 @@ func (c *Client) Connect() error {
 		return errors.New("endpoint is nil")
 	}
 
-	log.Infof("[tcp] connecting to %s", c.endpoint.String())
+	LogInfof("connecting to %s", c.endpoint.String())
 
 	conn, err := net.Dial("tcp", c.endpoint.String())
 	if err != nil {
-		log.Errorf("[tcp] cant connect to server: %s", err.Error())
+		LogErrorf("cant connect to server: %s", err.Error())
 		return err
 	}
 
@@ -86,7 +85,7 @@ func (c *Client) Connect() error {
 func (c *Client) Disconnect() {
 	if c.conn != nil {
 		if err := c.conn.Close(); err != nil {
-			log.Errorf("[tcp] disconnect error: %s", err.Error())
+			LogErrorf("disconnect error: %s", err.Error())
 		}
 		c.conn = nil
 	}
@@ -98,6 +97,24 @@ func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientM
 	}
 
 	c.messageHandlers[messageType] = ClientHandlerData{handler, binder}
+}
+
+func RegisterClientMessageHandler[T any](cli *Client, messageType MessageType, handler func(*T) error) {
+	cli.RegisterMessageHandler(messageType,
+		func(payload MessagePayload) error {
+			switch t := payload.(type) {
+			case *T:
+				return handler(t)
+			default:
+				LogError("invalid payload struct type:", t)
+				return errors.New("invalid payload struct type")
+			}
+		},
+		func() Any {
+			var t T
+			return &t
+		},
+	)
 }
 
 func (c *Client) DeregisterMessageHandler(messageType MessageType) {
@@ -136,20 +153,20 @@ func (c *Client) run() {
 
 	for {
 		if readLen, err = c.conn.Read(buf); err != nil {
-			log.Errorf("[tcp] read message error: %v", err)
+			LogErrorf("read message error: %v", err)
 			return
 		}
 
 		if c.rawMessageHandler != nil {
 			if err := c.rawMessageHandler(buf[:readLen]); err != nil {
-				log.Errorf("[tcp] raw data handler exception: %s", err)
+				LogErrorf("raw data handler exception: %s", err)
 				continue
 			}
 			continue
 		}
 
 		if err = c.messageHandler(buf[:readLen]); err != nil {
-			log.Errorf("[tcp] process message error: %v", err)
+			LogErrorf("process message error: %v", err)
 		}
 	}
 }
@@ -157,13 +174,13 @@ func (c *Client) run() {
 func (c *Client) messageHandler(buf []byte) error {
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
-		log.Errorf("[tcp] decode message exception: %s", err)
+		LogErrorf("decode message exception: %s", err)
 		return err
 	}
 
 	handlerData, ok := c.messageHandlers[msg.Type]
 	if !ok {
-		log.Error("[tcp] message type not found:", msg.Type)
+		LogError("message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}
 
@@ -176,12 +193,12 @@ func (c *Client) messageHandler(buf []byte) error {
 	}
 
 	if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
-		log.Errorf("[tcp] unmarshal message exception: %s", err)
+		LogErrorf("unmarshal message exception: %s", err)
 		return err
 	}
 
 	if err := handlerData.Handler(payload); err != nil {
-		log.Errorf("[tcp] message handler exception: %s", err)
+		LogErrorf("message handler exception: %s", err)
 		return err
 	}
 

@@ -1,21 +1,18 @@
 package tcp
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
-
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
 )
 
 var testClient *Client
 
-func handleClientChatMessage(message *api.ChatMessage) error {
+func handleClientChatMessage(message *ChatMessage) error {
 	fmt.Printf("Payload: %v\n", message)
-	_ = testClient.SendMessage(api.MessageTypeChat, message)
+	_ = testClient.SendMessage(MessageTypeChat, message)
 	return nil
 }
 
@@ -31,27 +28,17 @@ func TestClient(t *testing.T) {
 
 	testClient = cli
 
-	cli.RegisterMessageHandler(api.MessageTypeChat,
-		func(payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *api.ChatMessage:
-				return handleClientChatMessage(t)
-			default:
-				return errors.New("invalid payload type")
-			}
-		},
-		func() Any { return &api.ChatMessage{} },
-	)
+	RegisterClientMessageHandler(cli, MessageTypeChat, handleClientChatMessage)
 
 	err := cli.Connect()
 	if err != nil {
 		t.Error(err)
 	}
 
-	chatMsg := &api.ChatMessage{
+	chatMsg := &ChatMessage{
 		Message: "Hello, World!",
 	}
-	_ = cli.SendMessage(api.MessageTypeChat, chatMsg)
+	_ = cli.SendMessage(MessageTypeChat, chatMsg)
 
 	<-interrupt
 }

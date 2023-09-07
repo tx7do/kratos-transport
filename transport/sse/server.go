@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/gorilla/mux"
 	"github.com/tx7do/kratos-transport/broker"
@@ -94,7 +93,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	log.Infof("[sse] server listening on: %s", s.lis.Addr().String())
+	LogInfof("server listening on: %s", s.lis.Addr().String())
 
 	var err error
 	if s.tlsConf != nil {
@@ -112,7 +111,7 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	s.streamMgr.Clean()
 
-	log.Info("[sse] server stopping")
+	LogInfo("server stopping")
 	return s.Shutdown(ctx)
 }
 

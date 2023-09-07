@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -12,10 +11,35 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
 )
 
 var testServer *Server
+
+const (
+	MessageTypeChat = iota + 1
+)
+
+type ChatMessage struct {
+	Type    int    `json:"type"`
+	Sender  string `json:"sender"`
+	Message string `json:"message"`
+}
+
+func handleConnect(sessionId SessionID, register bool) {
+	if register {
+		fmt.Printf("%s registered\n", sessionId)
+	} else {
+		fmt.Printf("%s unregistered\n", sessionId)
+	}
+}
+
+func handleChatMessage(sessionId SessionID, message *ChatMessage) error {
+	fmt.Printf("[%s] Payload: %v\n", sessionId, message)
+
+	testServer.Broadcast(MessageTypeChat, *message)
+
+	return nil
+}
 
 func TestServer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
@@ -31,18 +55,7 @@ func TestServer(t *testing.T) {
 		//WithPayloadType(PayloadTypeText),
 	)
 
-	srv.RegisterMessageHandler(api.MessageTypeChat,
-		func(sessionId SessionID, payload MessagePayload) error {
-			switch t := payload.(type) {
-			case *api.ChatMessage:
-				return handleChatMessage(sessionId, t)
-			default:
-				LogError("invalid payload struct type:", t)
-				return errors.New("invalid payload struct type")
-			}
-		},
-		func() Any { return &api.ChatMessage{} },
-	)
+	RegisterServerMessageHandler(srv, MessageTypeChat, handleChatMessage)
 
 	testServer = srv
 
@@ -59,25 +72,9 @@ func TestServer(t *testing.T) {
 	<-interrupt
 }
 
-func handleConnect(sessionId SessionID, register bool) {
-	if register {
-		fmt.Printf("%s registered\n", sessionId)
-	} else {
-		fmt.Printf("%s unregistered\n", sessionId)
-	}
-}
-
-func handleChatMessage(sessionId SessionID, message *api.ChatMessage) error {
-	fmt.Printf("[%s] Payload: %v\n", sessionId, message)
-
-	testServer.Broadcast(api.MessageTypeChat, *message)
-
-	return nil
-}
-
 func TestGob(t *testing.T) {
 	var msg BinaryMessage
-	msg.Type = api.MessageTypeChat
+	msg.Type = MessageTypeChat
 	msg.Body = []byte("")
 
 	var buf bytes.Buffer

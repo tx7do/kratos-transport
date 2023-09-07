@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -113,6 +112,24 @@ func (s *Server) RegisterMessageHandler(messageType MessageType, handler Message
 	}
 }
 
+func RegisterServerMessageHandler[T any](srv *Server, messageType MessageType, handler func(SessionID, *T) error) {
+	srv.RegisterMessageHandler(messageType,
+		func(sessionId SessionID, payload MessagePayload) error {
+			switch t := payload.(type) {
+			case *T:
+				return handler(sessionId, t)
+			default:
+				LogError("invalid payload struct type:", t)
+				return errors.New("invalid payload struct type")
+			}
+		},
+		func() Any {
+			var t T
+			return &t
+		},
+	)
+}
+
 func (s *Server) DeregisterMessageHandler(messageType MessageType) {
 	delete(s.messageHandlers, messageType)
 }
@@ -121,8 +138,8 @@ func (s *Server) DeregisterMessageHandler(messageType MessageType) {
 func (s *Server) SendRawData(sessionId SessionID, message []byte) error {
 	session, ok := s.sessions[sessionId]
 	if !ok {
-		log.Error("[tcp] session not found:", sessionId)
-		return errors.New(fmt.Sprintf("[tcp] session not found: %s", sessionId))
+		LogError("session not found:", sessionId)
+		return errors.New(fmt.Sprintf("session not found: %s", sessionId))
 	}
 
 	session.SendMessage(message)
@@ -139,8 +156,8 @@ func (s *Server) BroadcastRawData(message []byte) {
 func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) error {
 	buf, err := s.marshalMessage(messageType, message)
 	if err != nil {
-		log.Error("[tcp] marshal message exception:", err)
-		return errors.New(fmt.Sprintf("[tcp] marshal message exception: %s", err.Error()))
+		LogError("marshal message exception:", err)
+		return errors.New(fmt.Sprintf("marshal message exception: %s", err.Error()))
 	}
 
 	return s.SendRawData(sessionId, buf)
@@ -149,7 +166,7 @@ func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, messa
 func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 	buf, err := s.marshalMessage(messageType, message)
 	if err != nil {
-		log.Error(" [tcp] marshal message exception:", err)
+		LogError(" marshal message exception:", err)
 		return
 	}
 
@@ -167,7 +184,7 @@ func (s *Server) Start(_ context.Context) error {
 		return s.err
 	}
 
-	log.Infof("[tcp] server listening on: %s", s.lis.Addr().String())
+	LogInfof("server listening on: %s", s.lis.Addr().String())
 
 	go s.run()
 
@@ -177,7 +194,7 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[tcp] server stopping")
+	LogInfo("server stopping")
 
 	if s.lis != nil {
 		_ = s.lis.Close()
@@ -207,7 +224,7 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	if s.rawMessageHandler != nil {
 		if err := s.rawMessageHandler(sessionId, buf); err != nil {
-			log.Errorf("[tcp] raw data handler exception: %s", err)
+			LogErrorf("raw data handler exception: %s", err)
 			return err
 		}
 		return nil
@@ -215,13 +232,13 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
-		log.Errorf("[tcp] decode message exception: %s", err)
+		LogErrorf("decode message exception: %s", err)
 		return err
 	}
 
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
-		log.Error("[tcp] message type not found:", msg.Type)
+		LogError("message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}
 
@@ -234,12 +251,12 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	}
 
 	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
-		log.Errorf("[tcp] unmarshal message exception: %s", err)
+		LogErrorf("unmarshal message exception: %s", err)
 		return err
 	}
 
 	if err := handlerData.Handler(sessionId, payload); err != nil {
-		log.Errorf("[tcp] message handler exception: %s", err)
+		LogErrorf("message handler exception: %s", err)
 		return err
 	}
 
@@ -277,7 +294,7 @@ func (s *Server) doAccept() {
 
 		conn, err := s.lis.Accept()
 		if err != nil {
-			log.Error("[tcp] accept exception:", err)
+			LogError("accept exception:", err)
 			continue
 		}
 
@@ -289,7 +306,7 @@ func (s *Server) doAccept() {
 }
 
 func (s *Server) addSession(c *Session) {
-	//log.Info("[tcp] add session: ", c.SessionID())
+	//LogInfo("add session: ", c.SessionID())
 	s.sessions[c.SessionID()] = c
 
 	if s.connectHandler != nil {
@@ -300,7 +317,7 @@ func (s *Server) addSession(c *Session) {
 func (s *Server) removeSession(c *Session) {
 	for k, v := range s.sessions {
 		if c == v {
-			//log.Info("[tcp] remove session: ", c.SessionID())
+			//LogInfo("remove session: ", c.SessionID())
 			if s.connectHandler != nil {
 				s.connectHandler(c.SessionID(), false)
 			}
