@@ -95,7 +95,6 @@ Client操作之后，Server都会给出相应的信息。
 * `+OK`：Server响应正确。
 * `-Err`：协议错误，将导致Client断开连接。
 
-
 ## Docker部署开发环境
 
 ```shell
@@ -112,3 +111,5 @@ docker run -itd \
 ```
 
 管理后台: <https://127.0.0.1:8000>
+
+## 参考资料

@@ -20,9 +20,13 @@ Channel会将消息进行排列，如果没有消费者读取消息，消息首�
 
 ## 基本组件
 
+NSQ的主要组件有三个: nsqlookupd、nsqd、nsqadmin。
+
 ### nsqlookupd
 
 nsqlookupd服务器像consul或etcd那样工作，只是它被设计得没有协调和强一致性能力。每个nsqlookupd都作为nsqd节点注册信息的短暂数据存储区。消费者连接这些节点去检测需要从哪个nsqd节点上读取消息。
+
+![nsq-lookups](https://bean-li.github.io/assets/LINUX/nsq-lookups.png)
 
 ### nsqd
 
@@ -73,3 +77,10 @@ docker run -itd \
 
 - 控制台访问地址： <http://127.0.0.1:4171>
 - 直接使用REST API查看节点信息： <http://127.0.0.1:4161/nodes>
+
+## 参考资料
+
+- [分布式实时消息平台NSQ](https://zhuanlan.zhihu.com/p/37081073)
+- [NSQ 简介](https://bean-li.github.io/nsq-1/)
+- [[DAY25]Golang的實時分佈式消息傳遞平台-NSQ](https://ithelp.ithome.com.tw/articles/10247828)
+- [為什麼要使用Nsq](https://www.796t.com/content/1545012186.html)

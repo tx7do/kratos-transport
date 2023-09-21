@@ -4,7 +4,9 @@
 
 RabbitMQ是一套开源（MPL）的消息队列服务软件，是由 LShift 提供的一个 Advanced Message Queuing Protocol (AMQP) 的开源实现，由以高性能、健壮以及可伸缩性出名的 Erlang 写成。
 
-RabbitMQ的特点：
+AMQP ：高级消息队列协议，是应用层协议的一个开放标准，为面向消息的中间件设计。消息中间件主要用于组件之间的解耦，消息的发送者无需知道消息使用者的存在，反之亦然。 AMQP 的主要特征是面向消息、队列、路由（包括点对点和发布 / 订阅）、可靠性、安全。 RabbitMQ 是一个开源的 AMQP 实现，服务器端用 Erlang 语言编写，支持多种客户端，如：Python、Ruby、.NET、Java、JMS、C、PHP、ActionScript、XMPP、STOMP 等，支持 AJAX。用于在分布式系统中存储转发消息，在易用性、扩展性、高可用性等方面表现不俗。
+
+## RabbitMQ的特点
 
 - **可靠性**。支持持久化，传输确认，发布确认等保证了MQ的可靠性。
 - **灵活的分发消息策略**。这应该是RabbitMQ的一大特点。在消息进入MQ前由Exchange(交换机)进行路由消息。分发消息策略有：简单模式、工作队列模式、发布订阅模式、路由模式、通配符模式。
@@ -13,7 +15,6 @@ RabbitMQ的特点：
 - **支持多种语言客户端**。RabbitMQ几乎支持所有常用编程语言，包括 Java、.NET、Ruby 等等。
 - **可视化管理界面**。RabbitMQ提供了一个易用的用户界面，使得用户可以监控和管理消息 Broker。
 - **插件机制**。RabbitMQ提供了许多插件，可以通过插件进行扩展，也可以编写自己的插件。
-
 
 ## AMQP基础概念
 
@@ -141,3 +142,5 @@ rabbitmq-plugins enable rabbitmq_auth_backend_http
 管理后台: <http://localhost:15672>  
 默认账号: user  
 默认密码: bitnami
+
+## 参考资料
