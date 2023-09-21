@@ -2,6 +2,7 @@ package asynq
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -117,15 +118,27 @@ func TestDelayTask(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
+		WithRedisPassword("123456"),
 	)
 
 	err = RegisterSubscriber(srv, testDelayTask, handleDelayTask)
 	assert.Nil(t, err)
 
-	// 延迟队列
+	// 延迟队列，推迟5秒执行
 	err = srv.NewTask(testDelayTask,
-		&TaskPayload{Message: "delay task"},
-		asynq.ProcessIn(3*time.Second),
+		&TaskPayload{
+			Message: fmt.Sprintf("ProcessIn:[%s]", time.Now().Format("2006/1/2 15:04:05")),
+		},
+		asynq.ProcessIn(5*time.Second),
+	)
+	assert.Nil(t, err)
+
+	// 延迟队列，指定时间点，3分钟后执行。
+	err = srv.NewTask(testDelayTask,
+		&TaskPayload{
+			Message: fmt.Sprintf("ProcessAt:[%s]", time.Now().Format("2006/1/2 15:04:05")),
+		},
+		asynq.ProcessAt(time.Now().Add(3*time.Minute)),
 	)
 	assert.Nil(t, err)
 
