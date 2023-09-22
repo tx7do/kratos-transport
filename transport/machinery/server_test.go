@@ -11,12 +11,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RichardKnop/machinery/v2"
+	backend "github.com/RichardKnop/machinery/v2/backends/eager"
+	broker "github.com/RichardKnop/machinery/v2/brokers/eager"
+	"github.com/RichardKnop/machinery/v2/config"
+	lock "github.com/RichardKnop/machinery/v2/locks/eager"
 	"github.com/RichardKnop/machinery/v2/log"
+
 	"github.com/stretchr/testify/assert"
 )
 
 const (
-	localRedisAddr = "127.0.0.1:6379"
+	localRedisAddr = "123456@localhost:6379"
 
 	testTask1        = "test_task_1"
 	testDelayTask    = "test_delay_task"
@@ -138,7 +144,8 @@ func TestNewTask(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 		//WithYamlConfig("./testconfig.yml", false),
 	)
 
@@ -152,7 +159,7 @@ func TestNewTask(t *testing.T) {
 	err = srv.NewTask(testTask1)
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
@@ -172,7 +179,8 @@ func TestTaskProcess(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 	)
 
 	var err error
@@ -206,7 +214,8 @@ func TestAllInOne(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 	)
 
 	var err error
@@ -251,7 +260,8 @@ func TestDelayTask(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 	)
 
 	var err error
@@ -283,7 +293,8 @@ func TestPeriodicTask(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 	)
 
 	var err error
@@ -315,12 +326,18 @@ func TestWorkflows_Groups(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 	)
 
 	var err error
 
 	registerHandler(t, srv)
+
+	// add(1, 1)
+	// add(5, 5)
+	// (1 + 1) = 2
+	// (5 + 5) = 10
 
 	err = srv.NewGroup(
 		WithTask(addTask, WithArgument("int64", 1), WithArgument("int64", 1)),
@@ -348,7 +365,8 @@ func TestWorkflows_Chords(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 	)
 
 	var err error
@@ -385,7 +403,8 @@ func TestWorkflows_Chains(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithRedisAddress([]string{localRedisAddr}, []string{localRedisAddr}),
+		WithBrokerAddress(localRedisAddr, 0, BrokerTypeRedis),
+		WithResultBackendAddress(localRedisAddr, 0, BackendTypeRedis),
 	)
 
 	var err error
@@ -416,4 +435,12 @@ func TestWorkflows_Chains(t *testing.T) {
 	}()
 
 	<-interrupt
+}
+
+func TestMachinery(t *testing.T) {
+	srv := machinery.NewServer(&config.Config{}, broker.New(), backend.New(), lock.New())
+	assert.NotNil(t, srv)
+
+	srv.NewCustomQueueWorker("test_customqueueworker", 1, "test_queue")
+	assert.NoError(t, nil)
 }

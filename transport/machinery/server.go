@@ -3,6 +3,7 @@ package machinery
 import (
 	"context"
 	"errors"
+	eagerBackend "github.com/RichardKnop/machinery/v2/backends/eager"
 	"net/url"
 	"sync"
 
@@ -15,17 +16,22 @@ import (
 	machineryLog "github.com/RichardKnop/machinery/v2/log"
 	"github.com/RichardKnop/machinery/v2/tasks"
 
-	redisBackend "github.com/RichardKnop/machinery/v2/backends/redis"
-	redisBroker "github.com/RichardKnop/machinery/v2/brokers/redis"
-
 	amqpBackend "github.com/RichardKnop/machinery/v2/backends/amqp"
+	dynamoBackend "github.com/RichardKnop/machinery/v2/backends/dynamodb"
+	ifaceBackend "github.com/RichardKnop/machinery/v2/backends/iface"
+	memcacheBackend "github.com/RichardKnop/machinery/v2/backends/memcache"
+	mongoBackend "github.com/RichardKnop/machinery/v2/backends/mongo"
+	redisBackend "github.com/RichardKnop/machinery/v2/backends/redis"
 	amqpBroker "github.com/RichardKnop/machinery/v2/brokers/amqp"
+	eagerBroker "github.com/RichardKnop/machinery/v2/brokers/eager"
+	gcppubsubBroker "github.com/RichardKnop/machinery/v2/brokers/gcppubsub"
+	ifaceBroker "github.com/RichardKnop/machinery/v2/brokers/iface"
+	redisBroker "github.com/RichardKnop/machinery/v2/brokers/redis"
+	sqsBroker "github.com/RichardKnop/machinery/v2/brokers/sqs"
 
 	eagerLock "github.com/RichardKnop/machinery/v2/locks/eager"
-
-	ifaceBackends "github.com/RichardKnop/machinery/v2/backends/iface"
-	ifaceBrokers "github.com/RichardKnop/machinery/v2/brokers/iface"
 	ifaceLock "github.com/RichardKnop/machinery/v2/locks/iface"
+	redisLock "github.com/RichardKnop/machinery/v2/locks/redis"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/transport"
@@ -39,17 +45,6 @@ var (
 	_ transport.Endpointer = (*Server)(nil)
 )
 
-type redisOption struct {
-	brokers  []string
-	backends []string
-	db       int
-}
-
-type consumerOption struct {
-	consumerTag string // 消费者的标记
-	concurrency int    // 并发数, 0表示不限制
-}
-
 type Server struct {
 	sync.RWMutex
 	started bool
@@ -60,7 +55,9 @@ type Server struct {
 	machineryServer *machinery.Server
 	cfg             *config.Config
 
-	redisOption    redisOption
+	brokerOption   brokerOption
+	backendOption  backendOption
+	lockOption     lockOption
 	consumerOption consumerOption
 
 	tracingOpts    []tracing.Option
@@ -75,16 +72,43 @@ func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx: context.Background(),
 		started: false,
+
 		cfg: &config.Config{
-			DefaultQueue:    "kratos_tasks",
+			DefaultQueue:    "kratos_machinery_queue",
 			ResultsExpireIn: 3600,
-		},
-		redisOption: redisOption{
-			db: 0,
+
+			AMQP: &config.AMQPConfig{},
+			SQS:  &config.SQSConfig{},
+			Redis: &config.RedisConfig{
+				MaxIdle:                3,
+				IdleTimeout:            240,
+				ReadTimeout:            15,
+				WriteTimeout:           15,
+				ConnectTimeout:         15,
+				NormalTasksPollPeriod:  1000,
+				DelayedTasksPollPeriod: 500,
+			},
+			GCPPubSub: &config.GCPPubSubConfig{},
+			MongoDB:   &config.MongoDBConfig{},
+			DynamoDB:  &config.DynamoDBConfig{},
 		},
 		consumerOption: consumerOption{
-			consumerTag: "machinery_worker",
-			concurrency: 0,
+			consumerTag: "kratos_machinery_worker",
+			concurrency: 1,
+			queue:       "kratos_machinery_queue",
+		},
+		brokerOption: brokerOption{
+			brokerType: BrokerTypeRedis,
+			db:         0,
+		},
+		backendOption: backendOption{
+			backendType: BackendTypeRedis,
+			db:          0,
+		},
+		lockOption: lockOption{
+			lockType: LockTypeRedis,
+			db:       0,
+			retries:  1,
 		},
 
 		keepAlive:       utils.NewKeepAliveService(nil),
@@ -94,37 +118,6 @@ func NewServer(opts ...ServerOption) *Server {
 	srv.init(opts...)
 
 	return srv
-}
-
-func (s *Server) init(opts ...ServerOption) {
-	for _, o := range opts {
-		o(s)
-	}
-
-	if len(s.redisOption.brokers) > 0 && s.cfg.Broker == "" {
-		s.cfg.Broker = s.redisOption.brokers[0]
-	}
-	if len(s.redisOption.backends) > 0 && s.cfg.ResultBackend == "" {
-		s.cfg.ResultBackend = s.redisOption.backends[0]
-	}
-
-	if len(s.tracingOpts) > 0 {
-		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-producer", s.tracingOpts...)
-		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
-	}
-
-	s.installLogger()
-
-	s.createMachineryServer()
-}
-
-// installLogger 安装日志记录器
-func (s *Server) installLogger() {
-	machineryLog.SetDebug(newLogger(log.LevelDebug))
-	machineryLog.SetInfo(newLogger(log.LevelInfo))
-	machineryLog.SetWarning(newLogger(log.LevelWarn))
-	machineryLog.SetError(newLogger(log.LevelError))
-	machineryLog.SetFatal(newLogger(log.LevelFatal))
 }
 
 func (s *Server) Name() string {
@@ -192,7 +185,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	if err := s.newWorker(s.consumerOption.consumerTag, s.consumerOption.concurrency); err != nil {
+	if err := s.newWorker(s.consumerOption.consumerTag, s.consumerOption.concurrency, s.consumerOption.queue); err != nil {
 		return err
 	}
 
@@ -220,26 +213,96 @@ func (s *Server) Stop(_ context.Context) error {
 	return nil
 }
 
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
+
+	if len(s.tracingOpts) > 0 {
+		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-producer", s.tracingOpts...)
+		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
+	}
+
+	s.installLogger()
+
+	s.createMachineryServer()
+}
+
+// installLogger 安装日志记录器
+func (s *Server) installLogger() {
+	machineryLog.SetDebug(newLogger(log.LevelDebug))
+	machineryLog.SetInfo(newLogger(log.LevelInfo))
+	machineryLog.SetWarning(newLogger(log.LevelWarn))
+	machineryLog.SetError(newLogger(log.LevelError))
+	machineryLog.SetFatal(newLogger(log.LevelFatal))
+}
+
 func (s *Server) createMachineryServer() {
-	var broker ifaceBrokers.Broker
-	var backend ifaceBackends.Backend
+	var broker ifaceBroker.Broker
+	var backend ifaceBackend.Backend
 	var lock ifaceLock.Lock
 
-	if len(s.redisOption.brokers) > 0 && len(s.redisOption.backends) > 0 {
-		broker = redisBroker.NewGR(s.cfg, s.redisOption.brokers, s.redisOption.db)
-		backend = redisBackend.NewGR(s.cfg, s.redisOption.backends, s.redisOption.db)
-	}
-	if s.cfg.Redis != nil {
-		broker = redisBroker.NewGR(s.cfg, []string{s.cfg.Broker}, s.redisOption.db)
-		backend = redisBackend.NewGR(s.cfg, []string{s.cfg.ResultBackend}, s.redisOption.db)
+	var err error
+
+	if s.cfg.Broker != "" {
+		switch s.brokerOption.brokerType {
+		case BrokerTypeRedis:
+			broker = redisBroker.NewGR(s.cfg, []string{s.cfg.Broker}, s.brokerOption.db)
+			break
+		case BrokerTypeAmqp:
+			broker = amqpBroker.New(s.cfg)
+			break
+		case BrokerTypeGcpPubSub:
+			if broker, err = gcppubsubBroker.New(s.cfg, s.brokerOption.projectID, s.brokerOption.subscriptionName); err != nil {
+				LogError("create GCP PubSub broker error:", err)
+			}
+			break
+		case BrokerTypeSQS:
+			broker = sqsBroker.New(s.cfg)
+			break
+		}
 	}
 
-	if s.cfg.AMQP != nil {
-		broker = amqpBroker.New(s.cfg)
-		backend = amqpBackend.New(s.cfg)
+	if s.cfg.ResultBackend != "" {
+		switch s.backendOption.backendType {
+		case BackendTypeRedis:
+			backend = redisBackend.NewGR(s.cfg, []string{s.cfg.ResultBackend}, s.backendOption.db)
+			break
+		case BackendTypeAmqp:
+			backend = amqpBackend.New(s.cfg)
+			break
+		case BackendTypeMemcache:
+			backend = memcacheBackend.New(s.cfg, []string{s.cfg.ResultBackend})
+			break
+		case BackendTypeMongoDB:
+			if backend, err = mongoBackend.New(s.cfg); err != nil {
+				LogError("create mongo backend error:", err)
+			}
+			break
+		case BackendTypeDynamoDB:
+			backend = dynamoBackend.New(s.cfg)
+			break
+		}
 	}
 
-	lock = eagerLock.New()
+	if s.cfg.Lock != "" {
+		switch s.lockOption.lockType {
+		case LockTypeRedis:
+			lock = redisLock.New(s.cfg, []string{s.cfg.Lock}, s.lockOption.db, s.lockOption.retries)
+			break
+		}
+	}
+
+	if broker == nil {
+		broker = eagerBroker.New()
+	}
+	if backend == nil {
+		backend = eagerBackend.New()
+	}
+	if lock == nil {
+		lock = eagerLock.New()
+	}
+
 	s.machineryServer = machinery.NewServer(s.cfg, broker, backend, lock)
 }
 
@@ -250,8 +313,8 @@ func (s *Server) registerTask(name string, handler interface{}) error {
 	return nil
 }
 
-func (s *Server) newWorker(consumerTag string, concurrency int) error {
-	worker := s.machineryServer.NewWorker(consumerTag, concurrency)
+func (s *Server) newWorker(consumerTag string, concurrency int, queue string) error {
+	worker := s.machineryServer.NewCustomQueueWorker(consumerTag, concurrency, queue)
 	if worker == nil {
 		return errors.New("[machinery] create worker failed")
 	}

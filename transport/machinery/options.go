@@ -2,33 +2,83 @@ package machinery
 
 import (
 	"crypto/tls"
+	"time"
+
 	"github.com/RichardKnop/machinery/v2/config"
 	"github.com/RichardKnop/machinery/v2/tasks"
-	"github.com/go-kratos/kratos/v2/log"
-	"time"
+)
+
+type BrokerType int
+type BackendType int
+type LockType int
+
+const (
+	BrokerTypeRedis     BrokerType = iota // Redis
+	BrokerTypeAmqp                        // AMQP
+	BrokerTypeGcpPubSub                   // GCP Pub/Sub
+	BrokerTypeSQS                         // AWS SQS
 )
 
 const (
-	DefaultRedisAddress = "127.0.0.1:6379"
+	BackendTypeRedis    BackendType = iota // Redis
+	BackendTypeAmqp                        // AMQP
+	BackendTypeMemcache                    // Memcache
+	BackendTypeMongoDB                     // MongoDB
+	BackendTypeDynamoDB                    // Amazon DynamoDB
 )
+
+const (
+	LockTypeRedis LockType = iota
+)
+
+type brokerOption struct {
+	brokerType BrokerType
+
+	db int
+
+	projectID, subscriptionName string
+}
+
+type backendOption struct {
+	backendType BackendType
+
+	db int
+}
+
+type lockOption struct {
+	lockType LockType
+
+	db      int
+	retries int
+}
+
+type consumerOption struct {
+	consumerTag string // 消费者的标记
+	concurrency int    // 并发数, 0表示不限制
+	queue       string
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 type ServerOption func(o *Server)
 
+// WithYamlConfig read config from yaml file.
 func WithYamlConfig(cnfPath string, keepReloading bool) ServerOption {
 	return func(s *Server) {
 		cnf, err := config.NewFromYaml(cnfPath, keepReloading)
 		if err != nil {
-			log.Errorf("[machinery] load yaml config [%s] failed: %s", cnfPath, err.Error())
+			LogErrorf("load yaml config [%s] failed: %s", cnfPath, err.Error())
 		}
 		s.cfg = cnf
 	}
 }
 
+// WithEnvironmentConfig read config from env.
 func WithEnvironmentConfig() ServerOption {
 	return func(s *Server) {
 		cnf, err := config.NewFromEnvironment()
 		if err != nil {
-			log.Errorf("[machinery] load environment config failed: %s", err.Error())
+			LogErrorf("load environment config failed: %s", err.Error())
 		}
 		s.cfg = cnf
 	}
@@ -50,30 +100,94 @@ func WithEnableKeepAlive(enable bool) ServerOption {
 	}
 }
 
-// WithRedisAddress broker & backend address
-func WithRedisAddress(brokers, backends []string) ServerOption {
+func WithBrokerAddress(addr string, db int, brokerType BrokerType) ServerOption {
 	return func(s *Server) {
-		if s.cfg == nil {
-			s.cfg = &config.Config{
-				DefaultQueue:    "kratos_tasks",
-				ResultsExpireIn: 3600,
-			}
-		}
-		if s.cfg.Redis == nil {
-			s.cfg.Redis = &config.RedisConfig{
-				MaxIdle:                3,
-				IdleTimeout:            240,
-				ReadTimeout:            15,
-				WriteTimeout:           15,
-				ConnectTimeout:         15,
-				NormalTasksPollPeriod:  1000,
-				DelayedTasksPollPeriod: 500,
-			}
-		}
-		s.redisOption.brokers = brokers
-		s.redisOption.backends = backends
+		s.cfg.Broker = addr
+		s.brokerOption.db = db
+		s.brokerOption.brokerType = brokerType
 	}
 }
+
+func WithResultBackendAddress(addr string, db int, backendType BackendType) ServerOption {
+	return func(s *Server) {
+		s.cfg.ResultBackend = addr
+		s.backendOption.db = db
+		s.backendOption.backendType = backendType
+	}
+}
+
+func WithLockAddress(addr string, db, retries int, lockType LockType) ServerOption {
+	return func(s *Server) {
+		s.cfg.Lock = addr
+		s.lockOption.db = db
+		s.lockOption.retries = retries
+		s.lockOption.lockType = lockType
+	}
+}
+
+func WithRedisConfig(cfg *config.RedisConfig) ServerOption {
+	return func(s *Server) {
+		s.cfg.Redis = cfg
+	}
+}
+
+func WithAMQPConfig(cfg *config.AMQPConfig) ServerOption {
+	return func(s *Server) {
+		s.cfg.AMQP = cfg
+	}
+}
+
+func WithSQSConfig(cfg *config.SQSConfig) ServerOption {
+	return func(s *Server) {
+		s.cfg.SQS = cfg
+	}
+}
+
+func WithGCPPubSubConfig(cfg *config.GCPPubSubConfig) ServerOption {
+	return func(s *Server) {
+		s.cfg.GCPPubSub = cfg
+	}
+}
+
+func WithMongoDBConfig(cfg *config.MongoDBConfig) ServerOption {
+	return func(s *Server) {
+		s.cfg.MongoDB = cfg
+	}
+}
+
+func WithDynamoDBConfig(cfg *config.DynamoDBConfig) ServerOption {
+	return func(s *Server) {
+		s.cfg.DynamoDB = cfg
+	}
+}
+
+func WithConsumerOption(consumerTag string, concurrency int, queue string) ServerOption {
+	return func(s *Server) {
+		s.consumerOption.consumerTag = consumerTag
+		s.consumerOption.concurrency = concurrency
+		s.consumerOption.queue = queue
+	}
+}
+
+func WithDefaultQueue(name string) ServerOption {
+	return func(s *Server) {
+		s.cfg.DefaultQueue = name
+	}
+}
+
+func WithResultsExpireIn(expire int) ServerOption {
+	return func(s *Server) {
+		s.cfg.ResultsExpireIn = expire
+	}
+}
+
+func WithNoUnixSignals(noUnixSignals bool) ServerOption {
+	return func(s *Server) {
+		s.cfg.NoUnixSignals = noUnixSignals
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 type TaskOption func(o *tasks.Signature)
 
@@ -127,6 +241,8 @@ func WithArgument(typeName string, value interface{}) TaskOption {
 		o.Args = append(o.Args, tasks.Arg{Type: typeName, Value: value})
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 type TasksOption func(o *[]*tasks.Signature)
 
