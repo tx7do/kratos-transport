@@ -68,18 +68,30 @@ func (c *Session) closeConnect() {
 }
 
 func (c *Session) sendPingMessage(message string) error {
+	if c.conn == nil {
+		return nil
+	}
 	return c.conn.WriteMessage(ws.PingMessage, []byte(message))
 }
 
 func (c *Session) sendPongMessage(message string) error {
+	if c.conn == nil {
+		return nil
+	}
 	return c.conn.WriteMessage(ws.PongMessage, []byte(message))
 }
 
 func (c *Session) sendTextMessage(message string) error {
+	if c.conn == nil {
+		return nil
+	}
 	return c.conn.WriteMessage(ws.TextMessage, []byte(message))
 }
 
 func (c *Session) sendBinaryMessage(message []byte) error {
+	if c.conn == nil {
+		return nil
+	}
 	return c.conn.WriteMessage(ws.BinaryMessage, message)
 }
 
@@ -114,6 +126,10 @@ func (c *Session) readPump() {
 	defer c.Close()
 
 	for {
+		if c.conn == nil {
+			break
+		}
+
 		messageType, data, err := c.conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
@@ -135,7 +151,7 @@ func (c *Session) readPump() {
 			break
 
 		case ws.PingMessage:
-			if err := c.sendPongMessage(""); err != nil {
+			if err = c.sendPongMessage(""); err != nil {
 				LogError("write pong message error: ", err)
 				return
 			}

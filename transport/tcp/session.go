@@ -3,7 +3,6 @@ package tcp
 import (
 	"net"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 )
 
@@ -63,10 +62,10 @@ func (c *Session) Listen() {
 }
 
 func (c *Session) closeConnect() {
-	//log.Info(c.SessionID(), " connection closed")
+	//LogInfo(c.SessionID(), " connection closed")
 	if c.conn != nil {
 		if err := c.conn.Close(); err != nil {
-			log.Errorf("[tcp] disconnect error: %s", err.Error())
+			LogErrorf("[tcp] disconnect error: %s", err.Error())
 		}
 		c.conn = nil
 	}
@@ -77,11 +76,14 @@ func (c *Session) writePump() {
 
 	for {
 		select {
+
 		case msg := <-c.send:
-			//var len int
+			if c.conn == nil {
+				return
+			}
 			var err error
 			if _, err = c.conn.Write(msg); err != nil {
-				log.Error("[tcp] write message error: ", err)
+				LogError("[tcp] write message error: ", err)
 				return
 			}
 		}
@@ -96,13 +98,17 @@ func (c *Session) readPump() {
 	var readLen int
 
 	for {
+		if c.conn == nil {
+			break
+		}
+
 		if readLen, err = c.conn.Read(buf); err != nil {
-			log.Errorf("[tcp] read message error: %v", err)
+			LogErrorf("[tcp] read message error: %v", err)
 			return
 		}
 
 		if err = c.server.messageHandler(c.SessionID(), buf[:readLen]); err != nil {
-			log.Errorf("[tcp] process message error: %v", err)
+			LogErrorf("[tcp] process message error: %v", err)
 		}
 	}
 }
