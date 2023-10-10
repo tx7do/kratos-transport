@@ -27,3 +27,7 @@ func (p *publication) Topic() string {
 func (p *publication) Message() *broker.Message {
 	return p.m
 }
+
+func (p *publication) RawMessage() interface{} {
+	return p.d
+}

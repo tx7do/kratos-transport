@@ -8,18 +8,22 @@ type publication struct {
 	err   error
 }
 
-func (m *publication) Ack() error {
+func (p *publication) Ack() error {
 	return nil
 }
 
-func (m *publication) Error() error {
-	return m.err
+func (p *publication) Error() error {
+	return p.err
 }
 
-func (m *publication) Topic() string {
-	return m.topic
+func (p *publication) Topic() string {
+	return p.topic
 }
 
-func (m *publication) Message() *broker.Message {
-	return m.msg
+func (p *publication) Message() *broker.Message {
+	return p.msg
+}
+
+func (p *publication) RawMessage() interface{} {
+	return p.msg
 }

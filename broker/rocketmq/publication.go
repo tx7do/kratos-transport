@@ -2,6 +2,7 @@ package rocketmq
 
 import (
 	"context"
+	"errors"
 	aliyun "github.com/aliyunmq/mq-http-go-sdk"
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -23,6 +24,10 @@ func (p *publication) Topic() string {
 
 func (p *publication) Message() *broker.Message {
 	return p.m
+}
+
+func (p *publication) RawMessage() interface{} {
+	return p.rm
 }
 
 func (p *publication) Ack() error {
@@ -54,7 +59,14 @@ func (p *aliyunPublication) Message() *broker.Message {
 	return p.m
 }
 
+func (p *aliyunPublication) RawMessage() interface{} {
+	return p.rm
+}
+
 func (p *aliyunPublication) Ack() error {
+	if p.reader == nil {
+		return errors.New("reader is nil")
+	}
 	p.err = p.reader.AckMessage(p.rm)
 	return p.err
 }

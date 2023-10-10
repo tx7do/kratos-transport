@@ -2,6 +2,7 @@ package pulsar
 
 import (
 	"context"
+	"errors"
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -23,9 +24,15 @@ func (p *publication) Message() *broker.Message {
 	return p.msg
 }
 
+func (p *publication) RawMessage() interface{} {
+	return p.pulsarMsg
+}
+
 func (p *publication) Ack() error {
-	p.reader.Ack(*p.pulsarMsg)
-	return nil
+	if p.reader == nil {
+		return errors.New("reader is nil")
+	}
+	return p.reader.Ack(*p.pulsarMsg)
 }
 
 func (p *publication) Error() error {

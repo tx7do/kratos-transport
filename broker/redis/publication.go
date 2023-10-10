@@ -16,6 +16,10 @@ func (p *publication) Message() *broker.Message {
 	return p.message
 }
 
+func (p *publication) RawMessage() interface{} {
+	return p.message
+}
+
 func (p *publication) Ack() error {
 	return nil
 }

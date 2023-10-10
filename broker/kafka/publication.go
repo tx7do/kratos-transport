@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"errors"
 
 	kafkaGo "github.com/segmentio/kafka-go"
 
@@ -25,7 +26,14 @@ func (p *publication) Message() *broker.Message {
 	return p.m
 }
 
+func (p *publication) RawMessage() interface{} {
+	return p.km
+}
+
 func (p *publication) Ack() error {
+	if p.reader == nil {
+		return errors.New("read is nil")
+	}
 	return p.reader.CommitMessages(p.ctx, p.km)
 }
 

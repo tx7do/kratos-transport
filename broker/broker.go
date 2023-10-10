@@ -32,6 +32,7 @@ func (m Message) GetHeader(key string) string {
 type Event interface {
 	Topic() string
 	Message() *Message
+	RawMessage() interface{}
 	Ack() error
 	Error() error
 }
