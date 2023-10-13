@@ -6,7 +6,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.12
-	github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20231010131023-d61c3feaf7fb
+	github.com/tx7do/kratos-transport/broker/pulsar v0.0.0-20231010133237-dabaf25e6227
 	go.opentelemetry.io/otel v1.19.0
 	go.opentelemetry.io/otel/trace v1.19.0
 )
@@ -14,7 +14,7 @@ require (
 require (
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
-	github.com/AthenZ/athenz v1.11.42 // indirect
+	github.com/AthenZ/athenz v1.11.43 // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
 	github.com/apache/pulsar-client-go v0.11.0 // indirect
 	github.com/ardielle/ardielle-go v1.5.2 // indirect
@@ -58,7 +58,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/mod v0.13.0 // indirect
-	golang.org/x/net v0.16.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.13.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
@@ -66,7 +66,7 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231009173412-8bfb1ae86b6c // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231009173412-8bfb1ae86b6c // indirect
-	google.golang.org/grpc v1.58.2 // indirect
+	google.golang.org/grpc v1.58.3 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
