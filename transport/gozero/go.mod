@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/go-kratos/kratos/v2 v2.7.1
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.12
+	github.com/tx7do/kratos-transport v1.0.13
 	github.com/zeromicro/go-zero v1.5.6
 )
 

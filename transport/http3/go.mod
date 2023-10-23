@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/quic-go/quic-go v0.39.1
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.12
+	github.com/tx7do/kratos-transport v1.0.13
 )
 
 require (
