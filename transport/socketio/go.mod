@@ -3,7 +3,7 @@ module github.com/tx7do/kratos-transport/transport/socketio
 go 1.19
 
 require (
-	github.com/go-kratos/kratos/v2 v2.7.0
+	github.com/go-kratos/kratos/v2 v2.7.1
 	github.com/googollee/go-socket.io v1.7.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0

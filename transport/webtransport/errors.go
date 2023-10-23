@@ -3,8 +3,6 @@ package webtransport
 import (
 	"errors"
 	"fmt"
-
-	"github.com/lucas-clemente/quic-go"
 )
 
 type ErrorCode uint8

@@ -2,8 +2,6 @@ package webtransport
 
 import (
 	"sync"
-
-	"github.com/lucas-clemente/quic-go"
 )
 
 type closeFunc func()

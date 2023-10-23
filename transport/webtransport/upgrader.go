@@ -3,8 +3,9 @@ package webtransport
 import (
 	"errors"
 	"fmt"
-	"github.com/lucas-clemente/quic-go/http3"
 	"net/http"
+
+	"github.com/quic-go/quic-go/http3"
 )
 
 type Upgrader struct {

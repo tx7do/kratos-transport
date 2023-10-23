@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/lucas-clemente/quic-go"
 )
 
 type ServerOption func(*Server)

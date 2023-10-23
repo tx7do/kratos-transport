@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"github.com/quic-go/quic-go"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,9 +16,8 @@ import (
 	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/tx7do/kratos-transport/broker"
 
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
-	"github.com/lucas-clemente/quic-go/quicvarint"
+	"github.com/quic-go/quic-go/http3"
+	"github.com/quic-go/quic-go/quicvarint"
 )
 
 type Binder func() Any
