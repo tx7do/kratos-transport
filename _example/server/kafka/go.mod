@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/go-kratos/kratos/v2 v2.7.1
 	github.com/tx7do/kratos-transport v1.0.13
-	github.com/tx7do/kratos-transport/transport/kafka v0.0.0-20230907094842-7bd2c46dbb2b
+	github.com/tx7do/kratos-transport/transport/kafka v1.1.0
 )
 
 require (
@@ -20,7 +20,7 @@ require (
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/segmentio/kafka-go v0.4.44 // indirect
-	github.com/tx7do/kratos-transport/broker/kafka v0.0.0-20231024140845-2532526c9f77 // indirect
+	github.com/tx7do/kratos-transport/broker/kafka v1.1.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect

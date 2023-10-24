@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.1
-	github.com/tx7do/kratos-transport/transport/websocket v0.0.0-20230907094842-7bd2c46dbb2b
+	github.com/tx7do/kratos-transport/transport/websocket v1.1.0
 )
 
 require (

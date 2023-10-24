@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/tx7do/kratos-transport v1.0.13
-	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20230907094842-7bd2c46dbb2b
+	github.com/tx7do/kratos-transport/broker/rabbitmq v1.1.0
 )
 
 require (
