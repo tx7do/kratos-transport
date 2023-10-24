@@ -43,3 +43,7 @@ require (
 replace github.com/tx7do/kratos-transport => ../../
 
 replace github.com/tx7do/kratos-transport/broker/rabbitmq => ../../broker/rabbitmq
+
+retract (
+  v1.0.1
+)

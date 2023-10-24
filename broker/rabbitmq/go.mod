@@ -39,3 +39,7 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
+
+retract (
+  v1.0.1
+)
