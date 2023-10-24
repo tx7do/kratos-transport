@@ -6,7 +6,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.1
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.0.13
-	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20231023141241-8274d10336d1
+	github.com/tx7do/kratos-transport/broker/rabbitmq v0.0.0-20231024135205-00c3c6e369ca
 	go.opentelemetry.io/otel v1.19.0
 	go.opentelemetry.io/otel/trace v1.19.0
 )
@@ -44,6 +44,4 @@ replace github.com/tx7do/kratos-transport => ../../
 
 replace github.com/tx7do/kratos-transport/broker/rabbitmq => ../../broker/rabbitmq
 
-retract (
-  v1.0.1
-)
+retract v1.0.1
