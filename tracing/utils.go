@@ -38,12 +38,12 @@ func NewExporter(exporterName, endpoint string, insecure bool) (traceSdk.SpanExp
 	}
 }
 
-// NewZipkinExporter 创建一个zipkin导出器
+// NewZipkinExporter 创建一个zipkin导出器，默认对端地址：http://localhost:9411/api/v2/spans
 func NewZipkinExporter(_ context.Context, endpoint string) (traceSdk.SpanExporter, error) {
 	return zipkin.New(endpoint)
 }
 
-//// NewJaegerExporter 创建一个jaeger导出器
+//// NewJaegerExporter 创建一个jaeger导出器，默认对端地址：http://localhost:14268/api/traces
 //func NewJaegerExporter(_ context.Context, endpoint string) (traceSdk.SpanExporter, error) {
 //	return jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(endpoint)))
 //}
