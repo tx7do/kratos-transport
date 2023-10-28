@@ -1,6 +1,8 @@
 module github.com/tx7do/kratos-transport/transport/iris
 
-go 1.19
+go 1.21
+
+toolchain go1.21.3
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.1
