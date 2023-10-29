@@ -2,22 +2,29 @@ package redis
 
 import (
 	"errors"
+	"sync"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gomodule/redigo/redis"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
 type subscriber struct {
-	codec   encoding.Codec
-	conn    *redis.PubSubConn
-	topic   string
+	sync.RWMutex
+
+	b *redisBroker
+
+	topic  string
+	done   chan error
+	closed bool
+
 	handler broker.Handler
 	binder  broker.Binder
-	opts    broker.SubscribeOptions
-	done    chan error
+
+	options broker.SubscribeOptions
+
+	conn *redis.PubSubConn
 }
 
 func (s *subscriber) onStart() error {
@@ -38,16 +45,16 @@ func (s *subscriber) onMessage(channel string, data []byte) error {
 		message: &m,
 	}
 
-	if p.err = broker.Unmarshal(s.codec, data, &m.Body); p.err != nil {
+	if p.err = broker.Unmarshal(s.b.options.Codec, data, &m.Body); p.err != nil {
 		//log.Error("[redis]", err)
 		return p.err
 	}
 
-	if p.err = s.handler(s.opts.Context, &p); p.err != nil {
+	if p.err = s.handler(s.options.Context, &p); p.err != nil {
 		return p.err
 	}
 
-	if s.opts.AutoAck {
+	if s.options.AutoAck {
 		if p.err = p.Ack(); p.err != nil {
 			return p.err
 		}
@@ -88,7 +95,7 @@ func (s *subscriber) recv() {
 					s.done <- err
 					return
 				}
-			case <-s.opts.Context.Done():
+			case <-s.options.Context.Done():
 				s.done <- nil
 				return
 			}
@@ -124,13 +131,40 @@ func (s *subscriber) recv() {
 }
 
 func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.options
 }
 
 func (s *subscriber) Topic() string {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.topic
 }
 
 func (s *subscriber) Unsubscribe() error {
-	return s.conn.Unsubscribe()
+	s.Lock()
+	defer s.Unlock()
+
+	s.closed = true
+
+	var err error
+	if s.conn != nil {
+		err = s.conn.Unsubscribe()
+	}
+
+	if s.b != nil && s.b.subscribers != nil {
+		_ = s.b.subscribers.Remove(s.topic)
+	}
+
+	return err
+}
+
+func (s *subscriber) IsClosed() bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.closed
 }

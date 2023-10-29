@@ -38,8 +38,10 @@ type kafkaBroker struct {
 	writer *Writer
 
 	connected    bool
-	opts         broker.Options
+	options      broker.Options
 	retriesCount int
+
+	subscribers *broker.SubscriberSyncMap
 
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
@@ -62,8 +64,9 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 			BatchTimeout: 10 * time.Millisecond, // 内部默认为1秒，那么会造成什么情况呢？同步发送的时候，发送一次要等待1秒的时间。
 			Async:        true,                  // 默认设置为异步发送，效率比较高。
 		},
-		opts:         options,
+		options:      options,
 		retriesCount: 1,
+		subscribers:  broker.NewSubscriberSyncMap(),
 	}
 
 	return b
@@ -74,21 +77,21 @@ func (b *kafkaBroker) Name() string {
 }
 
 func (b *kafkaBroker) Address() string {
-	if len(b.opts.Addrs) > 0 {
-		return b.opts.Addrs[0]
+	if len(b.options.Addrs) > 0 {
+		return b.options.Addrs[0]
 	}
 	return defaultAddr
 }
 
 func (b *kafkaBroker) Options() broker.Options {
-	return b.opts
+	return b.options
 }
 
 func (b *kafkaBroker) Init(opts ...broker.Option) error {
-	b.opts.Apply(opts...)
+	b.options.Apply(opts...)
 
 	var addrs []string
-	for _, addr := range b.opts.Addrs {
+	for _, addr := range b.options.Addrs {
 		if len(addr) == 0 {
 			continue
 		}
@@ -97,17 +100,17 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	if len(addrs) == 0 {
 		addrs = []string{defaultAddr}
 	}
-	b.opts.Addrs = addrs
+	b.options.Addrs = addrs
 	b.readerConfig.Brokers = addrs
 	b.writerConfig.Brokers = addrs
 
 	enableOneTopicOneWriter := true
-	if value, ok := b.opts.Context.Value(enableOneTopicOneWriterKey{}).(bool); ok {
+	if value, ok := b.options.Context.Value(enableOneTopicOneWriterKey{}).(bool); ok {
 		enableOneTopicOneWriter = value
 	}
 	b.writer = NewWriter(enableOneTopicOneWriter)
 
-	if value, ok := b.opts.Context.Value(writerConfigKey{}).(WriterConfig); ok {
+	if value, ok := b.options.Context.Value(writerConfigKey{}).(WriterConfig); ok {
 		b.writerConfig = value
 	}
 
@@ -115,49 +118,49 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		b.readerConfig.Dialer = kafkaGo.DefaultDialer
 	}
 
-	if value, ok := b.opts.Context.Value(queueCapacityKey{}).(int); ok {
+	if value, ok := b.options.Context.Value(queueCapacityKey{}).(int); ok {
 		b.readerConfig.QueueCapacity = value
 	}
-	if value, ok := b.opts.Context.Value(minBytesKey{}).(int); ok {
+	if value, ok := b.options.Context.Value(minBytesKey{}).(int); ok {
 		b.readerConfig.MinBytes = value
 	}
-	if value, ok := b.opts.Context.Value(maxBytesKey{}).(int); ok {
+	if value, ok := b.options.Context.Value(maxBytesKey{}).(int); ok {
 		b.readerConfig.MaxBytes = value
 	}
-	if value, ok := b.opts.Context.Value(maxWaitKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(maxWaitKey{}).(time.Duration); ok {
 		b.readerConfig.MaxWait = value
 	}
-	if value, ok := b.opts.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
 		b.readerConfig.ReadLagInterval = value
 	}
-	if value, ok := b.opts.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
 		b.readerConfig.HeartbeatInterval = value
 	}
-	if value, ok := b.opts.Context.Value(commitIntervalKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(commitIntervalKey{}).(time.Duration); ok {
 		b.readerConfig.CommitInterval = value
 	}
-	if value, ok := b.opts.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
 		b.readerConfig.PartitionWatchInterval = value
 	}
-	if value, ok := b.opts.Context.Value(watchPartitionChangesKey{}).(bool); ok {
+	if value, ok := b.options.Context.Value(watchPartitionChangesKey{}).(bool); ok {
 		b.readerConfig.WatchPartitionChanges = value
 	}
-	if value, ok := b.opts.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
 		b.readerConfig.SessionTimeout = value
 	}
-	if value, ok := b.opts.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
 		b.readerConfig.RebalanceTimeout = value
 	}
-	if value, ok := b.opts.Context.Value(retentionTimeKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(retentionTimeKey{}).(time.Duration); ok {
 		b.readerConfig.RetentionTime = value
 	}
-	if value, ok := b.opts.Context.Value(startOffsetKey{}).(int64); ok {
+	if value, ok := b.options.Context.Value(startOffsetKey{}).(int64); ok {
 		b.readerConfig.StartOffset = value
 	}
-	if value, ok := b.opts.Context.Value(maxAttemptsKey{}).(int); ok {
+	if value, ok := b.options.Context.Value(maxAttemptsKey{}).(int); ok {
 		b.readerConfig.MaxAttempts = value
 	}
-	if value, ok := b.opts.Context.Value(mechanismKey{}).(sasl.Mechanism); ok {
+	if value, ok := b.options.Context.Value(mechanismKey{}).(sasl.Mechanism); ok {
 		b.saslMechanism = value
 
 		if b.readerConfig.Dialer == nil {
@@ -171,19 +174,19 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 			b.readerConfig.Dialer.SASLMechanism = b.saslMechanism
 		}
 	}
-	if value, ok := b.opts.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
+	if value, ok := b.options.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
 		b.readerConfig = value
 	}
-	if value, ok := b.opts.Context.Value(dialerConfigKey{}).(*kafkaGo.Dialer); ok {
+	if value, ok := b.options.Context.Value(dialerConfigKey{}).(*kafkaGo.Dialer); ok {
 		b.readerConfig.Dialer = value
 	}
-	if value, ok := b.opts.Context.Value(dialerTimeoutKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(dialerTimeoutKey{}).(time.Duration); ok {
 		if b.readerConfig.Dialer != nil {
 			b.readerConfig.Dialer.Timeout = value
 		}
 	}
 
-	if b.opts.Secure && b.opts.TLSConfig != nil {
+	if b.options.Secure && b.options.TLSConfig != nil {
 		if b.readerConfig.Dialer == nil {
 			dialer := &kafkaGo.Dialer{
 				Timeout:   10 * time.Second,
@@ -191,28 +194,28 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 			}
 			b.readerConfig.Dialer = dialer
 		}
-		b.readerConfig.Dialer.TLS = b.opts.TLSConfig
+		b.readerConfig.Dialer.TLS = b.options.TLSConfig
 	}
 
-	if cnt, ok := b.opts.Context.Value(retriesCountKey{}).(int); ok {
+	if cnt, ok := b.options.Context.Value(retriesCountKey{}).(int); ok {
 		b.retriesCount = cnt
 	}
 
-	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "kafka-producer", b.opts.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "kafka-consumer", b.opts.Tracings...)
+	if len(b.options.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "kafka-producer", b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "kafka-consumer", b.options.Tracings...)
 	}
 
-	if value, ok := b.opts.Context.Value(loggerKey{}).(kafkaGo.Logger); ok {
+	if value, ok := b.options.Context.Value(loggerKey{}).(kafkaGo.Logger); ok {
 		b.readerConfig.Logger = value
 		b.writerConfig.Logger = value
 	}
-	if value, ok := b.opts.Context.Value(errorLoggerKey{}).(kafkaGo.Logger); ok {
+	if value, ok := b.options.Context.Value(errorLoggerKey{}).(kafkaGo.Logger); ok {
 		b.readerConfig.ErrorLogger = value
 		b.writerConfig.ErrorLogger = value
 	}
 
-	if value, ok := b.opts.Context.Value(enableLoggerKey{}).(bool); ok {
+	if value, ok := b.options.Context.Value(enableLoggerKey{}).(bool); ok {
 		if value {
 			b.readerConfig.Logger = Logger{}
 			b.writerConfig.Logger = Logger{}
@@ -221,7 +224,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 			b.writerConfig.Logger = nil
 		}
 	}
-	if value, ok := b.opts.Context.Value(enableErrorLoggerKey{}).(bool); ok {
+	if value, ok := b.options.Context.Value(enableErrorLoggerKey{}).(bool); ok {
 		if value {
 			b.readerConfig.ErrorLogger = ErrorLogger{}
 			b.writerConfig.ErrorLogger = ErrorLogger{}
@@ -231,7 +234,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		}
 	}
 
-	//if value, ok := b.opts.Context.Value(balancerKey{}).(string); ok {
+	//if value, ok := b.options.Context.Value(balancerKey{}).(string); ok {
 	//	switch value {
 	//	default:
 	//	case LeastBytesBalancer:
@@ -255,35 +258,35 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	//	}
 	//}
 
-	if value, ok := b.opts.Context.Value(batchSizeKey{}).(int); ok {
+	if value, ok := b.options.Context.Value(batchSizeKey{}).(int); ok {
 		b.writerConfig.BatchSize = value
 	}
 
-	if value, ok := b.opts.Context.Value(batchTimeoutKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(batchTimeoutKey{}).(time.Duration); ok {
 		b.writerConfig.BatchTimeout = value
 	}
 
-	if value, ok := b.opts.Context.Value(batchBytesKey{}).(int64); ok {
+	if value, ok := b.options.Context.Value(batchBytesKey{}).(int64); ok {
 		b.writerConfig.BatchBytes = value
 	}
 
-	if value, ok := b.opts.Context.Value(asyncKey{}).(bool); ok {
+	if value, ok := b.options.Context.Value(asyncKey{}).(bool); ok {
 		b.writerConfig.Async = value
 	}
 
-	if value, ok := b.opts.Context.Value(maxAttemptsKey{}).(int); ok {
+	if value, ok := b.options.Context.Value(maxAttemptsKey{}).(int); ok {
 		b.writerConfig.MaxAttempts = value
 	}
 
-	if value, ok := b.opts.Context.Value(readTimeoutKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(readTimeoutKey{}).(time.Duration); ok {
 		b.writerConfig.ReadTimeout = value
 	}
 
-	if value, ok := b.opts.Context.Value(writeTimeoutKey{}).(time.Duration); ok {
+	if value, ok := b.options.Context.Value(writeTimeoutKey{}).(time.Duration); ok {
 		b.writerConfig.WriteTimeout = value
 	}
 
-	if value, ok := b.opts.Context.Value(allowAutoTopicCreationKey{}).(bool); ok {
+	if value, ok := b.options.Context.Value(allowAutoTopicCreationKey{}).(bool); ok {
 		b.writerConfig.AllowAutoTopicCreation = value
 	}
 
@@ -298,8 +301,8 @@ func (b *kafkaBroker) Connect() error {
 	}
 	b.RUnlock()
 
-	kAddrs := make([]string, 0, len(b.opts.Addrs))
-	for _, addr := range b.opts.Addrs {
+	kAddrs := make([]string, 0, len(b.options.Addrs))
+	for _, addr := range b.options.Addrs {
 		kAddrs = append(kAddrs, addr)
 	}
 
@@ -308,7 +311,7 @@ func (b *kafkaBroker) Connect() error {
 	}
 
 	b.Lock()
-	b.opts.Addrs = kAddrs
+	b.options.Addrs = kAddrs
 	b.readerConfig.Brokers = kAddrs
 	b.connected = true
 	b.Unlock()
@@ -326,7 +329,9 @@ func (b *kafkaBroker) Disconnect() error {
 
 	b.Lock()
 	defer b.Unlock()
+
 	b.writer.Close()
+	b.subscribers.Clear()
 
 	b.connected = false
 	return nil
@@ -368,7 +373,7 @@ func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.P
 }
 
 func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.opts.Codec, msg)
+	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -425,7 +430,7 @@ func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...br
 	b.Lock()
 	writer, ok := b.writer.Writers[topic]
 	if !ok {
-		writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+		writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.options.TLSConfig)
 		b.initPublishOption(writer, options)
 		b.writer.Writers[topic] = writer
 	} else {
@@ -459,7 +464,7 @@ func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...br
 			delete(b.writer.Writers, topic)
 			b.Unlock()
 
-			writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+			writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.options.TLSConfig)
 			b.initPublishOption(writer, options)
 			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
@@ -519,7 +524,7 @@ func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.
 	var cached bool
 	b.Lock()
 	if b.writer.Writer == nil {
-		b.writer.Writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+		b.writer.Writer = b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.options.TLSConfig)
 		b.initPublishOption(b.writer.Writer, options)
 	} else {
 		cached = true
@@ -552,7 +557,7 @@ func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.
 			b.writer = nil
 			b.Unlock()
 
-			writer := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.opts.TLSConfig)
+			writer := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.options.TLSConfig)
 			b.initPublishOption(writer, options)
 			for i := 0; i < b.retriesCount; i++ {
 				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
@@ -583,7 +588,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 	readerConfig.GroupID = options.Queue
 
 	sub := &subscriber{
-		opts:    options,
+		options: options,
 		topic:   topic,
 		handler: handler,
 		reader:  kafkaGo.NewReader(readerConfig),
@@ -617,7 +622,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					m.Body = msg.Value
 				}
 
-				if err := broker.Unmarshal(b.opts.Codec, msg.Value, &m.Body); err != nil {
+				if err := broker.Unmarshal(b.options.Codec, msg.Value, &m.Body); err != nil {
 					p.err = err
 					log.Errorf("[kafka]: unmarshal message failed: %v", err)
 				}
@@ -626,7 +631,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 				if err != nil {
 					log.Errorf("[kafka]: process message failed: %v", err)
 				}
-				if sub.opts.AutoAck {
+				if sub.options.AutoAck {
 					if err = p.Ack(); err != nil {
 						log.Errorf("[kafka]: unable to commit msg: %v", err)
 					}
@@ -636,6 +641,8 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 			}
 		}
 	}()
+
+	b.subscribers.Add(topic, sub)
 
 	return sub, nil
 }

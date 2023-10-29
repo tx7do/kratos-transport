@@ -27,10 +27,12 @@ type pulsarBroker struct {
 	sync.RWMutex
 
 	connected bool
-	opts      broker.Options
+	options   broker.Options
 
 	client    pulsar.Client
 	producers map[string]pulsar.Producer
+
+	subscribers *broker.SubscriberSyncMap
 
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
@@ -40,8 +42,9 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &pulsarBroker{
-		producers: make(map[string]pulsar.Producer),
-		opts:      options,
+		options:     options,
+		producers:   make(map[string]pulsar.Producer),
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 
 	return b
@@ -52,18 +55,18 @@ func (pb *pulsarBroker) Name() string {
 }
 
 func (pb *pulsarBroker) Address() string {
-	if len(pb.opts.Addrs) > 0 {
-		return pb.opts.Addrs[0]
+	if len(pb.options.Addrs) > 0 {
+		return pb.options.Addrs[0]
 	}
 	return defaultAddr
 }
 
 func (pb *pulsarBroker) Options() broker.Options {
-	return pb.opts
+	return pb.options
 }
 
 func (pb *pulsarBroker) Init(opts ...broker.Option) error {
-	pb.opts.Apply(opts...)
+	pb.options.Apply(opts...)
 
 	pulsarOptions := pulsar.ClientOptions{
 		URL:               defaultAddr,
@@ -71,24 +74,24 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 		ConnectionTimeout: 30 * time.Second,
 	}
 
-	if v, ok := pb.opts.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
+	if v, ok := pb.options.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
 		pulsarOptions.OperationTimeout = v
 	}
-	if v, ok := pb.opts.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
+	if v, ok := pb.options.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
 		pulsarOptions.ConnectionTimeout = v
 	}
-	if v, ok := pb.opts.Context.Value(listenerNameKey{}).(string); ok {
+	if v, ok := pb.options.Context.Value(listenerNameKey{}).(string); ok {
 		pulsarOptions.ListenerName = v
 	}
-	if v, ok := pb.opts.Context.Value(maxConnectionsPerBrokerKey{}).(int); ok {
+	if v, ok := pb.options.Context.Value(maxConnectionsPerBrokerKey{}).(int); ok {
 		pulsarOptions.MaxConnectionsPerBroker = v
 	}
-	if v, ok := pb.opts.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
+	if v, ok := pb.options.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
 		pulsarOptions.CustomMetricsLabels = v
 	}
 
 	var enableTLS = false
-	if v, ok := pb.opts.Context.Value(tlsKey{}).(tlsConfig); ok {
+	if v, ok := pb.options.Context.Value(tlsKey{}).(tlsConfig); ok {
 		pulsarOptions.TLSTrustCertsFilePath = v.CaCertsPath
 		if v.ClientCertPath != "" && v.ClientKeyPath != "" {
 			pulsarOptions.Authentication = pulsar.NewAuthenticationTLS(v.ClientCertPath, v.ClientKeyPath)
@@ -100,7 +103,7 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	}
 
 	var cAddrs []string
-	for _, addr := range pb.opts.Addrs {
+	for _, addr := range pb.options.Addrs {
 		if len(addr) == 0 {
 			continue
 		}
@@ -110,7 +113,7 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	if len(cAddrs) == 0 {
 		cAddrs = []string{defaultAddr}
 	}
-	pb.opts.Addrs = cAddrs
+	pb.options.Addrs = cAddrs
 	pulsarOptions.URL = cAddrs[0]
 
 	var err error
@@ -120,9 +123,9 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 		return err
 	}
 
-	if len(pb.opts.Tracings) > 0 {
-		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "pulsar-producer", pb.opts.Tracings...)
-		pb.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "pulsar-consumer", pb.opts.Tracings...)
+	if len(pb.options.Tracings) > 0 {
+		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "pulsar-producer", pb.options.Tracings...)
+		pb.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "pulsar-consumer", pb.options.Tracings...)
 	}
 
 	return nil
@@ -158,6 +161,8 @@ func (pb *pulsarBroker) Disconnect() error {
 		p.Close()
 	}
 
+	pb.subscribers.Clear()
+
 	pb.client.Close()
 
 	pb.connected = false
@@ -165,7 +170,7 @@ func (pb *pulsarBroker) Disconnect() error {
 }
 
 func (pb *pulsarBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(pb.opts.Codec, msg)
+	buf, err := broker.Marshal(pb.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -259,7 +264,7 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 
 	var err error
 	var messageId pulsar.MessageID
-	messageId, err = producer.Send(pb.opts.Context, &pulsarMsg)
+	messageId, err = producer.Send(pb.options.Context, &pulsarMsg)
 	if err != nil {
 		log.Errorf("[pulsar]: send message error: %s\n", err)
 		switch cached {
@@ -275,7 +280,7 @@ func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.Publish
 				pb.Unlock()
 				break
 			}
-			if _, err = producer.Send(pb.opts.Context, &pulsarMsg); err == nil {
+			if _, err = producer.Send(pb.options.Context, &pulsarMsg); err == nil {
 				pb.Lock()
 				pb.producers[topic] = producer
 				pb.Unlock()
@@ -343,7 +348,8 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 	}
 
 	sub := &subscriber{
-		opts:    options,
+		r:       pb,
+		options: options,
 		topic:   topic,
 		handler: handler,
 		reader:  c,
@@ -357,7 +363,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			p := &publication{topic: cm.Topic(), reader: sub.reader, msg: &m, pulsarMsg: &cm.Message, ctx: options.Context}
 			m.Headers = cm.Properties()
 
-			ctx, span := pb.startConsumerSpan(sub.opts.Context, &cm)
+			ctx, span := pb.startConsumerSpan(sub.options.Context, &cm)
 
 			if binder != nil {
 				m.Body = binder()
@@ -365,7 +371,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 				m.Body = cm.Payload()
 			}
 
-			if err := broker.Unmarshal(pb.opts.Codec, cm.Payload(), &m.Body); err != nil {
+			if err := broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
 				p.err = err
 				log.Error(err)
 				continue
@@ -375,7 +381,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			if err != nil {
 				log.Errorf("[pulsar]: process message failed: %v", err)
 			}
-			if sub.opts.AutoAck {
+			if sub.options.AutoAck {
 				if err = p.Ack(); err != nil {
 					log.Errorf("[pulsar]: unable to commit msg: %v", err)
 				}
@@ -384,6 +390,8 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			pb.finishConsumerSpan(span)
 		}
 	}()
+
+	pb.subscribers.Add(topic, sub)
 
 	return sub, nil
 }

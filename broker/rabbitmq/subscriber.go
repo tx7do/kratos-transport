@@ -8,43 +8,54 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-const (
-	defaultMinResubscribeDelay = 100 * time.Millisecond
-	defaultMaxResubscribeDelay = 30 * time.Second
-	defaultExpFactor           = time.Duration(2)
-	defaultResubscribeDelay    = defaultMinResubscribeDelay
-)
-
 type subscriber struct {
-	mtx          sync.Mutex
-	mayRun       bool
-	opts         broker.SubscribeOptions
-	topic        string
-	ch           *rabbitChannel
+	sync.RWMutex
+
+	r *rabbitBroker
+
+	options broker.SubscribeOptions
+	topic   string
+	ch      *rabbitChannel
+
+	queueArgs map[string]interface{}
+	fn        func(msg amqp.Delivery)
+	headers   map[string]interface{}
+
 	durableQueue bool
 	autoDelete   bool
-	queueArgs    map[string]interface{}
-	r            *rabbitBroker
-	fn           func(msg amqp.Delivery)
-	headers      map[string]interface{}
+	closed       bool
 }
 
 func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.options
 }
 
 func (s *subscriber) Topic() string {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.topic
 }
 
 func (s *subscriber) Unsubscribe() error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.mayRun = false
+	s.Lock()
+	defer s.Unlock()
+
+	s.closed = true
+
+	var err error
 	if s.ch != nil {
-		return s.ch.Close()
+		err = s.ch.Close()
 	}
-	return nil
+
+	if s.r != nil && s.r.subscribers != nil {
+		_ = s.r.subscribers.Remove(s.topic)
+	}
+
+	return err
 }
 
 func (s *subscriber) resubscribe() {
@@ -54,10 +65,8 @@ func (s *subscriber) resubscribe() {
 	reSubscribeDelay := defaultResubscribeDelay
 
 	for {
-		s.mtx.Lock()
-		mayRun := s.mayRun
-		s.mtx.Unlock()
-		if !mayRun {
+		closed := s.IsClosed()
+		if closed {
 			// we are unsubscribed, showdown routine
 			return
 		}
@@ -75,11 +84,11 @@ func (s *subscriber) resubscribe() {
 		}
 
 		ch, sub, err := s.r.conn.Consume(
-			s.opts.Queue,
+			s.options.Queue,
 			s.topic,
 			s.headers,
 			s.queueArgs,
-			s.opts.AutoAck,
+			s.options.AutoAck,
 			s.durableQueue,
 			s.autoDelete,
 		)
@@ -88,9 +97,9 @@ func (s *subscriber) resubscribe() {
 		switch err {
 		case nil:
 			reSubscribeDelay = minResubscribeDelay
-			s.mtx.Lock()
+			s.Lock()
 			s.ch = ch
-			s.mtx.Unlock()
+			s.Unlock()
 		default:
 			if reSubscribeDelay > maxResubscribeDelay {
 				reSubscribeDelay = maxResubscribeDelay
@@ -105,4 +114,11 @@ func (s *subscriber) resubscribe() {
 			s.r.wg.Done()
 		}
 	}
+}
+
+func (s *subscriber) IsClosed() bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.closed
 }

@@ -10,6 +10,8 @@ import (
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
+	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
+
 	"github.com/tx7do/kratos-transport/utils"
 )
 
@@ -21,20 +23,21 @@ var (
 type SubscriberMap map[string]broker.Subscriber
 
 type SubscribeOption struct {
-	handler broker.Handler
-	binder  broker.Binder
-	opts    []broker.SubscribeOption
+	handler          broker.Handler
+	binder           broker.Binder
+	subscribeOptions []broker.SubscribeOption
 }
 type SubscribeOptionMap map[string]*SubscribeOption
 
 type Server struct {
 	broker.Broker
+	sync.RWMutex
+
 	brokerOpts []broker.Option
 
 	subscribers    SubscriberMap
 	subscriberOpts SubscribeOptionMap
 
-	sync.RWMutex
 	started bool
 
 	baseCtx context.Context
@@ -44,7 +47,7 @@ type Server struct {
 	enableKeepAlive bool
 }
 
-func NewServer(opts ...ServerOption) *Server {
+func NewServer(driverType rocketmqOption.DriverType, opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx:         context.Background(),
 		subscribers:     SubscriberMap{},
@@ -57,7 +60,7 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.init(opts...)
 
-	srv.Broker = rocketmq.NewBroker(srv.brokerOpts...)
+	srv.Broker = rocketmq.NewBroker(driverType, srv.brokerOpts...)
 
 	return srv
 }
@@ -144,7 +147,7 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, groupName string
 	if s.started {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)
 	} else {
-		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, opts: opts}
+		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, subscribeOptions: opts}
 	}
 	return nil
 }
@@ -184,7 +187,7 @@ func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, bind
 
 func (s *Server) doRegisterSubscriberMap() error {
 	for topic, opt := range s.subscriberOpts {
-		_ = s.doRegisterSubscriber(topic, opt.handler, opt.binder, opt.opts...)
+		_ = s.doRegisterSubscriber(topic, opt.handler, opt.binder, opt.subscribeOptions...)
 	}
 	s.subscriberOpts = SubscribeOptionMap{}
 	return nil

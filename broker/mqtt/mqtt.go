@@ -12,10 +12,11 @@ import (
 )
 
 type mqttBroker struct {
-	addrs       []string
-	opts        broker.Options
-	client      MQTT.Client
-	subscribers []*subscriber
+	addrs   []string
+	options broker.Options
+	client  MQTT.Client
+
+	subscribers *broker.SubscriberSyncMap
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -105,9 +106,9 @@ func newBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &mqttBroker{
-		opts:        options,
+		options:     options,
 		addrs:       options.Addrs,
-		subscribers: make([]*subscriber, 0),
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 
 	b.client = newClient(options.Addrs, options, b)
@@ -120,7 +121,7 @@ func (m *mqttBroker) Name() string {
 }
 
 func (m *mqttBroker) Options() broker.Options {
-	return m.opts
+	return m.options
 }
 
 func (m *mqttBroker) Address() string {
@@ -133,11 +134,11 @@ func (m *mqttBroker) Init(opts ...broker.Option) error {
 	}
 
 	for _, o := range opts {
-		o(&m.opts)
+		o(&m.options)
 	}
 
-	m.addrs = setAddrs(m.opts.Addrs)
-	m.client = newClient(m.addrs, m.opts, m)
+	m.addrs = setAddrs(m.options.Addrs)
+	m.client = newClient(m.addrs, m.options, m)
 	return nil
 }
 
@@ -161,13 +162,13 @@ func (m *mqttBroker) Disconnect() error {
 	}
 	m.client.Disconnect(0)
 
-	m.subscribers = m.subscribers[:0]
+	m.subscribers.Clear()
 
 	return nil
 }
 
 func (m *mqttBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(m.opts.Codec, msg)
+	buf, err := broker.Marshal(m.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -227,13 +228,13 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			msg.Body = mq.Payload()
 		}
 
-		if err := broker.Unmarshal(m.opts.Codec, mq.Payload(), &msg.Body); err != nil {
+		if err := broker.Unmarshal(m.options.Codec, mq.Payload(), &msg.Body); err != nil {
 			p.err = err
 			log.Error("mqtt broker unmarshal message failed:", err)
 			return
 		}
 
-		if err := handler(m.opts.Context, p); err != nil {
+		if err := handler(m.options.Context, p); err != nil {
 			p.err = err
 			log.Error("mqtt broker handle message failed:", err)
 		}
@@ -244,14 +245,14 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	}
 
 	sub := &subscriber{
-		opts:     options,
-		client:   m.client,
+		m:        m,
+		options:  options,
 		topic:    topic,
 		qos:      qos,
 		callback: callback,
 	}
 
-	m.subscribers = append(m.subscribers, sub)
+	m.subscribers.Add(topic, sub)
 
 	return sub, nil
 }
@@ -269,11 +270,12 @@ func (m *mqttBroker) doSubscribe(topic string, qos byte, callback MQTT.MessageHa
 func (m *mqttBroker) onConnect(_ MQTT.Client) {
 	log.Debug("on connect")
 
-	for _, sub := range m.subscribers {
-		if err := m.doSubscribe(sub.topic, sub.qos, sub.callback); err != nil {
+	m.subscribers.Foreach(func(topic string, sub broker.Subscriber) {
+		aSub := sub.(*subscriber)
+		if err := m.doSubscribe(aSub.topic, aSub.qos, aSub.callback); err != nil {
 			log.Error("mqtt broker subscribe message failed:", err)
 		}
-	}
+	})
 }
 
 func (m *mqttBroker) onConnectionLost(client MQTT.Client, _ error) {

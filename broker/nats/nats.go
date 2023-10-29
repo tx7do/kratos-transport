@@ -29,10 +29,12 @@ type natsBroker struct {
 
 	connected bool
 
-	opts broker.Options
+	options broker.Options
 
 	conn     *natsGo.Conn
 	natsOpts natsGo.Options
+
+	subscribers *broker.SubscriberSyncMap
 
 	drain   bool
 	closeCh chan error
@@ -45,7 +47,8 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &natsBroker{
-		opts: options,
+		options:     options,
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 
 	return b
@@ -56,27 +59,27 @@ func (b *natsBroker) Address() string {
 		return b.conn.ConnectedUrl()
 	}
 
-	if len(b.opts.Addrs) > 0 {
-		return b.opts.Addrs[0]
+	if len(b.options.Addrs) > 0 {
+		return b.options.Addrs[0]
 	}
 
 	return defaultAddr
 }
 
 func (b *natsBroker) Name() string {
-	return "nats"
+	return "NATS"
 }
 
 func (b *natsBroker) Options() broker.Options {
-	return b.opts
+	return b.options
 }
 
 func (b *natsBroker) Init(opts ...broker.Option) error {
 	b.setOption(opts...)
 
-	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "nats-producer", b.opts.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "nats-consumer", b.opts.Tracings...)
+	if len(b.options.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "nats-producer", b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "nats-consumer", b.options.Tracings...)
 	}
 
 	return nil
@@ -102,31 +105,31 @@ func (b *natsBroker) setAddrs(addrs []string) []string {
 
 func (b *natsBroker) setOption(opts ...broker.Option) {
 	for _, o := range opts {
-		o(&b.opts)
+		o(&b.options)
 	}
 
 	b.Once.Do(func() {
 		b.natsOpts = natsGo.GetDefaultOptions()
 	})
 
-	if value, ok := b.opts.Context.Value(optionsKey{}).(natsGo.Options); ok {
+	if value, ok := b.options.Context.Value(optionsKey{}).(natsGo.Options); ok {
 		b.natsOpts = value
 	}
 
-	if len(b.opts.Addrs) == 0 {
-		b.opts.Addrs = b.natsOpts.Servers
+	if len(b.options.Addrs) == 0 {
+		b.options.Addrs = b.natsOpts.Servers
 	}
 
-	if !b.opts.Secure {
-		b.opts.Secure = b.natsOpts.Secure
+	if !b.options.Secure {
+		b.options.Secure = b.natsOpts.Secure
 	}
 
-	if b.opts.TLSConfig == nil {
-		b.opts.TLSConfig = b.natsOpts.TLSConfig
+	if b.options.TLSConfig == nil {
+		b.options.TLSConfig = b.natsOpts.TLSConfig
 	}
-	b.setAddrs(b.opts.Addrs)
+	b.setAddrs(b.options.Addrs)
 
-	if b.opts.Context.Value(drainConnectionKey{}) != nil {
+	if b.options.Context.Value(drainConnectionKey{}) != nil {
 		b.drain = true
 		b.closeCh = make(chan error)
 		b.natsOpts.ClosedCB = b.onClose
@@ -154,11 +157,11 @@ func (b *natsBroker) Connect() error {
 		return nil
 	default: // DISCONNECTED or CLOSED or DRAINING
 		opts := b.natsOpts
-		opts.Servers = b.opts.Addrs
-		opts.Secure = b.opts.Secure
-		opts.TLSConfig = b.opts.TLSConfig
+		opts.Servers = b.options.Addrs
+		opts.Secure = b.options.Secure
+		opts.TLSConfig = b.options.TLSConfig
 
-		if b.opts.TLSConfig != nil {
+		if b.options.TLSConfig != nil {
 			opts.Secure = true
 		}
 
@@ -177,11 +180,17 @@ func (b *natsBroker) Disconnect() error {
 	defer b.Unlock()
 
 	if b.drain {
-		_ = b.conn.Drain()
+		if b.conn != nil {
+			_ = b.conn.Drain()
+		}
 		b.closeCh <- nil
 	}
 
-	b.conn.Close()
+	b.subscribers.Clear()
+
+	if b.conn != nil {
+		b.conn.Close()
+	}
 
 	b.connected = false
 
@@ -189,7 +198,7 @@ func (b *natsBroker) Disconnect() error {
 }
 
 func (b *natsBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.opts.Codec, msg)
+	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -248,7 +257,11 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		o(&options)
 	}
 
-	subs := &subscriber{s: nil, opts: options}
+	subs := &subscriber{
+		n:       b,
+		s:       nil,
+		options: options,
+	}
 
 	fn := func(msg *natsGo.Msg) {
 		m := &broker.Message{
@@ -260,10 +273,10 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		ctx, span := b.startConsumerSpan(options.Context, msg)
 
-		eh := b.opts.ErrorHandler
+		eh := b.options.ErrorHandler
 
 		if binder != nil {
-			if b.opts.Codec.Name() == kProto.Name {
+			if b.options.Codec.Name() == kProto.Name {
 				m.Body = binder().(proto.Message)
 			} else {
 				m.Body = binder()
@@ -272,11 +285,11 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			m.Body = msg.Data
 		}
 
-		if err := broker.Unmarshal(b.opts.Codec, msg.Data, &m.Body); err != nil {
+		if err := broker.Unmarshal(b.options.Codec, msg.Data, &m.Body); err != nil {
 			pub.err = err
 			log.Errorf("[nats]: unmarshal message failed: %v", err)
 			if eh != nil {
-				_ = eh(b.opts.Context, pub)
+				_ = eh(b.options.Context, pub)
 			}
 			return
 		}
@@ -285,7 +298,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			pub.err = err
 			log.Errorf("[nats]: process message failed: %v", err)
 			if eh != nil {
-				_ = eh(b.opts.Context, pub)
+				_ = eh(b.options.Context, pub)
 			}
 		}
 		if options.AutoAck {
@@ -313,6 +326,8 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 	subs.s = sub
 
+	b.subscribers.Add(topic, subs)
+
 	return subs, nil
 }
 
@@ -321,7 +336,7 @@ func (b *natsBroker) onClose(_ *natsGo.Conn) {
 }
 
 func (b *natsBroker) onAsyncError(_ *natsGo.Conn, _ *natsGo.Subscription, err error) {
-	if err == natsGo.ErrDrainTimeout {
+	if errors.Is(err, natsGo.ErrDrainTimeout) {
 		b.closeCh <- err
 	}
 }

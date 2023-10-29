@@ -2,12 +2,12 @@ package rocketmq
 
 import (
 	"crypto/tls"
+	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/broker/rocketmq"
 )
 
 type ServerOption func(o *Server)
@@ -35,59 +35,51 @@ func WithEnableKeepAlive(enable bool) ServerOption {
 	}
 }
 
-func WithAliyunHttpSupport() ServerOption {
-	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithAliyunHttpSupport())
-	}
-}
-
 func WithEnableTrace() ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithEnableTrace())
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithEnableTrace())
 	}
 }
 
 func WithNameServer(addrs []string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithNameServer(addrs))
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithNameServer(addrs))
 	}
 }
 
 func WithNameServerDomain(uri string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithNameServerDomain(uri))
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithNameServerDomain(uri))
 	}
 }
 
 func WithCredentials(accessKey, secretKey, securityToken string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithAccessKey(accessKey))
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithSecretKey(secretKey))
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithSecurityToken(securityToken))
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithCredentials(accessKey, secretKey, securityToken))
 	}
 }
 
 func WithNamespace(ns string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithNamespace(ns))
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithNamespace(ns))
 	}
 }
 
 func WithInstanceName(name string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithInstanceName(name))
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithInstanceName(name))
 	}
 }
 
 func WithGroupName(name string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithGroupName(name))
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithGroupName(name))
 	}
 }
 
 func WithRetryCount(count int) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, rocketmq.WithRetryCount(count))
+		s.brokerOpts = append(s.brokerOpts, rocketmqOption.WithRetryCount(count))
 	}
 }
 

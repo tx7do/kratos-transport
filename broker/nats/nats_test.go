@@ -95,12 +95,12 @@ func TestInitAddrs(t *testing.T) {
 			// check if the same amount of addrs we set has actually been set, default
 			// have only 1 address nats://127.0.0.1:4222 (current nats code) or
 			// nats://localhost:4222 (older code version)
-			if len(natsBroker.opts.Addrs) != len(tc.addrs) && tc.name != "default" {
+			if len(natsBroker.options.Addrs) != len(tc.addrs) && tc.name != "default" {
 				t.Errorf("Expected Addr count = %d, Actual Addr count = %d",
-					len(natsBroker.opts.Addrs), len(tc.addrs))
+					len(natsBroker.options.Addrs), len(tc.addrs))
 			}
 
-			for _, addr := range natsBroker.opts.Addrs {
+			for _, addr := range natsBroker.options.Addrs {
 				_, ok := tc.addrs[addr]
 				if !ok {
 					t.Errorf("Expected '%s' has not been set", addr)
@@ -231,9 +231,9 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
-	case "jaeger":
+	case "otlp-grpc":
 		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:14268/api/traces",
+			"http://localhost:4317",
 			serviceName,
 			"",
 			"1.0.0",
@@ -263,7 +263,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 	b := NewBroker(
 		broker.WithAddress(localBroker),
 		broker.WithCodec("json"),
-		createTracerProvider("jaeger", "publish_tracer_tester"),
+		createTracerProvider("otlp-grpc", "publish_tracer_tester"),
 	)
 
 	_ = b.Init()
@@ -298,7 +298,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	b := NewBroker(
 		broker.WithAddress(localBroker),
 		broker.WithCodec("json"),
-		createTracerProvider("jaeger", "subscribe_tracer_tester"),
+		createTracerProvider("otlp-grpc", "subscribe_tracer_tester"),
 	)
 	defer b.Disconnect()
 

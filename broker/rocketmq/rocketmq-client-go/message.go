@@ -1,4 +1,4 @@
-package rocketmq
+package rocketmqClientGo
 
 import (
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -27,7 +27,7 @@ func (c ProducerMessageCarrier) Set(key, val string) {
 func (c ProducerMessageCarrier) Keys() []string {
 	out := make([]string, len(c.msg.GetProperties()))
 	var i = 0
-	for k, _ := range c.msg.GetProperties() {
+	for k := range c.msg.GetProperties() {
 		out[i] = k
 		i++
 	}
@@ -53,7 +53,7 @@ func (c ConsumerMessageCarrier) Set(key, val string) {
 func (c ConsumerMessageCarrier) Keys() []string {
 	out := make([]string, len(c.msg.GetProperties()))
 	var i = 0
-	for k, _ := range c.msg.GetProperties() {
+	for k := range c.msg.GetProperties() {
 		out[i] = k
 		i++
 	}

@@ -1,7 +1,8 @@
-package rocketmq
+package aliyun
 
 import (
 	"context"
+	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 	"strings"
 	"sync"
 	"time"
@@ -18,13 +19,13 @@ import (
 	"github.com/tx7do/kratos-transport/tracing"
 )
 
-type aliyunBroker struct {
+type aliyunmqBroker struct {
+	sync.RWMutex
+
 	nameServers   []string
 	nameServerUrl string
 
-	accessKey     string
-	secretKey     string
-	securityToken string
+	credentials rocketmqOption.Credentials
 
 	instanceName string
 	groupName    string
@@ -32,81 +33,87 @@ type aliyunBroker struct {
 	namespace    string
 
 	connected bool
-	sync.RWMutex
-	opts broker.Options
+	options   broker.Options
 
 	client    aliyun.MQClient
 	producers map[string]aliyun.MQProducer
+
+	subscribers *broker.SubscriberSyncMap
 
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
 }
 
-func newAliyunHttpBroker(options broker.Options) broker.Broker {
-	return &aliyunBroker{
-		producers:  make(map[string]aliyun.MQProducer),
-		opts:       options,
-		retryCount: 2,
+func NewBroker(opts ...broker.Option) broker.Broker {
+	options := broker.NewOptionsAndApply(opts...)
+	return &aliyunmqBroker{
+		producers:   make(map[string]aliyun.MQProducer),
+		options:     options,
+		retryCount:  2,
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 }
 
-func (r *aliyunBroker) Name() string {
-	return "rocketmq_http"
+func (r *aliyunmqBroker) Name() string {
+	return "rocketmq-http"
 }
 
-func (r *aliyunBroker) Address() string {
+func (r *aliyunmqBroker) Address() string {
 	if len(r.nameServers) > 0 {
 		return r.nameServers[0]
 	} else if r.nameServerUrl != "" {
 		return r.nameServerUrl
 	}
-	return defaultAddr
+	return rocketmqOption.DefaultAddr
 }
 
-func (r *aliyunBroker) Options() broker.Options {
-	return r.opts
+func (r *aliyunmqBroker) Options() broker.Options {
+	return r.options
 }
 
-func (r *aliyunBroker) Init(opts ...broker.Option) error {
-	r.opts.Apply(opts...)
+func (r *aliyunmqBroker) Init(opts ...broker.Option) error {
+	r.options.Apply(opts...)
 
-	if v, ok := r.opts.Context.Value(nameServersKey{}).([]string); ok {
+	if v, ok := r.options.Context.Value(rocketmqOption.NameServersKey{}).([]string); ok {
 		r.nameServers = v
 	}
-	if v, ok := r.opts.Context.Value(nameServerUrlKey{}).(string); ok {
+	if v, ok := r.options.Context.Value(rocketmqOption.NameServerUrlKey{}).(string); ok {
 		r.nameServerUrl = v
 	}
-	if v, ok := r.opts.Context.Value(accessKey{}).(string); ok {
-		r.accessKey = v
+	if v, ok := r.options.Context.Value(rocketmqOption.AccessKey{}).(string); ok {
+		r.credentials.AccessKey = v
 	}
-	if v, ok := r.opts.Context.Value(secretKey{}).(string); ok {
-		r.secretKey = v
+	if v, ok := r.options.Context.Value(rocketmqOption.SecretKey{}).(string); ok {
+		r.credentials.AccessSecret = v
 	}
-	if v, ok := r.opts.Context.Value(securityTokenKey{}).(string); ok {
-		r.securityToken = v
+	if v, ok := r.options.Context.Value(rocketmqOption.SecurityTokenKey{}).(string); ok {
+		r.credentials.SecurityToken = v
 	}
-	if v, ok := r.opts.Context.Value(retryCountKey{}).(int); ok {
+	if v, ok := r.options.Context.Value(rocketmqOption.CredentialsKey{}).(*rocketmqOption.Credentials); ok {
+		r.credentials = *v
+	}
+	if v, ok := r.options.Context.Value(rocketmqOption.RetryCountKey{}).(int); ok {
 		r.retryCount = v
 	}
-	if v, ok := r.opts.Context.Value(namespaceKey{}).(string); ok {
+	if v, ok := r.options.Context.Value(rocketmqOption.NamespaceKey{}).(string); ok {
 		r.namespace = v
 	}
-	if v, ok := r.opts.Context.Value(instanceNameKey{}).(string); ok {
+	if v, ok := r.options.Context.Value(rocketmqOption.InstanceNameKey{}).(string); ok {
 		r.instanceName = v
 	}
-	if v, ok := r.opts.Context.Value(groupNameKey{}).(string); ok {
+	if v, ok := r.options.Context.Value(rocketmqOption.GroupNameKey{}).(string); ok {
 		r.groupName = v
 	}
 
-	if len(r.opts.Tracings) > 0 {
-		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rocketmq-producer", r.opts.Tracings...)
-		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rocketmq-consumer", r.opts.Tracings...)
+	if len(r.options.Tracings) > 0 {
+		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rocketmq-producer", r.options.Tracings...)
+		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rocketmq-consumer", r.options.Tracings...)
 	}
 
 	return nil
 }
 
-func (r *aliyunBroker) Connect() error {
+func (r *aliyunmqBroker) Connect() error {
 	r.RLock()
 	if r.connected {
 		r.RUnlock()
@@ -115,7 +122,7 @@ func (r *aliyunBroker) Connect() error {
 	r.RUnlock()
 
 	endpoint := r.Address()
-	client := aliyun.NewAliyunMQClient(endpoint, r.accessKey, r.secretKey, r.securityToken)
+	client := aliyun.NewAliyunMQClient(endpoint, r.credentials.AccessKey, r.credentials.AccessSecret, r.credentials.SecurityToken)
 	r.client = client
 
 	r.Lock()
@@ -125,7 +132,7 @@ func (r *aliyunBroker) Connect() error {
 	return nil
 }
 
-func (r *aliyunBroker) Disconnect() error {
+func (r *aliyunmqBroker) Disconnect() error {
 	r.RLock()
 	if !r.connected {
 		r.RUnlock()
@@ -142,8 +149,8 @@ func (r *aliyunBroker) Disconnect() error {
 	return nil
 }
 
-func (r *aliyunBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(r.opts.Codec, msg)
+func (r *aliyunmqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(r.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -151,7 +158,7 @@ func (r *aliyunBroker) Publish(topic string, msg broker.Any, opts ...broker.Publ
 	return r.publish(topic, buf, opts...)
 }
 
-func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
+func (r *aliyunmqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: context.Background(),
 	}
@@ -181,16 +188,16 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 		MessageBody: string(msg),
 	}
 
-	if v, ok := options.Context.Value(propertiesKey{}).(map[string]string); ok {
+	if v, ok := options.Context.Value(rocketmqOption.PropertiesKey{}).(map[string]string); ok {
 		aMsg.Properties = v
 	}
-	if v, ok := options.Context.Value(delayTimeLevelKey{}).(int); ok {
+	if v, ok := options.Context.Value(rocketmqOption.DelayTimeLevelKey{}).(int); ok {
 		aMsg.StartDeliverTime = int64(v)
 	}
-	if v, ok := options.Context.Value(tagsKey{}).(string); ok {
+	if v, ok := options.Context.Value(rocketmqOption.TagsKey{}).(string); ok {
 		aMsg.MessageTag = v
 	}
-	if v, ok := options.Context.Value(keysKey{}).([]string); ok {
+	if v, ok := options.Context.Value(rocketmqOption.KeysKey{}).([]string); ok {
 		var sb strings.Builder
 		for _, k := range v {
 			sb.WriteString(k)
@@ -198,7 +205,7 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 		}
 		aMsg.MessageKey = sb.String()
 	}
-	if v, ok := options.Context.Value(shardingKeyKey{}).(string); ok {
+	if v, ok := options.Context.Value(rocketmqOption.ShardingKeyKey{}).(string); ok {
 		aMsg.ShardingKey = v
 	}
 
@@ -214,7 +221,7 @@ func (r *aliyunBroker) publish(topic string, msg []byte, opts ...broker.PublishO
 	return nil
 }
 
-func (r *aliyunBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (r *aliyunmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	if r.client == nil {
 		return nil, errors.New("client is nil")
 	}
@@ -230,8 +237,8 @@ func (r *aliyunBroker) Subscribe(topic string, handler broker.Handler, binder br
 
 	mqConsumer := r.client.GetConsumer(r.instanceName, topic, options.Queue, "")
 
-	sub := &aliyunSubscriber{
-		opts:    options,
+	sub := &Subscriber{
+		options: options,
 		topic:   topic,
 		handler: handler,
 		binder:  binder,
@@ -244,7 +251,7 @@ func (r *aliyunBroker) Subscribe(topic string, handler broker.Handler, binder br
 	return sub, nil
 }
 
-func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
+func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 	for {
 		endChan := make(chan int)
 		respChan := make(chan aliyun.ConsumeMessageResponse)
@@ -257,14 +264,14 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 					var m broker.Message
 					for _, msg := range resp.Messages {
 
-						ctx, span := r.startConsumerSpan(sub.opts.Context, &msg)
+						ctx, span := r.startConsumerSpan(sub.options.Context, &msg)
 
-						p := &aliyunPublication{
+						p := &Publication{
 							topic:  msg.Message,
 							reader: sub.reader,
 							m:      &m,
 							rm:     []string{msg.ReceiptHandle},
-							ctx:    r.opts.Context,
+							ctx:    r.options.Context,
 						}
 
 						m.Headers = msg.Properties
@@ -275,7 +282,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 							m.Body = msg.MessageBody
 						}
 
-						if err := broker.Unmarshal(r.opts.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
+						if err := broker.Unmarshal(r.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
 							p.err = err
 							log.Error("[rocketmq]: ", err)
 						}
@@ -285,7 +292,7 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 							log.Errorf("[rocketmq]: process message failed: %v", err)
 						}
 
-						if sub.opts.AutoAck {
+						if sub.options.AutoAck {
 							if err = p.Ack(); err != nil {
 								// 某些消息的句柄可能超时，会导致消息消费状态确认不成功。
 								if errAckItems, ok := err.(errors.ErrCode).Context()["Detail"].([]aliyun.ErrAckItem); ok {
@@ -337,12 +344,12 @@ func (r *aliyunBroker) doConsume(sub *aliyunSubscriber) {
 	}
 }
 
-func (r *aliyunBroker) startProducerSpan(ctx context.Context, topicName string, msg *aliyun.PublishMessageRequest) trace.Span {
+func (r *aliyunmqBroker) startProducerSpan(ctx context.Context, topicName string, msg *aliyun.PublishMessageRequest) trace.Span {
 	if r.producerTracer == nil {
 		return nil
 	}
 
-	carrier := NewAliyunProducerMessageCarrier(msg)
+	carrier := NewProducerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
@@ -356,7 +363,7 @@ func (r *aliyunBroker) startProducerSpan(ctx context.Context, topicName string, 
 	return span
 }
 
-func (r *aliyunBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
+func (r *aliyunmqBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
 	if r.producerTracer == nil {
 		return
 	}
@@ -370,12 +377,12 @@ func (r *aliyunBroker) finishProducerSpan(span trace.Span, messageId string, err
 	r.producerTracer.End(context.Background(), span, err, attrs...)
 }
 
-func (r *aliyunBroker) startConsumerSpan(ctx context.Context, msg *aliyun.ConsumeMessageEntry) (context.Context, trace.Span) {
+func (r *aliyunmqBroker) startConsumerSpan(ctx context.Context, msg *aliyun.ConsumeMessageEntry) (context.Context, trace.Span) {
 	if r.consumerTracer == nil {
 		return ctx, nil
 	}
 
-	carrier := NewAliyunConsumerMessageCarrier(msg)
+	carrier := NewConsumerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String("rocketmq"),
@@ -391,7 +398,7 @@ func (r *aliyunBroker) startConsumerSpan(ctx context.Context, msg *aliyun.Consum
 	return ctx, span
 }
 
-func (r *aliyunBroker) finishConsumerSpan(span trace.Span) {
+func (r *aliyunmqBroker) finishConsumerSpan(span trace.Span) {
 	if r.consumerTracer == nil {
 		return
 	}

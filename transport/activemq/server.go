@@ -23,7 +23,7 @@ type SubscriberMap map[string]broker.Subscriber
 type SubscribeOption struct {
 	handler broker.Handler
 	binder  broker.Binder
-	opts    []broker.SubscribeOption
+	options []broker.SubscribeOption
 }
 type SubscribeOptionMap map[string]*SubscribeOption
 
@@ -142,7 +142,7 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler b
 	if s.started {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)
 	} else {
-		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, opts: opts}
+		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, options: opts}
 	}
 	return nil
 }
@@ -182,7 +182,7 @@ func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, bind
 
 func (s *Server) doRegisterSubscriberMap() error {
 	for topic, opt := range s.subscriberOpts {
-		_ = s.doRegisterSubscriber(topic, opt.handler, opt.binder, opt.opts...)
+		_ = s.doRegisterSubscriber(topic, opt.handler, opt.binder, opt.options...)
 	}
 	s.subscriberOpts = SubscribeOptionMap{}
 	return nil

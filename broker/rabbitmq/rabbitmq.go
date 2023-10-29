@@ -20,8 +20,10 @@ type rabbitBroker struct {
 	mtx sync.Mutex
 	wg  sync.WaitGroup
 
-	conn *rabbitConnection
-	opts broker.Options
+	conn    *rabbitConnection
+	options broker.Options
+
+	subscribers *broker.SubscriberSyncMap
 
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
@@ -31,7 +33,8 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &rabbitBroker{
-		opts: options,
+		options:     options,
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 
 	return b
@@ -42,21 +45,21 @@ func (b *rabbitBroker) Name() string {
 }
 
 func (b *rabbitBroker) Options() broker.Options {
-	return b.opts
+	return b.options
 }
 
 func (b *rabbitBroker) Address() string {
-	if len(b.opts.Addrs) > 0 {
-		return b.opts.Addrs[0]
+	if len(b.options.Addrs) > 0 {
+		return b.options.Addrs[0]
 	}
 	return ""
 }
 
 func (b *rabbitBroker) Init(opts ...broker.Option) error {
-	b.opts.Apply(opts...)
+	b.options.Apply(opts...)
 
 	var addrs []string
-	for _, addr := range b.opts.Addrs {
+	for _, addr := range b.options.Addrs {
 		if len(addr) == 0 {
 			continue
 		}
@@ -68,11 +71,11 @@ func (b *rabbitBroker) Init(opts ...broker.Option) error {
 	if len(addrs) == 0 {
 		addrs = []string{DefaultRabbitURL}
 	}
-	b.opts.Addrs = addrs
+	b.options.Addrs = addrs
 
-	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rabbitmq-producer", b.opts.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rabbitmq-consumer", b.opts.Tracings...)
+	if len(b.options.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rabbitmq-producer", b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rabbitmq-consumer", b.options.Tracings...)
 	}
 
 	return nil
@@ -80,31 +83,35 @@ func (b *rabbitBroker) Init(opts ...broker.Option) error {
 
 func (b *rabbitBroker) Connect() error {
 	if b.conn == nil {
-		b.conn = newRabbitMQConnection(b.opts)
+		b.conn = newRabbitMQConnection(b.options)
 	}
 
 	conf := DefaultAmqpConfig
 
-	if auth, ok := b.opts.Context.Value(externalAuthKey{}).(ExternalAuthentication); ok {
+	if auth, ok := b.options.Context.Value(externalAuthKey{}).(ExternalAuthentication); ok {
 		conf.SASL = []amqp.Authentication{&auth}
 	}
 
-	conf.TLSClientConfig = b.opts.TLSConfig
+	conf.TLSClientConfig = b.options.TLSConfig
 
-	return b.conn.Connect(b.opts.Secure, &conf)
+	return b.conn.Connect(b.options.Secure, &conf)
 }
 
 func (b *rabbitBroker) Disconnect() error {
 	if b.conn == nil {
 		return errors.New("connection is nil")
 	}
+
+	b.subscribers.Clear()
+
 	ret := b.conn.Close()
 	b.wg.Wait()
+
 	return ret
 }
 
 func (b *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.opts.Codec, msg)
+	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -233,7 +240,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 
 		ctx, span := b.startConsumerSpan(options.Context, options.Queue, &msg)
 
-		p := &publication{d: msg, m: m, t: msg.RoutingKey}
+		p := &publication{d: msg, message: m, topic: msg.RoutingKey}
 
 		if binder != nil {
 			m.Body = binder()
@@ -241,7 +248,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			m.Body = msg.Body
 		}
 
-		if err := broker.Unmarshal(b.opts.Codec, msg.Body, &m.Body); err != nil {
+		if err := broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
 			p.err = err
 			log.Error(err)
 		}
@@ -258,8 +265,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 
 	sub := &subscriber{
 		topic:        routingKey,
-		opts:         options,
-		mayRun:       true,
+		options:      options,
 		r:            b,
 		durableQueue: true,
 		autoDelete:   false,
@@ -285,6 +291,8 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	if val, ok := options.Context.Value(subscribeQueueArgsKey{}).(map[string]interface{}); ok {
 		sub.queueArgs = val
 	}
+
+	b.subscribers.Add(routingKey, sub)
 
 	go sub.resubscribe()
 

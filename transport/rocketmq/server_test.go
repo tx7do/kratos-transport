@@ -15,6 +15,7 @@ import (
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
+	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 )
 
 const (
@@ -42,6 +43,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
+		rocketmqOption.DriverTypeV2,
 		WithNameServer([]string{testBroker}),
 		//WithNameServerDomain("http://nsaddr.rmq.cloud.tencent.com"),
 		WithCodec("json"),
@@ -68,9 +70,10 @@ func TestClient(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	b := rocketmq.NewBroker(
+		rocketmqOption.DriverTypeV2,
 		broker.WithCodec("json"),
-		rocketmq.WithEnableTrace(),
-		rocketmq.WithNameServer([]string{testBroker}),
+		rocketmqOption.WithEnableTrace(),
+		rocketmqOption.WithNameServer([]string{testBroker}),
 		//rocketmq.WithNameServerDomain(testBroker),
 	)
 
@@ -112,7 +115,7 @@ func TestAliyunServer(t *testing.T) {
 	groupName := "GID_DEFAULT"
 
 	srv := NewServer(
-		WithAliyunHttpSupport(),
+		rocketmqOption.DriverTypeAliyun,
 		WithCodec("json"),
 		WithEnableTrace(),
 		WithNameServerDomain(endpoint),
@@ -149,14 +152,14 @@ func TestAliyunClient(t *testing.T) {
 	topicName := ""
 
 	b := rocketmq.NewBroker(
+		rocketmqOption.DriverTypeAliyun,
 		broker.WithOptionContext(ctx),
 		broker.WithCodec("json"),
-		rocketmq.WithAliyunHttpSupport(),
-		rocketmq.WithEnableTrace(),
-		rocketmq.WithNameServerDomain(endpoint),
-		rocketmq.WithAccessKey(accessKey),
-		rocketmq.WithSecretKey(secretKey),
-		rocketmq.WithInstanceName(instanceId),
+		rocketmqOption.WithEnableTrace(),
+		rocketmqOption.WithNameServerDomain(endpoint),
+		rocketmqOption.WithAccessKey(accessKey),
+		rocketmqOption.WithSecretKey(secretKey),
+		rocketmqOption.WithInstanceName(instanceId),
 	)
 
 	_ = b.Init()

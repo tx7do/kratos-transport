@@ -9,28 +9,50 @@ import (
 )
 
 type subscriber struct {
+	sync.RWMutex
+
 	k       *kafkaBroker
 	topic   string
-	opts    broker.SubscribeOptions
+	options broker.SubscribeOptions
 	handler broker.Handler
 	reader  *kafkaGo.Reader
 	closed  bool
 	done    chan struct{}
-	sync.RWMutex
 }
 
 func (s *subscriber) Options() broker.SubscribeOptions {
-	return s.opts
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.options
 }
 
 func (s *subscriber) Topic() string {
+	s.RLock()
+	defer s.RUnlock()
+
 	return s.topic
 }
 
 func (s *subscriber) Unsubscribe() error {
-	var err error
 	s.Lock()
 	defer s.Unlock()
+
+	var err error
+	if s.reader != nil {
+		err = s.reader.Close()
+	}
 	s.closed = true
+	if s.k != nil && s.k.subscribers != nil {
+		_ = s.k.subscribers.Remove(s.topic)
+	}
+
 	return err
+}
+
+func (s *subscriber) IsClosed() bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	return s.closed
 }

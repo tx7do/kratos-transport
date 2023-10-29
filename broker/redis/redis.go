@@ -18,8 +18,10 @@ const (
 type redisBroker struct {
 	addr       string
 	pool       *redis.Pool
-	opts       broker.Options
+	options    broker.Options
 	commonOpts *commonOptions
+
+	subscribers *broker.SubscriberSyncMap
 }
 
 // NewBroker returns a new common implemented using the Redis pub/sub
@@ -38,8 +40,9 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	return &redisBroker{
-		opts:       options,
-		commonOpts: commonOpts,
+		options:     options,
+		commonOpts:  commonOpts,
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 }
 
@@ -48,7 +51,7 @@ func (b *redisBroker) Name() string {
 }
 
 func (b *redisBroker) Options() broker.Options {
-	return b.opts
+	return b.options
 }
 
 func (b *redisBroker) Address() string {
@@ -62,10 +65,10 @@ func (b *redisBroker) Init(opts ...broker.Option) error {
 
 	var addr string
 
-	if len(b.opts.Addrs) == 0 || b.opts.Addrs[0] == "" {
+	if len(b.options.Addrs) == 0 || b.options.Addrs[0] == "" {
 		addr = defaultBroker
 	} else {
-		addr = b.opts.Addrs[0]
+		addr = b.options.Addrs[0]
 
 		if !strings.HasPrefix(addr, "redis://") {
 			addr = "redis://" + addr
@@ -74,9 +77,9 @@ func (b *redisBroker) Init(opts ...broker.Option) error {
 
 	b.addr = addr
 
-	b.opts.Apply(opts...)
+	b.options.Apply(opts...)
 
-	if v, ok := b.opts.Context.Value(optionsKey).(*commonOptions); ok {
+	if v, ok := b.options.Context.Value(optionsKey).(*commonOptions); ok {
 		b.commonOpts = v
 	}
 
@@ -116,11 +119,14 @@ func (b *redisBroker) Disconnect() error {
 	err := b.pool.Close()
 	b.pool = nil
 	b.addr = ""
+
+	b.subscribers.Clear()
+
 	return err
 }
 
 func (b *redisBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.opts.Codec, msg)
+	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -136,26 +142,29 @@ func (b *redisBroker) publish(topic string, msg []byte, _ ...broker.PublishOptio
 }
 
 func (b *redisBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	var options broker.SubscribeOptions
-	options.Context = context.Background()
+	options := broker.SubscribeOptions{
+		Context: context.Background(),
+	}
 	for _, o := range opts {
 		o(&options)
 	}
 
-	s := subscriber{
-		codec:   b.opts.Codec,
+	sub := &subscriber{
+		b:       b,
 		conn:    &redis.PubSubConn{Conn: b.pool.Get()},
 		topic:   topic,
 		handler: handler,
 		binder:  binder,
-		opts:    options,
+		options: options,
 	}
 
-	if err := s.conn.Subscribe(s.topic); err != nil {
+	if err := sub.conn.Subscribe(sub.topic); err != nil {
 		return nil, err
 	}
 
-	go s.recv()
+	b.subscribers.Add(topic, sub)
 
-	return &s, nil
+	go sub.recv()
+
+	return sub, nil
 }

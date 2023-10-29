@@ -27,37 +27,42 @@ type nsqBroker struct {
 	lookupAddrs []string
 	addrs       []string
 
-	opts   broker.Options
-	config *NSQ.Config
+	options broker.Options
+	config  *NSQ.Config
 
 	running bool
 
-	producers   []*NSQ.Producer
-	subscribers []*subscriber
+	producers []*NSQ.Producer
+
+	subscribers *broker.SubscriberSyncMap
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &nsqBroker{
-		opts:   options,
-		config: NSQ.NewConfig(),
+		options: options,
+		config:  NSQ.NewConfig(),
+
+		producers: make([]*NSQ.Producer, 0),
+
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 
 	return b
 }
 
 func (b *nsqBroker) Name() string {
-	return "nsq"
+	return "NSQ"
 }
 
 func (b *nsqBroker) Options() broker.Options {
-	return b.opts
+	return b.options
 }
 
 func (b *nsqBroker) Address() string {
-	if len(b.opts.Addrs) > 0 {
-		return b.opts.Addrs[0]
+	if len(b.options.Addrs) > 0 {
+		return b.options.Addrs[0]
 	}
 
 	return defaultAddr
@@ -65,12 +70,12 @@ func (b *nsqBroker) Address() string {
 
 func (b *nsqBroker) Init(opts ...broker.Option) error {
 	for _, o := range opts {
-		o(&b.opts)
+		o(&b.options)
 	}
 
 	var addrs []string
 
-	for _, addr := range b.opts.Addrs {
+	for _, addr := range b.options.Addrs {
 		if len(addr) > 0 {
 			addrs = append(addrs, addr)
 		}
@@ -81,7 +86,7 @@ func (b *nsqBroker) Init(opts ...broker.Option) error {
 	}
 
 	b.addrs = addrs
-	b.configure(b.opts.Context)
+	b.configure(b.options.Context)
 
 	return nil
 }
@@ -120,15 +125,18 @@ func (b *nsqBroker) Connect() error {
 	}
 	b.producers = producers
 
-	for _, c := range b.subscribers {
-		channel := c.opts.Queue
+	var err error
+	b.subscribers.Foreach(func(topic string, sub broker.Subscriber) {
+		c := sub.(*subscriber)
+
+		channel := c.options.Queue
 		if len(channel) == 0 {
 			channel = uuid.New().String() + "#ephemeral"
 		}
 
-		cm, err := NSQ.NewConsumer(c.topic, channel, b.config)
-		if err != nil {
-			return err
+		var cm *NSQ.Consumer
+		if cm, err = NSQ.NewConsumer(c.topic, channel, b.config); err != nil {
+			return
 		}
 
 		if c.handlerFunc != nil {
@@ -140,14 +148,14 @@ func (b *nsqBroker) Connect() error {
 		if len(b.lookupAddrs) > 0 {
 			_ = c.consumer.ConnectToNSQLookupds(b.lookupAddrs)
 		} else {
-			err = c.consumer.ConnectToNSQDs(b.addrs)
-			if err != nil {
-				return err
+			if err = c.consumer.ConnectToNSQDs(b.addrs); err != nil {
+				return
 			}
 		}
-	}
+	})
 
 	b.running = true
+
 	return nil
 }
 
@@ -163,7 +171,9 @@ func (b *nsqBroker) Disconnect() error {
 		p.Stop()
 	}
 
-	for _, c := range b.subscribers {
+	b.subscribers.Foreach(func(topic string, sub broker.Subscriber) {
+		c := sub.(*subscriber)
+
 		c.consumer.Stop()
 
 		if len(b.lookupAddrs) > 0 {
@@ -175,15 +185,17 @@ func (b *nsqBroker) Disconnect() error {
 				_ = c.consumer.DisconnectFromNSQD(addr)
 			}
 		}
-	}
+	})
+	b.subscribers.Clear()
 
 	b.producers = nil
 	b.running = false
+
 	return nil
 }
 
 func (b *nsqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.opts.Codec, msg)
+	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -287,12 +299,12 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		p := &publication{topic: topic, nsqMsg: nm, msg: &m}
 
-		if err := broker.Unmarshal(b.opts.Codec, nm.Body, &m.Body); err != nil {
+		if err := broker.Unmarshal(b.options.Codec, nm.Body, &m.Body); err != nil {
 			p.err = err
 			return err
 		}
 
-		if err := handler(b.opts.Context, p); err != nil {
+		if err := handler(b.options.Context, p); err != nil {
 			p.err = err
 		}
 
@@ -317,14 +329,15 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 	}
 
 	sub := &subscriber{
+		n:           b,
 		consumer:    c,
-		opts:        options,
+		options:     options,
 		topic:       topic,
 		handlerFunc: h,
 		concurrency: concurrency,
 	}
 
-	b.subscribers = append(b.subscribers, sub)
+	b.subscribers.Add(topic, sub)
 
 	return sub, nil
 }

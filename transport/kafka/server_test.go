@@ -90,9 +90,9 @@ func TestClient(t *testing.T) {
 
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
-	case "jaeger":
+	case "otlp-grpc":
 		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:14268/api/traces",
+			"http://localhost:4317",
 			serviceName,
 			"",
 			"1.0.0",
@@ -124,7 +124,7 @@ func TestServerWithTracer(t *testing.T) {
 	srv := NewServer(
 		WithAddress([]string{testBrokers}),
 		WithCodec("json"),
-		WithBrokerOptions(createTracerProvider("jaeger", "tracer_tester")),
+		WithBrokerOptions(createTracerProvider("otlp-grpc", "tracer_tester")),
 	)
 
 	_ = RegisterSubscriber(srv,

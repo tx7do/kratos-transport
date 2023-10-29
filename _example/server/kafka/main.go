@@ -26,9 +26,9 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
-	case "jaeger":
+	case "otlp-grpc":
 		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:14268/api/traces",
+			"http://localhost:4317",
 			serviceName,
 			"",
 			"1.0.0",
@@ -57,7 +57,7 @@ func main() {
 	kafkaSrv := kafka.NewServer(
 		kafka.WithAddress([]string{testBrokers}),
 		kafka.WithCodec("json"),
-		kafka.WithBrokerOptions(createTracerProvider("jaeger", "tracer_tester")),
+		kafka.WithBrokerOptions(createTracerProvider("otlp-grpc", "tracer_tester")),
 	)
 
 	_ = kafka.RegisterSubscriber(kafkaSrv, ctx, testTopic, testGroupId, false, handleHygrothermograph)

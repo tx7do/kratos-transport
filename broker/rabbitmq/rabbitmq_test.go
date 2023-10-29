@@ -172,9 +172,9 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
-	case "jaeger":
+	case "otlp-grpc":
 		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:14268/api/traces",
+			"http://localhost:4317",
 			serviceName,
 			"",
 			"1.0.0",
@@ -209,7 +209,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 		broker.WithCodec("json"),
 		WithExchangeName(testExchange),
 		WithDurableExchange(),
-		createTracerProvider("jaeger", "publish_tracer_tester"),
+		createTracerProvider("otlp-grpc", "publish_tracer_tester"),
 		//broker.WithPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
 	)
 
@@ -245,7 +245,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	b := NewBroker(
 		broker.WithAddress(testBroker),
 		broker.WithCodec("json"),
-		createTracerProvider("jaeger", "subscribe_tracer_tester"),
+		createTracerProvider("otlp-grpc", "subscribe_tracer_tester"),
 		//broker.WithPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})),
 		WithExchangeName(testExchange),
 		WithDurableExchange(),

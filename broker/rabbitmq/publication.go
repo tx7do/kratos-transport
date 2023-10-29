@@ -6,10 +6,10 @@ import (
 )
 
 type publication struct {
-	d   amqp.Delivery
-	m   *broker.Message
-	t   string
-	err error
+	d       amqp.Delivery
+	message *broker.Message
+	topic   string
+	err     error
 }
 
 func (p *publication) Ack() error {
@@ -21,11 +21,11 @@ func (p *publication) Error() error {
 }
 
 func (p *publication) Topic() string {
-	return p.t
+	return p.topic
 }
 
 func (p *publication) Message() *broker.Message {
-	return p.m
+	return p.message
 }
 
 func (p *publication) RawMessage() interface{} {

@@ -58,7 +58,7 @@ type rabbitConnection struct {
 	Channel         *rabbitChannel
 	ExchangeChannel *rabbitChannel
 
-	opts broker.Options
+	options broker.Options
 
 	url      string
 	exchange Exchange
@@ -71,7 +71,7 @@ type rabbitConnection struct {
 
 func newRabbitMQConnection(opts broker.Options) *rabbitConnection {
 	conn := &rabbitConnection{
-		opts:           opts,
+		options:        opts,
 		url:            DefaultRabbitURL,
 		qos:            DefaultQos,
 		exchange:       DefaultExchange,
@@ -87,27 +87,27 @@ func newRabbitMQConnection(opts broker.Options) *rabbitConnection {
 }
 
 func (r *rabbitConnection) init() {
-	if len(r.opts.Addrs) > 0 && hasUrlPrefix(r.opts.Addrs[0]) {
-		r.url = r.opts.Addrs[0]
+	if len(r.options.Addrs) > 0 && hasUrlPrefix(r.options.Addrs[0]) {
+		r.url = r.options.Addrs[0]
 	}
 
-	if val, ok := r.opts.Context.Value(exchangeNameKey{}).(string); ok {
+	if val, ok := r.options.Context.Value(exchangeNameKey{}).(string); ok {
 		r.exchange.Name = val
 	}
-	if val, ok := r.opts.Context.Value(exchangeKindKey{}).(string); ok {
+	if val, ok := r.options.Context.Value(exchangeKindKey{}).(string); ok {
 		r.exchange.Type = val
 	}
-	if val, ok := r.opts.Context.Value(exchangeDurableKey{}).(bool); ok {
+	if val, ok := r.options.Context.Value(exchangeDurableKey{}).(bool); ok {
 		r.exchange.Durable = val
 	}
 
-	if val, ok := r.opts.Context.Value(prefetchCountKey{}).(int); ok {
+	if val, ok := r.options.Context.Value(prefetchCountKey{}).(int); ok {
 		r.qos.PrefetchCount = val
 	}
-	if val, ok := r.opts.Context.Value(prefetchSizeKey{}).(int); ok {
+	if val, ok := r.options.Context.Value(prefetchSizeKey{}).(int); ok {
 		r.qos.PrefetchSize = val
 	}
-	if val, ok := r.opts.Context.Value(prefetchGlobalKey{}).(bool); ok {
+	if val, ok := r.options.Context.Value(prefetchGlobalKey{}).(bool); ok {
 		r.qos.PrefetchGlobal = val
 	}
 }

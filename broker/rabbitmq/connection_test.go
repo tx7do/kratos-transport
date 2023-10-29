@@ -69,7 +69,7 @@ func TestNewRabbitMQPrefetch(t *testing.T) {
 		}
 
 		if have, want := conn.qos.PrefetchGlobal, test.prefetchGlobal; have != want {
-			t.Errorf("%s: invalid prefetch global setting, want %t, have %t", test.title, want, have)
+			t.Errorf("%s: invalid prefetch global setting, want %topic, have %topic", test.title, want, have)
 		}
 	}
 }

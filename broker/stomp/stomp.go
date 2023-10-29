@@ -26,10 +26,12 @@ const (
 )
 
 type stompBroker struct {
-	opts     broker.Options
+	options  broker.Options
 	endpoint *url.URL
 
 	stompConn *stompV3.Conn
+
+	subscribers *broker.SubscriberSyncMap
 
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
@@ -39,7 +41,8 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &stompBroker{
-		opts: options,
+		options:     options,
+		subscribers: broker.NewSubscriberSyncMap(),
 	}
 
 	return b
@@ -50,20 +53,20 @@ func (b *stompBroker) Name() string {
 }
 
 func (b *stompBroker) defaults() {
-	WithConnectTimeout(30 * time.Second)(&b.opts)
-	WithVirtualHost("/")(&b.opts)
+	WithConnectTimeout(30 * time.Second)(&b.options)
+	WithVirtualHost("/")(&b.options)
 }
 
 func (b *stompBroker) Options() broker.Options {
-	if b.opts.Context == nil {
-		b.opts.Context = context.Background()
+	if b.options.Context == nil {
+		b.options.Context = context.Background()
 	}
-	return b.opts
+	return b.options
 }
 
 func (b *stompBroker) Address() string {
-	if len(b.opts.Addrs) > 0 {
-		return b.opts.Addrs[0]
+	if len(b.options.Addrs) > 0 {
+		return b.options.Addrs[0]
 	}
 	return ""
 }
@@ -71,10 +74,10 @@ func (b *stompBroker) Address() string {
 func (b *stompBroker) Init(opts ...broker.Option) error {
 	b.defaults()
 
-	b.opts.Apply(opts...)
+	b.options.Apply(opts...)
 
 	var cAddrs []string
-	for _, addr := range b.opts.Addrs {
+	for _, addr := range b.options.Addrs {
 		if len(addr) == 0 {
 			continue
 		}
@@ -84,11 +87,11 @@ func (b *stompBroker) Init(opts ...broker.Option) error {
 	if len(cAddrs) == 0 {
 		cAddrs = []string{defaultAddr}
 	}
-	b.opts.Addrs = cAddrs
+	b.options.Addrs = cAddrs
 
-	if len(b.opts.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "stomp-producer", b.opts.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "stomp-consumer", b.opts.Tracings...)
+	if len(b.options.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "stomp-producer", b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "stomp-consumer", b.options.Tracings...)
 	}
 
 	return nil
@@ -105,7 +108,7 @@ func (b *stompBroker) Connect() error {
 	}
 
 	var connectTimeOut time.Duration
-	if v, ok := b.opts.Context.Value(connectTimeoutKey{}).(time.Duration); ok {
+	if v, ok := b.options.Context.Value(connectTimeoutKey{}).(time.Duration); ok {
 		connectTimeOut = v
 	}
 
@@ -124,28 +127,28 @@ func (b *stompBroker) Connect() error {
 		password, _ := uri.User.Password()
 		stompOpts = append(stompOpts, stompV3.ConnOpt.Login(uri.User.Username(), password))
 	}
-	if v, ok := b.opts.Context.Value(authKey{}).(*authRecord); ok {
+	if v, ok := b.options.Context.Value(authKey{}).(*authRecord); ok {
 		stompOpts = append(stompOpts, stompV3.ConnOpt.Login(v.username, v.password))
 	}
-	if headers, ok := b.opts.Context.Value(connectHeaderKey{}).(map[string]string); ok {
+	if headers, ok := b.options.Context.Value(connectHeaderKey{}).(map[string]string); ok {
 		for k, v := range headers {
 			stompOpts = append(stompOpts, stompV3.ConnOpt.Header(k, v))
 		}
 	}
-	if host, ok := b.opts.Context.Value(vHostKey{}).(string); ok {
+	if host, ok := b.options.Context.Value(vHostKey{}).(string); ok {
 		log.Infof("Adding host: %s", host)
 		stompOpts = append(stompOpts, stompV3.ConnOpt.Host(host))
 	}
-	if v, ok := b.opts.Context.Value(heartBeatKey{}).(*heartbeatTimeout); ok {
+	if v, ok := b.options.Context.Value(heartBeatKey{}).(*heartbeatTimeout); ok {
 		stompOpts = append(stompOpts, stompV3.ConnOpt.HeartBeat(v.sendTimeout, v.recvTimeout))
 	}
-	if v, ok := b.opts.Context.Value(heartBeatErrorKey{}).(time.Duration); ok {
+	if v, ok := b.options.Context.Value(heartBeatErrorKey{}).(time.Duration); ok {
 		stompOpts = append(stompOpts, stompV3.ConnOpt.HeartBeatError(v))
 	}
-	if v, ok := b.opts.Context.Value(msgSendTimeoutKey{}).(time.Duration); ok {
+	if v, ok := b.options.Context.Value(msgSendTimeoutKey{}).(time.Duration); ok {
 		stompOpts = append(stompOpts, stompV3.ConnOpt.MsgSendTimeout(v))
 	}
-	if v, ok := b.opts.Context.Value(rcvReceiptTimeoutKey{}).(time.Duration); ok {
+	if v, ok := b.options.Context.Value(rcvReceiptTimeoutKey{}).(time.Duration); ok {
 		stompOpts = append(stompOpts, stompV3.ConnOpt.RcvReceiptTimeout(v))
 	}
 
@@ -159,11 +162,19 @@ func (b *stompBroker) Connect() error {
 }
 
 func (b *stompBroker) Disconnect() error {
-	return b.stompConn.Disconnect()
+	var err error
+
+	if b.stompConn != nil {
+		err = b.stompConn.Disconnect()
+	}
+
+	b.subscribers.Clear()
+
+	return err
 }
 
 func (b *stompBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.opts.Codec, msg)
+	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
@@ -266,7 +277,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					m.Body = msg.Body
 				}
 
-				if err := broker.Unmarshal(b.opts.Codec, msg.Body, &m.Body); err != nil {
+				if err := broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
 					p.err = err
 					log.Error(err)
 				}
@@ -281,7 +292,16 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		}
 	}()
 
-	return &subscriber{sub: sub, topic: topic, opts: options}, nil
+	subs := &subscriber{
+		b:       b,
+		sub:     sub,
+		topic:   topic,
+		options: options,
+	}
+
+	b.subscribers.Add(topic, subs)
+
+	return subs, nil
 }
 
 func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *[]func(*frameV3.Frame) error) trace.Span {

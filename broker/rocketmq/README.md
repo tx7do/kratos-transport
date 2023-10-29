@@ -111,9 +111,9 @@ docker pull apache/rocketmq:latest
 
 # NameServer
 docker run -d \
-      --name rmqnamesrv \
-      -e "JAVA_OPT_EXT=-Xms512M -Xmx512M -Xmn128m" \
+      --name rocketmq-namesrv \
       -p 9876:9876 \
+      -e "JAVA_OPT_EXT=-Xms512M -Xmx512M -Xmn128m" \
       apache/rocketmq:latest \
       sh mqnamesrv
 
@@ -130,6 +130,8 @@ docker run -d \
       sh mqbroker -c /home/rocketmq/rocketmq-4.9.2/conf/broker.conf
 ```
 
+以及Web控制台：
+
 ```shell
 docker pull styletang/rocketmq-console-ng:latest
 
@@ -143,10 +145,10 @@ docker run -d \
 
 控制台访问地址： <http://localhost:9800/#/>
 
-另外，NameServer下发的是Docker容器的内网IP地址，从宿主机的外网访问是访问不了的，需要进行配置：
+**需要注意的是**，NameServer下发的是Docker容器的内网IP地址，从宿主机的外网访问是访问不了的，需要进行配置：
 
 ```bash
-vi /home/rocketmq/rocketmq-4.9.2/conf/broker.conf
+vi /home/rocketmq/rocketmq-5.1.4/conf/broker.conf
 ```
 
 添加如下配置，brokerIP1可以是ip也可以是dns，hostname：
