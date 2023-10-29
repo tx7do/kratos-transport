@@ -4,18 +4,13 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/uuid"
-
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"go.opentelemetry.io/otel/exporters/zipkin"
 
-	"go.opentelemetry.io/otel/sdk/resource"
 	traceSdk "go.opentelemetry.io/otel/sdk/trace"
-
-	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 )
 
 // NewExporter 创建一个导出器，支持：zipkin、otlp-http、otlp-grpc
@@ -80,35 +75,4 @@ func NewOtlpGrpcExporter(ctx context.Context, endpoint string, insecure bool, op
 		ctx,
 		otlptracegrpc.NewClient(opts...),
 	)
-}
-
-// NewTracerProvider 创建一个链路追踪器
-func NewTracerProvider(exporterName, endpoint, serviceName, instanceId, version string, sampler float64) *traceSdk.TracerProvider {
-	if instanceId == "" {
-		ud, _ := uuid.NewUUID()
-		instanceId = ud.String()
-	}
-	if version == "" {
-		version = "x.x.x"
-	}
-
-	opts := []traceSdk.TracerProviderOption{
-		traceSdk.WithSampler(traceSdk.ParentBased(traceSdk.TraceIDRatioBased(sampler))),
-		traceSdk.WithResource(resource.NewSchemaless(
-			semConv.ServiceNameKey.String(serviceName),
-			semConv.ServiceInstanceIDKey.String(instanceId),
-			semConv.ServiceVersionKey.String(version),
-		)),
-	}
-
-	if len(endpoint) > 0 {
-		exp, err := NewExporter(exporterName, endpoint, true)
-		if err != nil {
-			panic(err)
-		}
-
-		opts = append(opts, traceSdk.WithBatcher(exp))
-	}
-
-	return traceSdk.NewTracerProvider(opts...)
 }
