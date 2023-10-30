@@ -6,7 +6,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/go-kratos/kratos/v2 v2.7.1
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.13
+	github.com/tx7do/kratos-transport v1.1.0
 )
 
 require (

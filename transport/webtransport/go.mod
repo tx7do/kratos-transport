@@ -7,7 +7,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/quic-go/quic-go v0.39.1
 	github.com/stretchr/testify v1.8.4
-	github.com/tx7do/kratos-transport v1.0.13
+	github.com/tx7do/kratos-transport v1.1.0
 )
 
 require (
