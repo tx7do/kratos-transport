@@ -20,6 +20,7 @@ type AwaitDurationKey struct{}
 type MaxMessageNumKey struct{}
 type InvisibleDurationKey struct{}
 type ReceiveIntervalKey struct{}
+type LoggerLevelKey struct{}
 
 ///
 /// PublishOption

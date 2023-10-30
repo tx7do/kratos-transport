@@ -47,6 +47,8 @@ type rocketmqBroker struct {
 
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
+
+	logger *logger
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -57,6 +59,9 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 		retryCount:  2,
 		producers:   make(map[string]rocketmq.Producer),
 		subscribers: broker.NewSubscriberSyncMap(),
+		logger: &logger{
+			level: log.LevelInfo,
+		},
 	}
 }
 
@@ -80,7 +85,7 @@ func (r *rocketmqBroker) Options() broker.Options {
 func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	r.options.Apply(opts...)
 
-	rlog.SetLogger(&logger{})
+	rlog.SetLogger(r.logger)
 
 	if v, ok := r.options.Context.Value(rocketmqOption.NameServersKey{}).([]string); ok {
 		r.nameServers = v
@@ -114,6 +119,10 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	}
 	if v, ok := r.options.Context.Value(rocketmqOption.EnableTraceKey{}).(bool); ok {
 		r.enableTrace = v
+	}
+
+	if v, ok := r.options.Context.Value(rocketmqOption.LoggerLevelKey{}).(log.Level); ok {
+		r.logger.level = v
 	}
 
 	if len(r.options.Tracings) > 0 {
@@ -227,13 +236,13 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 
 	p, err := rocketmq.NewProducer(opts...)
 	if err != nil {
-		log.Errorf("[rocketmq]: new producer error: " + err.Error())
+		r.logger.Errorf("new producer error: %s", err.Error())
 		return nil, err
 	}
 
 	err = p.Start()
 	if err != nil {
-		log.Errorf("[rocketmq]: start producer error: %s", err.Error())
+		r.logger.Errorf("[rocketmq]: start producer error: %s", err.Error())
 		return nil, err
 	}
 
@@ -341,7 +350,7 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 	var ret *primitive.SendResult
 	ret, err = p.SendSync(r.options.Context, rMsg)
 	if err != nil {
-		log.Errorf("[rocketmq]: send message error: %s\n", err)
+		r.logger.Errorf("[rocketmq]: send message error: %s\n", err)
 		switch cached {
 		case false:
 		case true:
@@ -401,7 +410,7 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 	if err = c.Subscribe(topic, consumer.MessageSelector{},
 		func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
-			//log.Infof("[rocketmq] subscribe callback: %v \n", msgs)
+			//r.logger.Infof("[rocketmq] subscribe callback: %v \n", msgs)
 
 			var err error
 			var m broker.Message
@@ -420,16 +429,16 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 				if err := broker.Unmarshal(r.options.Codec, msg.Body, &m.Body); err != nil {
 					p.err = err
-					log.Error("[rocketmq] ", err)
+					r.logger.Errorf("%s", err.Error())
 				}
 
 				err = sub.handler(newCtx, p)
 				if err != nil {
-					log.Errorf("[rocketmq]: process message failed: %v", err)
+					r.logger.Errorf("process message failed: %v", err)
 				}
 				if sub.options.AutoAck {
 					if err = p.Ack(); err != nil {
-						log.Errorf("[rocketmq]: unable to commit msg: %v", err)
+						r.logger.Errorf("unable to commit msg: %v", err)
 					}
 				}
 
@@ -438,12 +447,12 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 			return consumer.ConsumeSuccess, nil
 		}); err != nil {
-		log.Error("[rocketmq] ", err.Error())
+		r.logger.Errorf("%s", err.Error())
 		return nil, err
 	}
 
 	if err = c.Start(); err != nil {
-		log.Error("[rocketmq] ", err.Error())
+		r.logger.Errorf("%s", err.Error())
 		return nil, err
 	}
 
@@ -458,7 +467,7 @@ func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *primitive.M
 	carrier := NewProducerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingSystemKey.String(rocketmqOption.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
 		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
 		semConv.MessagingRocketmqClientIDKey.String(r.instanceName),
@@ -497,7 +506,7 @@ func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *primitive.M
 	carrier := NewConsumerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingSystemKey.String(rocketmqOption.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Topic),
 		semConv.MessagingOperationReceive,

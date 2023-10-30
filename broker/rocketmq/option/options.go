@@ -4,6 +4,7 @@ import (
 	"time"
 
 	rmqClient "github.com/apache/rocketmq-clients/golang/v5"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -13,6 +14,10 @@ import (
 
 type Credentials struct {
 	AccessKey, AccessSecret, SecurityToken string
+}
+
+func WithLoggerLevel(level log.Level) broker.Option {
+	return broker.OptionContextWithValue(LoggerLevelKey{}, level)
 }
 
 func WithEnableTrace() broker.Option {

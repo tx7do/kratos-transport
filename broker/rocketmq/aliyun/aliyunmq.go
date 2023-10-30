@@ -2,7 +2,6 @@ package aliyun
 
 import (
 	"context"
-	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 	"strings"
 	"sync"
 	"time"
@@ -12,10 +11,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	aliyun "github.com/aliyunmq/mq-http-go-sdk"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gogap/errors"
 
 	"github.com/tx7do/kratos-transport/broker"
+	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 	"github.com/tx7do/kratos-transport/tracing"
 )
 
@@ -213,7 +212,7 @@ func (r *aliyunmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 
 	ret, err := p.PublishMessage(aMsg)
 	if err != nil {
-		log.Errorf("[rocketmq]: send message error: %s\n", err)
+		LogErrorf("send message error: %s\n", err)
 	}
 
 	r.finishProducerSpan(span, ret.MessageId, err)
@@ -282,14 +281,14 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 							m.Body = msg.MessageBody
 						}
 
-						if err := broker.Unmarshal(r.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
+						if err = broker.Unmarshal(r.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
 							p.err = err
-							log.Error("[rocketmq]: ", err)
+							LogError(err)
 						}
 
 						err = sub.handler(ctx, p)
 						if err != nil {
-							log.Errorf("[rocketmq]: process message failed: %v", err)
+							LogErrorf("process message failed: %v", err)
 						}
 
 						if sub.options.AutoAck {
@@ -297,11 +296,11 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 								// 某些消息的句柄可能超时，会导致消息消费状态确认不成功。
 								if errAckItems, ok := err.(errors.ErrCode).Context()["Detail"].([]aliyun.ErrAckItem); ok {
 									for _, errAckItem := range errAckItems {
-										log.Errorf("[rocketmq]: ErrorHandle:%s, ErrorCode:%s, ErrorMsg:%s\n",
+										LogErrorf("ErrorHandle:%s, ErrorCode:%s, ErrorMsg:%s\n",
 											errAckItem.ErrorHandle, errAckItem.ErrorCode, errAckItem.ErrorMsg)
 									}
 								} else {
-									log.Error("[rocketmq]: ack err =", err)
+									LogError("ack err =", err)
 								}
 								time.Sleep(time.Duration(3) * time.Second)
 							}
@@ -316,16 +315,16 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 				{
 					// Topic中没有消息可消费。
 					if strings.Contains(err.(errors.ErrCode).Error(), "MessageNotExist") {
-						//log.Debug("[rocketmq] No new message, continue!")
+						//LogDebug("No new message, continue!")
 					} else {
-						log.Error("[rocketmq]: ", err)
+						LogError(err)
 						time.Sleep(time.Duration(3) * time.Second)
 					}
 					endChan <- 1
 				}
 			case <-time.After(35 * time.Second):
 				{
-					//log.Debug("[rocketmq] Timeout of consumer message ??")
+					//LogDebug("Timeout of consumer message ??")
 					endChan <- 1
 				}
 
@@ -352,9 +351,20 @@ func (r *aliyunmqBroker) startProducerSpan(ctx context.Context, topicName string
 	carrier := NewProducerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingSystemKey.String(rocketmqOption.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingDestinationKindTopic,
+		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
+		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
+		semConv.MessagingRocketmqClientIDKey.String(r.instanceName),
+
 		semConv.MessagingDestinationKey.String(topicName),
+	}
+
+	if len(msg.MessageTag) > 0 {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageTagKey.String(msg.MessageTag))
+	}
+	if len(msg.MessageKey) > 0 {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageKeysKey.String(msg.MessageKey))
 	}
 
 	var span trace.Span
@@ -370,8 +380,6 @@ func (r *aliyunmqBroker) finishProducerSpan(span trace.Span, messageId string, e
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingMessageIDKey.String(messageId),
-		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
-		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
 	}
 
 	r.producerTracer.End(context.Background(), span, err, attrs...)
@@ -385,11 +393,18 @@ func (r *aliyunmqBroker) startConsumerSpan(ctx context.Context, msg *aliyun.Cons
 	carrier := NewConsumerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("rocketmq"),
+		semConv.MessagingSystemKey.String(rocketmqOption.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Message),
 		semConv.MessagingOperationReceive,
 		semConv.MessagingMessageIDKey.String(msg.MessageId),
+	}
+
+	if len(msg.MessageTag) > 0 {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageTagKey.String(msg.MessageTag))
+	}
+	if len(msg.MessageKey) > 0 {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageKeysKey.String(msg.MessageKey))
 	}
 
 	var span trace.Span

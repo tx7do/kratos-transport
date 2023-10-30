@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -141,6 +142,21 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	}
 	if v, ok := r.options.Context.Value(rocketmqOption.ReceiveIntervalKey{}).(time.Duration); ok {
 		r.receiveInterval = v
+	}
+
+	if v, ok := r.options.Context.Value(rocketmqOption.LoggerLevelKey{}).(log.Level); ok {
+		var strLevel string
+		switch v {
+		case log.LevelDebug:
+			strLevel = "debug"
+		case log.LevelWarn:
+			strLevel = "warn"
+		case log.LevelError:
+			strLevel = "error"
+		case log.LevelInfo:
+			strLevel = "info"
+		}
+		_ = os.Setenv(rmqClient.CLIENT_LOG_LEVEL, strLevel)
 	}
 
 	if len(r.options.Tracings) > 0 {
