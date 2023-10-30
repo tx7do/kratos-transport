@@ -72,6 +72,8 @@ func TestClient(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	ctx := context.Background()
+
 	b := mqtt.NewBroker(
 		broker.WithAddress(EmqxCnBroker),
 		broker.WithCodec("json"),
@@ -90,7 +92,7 @@ func TestClient(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish("topic/bobo/1", msg)
+		err := b.Publish(ctx, "topic/bobo/1", msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

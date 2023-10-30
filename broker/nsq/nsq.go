@@ -194,13 +194,13 @@ func (b *nsqBroker) Disconnect() error {
 	return nil
 }
 
-func (b *nsqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *nsqBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(topic, buf, opts...)
+	return b.publish(ctx, topic, buf, opts...)
 }
 
 func (b *nsqBroker) getProducer() *NSQ.Producer {
@@ -211,9 +211,9 @@ func (b *nsqBroker) getProducer() *NSQ.Producer {
 	return b.producers[rand.Intn(producerLen)]
 }
 
-func (b *nsqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
+func (b *nsqBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)

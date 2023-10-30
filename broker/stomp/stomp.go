@@ -173,22 +173,22 @@ func (b *stompBroker) Disconnect() error {
 	return err
 }
 
-func (b *stompBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *stompBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(topic, buf, opts...)
+	return b.publish(ctx, topic, buf, opts...)
 }
 
-func (b *stompBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
+func (b *stompBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
 	if b.stompConn == nil {
 		return errors.New("not connected")
 	}
 
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)

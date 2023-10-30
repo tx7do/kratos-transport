@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"strings"
@@ -303,7 +304,7 @@ func (r *rabbitConnection) DeclarePublishQueue(queueName, routingKey string, bin
 	return nil
 }
 
-func (r *rabbitConnection) Publish(exchangeName, routingKey string, msg amqp.Publishing) error {
+func (r *rabbitConnection) Publish(ctx context.Context, exchangeName, routingKey string, msg amqp.Publishing) error {
 	if r.ExchangeChannel == nil {
 		var err error
 		// lazy init publish channel
@@ -313,5 +314,5 @@ func (r *rabbitConnection) Publish(exchangeName, routingKey string, msg amqp.Pub
 		}
 	}
 
-	return r.ExchangeChannel.Publish(exchangeName, routingKey, msg)
+	return r.ExchangeChannel.Publish(ctx, exchangeName, routingKey, msg)
 }

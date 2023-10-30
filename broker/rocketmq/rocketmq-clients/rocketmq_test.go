@@ -94,6 +94,8 @@ func TestPublish(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	ctx := context.Background()
+
 	b := NewBroker(
 		broker.WithCodec("json"),
 		rocketmqOption.WithEnableTrace(),
@@ -116,7 +118,7 @@ func TestPublish(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(testTopic, msg)
+		err := b.Publish(ctx, testTopic, msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -163,6 +165,8 @@ func TestPublish_WithTracer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	ctx := context.Background()
+
 	b := NewBroker(
 		broker.WithCodec("json"),
 		createTracerProvider("otlp-grpc", "publish_tracer_tester"),
@@ -185,7 +189,7 @@ func TestPublish_WithTracer(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(testTopic, msg)
+		err := b.Publish(ctx, testTopic, msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

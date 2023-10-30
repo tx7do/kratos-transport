@@ -61,7 +61,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 		msg.Humidity = float64(i)
 		msg.Temperature = float64(rand.Intn(100))
 		buf, _ := json.Marshal(&msg)
-		err := b.Publish(testRouting, buf)
+		err := b.Publish(ctx, testRouting, buf)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -106,7 +106,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	//ctx := context.Background()
+	ctx := context.Background()
 
 	b := NewBroker(
 		broker.WithAddress(testBroker),
@@ -128,7 +128,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(i)
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(testRouting, msg)
+		err := b.Publish(ctx, testRouting, msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -226,7 +226,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(testRouting, msg, WithMessageId(strconv.Itoa(i)))
+		err := b.Publish(ctx, testRouting, msg, WithMessageId(strconv.Itoa(i)))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

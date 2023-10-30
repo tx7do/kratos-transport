@@ -18,7 +18,7 @@ type Broker interface {
 
 	Disconnect() error
 
-	Publish(topic string, msg Any, opts ...PublishOption) error
+	Publish(ctx context.Context, topic string, msg Any, opts ...PublishOption) error
 
 	Subscribe(topic string, handler Handler, binder Binder, opts ...SubscribeOption) (Subscriber, error)
 }

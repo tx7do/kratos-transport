@@ -169,18 +169,18 @@ func (pb *pulsarBroker) Disconnect() error {
 	return nil
 }
 
-func (pb *pulsarBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(pb.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return pb.publish(topic, buf, opts...)
+	return pb.publish(ctx, topic, buf, opts...)
 }
 
-func (pb *pulsarBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
+func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)

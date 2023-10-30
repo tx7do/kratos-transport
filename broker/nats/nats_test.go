@@ -135,6 +135,8 @@ func Test_Publish_WithRawData(t *testing.T) {
 		t.Skip()
 	}
 
+	ctx := context.Background()
+
 	var msg api.Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
@@ -142,7 +144,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
 		buf, _ := json.Marshal(&msg)
-		err := b.Publish(testTopic, buf)
+		err := b.Publish(ctx, testTopic, buf)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -190,13 +192,15 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		t.Skip()
 	}
 
+	ctx := context.Background()
+
 	var msg api.Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(testTopic, msg)
+		err := b.Publish(ctx, testTopic, msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -273,13 +277,15 @@ func Test_Publish_WithTracer(t *testing.T) {
 		t.Skip()
 	}
 
+	ctx := context.Background()
+
 	var msg api.Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(testTopic, msg)
+		err := b.Publish(ctx, testTopic, msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

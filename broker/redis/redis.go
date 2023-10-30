@@ -125,16 +125,16 @@ func (b *redisBroker) Disconnect() error {
 	return err
 }
 
-func (b *redisBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *redisBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(topic, buf, opts...)
+	return b.publish(ctx, topic, buf, opts...)
 }
 
-func (b *redisBroker) publish(topic string, msg []byte, _ ...broker.PublishOption) error {
+func (b *redisBroker) publish(_ context.Context, topic string, msg []byte, _ ...broker.PublishOption) error {
 	conn := b.pool.Get()
 	_, err := redis.Int(conn.Do("PUBLISH", topic, msg))
 	_ = conn.Close()

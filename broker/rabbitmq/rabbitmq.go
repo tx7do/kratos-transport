@@ -110,22 +110,22 @@ func (b *rabbitBroker) Disconnect() error {
 	return ret
 }
 
-func (b *rabbitBroker) Publish(routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(routingKey, buf, opts...)
+	return b.publish(ctx, routingKey, buf, opts...)
 }
 
-func (b *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.PublishOption) error {
+func (b *rabbitBroker) publish(ctx context.Context, routingKey string, buf []byte, opts ...broker.PublishOption) error {
 	if b.conn == nil {
 		return errors.New("connection is nil")
 	}
 
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)
@@ -201,7 +201,7 @@ func (b *rabbitBroker) publish(routingKey string, buf []byte, opts ...broker.Pub
 
 	span := b.startProducerSpan(options.Context, routingKey, &msg)
 
-	err := b.conn.Publish(b.conn.exchange.Name, routingKey, msg)
+	err := b.conn.Publish(ctx, b.conn.exchange.Name, routingKey, msg)
 
 	b.finishProducerSpan(span, routingKey, err)
 

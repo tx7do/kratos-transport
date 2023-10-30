@@ -18,6 +18,8 @@ func TestHTTPStreamHandler(t *testing.T) {
 	)
 	defer s.Stop(nil)
 
+	ctx := context.Background()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", s.ServeHTTP)
 	server := httptest.NewServer(mux)
@@ -39,7 +41,7 @@ func TestHTTPStreamHandler(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 200)
 	require.Nil(t, cErr)
-	s.Publish("test", &Event{Data: []byte("test")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test")})
 
 	msg, err := wait(events, time.Millisecond*500)
 	require.Nil(t, err)
@@ -52,15 +54,17 @@ func TestHTTPStreamHandlerExistingEvents(t *testing.T) {
 	)
 	defer s.Stop(nil)
 
+	ctx := context.Background()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", s.ServeHTTP)
 	server := httptest.NewServer(mux)
 
 	s.CreateStream("test")
 
-	s.Publish("test", &Event{Data: []byte("test 1")})
-	s.Publish("test", &Event{Data: []byte("test 2")})
-	s.Publish("test", &Event{Data: []byte("test 3")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 1")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 2")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 3")})
 
 	time.Sleep(time.Millisecond * 100)
 
@@ -91,15 +95,17 @@ func TestHTTPStreamHandlerEventID(t *testing.T) {
 	)
 	defer s.Stop(nil)
 
+	ctx := context.Background()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", s.ServeHTTP)
 	server := httptest.NewServer(mux)
 
 	s.CreateStream("test")
 
-	s.Publish("test", &Event{Data: []byte("test 1")})
-	s.Publish("test", &Event{Data: []byte("test 2")})
-	s.Publish("test", &Event{Data: []byte("test 3")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 1")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 2")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 3")})
 
 	time.Sleep(time.Millisecond * 100)
 
@@ -131,16 +137,18 @@ func TestHTTPStreamHandlerEventTTL(t *testing.T) {
 
 	s.eventTTL = time.Second * 1
 
+	ctx := context.Background()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", s.ServeHTTP)
 	server := httptest.NewServer(mux)
 
 	s.CreateStream("test")
 
-	s.Publish("test", &Event{Data: []byte("test 1")})
-	s.Publish("test", &Event{Data: []byte("test 2")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 1")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 2")})
 	time.Sleep(time.Second * 2)
-	s.Publish("test", &Event{Data: []byte("test 3")})
+	s.Publish(ctx, "test", &Event{Data: []byte("test 3")})
 
 	time.Sleep(time.Millisecond * 100)
 
@@ -197,6 +205,8 @@ func TestHTTPStreamHandlerHeaderFlushIfNoEvents(t *testing.T) {
 func TestHTTPStreamHandlerAutoStream(t *testing.T) {
 	t.Parallel()
 
+	ctx := context.Background()
+
 	sseServer := NewServer()
 	defer sseServer.Stop(nil)
 
@@ -206,9 +216,9 @@ func TestHTTPStreamHandlerAutoStream(t *testing.T) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", sseServer.ServeHTTP)
-	server := httptest.NewServer(mux)
+	srv := httptest.NewServer(mux)
 
-	c := NewClient(server.URL + "/events")
+	c := NewClient(srv.URL + "/events")
 
 	events := make(chan *Event)
 
@@ -220,7 +230,7 @@ func TestHTTPStreamHandlerAutoStream(t *testing.T) {
 
 	require.Nil(t, <-cErr)
 
-	sseServer.Publish("test", &Event{Data: []byte("test")})
+	sseServer.Publish(ctx, "test", &Event{Data: []byte("test")})
 
 	msg, err := wait(events, 1*time.Second)
 

@@ -44,11 +44,11 @@ func (r *rabbitChannel) Close() error {
 	return r.channel.Close()
 }
 
-func (r *rabbitChannel) Publish(exchangeName, key string, message amqp.Publishing) error {
+func (r *rabbitChannel) Publish(ctx context.Context, exchangeName, key string, message amqp.Publishing) error {
 	if r.channel == nil {
 		return errors.New("channel is nil")
 	}
-	return r.channel.PublishWithContext(context.Background(), exchangeName, key, false, false, message)
+	return r.channel.PublishWithContext(ctx, exchangeName, key, false, false, message)
 }
 
 func (r *rabbitChannel) DeclareExchange(exchangeName, kind string, durable, autoDelete bool) error {

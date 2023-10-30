@@ -75,19 +75,22 @@ func newServer401() *Server {
 }
 
 func publishMsgs(s *Server, empty bool, count int) {
+	ctx := context.Background()
+
 	for a := 0; a < count; a++ {
 		if empty {
-			s.Publish("test", &Event{Data: []byte("\n")})
+			s.Publish(ctx, "test", &Event{Data: []byte("\n")})
 		} else {
-			s.Publish("test", &Event{Data: []byte("ping")})
+			s.Publish(ctx, "test", &Event{Data: []byte("ping")})
 		}
 		time.Sleep(time.Millisecond * 50)
 	}
 }
 
 func publishMultilineMessages(s *Server, count int) {
+	ctx := context.Background()
 	for a := 0; a < count; a++ {
-		s.Publish("test", &Event{ID: []byte("123456"), Data: []byte(mldata)})
+		s.Publish(ctx, "test", &Event{ID: []byte("123456"), Data: []byte(mldata)})
 	}
 }
 
@@ -315,6 +318,8 @@ func TestClientLargeData(t *testing.T) {
 	srv = newServer()
 	defer cleanup()
 
+	ctx := context.Background()
+
 	c := NewClient(urlPath, ClientMaxBufferSize(1<<19))
 
 	c.ReconnectStrategy = backoff.WithMaxTries(
@@ -328,7 +333,7 @@ func TestClientLargeData(t *testing.T) {
 
 	ec := make(chan *Event, 1)
 
-	srv.Publish("test", &Event{Data: data})
+	srv.Publish(ctx, "test", &Event{Data: data})
 
 	go func() {
 		_ = c.Subscribe("test", func(ev *Event) {
@@ -345,14 +350,16 @@ func TestClientComment(t *testing.T) {
 	srv = newServer()
 	defer cleanup()
 
+	ctx := context.Background()
+
 	c := NewClient(urlPath)
 
 	events := make(chan *Event)
 	err := c.SubscribeChan("test", events)
 	require.Nil(t, err)
 
-	srv.Publish("test", &Event{Comment: []byte("comment")})
-	srv.Publish("test", &Event{Data: []byte("test")})
+	srv.Publish(ctx, "test", &Event{Comment: []byte("comment")})
+	srv.Publish(ctx, "test", &Event{Data: []byte("test")})
 
 	ev, err := waitEvent(events, time.Second*1)
 	assert.Nil(t, err)

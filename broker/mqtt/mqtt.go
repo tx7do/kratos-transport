@@ -167,22 +167,22 @@ func (m *mqttBroker) Disconnect() error {
 	return nil
 }
 
-func (m *mqttBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (m *mqttBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(m.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return m.publish(topic, buf, opts...)
+	return m.publish(ctx, topic, buf, opts...)
 }
 
-func (m *mqttBroker) publish(topic string, buf []byte, opts ...broker.PublishOption) error {
+func (m *mqttBroker) publish(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
 	if !m.client.IsConnected() {
 		return errors.New("not connected")
 	}
 
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)

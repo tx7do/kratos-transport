@@ -215,18 +215,18 @@ func (r *rocketmqBroker) Disconnect() error {
 	return nil
 }
 
-func (r *rocketmqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(r.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return r.publish(topic, buf, opts...)
+	return r.publish(ctx, topic, buf, opts...)
 }
 
-func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
+func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
 	rocketmqOptions := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&rocketmqOptions)

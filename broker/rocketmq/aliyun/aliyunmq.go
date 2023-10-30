@@ -148,18 +148,18 @@ func (r *aliyunmqBroker) Disconnect() error {
 	return nil
 }
 
-func (r *aliyunmqBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (r *aliyunmqBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(r.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
-	return r.publish(topic, buf, opts...)
+	return r.publish(ctx, topic, buf, opts...)
 }
 
-func (r *aliyunmqBroker) publish(topic string, msg []byte, opts ...broker.PublishOption) error {
+func (r *aliyunmqBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)

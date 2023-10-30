@@ -182,7 +182,7 @@ func (s *Server) listen() error {
 	return nil
 }
 
-func (s *Server) Publish(streamId StreamID, event *Event) {
+func (s *Server) Publish(_ context.Context, streamId StreamID, event *Event) {
 	stream := s.streamMgr.Get(streamId)
 	if stream == nil {
 		return
@@ -194,7 +194,7 @@ func (s *Server) Publish(streamId StreamID, event *Event) {
 	}
 }
 
-func (s *Server) TryPublish(streamId StreamID, event *Event) bool {
+func (s *Server) TryPublish(_ context.Context, streamId StreamID, event *Event) bool {
 	stream := s.streamMgr.Get(streamId)
 	if stream == nil {
 		return false
@@ -208,7 +208,7 @@ func (s *Server) TryPublish(streamId StreamID, event *Event) bool {
 	}
 }
 
-func (s *Server) PublishData(streamId StreamID, data MessagePayload) error {
+func (s *Server) PublishData(ctx context.Context, streamId StreamID, data MessagePayload) error {
 	event := &Event{}
 
 	var err error
@@ -217,7 +217,7 @@ func (s *Server) PublishData(streamId StreamID, data MessagePayload) error {
 		return err
 	}
 
-	s.Publish(streamId, event)
+	s.Publish(ctx, streamId, event)
 
 	return nil
 }

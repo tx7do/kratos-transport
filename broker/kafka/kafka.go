@@ -372,22 +372,22 @@ func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.P
 	}
 }
 
-func (b *kafkaBroker) Publish(topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
 	}
 
 	if b.writer.EnableOneTopicOneWriter {
-		return b.publishMultipleWriter(topic, buf, opts...)
+		return b.publishMultipleWriter(ctx, topic, buf, opts...)
 	} else {
-		return b.publishOneWriter(topic, buf, opts...)
+		return b.publishOneWriter(ctx, topic, buf, opts...)
 	}
 }
 
-func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)
@@ -480,9 +480,9 @@ func (b *kafkaBroker) publishMultipleWriter(topic string, buf []byte, opts ...br
 	return err
 }
 
-func (b *kafkaBroker) publishOneWriter(topic string, buf []byte, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
-		Context: context.Background(),
+		Context: ctx,
 	}
 	for _, o := range opts {
 		o(&options)
