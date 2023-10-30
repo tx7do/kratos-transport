@@ -35,6 +35,8 @@ type KeysKey struct{}
 type ShardingKeyKey struct{}
 type DeliveryTimestampKey struct{}
 type MessageGroupKey struct{}
+type SendAsyncKey struct{}
+type SendWithTransactionKey struct{}
 
 ///
 /// SubscribeOption

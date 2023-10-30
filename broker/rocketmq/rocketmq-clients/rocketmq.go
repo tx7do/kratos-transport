@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -93,6 +94,8 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 
 	// init logger
 	rmqClient.ResetLogger()
+	_ = os.Setenv(rmqClient.ENABLE_CONSOLE_APPENDER, "true")
+	_ = os.Setenv(rmqClient.CLIENT_LOG_LEVEL, "info")
 
 	if v, ok := r.options.Context.Value(rocketmqOption.NameServersKey{}).([]string); ok {
 		r.nameServers = v
@@ -230,16 +233,16 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 	}
 
 	r.Lock()
-	p, ok := r.producers[topic]
+	producer, ok := r.producers[topic]
 	if !ok {
 		var err error
-		p, err = r.createProducer()
+		producer, err = r.createProducer()
 		if err != nil {
 			r.Unlock()
 			return err
 		}
 
-		r.producers[topic] = p
+		r.producers[topic] = producer
 	}
 	r.Unlock()
 
@@ -265,19 +268,81 @@ func (r *rocketmqBroker) publish(topic string, msg []byte, opts ...broker.Publis
 		rMsg.SetMessageGroup(v)
 	}
 
-	span := r.startProducerSpan(rocketmqOptions.Context, rMsg)
+	var sendAsync bool
+	if v, ok := rocketmqOptions.Context.Value(rocketmqOption.SendAsyncKey{}).(bool); ok {
+		sendAsync = v
+	}
+
+	var sendWithTransaction bool
+	if v, ok := rocketmqOptions.Context.Value(rocketmqOption.SendWithTransactionKey{}).(bool); ok {
+		sendWithTransaction = v
+	}
 
 	var err error
-	var ret []*rmqClient.SendReceipt
-	ret, err = p.Send(r.options.Context, rMsg)
-	if err != nil {
-		log.Errorf("[rocketmq]: send message error: %s\n", err)
-		r.finishProducerSpan(rocketmqOptions.Context, span, nil, err)
+	if sendWithTransaction {
+		err = r.doSendTransaction(rocketmqOptions.Context, producer, rMsg)
+	} else if sendAsync {
+		err = r.doSendAsync(rocketmqOptions.Context, producer, rMsg)
 	} else {
-		r.finishProducerSpan(rocketmqOptions.Context, span, ret[0], nil)
+		err = r.doSend(rocketmqOptions.Context, producer, rMsg)
 	}
 
 	return err
+}
+
+func (r *rocketmqBroker) doSend(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
+	span := r.startProducerSpan(ctx, rMsg, false)
+
+	var err error
+	var receipts []*rmqClient.SendReceipt
+	receipts, err = producer.Send(r.options.Context, rMsg)
+	if err != nil {
+		log.Errorf("[rocketmq]: send message error: %s\n", err)
+		r.finishProducerSpan(ctx, span, nil, err)
+	} else {
+		r.finishProducerSpan(ctx, span, receipts[0], nil)
+	}
+	return err
+}
+
+func (r *rocketmqBroker) doSendAsync(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
+	span := r.startProducerSpan(ctx, rMsg, false)
+
+	producer.SendAsync(ctx, rMsg, func(ctx context.Context, receipts []*rmqClient.SendReceipt, err error) {
+		if err != nil {
+			log.Errorf("[rocketmq]: send async message error: %s\n", err)
+			r.finishProducerSpan(ctx, span, nil, err)
+		} else {
+			r.finishProducerSpan(ctx, span, receipts[0], nil)
+		}
+	})
+
+	return nil
+}
+
+func (r *rocketmqBroker) doSendTransaction(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
+	span := r.startProducerSpan(ctx, rMsg, true)
+
+	transaction := producer.BeginTransaction()
+
+	var err error
+	var receipts []*rmqClient.SendReceipt
+	if receipts, err = producer.SendWithTransaction(ctx, rMsg, transaction); err != nil {
+		return err
+	}
+
+	if err = transaction.Commit(); err != nil {
+		return err
+	}
+
+	if err != nil {
+		log.Errorf("[rocketmq]: send transaction message error: %s\n", err)
+		r.finishProducerSpan(ctx, span, nil, err)
+	} else {
+		r.finishProducerSpan(ctx, span, receipts[0], nil)
+	}
+
+	return nil
 }
 
 func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
@@ -431,7 +496,7 @@ func (r *rocketmqBroker) run() {
 	}
 }
 
-func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.Message) trace.Span {
+func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.Message, transaction bool) trace.Span {
 	if r.producerTracer == nil {
 		return nil
 	}
@@ -449,6 +514,16 @@ func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.M
 
 		semConv.MessagingOperationKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_SEND_OPERATION),
 		semConv.MessagingDestinationKey.String(msg.Topic),
+	}
+
+	if msg.GetDeliveryTimestamp() != nil {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageTypeDelay)
+	} else if msg.GetMessageGroup() != nil && strings.ToLower(*msg.GetMessageGroup()) == "fifo" {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageTypeFifo)
+	} else if transaction {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageTypeTransaction)
+	} else {
+		attrs = append(attrs, semConv.MessagingRocketmqMessageTypeNormal)
 	}
 
 	if msg.GetTag() != nil {

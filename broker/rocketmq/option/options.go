@@ -126,6 +126,14 @@ func WithMessageGroup(group string) broker.PublishOption {
 	return broker.PublishContextWithValue(MessageGroupKey{}, group)
 }
 
+func WithSendAsync(enable bool) broker.PublishOption {
+	return broker.PublishContextWithValue(SendAsyncKey{}, enable)
+}
+
+func WithSendWithTransaction(enable bool) broker.PublishOption {
+	return broker.PublishContextWithValue(SendWithTransactionKey{}, enable)
+}
+
 ///
 /// SubscribeOption
 ///
