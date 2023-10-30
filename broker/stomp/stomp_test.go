@@ -153,7 +153,7 @@ func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
 	case "otlp-grpc":
 		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:4317",
+			"localhost:4317",
 			serviceName,
 			"",
 			"1.0.0",

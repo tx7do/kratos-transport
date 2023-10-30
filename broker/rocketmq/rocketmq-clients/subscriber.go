@@ -67,23 +67,29 @@ func (s *subscriber) IsClosed() bool {
 }
 
 func (s *subscriber) onMessage(ctx context.Context, msg *rmqClient.MessageView) error {
-	var m broker.Message
+	if msg == nil {
+		return errors.New("message view is nil")
+	}
+
+	outMessage := broker.Message{}
 
 	if s.binder != nil {
-		m.Body = s.binder()
+		outMessage.Body = s.binder()
 	} else {
-		m.Body = msg.GetBody()
+		outMessage.Body = msg.GetBody()
 	}
+
+	outMessage.Headers = msg.GetProperties()
 
 	p := publication{
 		ctx:        ctx,
 		topic:      msg.GetTopic(),
-		message:    &m,
+		message:    &outMessage,
 		reader:     s.reader,
 		rmqMessage: msg,
 	}
 
-	if p.err = broker.Unmarshal(s.r.options.Codec, msg.GetBody(), &m.Body); p.err != nil {
+	if p.err = broker.Unmarshal(s.r.options.Codec, msg.GetBody(), &outMessage.Body); p.err != nil {
 		//log.Error("[redis]", err)
 		return p.err
 	}
