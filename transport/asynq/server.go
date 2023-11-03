@@ -3,6 +3,7 @@ package asynq
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"sync"
 
@@ -40,12 +41,16 @@ type Server struct {
 	enableKeepAlive bool
 
 	codec encoding.Codec
+
+	entryIDs    map[string]string
+	mtxEntryIDs sync.RWMutex
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx: context.Background(),
 		started: false,
+
 		redisOpt: asynq.RedisClientOpt{
 			Addr: defaultRedisAddress,
 			DB:   0,
@@ -61,6 +66,9 @@ func NewServer(opts ...ServerOption) *Server {
 		enableKeepAlive: true,
 
 		codec: encoding.GetCodec("json"),
+
+		entryIDs:    make(map[string]string),
+		mtxEntryIDs: sync.RWMutex{},
 	}
 
 	srv.init(opts...)
@@ -191,13 +199,42 @@ func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts
 		return "", err
 	}
 
+	s.addPeriodicTaskEntryID(typeName, entryID)
+
 	LogDebugf("[%s]  registered an entry: id=%q", typeName, entryID)
 
 	return entryID, nil
 }
 
 // RemovePeriodicTask remove periodic task
-func (s *Server) RemovePeriodicTask(entryID string) error {
+func (s *Server) RemovePeriodicTask(typeName string) error {
+	entryID := s.QueryPeriodicTaskEntryID(typeName)
+	if entryID == "" {
+		return errors.New(fmt.Sprintf("[%s] periodic task not exist", typeName))
+	}
+
+	if err := s.unregisterPeriodicTask(entryID); err != nil {
+		LogErrorf("[%s] dequeue periodic task failed: %s", entryID, err.Error())
+		return err
+	}
+
+	s.removePeriodicTaskEntryID(typeName)
+
+	return nil
+}
+
+func (s *Server) RemoveAllPeriodicTask() {
+	s.mtxEntryIDs.Lock()
+	ids := s.entryIDs
+	s.entryIDs = make(map[string]string)
+	s.mtxEntryIDs.Unlock()
+
+	for _, v := range ids {
+		_ = s.unregisterPeriodicTask(v)
+	}
+}
+
+func (s *Server) unregisterPeriodicTask(entryID string) error {
 	if s.asynqScheduler == nil {
 		return nil
 	}
@@ -210,7 +247,32 @@ func (s *Server) RemovePeriodicTask(entryID string) error {
 	return nil
 }
 
-// Start  server
+func (s *Server) addPeriodicTaskEntryID(typeName, entryID string) {
+	s.mtxEntryIDs.Lock()
+	defer s.mtxEntryIDs.Unlock()
+
+	s.entryIDs[typeName] = entryID
+}
+
+func (s *Server) removePeriodicTaskEntryID(typeName string) {
+	s.mtxEntryIDs.Lock()
+	defer s.mtxEntryIDs.Unlock()
+
+	delete(s.entryIDs, typeName)
+}
+
+func (s *Server) QueryPeriodicTaskEntryID(typeName string) string {
+	s.mtxEntryIDs.RLock()
+	defer s.mtxEntryIDs.RUnlock()
+
+	entryID, ok := s.entryIDs[typeName]
+	if !ok {
+		return ""
+	}
+	return entryID
+}
+
+// Start the server
 func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
@@ -244,7 +306,7 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop  server
+// Stop the server
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping")
 	s.started = false
