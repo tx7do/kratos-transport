@@ -9,7 +9,7 @@ import (
 	rabbitmqBroker "github.com/tx7do/kratos-transport/broker/rabbitmq"
 	"github.com/tx7do/kratos-transport/transport/rabbitmq"
 
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
+	api "github.com/tx7do/kratos-transport/testing/api/manual"
 )
 
 const (

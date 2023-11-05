@@ -13,9 +13,9 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/stretchr/testify/assert"
 
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
 	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
+	api "github.com/tx7do/kratos-transport/testing/api/manual"
 	"github.com/tx7do/kratos-transport/tracing"
 )
 

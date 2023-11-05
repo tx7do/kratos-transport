@@ -362,8 +362,8 @@ models:
 go run github.com/99designs/gqlgen
 
 # 安装
-go get github.com/99designs/gqlgen
-go install github.com/99designs/gqlgen
-# 然后运行
+go install github.com/99designs/gqlgen@latest
+
+# 运行
 gqlgen
 ```

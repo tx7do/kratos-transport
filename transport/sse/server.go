@@ -33,6 +33,7 @@ type Server struct {
 
 	network string
 	address string
+	path    string
 
 	timeout time.Duration
 
@@ -64,6 +65,7 @@ func NewServer(opts ...ServerOption) *Server {
 		timeout:     1 * time.Second,
 		router:      mux.NewRouter(),
 		strictSlash: true,
+		path:        "/",
 
 		bufferSize:   DefaultBufferSize,
 		encodeBase64: false,
@@ -104,6 +106,8 @@ func (s *Server) Start(ctx context.Context) error {
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+
+	s.HandleServeHTTP(s.path)
 
 	return nil
 }

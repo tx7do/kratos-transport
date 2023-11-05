@@ -13,6 +13,7 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 
 	"github.com/stretchr/testify/assert"
+	api "github.com/tx7do/kratos-transport/testing/api/manual"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rabbitmq"
@@ -26,12 +27,7 @@ const (
 	testRouting  = "test_routing_key"
 )
 
-type Hygrothermograph struct {
-	Humidity    float64 `json:"humidity"`
-	Temperature float64 `json:"temperature"`
-}
-
-func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error {
+func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
 	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
@@ -85,7 +81,7 @@ func TestClient(t *testing.T) {
 		t.Skip()
 	}
 
-	var msg Hygrothermograph
+	var msg api.Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()

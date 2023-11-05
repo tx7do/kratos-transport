@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"testing"
 
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
+	api "github.com/tx7do/kratos-transport/testing/api/manual"
 )
 
 var testClient *Client

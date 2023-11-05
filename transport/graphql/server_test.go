@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"testing"
 
-	api "github.com/tx7do/kratos-transport/_example/api/graphql"
+	api "github.com/tx7do/kratos-transport/testing/api/graphql"
 )
 
 type resolver struct{}

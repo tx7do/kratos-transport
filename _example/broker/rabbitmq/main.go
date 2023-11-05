@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rabbitmq"
+	api "github.com/tx7do/kratos-transport/testing/api/manual"
 )
 
 const (

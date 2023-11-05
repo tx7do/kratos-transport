@@ -270,22 +270,24 @@ service HygrothermographService {
 #### 首先，实现Handler
 
 ```go
+package server
+
 type HygrothermographHandler struct {
 }
 
 func NewHygrothermographHandler() *HygrothermographHandler {
-return &HygrothermographHandler{}
+    return &HygrothermographHandler{}
 }
 
 func (p *HygrothermographHandler) GetHygrothermograph(ctx context.Context) (_r *api.Hygrothermograph, _err error) {
-var Humidity = float64(rand.Intn(100))
-var Temperature = float64(rand.Intn(100))
-_r = &api.Hygrothermograph{
-Humidity:    &Humidity,
-Temperature: &Temperature,
-}
-fmt.Println("Humidity:", Humidity, "Temperature:", Temperature)
-return
+  var Humidity = float64(rand.Intn(100))
+  var Temperature = float64(rand.Intn(100))
+  _r = &api.Hygrothermograph{
+    Humidity:    &Humidity,
+    Temperature: &Temperature,
+  }
+  fmt.Println("Humidity:", Humidity, "Temperature:", Temperature)
+  return
 }
 ```
 
@@ -294,21 +296,23 @@ Handler在Kratos里面的使用的语义是Service，实际应用的时候，将
 #### 实现服务端
 
 ```go
-    ctx := context.Background()
+package server
+
+ctx := context.Background()
 
 srv := NewServer(
-WithAddress(":7700"),
-WithProcessor(api.NewHygrothermographServiceProcessor(NewHygrothermographHandler())),
+  WithAddress(":7700"),
+  WithProcessor(api.NewHygrothermographServiceProcessor(NewHygrothermographHandler())),
 )
 
 if err := srv.Start(ctx); err != nil {
-panic(err)
+    panic(err)
 }
 
 defer func () {
-if err := srv.Stop(ctx); err != nil {
-t.Errorf("expected nil got %v", err)
-}
+  if err := srv.Stop(ctx); err != nil {
+    t.Errorf("expected nil got %v", err)
+  }
 }()
 ```
 
@@ -317,11 +321,13 @@ t.Errorf("expected nil got %v", err)
 ### 开发客户端
 
 ```go
+package client
+
 conn, err := Dial(
-WithEndpoint("localhost:7700"),
+    WithEndpoint("localhost:7700"),
 )
 if err != nil {
-t.Fatal(err)
+    t.Fatal(err)
 }
 defer conn.Close()
 
@@ -330,7 +336,7 @@ client := api.NewHygrothermographServiceClient(conn.Client)
 reply, err := client.GetHygrothermograph(context.Background())
 //t.Log(err)
 if err != nil {
-t.Errorf("failed to call: %v", err)
+  t.Errorf("failed to call: %v", err)
 }
 t.Log(*reply.Humidity, *reply.Temperature)
 ```

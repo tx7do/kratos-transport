@@ -43,17 +43,18 @@ func TestServerExistingStreamPublish(t *testing.T) {
 
 	s := NewServer(
 		WithAddress(":8800"),
+		WithCodec("json"),
+		WithPath("/events"),
 	)
 	defer s.Stop(ctx)
 
-	s.HandleServeHTTP("/events")
 	s.CreateStream("test")
 
 	stream := s.streamMgr.Get("test")
 	sub := stream.addSubscriber(0, nil)
 
 	go func() {
-		s.Start(ctx)
+		_ = s.Start(ctx)
 	}()
 
 	s.Publish(ctx, "test", &Event{Data: []byte("test")})
@@ -73,15 +74,16 @@ func TestServerNonExistentStreamPublish(t *testing.T) {
 
 	s := NewServer(
 		WithAddress(":8800"),
+		WithCodec("json"),
+		WithPath("/events"),
 	)
 	defer s.Stop(ctx)
 
-	s.HandleServeHTTP("/events")
 	s.CreateStream("test")
 
 	go func() {
 		s.streamMgr.RemoveWithID("test")
-		s.Start(ctx)
+		_ = s.Start(ctx)
 	}()
 
 	assert.NotPanics(t, func() { s.Publish(ctx, "test", &Event{Data: []byte("test")}) })

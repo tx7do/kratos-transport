@@ -5,8 +5,9 @@ import (
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-	api "github.com/tx7do/kratos-transport/_example/api/manual"
+
 	"github.com/tx7do/kratos-transport/broker"
+	api "github.com/tx7do/kratos-transport/testing/api/manual"
 	"github.com/tx7do/kratos-transport/transport/mqtt"
 )
 
