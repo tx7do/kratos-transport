@@ -5,7 +5,7 @@ git tag broker/nsq/v1.2.1
 git tag broker/pulsar/v1.2.1
 git tag broker/rabbitmq/v1.2.1
 git tag broker/redis/v1.2.1
-git tag broker/rocketmq/v1.2.1
+git tag broker/rocketmq/v1.2.2
 git tag broker/stomp/v1.2.1
 
 git push origin --tags

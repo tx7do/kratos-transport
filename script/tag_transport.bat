@@ -15,7 +15,7 @@ git tag transport/nsq/v1.2.1
 git tag transport/pulsar/v1.2.1
 git tag transport/rabbitmq/v1.2.1
 git tag transport/redis/v1.2.1
-git tag transport/rocketmq/v1.2.1
+git tag transport/rocketmq/v1.2.2
 git tag transport/signalr/v1.2.1
 git tag transport/socketio/v1.2.1
 git tag transport/sse/v1.2.1

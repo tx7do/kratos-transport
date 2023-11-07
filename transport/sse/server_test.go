@@ -57,11 +57,11 @@ func TestServerExistingStreamPublish(t *testing.T) {
 		_ = s.Start(ctx)
 	}()
 
-	s.Publish(ctx, "test", &Event{Data: []byte("test")})
+	s.Publish(ctx, "test", &Event{Data: []byte("ping")})
 
 	msg, err := wait(sub.connection, time.Second*1)
 	require.Nil(t, err)
-	assert.Equal(t, []byte(`test`), msg)
+	assert.Equal(t, []byte(`ping`), msg)
 
 	<-interrupt
 }
@@ -86,7 +86,9 @@ func TestServerNonExistentStreamPublish(t *testing.T) {
 		_ = s.Start(ctx)
 	}()
 
-	assert.NotPanics(t, func() { s.Publish(ctx, "test", &Event{Data: []byte("test")}) })
+	assert.NotPanics(t, func() {
+		_ = s.PublishData(ctx, "test", &Event{Data: []byte("test")})
+	})
 
 	<-interrupt
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -106,11 +107,12 @@ func TestClientSubscribe(t *testing.T) {
 
 	c := NewClient(urlPath)
 
-	events := make(chan *Event)
+	events := make(chan *Event, 1)
 	var cErr error
 	go func() {
 		cErr = c.Subscribe("test", func(msg *Event) {
 			if msg.Data != nil {
+				fmt.Println("recv message: ", string(msg.Data))
 				events <- msg
 				return
 			}
@@ -127,6 +129,7 @@ func TestClientSubscribe(t *testing.T) {
 }
 
 func TestClientSubscribeMultiline(t *testing.T) {
+
 	setupMultiline()
 	defer cleanup()
 
@@ -138,6 +141,7 @@ func TestClientSubscribeMultiline(t *testing.T) {
 	go func() {
 		cErr = c.Subscribe("test", func(msg *Event) {
 			if msg.Data != nil {
+				fmt.Println("recv message: ", string(msg.Data))
 				events <- msg
 				return
 			}

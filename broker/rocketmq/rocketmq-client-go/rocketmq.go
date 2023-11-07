@@ -222,7 +222,7 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 	}
 
 	if credentials.AccessKey != "" && credentials.SecretKey != "" {
-		producer.WithCredentials(*credentials)
+		opts = append(opts, producer.WithCredentials(*credentials))
 	}
 
 	opts = append(opts, producer.WithNsResolver(resolver))

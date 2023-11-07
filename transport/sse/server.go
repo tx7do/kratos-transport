@@ -97,6 +97,8 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	LogInfof("server listening on: %s", s.lis.Addr().String())
 
+	s.HandleServeHTTP(s.path)
+
 	var err error
 	if s.tlsConf != nil {
 		err = s.ServeTLS(s.lis, "", "")
@@ -106,8 +108,6 @@ func (s *Server) Start(ctx context.Context) error {
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-
-	s.HandleServeHTTP(s.path)
 
 	return nil
 }
