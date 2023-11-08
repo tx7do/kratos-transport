@@ -43,3 +43,4 @@ type SendWithTransactionKey struct{}
 ///
 
 type SubscriptionFilterExpressionKey struct{}
+type ConsumerModelKey struct{}

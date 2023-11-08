@@ -346,17 +346,17 @@ func (r *rocketmqBroker) doSendTransaction(ctx context.Context, producer rmqClie
 }
 
 func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	rocketmqOptions := broker.SubscribeOptions{
+	rocketmqOptions := &broker.SubscribeOptions{
 		Context: context.Background(),
 		AutoAck: true,
 		Queue:   r.groupName,
 	}
 	for _, o := range opts {
-		o(&rocketmqOptions)
+		o(rocketmqOptions)
 	}
 
 	if r.consumer == nil {
-		c, err := r.createConsumer()
+		c, err := r.createConsumer(rocketmqOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -365,7 +365,7 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 	sub := &subscriber{
 		r:       r,
-		options: rocketmqOptions,
+		options: *rocketmqOptions,
 		topic:   topic,
 		handler: handler,
 		binder:  binder,
@@ -423,7 +423,7 @@ func (r *rocketmqBroker) createProducer(topic ...string) (producer rmqClient.Pro
 	return
 }
 
-func (r *rocketmqBroker) createConsumer() (consumer rmqClient.SimpleConsumer, err error) {
+func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (consumer rmqClient.SimpleConsumer, err error) {
 	cfg := r.makeConfig()
 
 	var opts []rmqClient.SimpleConsumerOption

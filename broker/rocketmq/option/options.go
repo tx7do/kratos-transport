@@ -141,3 +141,7 @@ func WithSendWithTransaction(enable bool) broker.PublishOption {
 func WithSubscriptionFilterExpression(filterExpression *rmqClient.FilterExpression) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(SubscriptionFilterExpressionKey{}, filterExpression)
 }
+
+func WithConsumerModel(model MessageModel) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(ConsumerModelKey{}, model)
+}

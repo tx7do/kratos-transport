@@ -11,3 +11,10 @@ const (
 	DriverTypeV2     DriverType = "v2"     // github.com/apache/rocketmq-client-go/v2
 	DriverTypeV5     DriverType = "v5"     // github.com/apache/rocketmq-clients/golang
 )
+
+type MessageModel string
+
+const (
+	MessageModelBroadCasting MessageModel = "BroadCasting"
+	MessageModelClustering   MessageModel = "Clustering"
+)

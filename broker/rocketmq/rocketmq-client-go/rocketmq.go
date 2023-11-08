@@ -250,18 +250,30 @@ func (r *rocketmqBroker) createProducer() (rocketmq.Producer, error) {
 }
 
 func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocketmq.PushConsumer, error) {
-	credentials := r.makeCredentials()
-
-	resolver := r.createNsResolver()
 
 	consumerOptions := []consumer.Option{
-		consumer.WithNsResolver(resolver),
-		consumer.WithCredentials(*credentials),
 		consumer.WithGroupName(options.Queue),
 		consumer.WithAutoCommit(options.AutoAck),
 		consumer.WithRetry(r.retryCount),
 		consumer.WithNamespace(r.namespace),
 		consumer.WithInstance(r.instanceName),
+	}
+
+	credentials := r.makeCredentials()
+	consumerOptions = append(consumerOptions, consumer.WithCredentials(*credentials))
+
+	resolver := r.createNsResolver()
+	consumerOptions = append(consumerOptions, consumer.WithNsResolver(resolver))
+
+	if v, ok := options.Context.Value(rocketmqOption.ConsumerModelKey{}).(rocketmqOption.MessageModel); ok {
+		var m consumer.MessageModel
+		switch v {
+		case rocketmqOption.MessageModelClustering:
+			m = consumer.Clustering
+		case rocketmqOption.MessageModelBroadCasting:
+			m = consumer.BroadCasting
+		}
+		consumerOptions = append(consumerOptions, consumer.WithConsumerModel(m))
 	}
 
 	// 消息追踪
