@@ -156,7 +156,7 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 		return err
 	}
 
-	task := asynq.NewTask(typeName, payload)
+	task := asynq.NewTask(typeName, payload, opts...)
 	if task == nil {
 		return errors.New("new task failed")
 	}
@@ -188,7 +188,7 @@ func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts
 		return "", err
 	}
 
-	task := asynq.NewTask(typeName, payload)
+	task := asynq.NewTask(typeName, payload, opts...)
 	if task == nil {
 		return "", errors.New("new task failed")
 	}

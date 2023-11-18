@@ -1,5 +1,5 @@
 git tag transport/activemq/v1.2.1
-git tag transport/asynq/v1.2.3
+git tag transport/asynq/v1.2.4
 git tag transport/fasthttp/v1.2.1
 git tag transport/gin/v1.2.1
 git tag transport/gozero/v1.2.1
