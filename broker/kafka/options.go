@@ -11,13 +11,22 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
+type BalancerName string
+
 const (
-	LeastBytesBalancer    = "LeastBytes"
-	RoundRobinBalancer    = "RoundRobin"
-	HashBalancer          = "Hash"
-	ReferenceHashBalancer = "ReferenceHash"
-	Crc32Balancer         = "CRC32Balancer"
-	Murmur2Balancer       = "Murmur2Balancer"
+	LeastBytesBalancer    BalancerName = "LeastBytes"
+	RoundRobinBalancer    BalancerName = "RoundRobin"
+	HashBalancer          BalancerName = "Hash"
+	ReferenceHashBalancer BalancerName = "ReferenceHash"
+	Crc32Balancer         BalancerName = "CRC32Balancer"
+	Murmur2Balancer       BalancerName = "Murmur2Balancer"
+)
+
+type ScramAlgorithm string
+
+const (
+	ScramAlgorithmSHA256 ScramAlgorithm = "SHA256"
+	ScramAlgorithmSHA512 ScramAlgorithm = "SHA512"
 )
 
 ///
@@ -55,7 +64,7 @@ type asyncKey struct{}
 type maxAttemptsKey struct{}
 type readTimeoutKey struct{}
 type writeTimeoutKey struct{}
-type allowAutoTopicCreationKey struct{}
+type allowPublishAutoTopicCreationKey struct{}
 
 // WithReaderConfig .
 func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
@@ -67,14 +76,14 @@ func WithWriterConfig(cfg WriterConfig) broker.Option {
 	return broker.OptionContextWithValue(writerConfigKey{}, cfg)
 }
 
-// WithEnableOneTopicOneWriter .
-func WithEnableOneTopicOneWriter(enable bool) broker.Option {
-	return broker.OptionContextWithValue(enableOneTopicOneWriterKey{}, enable)
-}
-
 // WithDialer .
 func WithDialer(cfg *kafkaGo.Dialer) broker.Option {
 	return broker.OptionContextWithValue(dialerConfigKey{}, cfg)
+}
+
+// WithEnableOneTopicOneWriter .
+func WithEnableOneTopicOneWriter(enable bool) broker.Option {
+	return broker.OptionContextWithValue(enableOneTopicOneWriterKey{}, enable)
 }
 
 // WithPlainMechanism PLAIN认证信息
@@ -87,11 +96,20 @@ func WithPlainMechanism(username, password string) broker.Option {
 }
 
 // WithScramMechanism SCRAM认证信息
-func WithScramMechanism(algo scram.Algorithm, username, password string) broker.Option {
+func WithScramMechanism(algoName ScramAlgorithm, username, password string) broker.Option {
+	var algo scram.Algorithm
+	switch algoName {
+	case ScramAlgorithmSHA256:
+		algo = scram.SHA256
+	case ScramAlgorithmSHA512:
+		algo = scram.SHA512
+	}
+
 	mechanism, err := scram.Mechanism(algo, username, password)
 	if err != nil {
 		panic(err)
 	}
+
 	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
 }
 
@@ -216,9 +234,7 @@ func WithBatchBytes(by int64) broker.Option {
 	return broker.OptionContextWithValue(batchBytesKey{}, by)
 }
 
-// WithAsync 异步发送消息
-//
-// default：true
+// WithAsync 异步发送消息 default：true
 func WithAsync(enable bool) broker.Option {
 	return broker.OptionContextWithValue(asyncKey{}, enable)
 }
@@ -228,23 +244,19 @@ func WithPublishMaxAttempts(cnt int) broker.Option {
 	return broker.OptionContextWithValue(maxAttemptsKey{}, cnt)
 }
 
-// WithReadTimeout 读取超时时间
-//
-// default：10s
+// WithReadTimeout 读取超时时间 default：10s
 func WithReadTimeout(timeout time.Duration) broker.Option {
 	return broker.OptionContextWithValue(readTimeoutKey{}, timeout)
 }
 
-// WithWriteTimeout 写入超时时间
-//
-// default：10s
+// WithWriteTimeout 写入超时时间 default：10s
 func WithWriteTimeout(timeout time.Duration) broker.Option {
 	return broker.OptionContextWithValue(writeTimeoutKey{}, timeout)
 }
 
-// WithAllowAutoTopicCreation .
-func WithAllowAutoTopicCreation(enable bool) broker.Option {
-	return broker.OptionContextWithValue(allowAutoTopicCreationKey{}, enable)
+// WithAllowPublishAutoTopicCreation .
+func WithAllowPublishAutoTopicCreation(enable bool) broker.Option {
+	return broker.OptionContextWithValue(allowPublishAutoTopicCreationKey{}, enable)
 }
 
 ///
@@ -256,7 +268,7 @@ type messageKeyKey struct{}
 type messageOffsetKey struct{}
 type balancerKey struct{}
 type balancerValue struct {
-	Name       string
+	Name       BalancerName
 	Consistent bool
 	Hasher     hash.Hash32
 }
@@ -338,16 +350,16 @@ func WithMurmur2Balancer(consistent bool) broker.PublishOption {
 /// SubscribeOption
 ///
 
-type autoCreateTopicKey struct{}
-type autoCreateTopicValue struct {
+type autoSubscribeCreateTopicKey struct{}
+type autoSubscribeCreateTopicValue struct {
 	Topic             string
 	NumPartitions     int
 	ReplicationFactor int
 }
 
-func WithAutoCreateTopic(topic string, numPartitions, replicationFactor int) broker.SubscribeOption {
-	return broker.SubscribeContextWithValue(autoCreateTopicKey{},
-		&autoCreateTopicValue{
+func WithSubscribeAutoCreateTopic(topic string, numPartitions, replicationFactor int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(autoSubscribeCreateTopicKey{},
+		&autoSubscribeCreateTopicValue{
 			Topic:             topic,
 			NumPartitions:     numPartitions,
 			ReplicationFactor: replicationFactor,

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/tx7do/kratos-transport/broker"

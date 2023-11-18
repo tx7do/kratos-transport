@@ -238,22 +238,22 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	//	switch value {
 	//	default:
 	//	case LeastBytesBalancer:
-	//		b.writerConfig.Balancer = &kafkaGo.LeastBytes{}
+	//		b.writerConfig.BalancerName = &kafkaGo.LeastBytes{}
 	//		break
 	//	case RoundRobinBalancer:
-	//		b.writerConfig.Balancer = &kafkaGo.RoundRobin{}
+	//		b.writerConfig.BalancerName = &kafkaGo.RoundRobin{}
 	//		break
 	//	case HashBalancer:
-	//		b.writerConfig.Balancer = &kafkaGo.Hash{}
+	//		b.writerConfig.BalancerName = &kafkaGo.Hash{}
 	//		break
 	//	case ReferenceHashBalancer:
-	//		b.writerConfig.Balancer = &kafkaGo.ReferenceHash{}
+	//		b.writerConfig.BalancerName = &kafkaGo.ReferenceHash{}
 	//		break
 	//	case Crc32Balancer:
-	//		b.writerConfig.Balancer = &kafkaGo.CRC32Balancer{}
+	//		b.writerConfig.BalancerName = &kafkaGo.CRC32Balancer{}
 	//		break
 	//	case Murmur2Balancer:
-	//		b.writerConfig.Balancer = &kafkaGo.Murmur2Balancer{}
+	//		b.writerConfig.BalancerName = &kafkaGo.Murmur2Balancer{}
 	//		break
 	//	}
 	//}
@@ -286,7 +286,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		b.writerConfig.WriteTimeout = value
 	}
 
-	if value, ok := b.options.Context.Value(allowAutoTopicCreationKey{}).(bool); ok {
+	if value, ok := b.options.Context.Value(allowPublishAutoTopicCreationKey{}).(bool); ok {
 		b.writerConfig.AllowAutoTopicCreation = value
 	}
 
@@ -338,7 +338,7 @@ func (b *kafkaBroker) Disconnect() error {
 }
 
 func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.PublishOptions) {
-	//writer.Balancer = b.writerConfig.Balancer
+	//writer.BalancerName = b.writerConfig.BalancerName
 	if value, ok := options.Context.Value(balancerKey{}).(*balancerValue); ok {
 		switch value.Name {
 		default:
@@ -583,7 +583,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		o(&options)
 	}
 
-	if value, ok := options.Context.Value(autoCreateTopicKey{}).(*autoCreateTopicValue); ok {
+	if value, ok := options.Context.Value(autoSubscribeCreateTopicKey{}).(*autoSubscribeCreateTopicValue); ok {
 		if err := CreateTopic(b.Address(), value.Topic, value.NumPartitions, value.ReplicationFactor); err != nil {
 			log.Errorf("[kafka] create topic error: %s", err.Error())
 		}
