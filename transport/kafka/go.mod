@@ -4,10 +4,10 @@ go 1.19
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.1
-	github.com/segmentio/kafka-go v0.4.44
+	github.com/segmentio/kafka-go v0.4.45
 	github.com/stretchr/testify v1.8.4
 	github.com/tx7do/kratos-transport v1.1.1
-	github.com/tx7do/kratos-transport/broker/kafka v1.2.1
+	github.com/tx7do/kratos-transport/broker/kafka v1.2.2
 	go.opentelemetry.io/otel v1.19.0
 	go.opentelemetry.io/otel/trace v1.19.0
 )
@@ -21,7 +21,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.0 // indirect
-	github.com/klauspost/compress v1.17.2 // indirect
+	github.com/klauspost/compress v1.17.3 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

@@ -48,7 +48,6 @@ type errorLoggerKey struct{}
 type enableLoggerKey struct{}
 type enableErrorLoggerKey struct{}
 type enableOneTopicOneWriterKey struct{}
-
 type batchSizeKey struct{}
 type batchTimeoutKey struct{}
 type batchBytesKey struct{}
@@ -338,3 +337,20 @@ func WithMurmur2Balancer(consistent bool) broker.PublishOption {
 ///
 /// SubscribeOption
 ///
+
+type autoCreateTopicKey struct{}
+type autoCreateTopicValue struct {
+	Topic             string
+	NumPartitions     int
+	ReplicationFactor int
+}
+
+func WithAutoCreateTopic(topic string, numPartitions, replicationFactor int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(autoCreateTopicKey{},
+		&autoCreateTopicValue{
+			Topic:             topic,
+			NumPartitions:     numPartitions,
+			ReplicationFactor: replicationFactor,
+		},
+	)
+}

@@ -583,6 +583,12 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		o(&options)
 	}
 
+	if value, ok := options.Context.Value(autoCreateTopicKey{}).(*autoCreateTopicValue); ok {
+		if err := CreateTopic(b.Address(), value.Topic, value.NumPartitions, value.ReplicationFactor); err != nil {
+			log.Errorf("[kafka] create topic error: %s", err.Error())
+		}
+	}
+
 	readerConfig := b.readerConfig
 	readerConfig.Topic = topic
 	readerConfig.GroupID = options.Queue
@@ -603,7 +609,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 			default:
 				msg, err := sub.reader.FetchMessage(options.Context)
 				if err != nil {
-					log.Errorf("FetchMessage error: %s", err.Error())
+					log.Errorf("[kafka] FetchMessage error: %s", err.Error())
 					continue
 				}
 
@@ -624,16 +630,16 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if err := broker.Unmarshal(b.options.Codec, msg.Value, &m.Body); err != nil {
 					p.err = err
-					log.Errorf("[kafka]: unmarshal message failed: %v", err)
+					log.Errorf("[kafka] unmarshal message failed: %v", err)
 				}
 
 				err = sub.handler(ctx, p)
 				if err != nil {
-					log.Errorf("[kafka]: process message failed: %v", err)
+					log.Errorf("[kafka] process message failed: %v", err)
 				}
 				if sub.options.AutoAck {
 					if err = p.Ack(); err != nil {
-						log.Errorf("[kafka]: unable to commit msg: %v", err)
+						log.Errorf("[kafka] unable to commit msg: %v", err)
 					}
 				}
 

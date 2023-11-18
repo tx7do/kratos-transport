@@ -7,7 +7,7 @@ git tag transport/graphql/v1.2.1
 git tag transport/hertz/v1.2.1
 git tag transport/http3/v1.2.1
 git tag transport/iris/v1.2.1
-git tag transport/kafka/v1.2.1
+git tag transport/kafka/v1.2.2
 git tag transport/machinery/v1.2.1
 git tag transport/mqtt/v1.2.1
 git tag transport/nats/v1.2.1

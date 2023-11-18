@@ -1,4 +1,4 @@
-git tag broker/kafka/v1.2.1
+git tag broker/kafka/v1.2.2
 git tag broker/mqtt/v1.2.1
 git tag broker/nats/v1.2.1
 git tag broker/nsq/v1.2.1
