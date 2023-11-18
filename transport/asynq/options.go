@@ -148,8 +148,9 @@ func WithMiddleware(m ...asynq.MiddlewareFunc) ServerOption {
 	}
 }
 
-func WithLocation(loc *time.Location) ServerOption {
+func WithLocation(name string) ServerOption {
 	return func(s *Server) {
+		loc, _ := time.LoadLocation(name)
 		s.schedulerOpts.Location = loc
 	}
 }
