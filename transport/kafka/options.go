@@ -3,8 +3,6 @@ package kafka
 import (
 	"crypto/tls"
 
-	"github.com/segmentio/kafka-go/sasl/scram"
-
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
@@ -60,9 +58,9 @@ func WithPlainMechanism(username, password string) ServerOption {
 }
 
 // WithScramMechanism SCRAM认证信息
-func WithScramMechanism(algo scram.Algorithm, username, password string) ServerOption {
+func WithScramMechanism(algo string, username, password string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, kafka.WithScramMechanism(algo, username, password))
+		s.brokerOpts = append(s.brokerOpts, kafka.WithScramMechanism(kafka.ScramAlgorithm(algo), username, password))
 	}
 }
 
