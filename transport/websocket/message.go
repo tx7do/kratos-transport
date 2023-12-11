@@ -38,8 +38,8 @@ func (m *BinaryMessage) Unmarshal(buf []byte) error {
 }
 
 type TextMessage struct {
-	Type MessageType `json:"type" xml:"type"`
-	Body string      `json:"body" xml:"body"`
+	Type MessageType     `json:"type" xml:"type"`
+	Body json.RawMessage `json:"body" xml:"body"`
 }
 
 func (m *TextMessage) Marshal() ([]byte, error) {
