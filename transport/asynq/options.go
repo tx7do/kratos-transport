@@ -161,12 +161,6 @@ func WithCodec(c string) ServerOption {
 	}
 }
 
-func WithConfig(c asynq.Config) ServerOption {
-	return func(s *Server) {
-		s.asynqConfig = c
-	}
-}
-
 func WithIsFailure(c asynq.Config) ServerOption {
 	return func(s *Server) {
 		s.asynqConfig.IsFailure = c.IsFailure
