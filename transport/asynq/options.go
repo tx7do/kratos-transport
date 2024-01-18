@@ -160,3 +160,15 @@ func WithCodec(c string) ServerOption {
 		s.codec = encoding.GetCodec(c)
 	}
 }
+
+func WithIsFailure(c asynq.Config) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.IsFailure = c.IsFailure
+	}
+}
+
+func WithConfig(c asynq.Config) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig = c
+	}
+}
