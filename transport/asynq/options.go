@@ -166,3 +166,9 @@ func WithIsFailure(c asynq.Config) ServerOption {
 		s.asynqConfig.IsFailure = c.IsFailure
 	}
 }
+
+func WithConfig(c asynq.Config) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig = c
+	}
+}
