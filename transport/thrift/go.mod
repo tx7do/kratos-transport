@@ -1,11 +1,11 @@
 module github.com/tx7do/kratos-transport/transport/thrift
 
-go 1.19
+go 1.20
 
 require (
 	github.com/apache/thrift v0.19.0
 	github.com/go-kratos/kratos/v2 v2.7.2
-	github.com/tx7do/kratos-transport v1.1.2
+	github.com/tx7do/kratos-transport v1.1.3
 )
 
 require (

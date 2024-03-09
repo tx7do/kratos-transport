@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.2
 	github.com/kataras/iris/v12 v12.2.10
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.2
+	github.com/tx7do/kratos-transport v1.1.3
 )
 
 require (

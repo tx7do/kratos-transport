@@ -1,13 +1,13 @@
 module github.com/tx7do/kratos-transport/broker/rabbitmq
 
-go 1.19
+go 1.20
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.2
 	github.com/google/uuid v1.6.0
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.2
+	github.com/tx7do/kratos-transport v1.1.3
 	go.opentelemetry.io/otel v1.24.0
 	go.opentelemetry.io/otel/trace v1.24.0
 )

@@ -1,12 +1,12 @@
 module github.com/tx7do/kratos-transport/transport/graphql
 
-go 1.19
+go 1.20
 
 require (
 	github.com/99designs/gqlgen v0.17.44
 	github.com/go-kratos/kratos/v2 v2.7.2
 	github.com/gorilla/mux v1.8.1
-	github.com/tx7do/kratos-transport v1.1.2
+	github.com/tx7do/kratos-transport v1.1.3
 )
 
 require (

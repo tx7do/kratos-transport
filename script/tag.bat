@@ -1,3 +1,3 @@
-git tag v1.1.3
+git tag v1.1.3 --force
 
 git push origin --tags

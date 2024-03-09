@@ -1,6 +1,6 @@
 module github.com/tx7do/kratos-transport/_example/server/websocket
 
-go 1.19
+go 1.20
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.2
@@ -17,7 +17,7 @@ require (
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
-	github.com/tx7do/kratos-transport v1.1.2 // indirect
+	github.com/tx7do/kratos-transport v1.1.3 // indirect
 	go.opentelemetry.io/otel v1.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.24.0 // indirect

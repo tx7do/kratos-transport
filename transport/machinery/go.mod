@@ -1,13 +1,13 @@
 module github.com/tx7do/kratos-transport/transport/machinery
 
-go 1.19
+go 1.20
 
 require (
 	github.com/RichardKnop/logging v0.0.0-20190827224416-1a693bdd4fae
 	github.com/RichardKnop/machinery/v2 v2.0.11
 	github.com/go-kratos/kratos/v2 v2.7.2
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.2
+	github.com/tx7do/kratos-transport v1.1.3
 	go.opentelemetry.io/otel v1.24.0
 	go.opentelemetry.io/otel/trace v1.24.0
 )

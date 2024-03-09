@@ -1,12 +1,12 @@
 module github.com/tx7do/kratos-transport/transport/sse
 
-go 1.19
+go 1.20
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.2
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.2
+	github.com/tx7do/kratos-transport v1.1.3
 	gopkg.in/cenkalti/backoff.v1 v1.1.0
 )
 

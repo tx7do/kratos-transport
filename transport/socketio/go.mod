@@ -1,6 +1,6 @@
 module github.com/tx7do/kratos-transport/transport/socketio
 
-go 1.19
+go 1.20
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.2

@@ -7,7 +7,7 @@ toolchain go1.21.6
 require (
 	github.com/go-kratos/kratos/v2 v2.7.2
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.2
+	github.com/tx7do/kratos-transport v1.1.3
 	github.com/zeromicro/go-zero v1.6.3
 )
 
