@@ -125,7 +125,7 @@ func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping")
 
 	for _, v := range s.subscribers {
-		_ = v.Unsubscribe()
+		_ = v.Unsubscribe(false)
 	}
 	s.subscribers = SubscriberMap{}
 	s.subscriberOpts = SubscribeOptionMap{}

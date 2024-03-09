@@ -33,13 +33,18 @@ func (s *subscriber) Topic() string {
 	return s.topic
 }
 
-func (s *subscriber) Unsubscribe() error {
+func (s *subscriber) Unsubscribe(removeFromManager bool) error {
 	s.Lock()
 	defer s.Unlock()
 
 	var err error
 	err = s.reader.Unsubscribe(s.topic)
+
 	s.closed = true
+
+	if removeFromManager {
+
+	}
 
 	return err
 }

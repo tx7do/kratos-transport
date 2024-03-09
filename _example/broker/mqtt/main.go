@@ -50,6 +50,7 @@ func main() {
 	if err := b.Connect(); err != nil {
 		fmt.Println(err)
 	}
+	defer b.Disconnect()
 
 	topic := "topic/bobo/#"
 	//topicSharedGroup := "$share/g1/topic/bobo/#"

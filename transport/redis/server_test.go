@@ -80,6 +80,7 @@ func TestClient(t *testing.T) {
 		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
+	defer b.Disconnect()
 
 	var msg api.Hygrothermograph
 	const count = 10

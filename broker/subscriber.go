@@ -6,10 +6,16 @@ import (
 	"sync"
 )
 
+// Subscriber .
 type Subscriber interface {
+	// Options .
 	Options() SubscribeOptions
+
+	// Topic .
 	Topic() string
-	Unsubscribe() error
+
+	// Unsubscribe .
+	Unsubscribe(removeFromManager bool) error
 }
 type SubscriberMap map[string]Subscriber
 
@@ -37,9 +43,21 @@ func (sm *SubscriberSyncMap) Remove(topic string) error {
 
 	if sub, ok := sm.m[topic]; ok {
 		delete(sm.m, topic)
-		return sub.Unsubscribe()
+		return sub.Unsubscribe(true)
 	} else {
 		return errors.New(fmt.Sprintf("topic[%s] not found", topic))
+	}
+}
+
+func (sm *SubscriberSyncMap) RemoveOnly(topic string) bool {
+	sm.Lock()
+	defer sm.Unlock()
+
+	if _, ok := sm.m[topic]; ok {
+		delete(sm.m, topic)
+		return true
+	} else {
+		return false
 	}
 }
 
@@ -48,7 +66,7 @@ func (sm *SubscriberSyncMap) Clear() {
 	defer sm.Unlock()
 
 	for _, sub := range sm.m {
-		_ = sub.Unsubscribe()
+		_ = sub.Unsubscribe(false)
 	}
 	sm.m = make(SubscriberMap)
 }

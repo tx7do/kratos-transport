@@ -28,10 +28,17 @@ func (s *Subscriber) Topic() string {
 	return s.topic
 }
 
-func (s *Subscriber) Unsubscribe() error {
-	var err error
+func (s *Subscriber) Unsubscribe(removeFromManager bool) error {
 	s.Lock()
 	defer s.Unlock()
+
 	s.closed = true
+
+	var err error
+
+	if removeFromManager {
+
+	}
+
 	return err
 }

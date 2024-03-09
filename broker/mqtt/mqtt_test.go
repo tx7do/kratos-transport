@@ -39,18 +39,23 @@ func Test_Publish_WithRawData(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
+	var err error
 
 	b := NewBroker(
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(EmqxBroker),
 	)
 
-	_ = b.Init()
+	if err = b.Init(); err != nil {
+		t.Logf("init broker failed, skip: %v", err)
+		t.Skip()
+	}
 
-	if err := b.Connect(); err != nil {
+	if err = b.Connect(); err != nil {
 		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
+	defer b.Disconnect()
 
 	var msg api.Hygrothermograph
 	const count = 10
@@ -75,6 +80,9 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	var err error
+	ctx := context.Background()
+
 	b := NewBroker(
 		broker.WithAddress(EmqxBroker),
 		WithErrorLogger(),
@@ -82,14 +90,22 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 		//WithWarnLogger(),
 		//WithDebugLogger(),
 	)
+
+	if err = b.Init(); err != nil {
+		t.Logf("init broker failed, skip: %v", err)
+		t.Skip()
+	}
+
+	if err = b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
 	defer b.Disconnect()
 
-	_ = b.Connect()
-
-	_, err := b.Subscribe("topic/bobo/#",
+	_, err = b.Subscribe("topic/bobo/#",
 		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
-		broker.WithSubscribeContext(context.Background()),
+		broker.WithSubscribeContext(ctx),
 	)
 	assert.Nil(t, err)
 
@@ -101,6 +117,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
+	var err error
 
 	b := NewBroker(
 		broker.WithOptionContext(ctx),
@@ -108,12 +125,16 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		broker.WithCodec("json"),
 	)
 
-	_ = b.Init()
+	if err = b.Init(); err != nil {
+		t.Logf("init broker failed, skip: %v", err)
+		t.Skip()
+	}
 
-	if err := b.Connect(); err != nil {
+	if err = b.Connect(); err != nil {
 		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
+	defer b.Disconnect()
 
 	var msg api.Hygrothermograph
 	const count = 10
@@ -137,18 +158,29 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	ctx := context.Background()
+	var err error
+
 	b := NewBroker(
-		broker.WithAddress(LocalRabbitBroker),
+		broker.WithAddress(EmqxBroker),
 		broker.WithCodec("json"),
 	)
+
+	if err = b.Init(); err != nil {
+		t.Logf("init broker failed, skip: %v", err)
+		t.Skip()
+	}
+
+	if err = b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
 	defer b.Disconnect()
 
-	_ = b.Connect()
-
-	_, err := b.Subscribe("topic/bobo/#",
+	_, err = b.Subscribe("topic/bobo/#",
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(context.Background()),
+		broker.WithSubscribeContext(ctx),
 	)
 	assert.Nil(t, err)
 

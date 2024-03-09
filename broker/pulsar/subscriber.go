@@ -34,7 +34,7 @@ func (s *subscriber) Topic() string {
 	return s.topic
 }
 
-func (s *subscriber) Unsubscribe() error {
+func (s *subscriber) Unsubscribe(removeFromManager bool) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -49,8 +49,8 @@ func (s *subscriber) Unsubscribe() error {
 
 	s.closed = true
 
-	if s.r != nil && s.r.subscribers != nil {
-		_ = s.r.subscribers.Remove(s.topic)
+	if s.r != nil && s.r.subscribers != nil && removeFromManager {
+		_ = s.r.subscribers.RemoveOnly(s.topic)
 	}
 
 	return err

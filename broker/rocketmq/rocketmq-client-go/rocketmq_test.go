@@ -74,6 +74,7 @@ func TestSubscribe(t *testing.T) {
 		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
+	defer b.Disconnect()
 
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
@@ -106,6 +107,7 @@ func TestPublish(t *testing.T) {
 		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
+	defer b.Disconnect()
 
 	var msg api.Hygrothermograph
 	const count = 10
@@ -145,6 +147,7 @@ func TestSubscribe_WithTracer(t *testing.T) {
 		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
+	defer b.Disconnect()
 
 	_, err := b.Subscribe(testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
@@ -178,6 +181,7 @@ func TestPublish_WithTracer(t *testing.T) {
 		t.Logf("cant connect to broker, skip: %v", err)
 		t.Skip()
 	}
+	defer b.Disconnect()
 
 	var msg api.Hygrothermograph
 	const count = 10

@@ -41,6 +41,7 @@ func main() {
 	if err := b.Connect(); err != nil {
 		fmt.Println(err)
 	}
+	defer b.Disconnect()
 
 	_, _ = b.Subscribe(testRouting,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
