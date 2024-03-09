@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/go-kratos/kratos/v2 v2.7.2
 	github.com/tx7do/kratos-transport v1.1.3
-	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.5
+	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.6
 	github.com/tx7do/kratos-transport/transport/rabbitmq v1.2.1
 )
 

@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
-	github.com/tx7do/kratos-transport/broker/mqtt v1.2.5 // indirect
+	github.com/tx7do/kratos-transport/broker/mqtt v1.2.6 // indirect
 	go.opentelemetry.io/otel v1.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.24.0 // indirect
