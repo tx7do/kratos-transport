@@ -447,6 +447,7 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 				err = sub.handler(newCtx, p)
 				if err != nil {
 					r.logger.Errorf("process message failed: %v", err)
+					return consumer.ConsumeRetryLater, err
 				}
 				if sub.options.AutoAck {
 					if err = p.Ack(); err != nil {

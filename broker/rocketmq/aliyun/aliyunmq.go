@@ -289,6 +289,7 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 						err = sub.handler(ctx, p)
 						if err != nil {
 							LogErrorf("process message failed: %v", err)
+							return err
 						}
 
 						if sub.options.AutoAck {
