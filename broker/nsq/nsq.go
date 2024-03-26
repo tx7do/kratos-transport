@@ -290,6 +290,7 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 		//fmt.Println("receive message:", nm.ID, nm.Body)
 
 		var m broker.Message
+		var errSub error
 
 		if binder != nil {
 			m.Body = binder()
@@ -299,18 +300,19 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		p := &publication{topic: topic, nsqMsg: nm, msg: &m}
 
-		if err := broker.Unmarshal(b.options.Codec, nm.Body, &m.Body); err != nil {
-			p.err = err
-			return err
+		if errSub = broker.Unmarshal(b.options.Codec, nm.Body, &m.Body); errSub != nil {
+			p.err = errSub
+			return errSub
 		}
 
-		if err := handler(b.options.Context, p); err != nil {
-			p.err = err
+		if errSub = handler(b.options.Context, p); errSub != nil {
+			p.err = errSub
+			return errSub
 		}
 
 		if options.AutoAck {
-			if err := p.Ack(); err != nil {
-				log.Errorf("[nats]: unable to commit msg: %v", err)
+			if errSub = p.Ack(); err != nil {
+				log.Errorf("[nats]: unable to commit msg: %v", errSub)
 			}
 		}
 

@@ -517,10 +517,10 @@ func (s *Server) startConsumerSpan(ctx context.Context, msg *tasks.Signature) (c
 	return ctx, span
 }
 
-func (s *Server) finishConsumerSpan(span trace.Span) {
+func (s *Server) finishConsumerSpan(span trace.Span, err error) {
 	if s.consumerTracer == nil {
 		return
 	}
 
-	s.consumerTracer.End(context.Background(), span, nil)
+	s.consumerTracer.End(context.Background(), span, err)
 }

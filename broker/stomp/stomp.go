@@ -277,17 +277,25 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					m.Body = msg.Body
 				}
 
-				if err := broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
+				if err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
 					p.err = err
 					log.Error(err)
+					b.finishConsumerSpan(span, p.err)
+					return
 				}
 
-				p.err = handler(ctx, p)
-				if p.err == nil && !options.AutoAck && ackSuccess {
-					_ = msg.Conn.Ack(msg)
+				if err = handler(ctx, p); p.err != nil {
+					p.err = err
+					b.finishConsumerSpan(span, p.err)
+					return
 				}
 
-				b.finishConsumerSpan(span)
+				if options.AutoAck || ackSuccess {
+					err = msg.Conn.Ack(msg)
+					p.err = err
+				}
+
+				b.finishConsumerSpan(span, err)
 			}(msg)
 		}
 	}()
@@ -352,10 +360,10 @@ func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stompV3.Messag
 	return ctx, span
 }
 
-func (b *stompBroker) finishConsumerSpan(span trace.Span) {
+func (b *stompBroker) finishConsumerSpan(span trace.Span, err error) {
 	if b.consumerTracer == nil {
 		return
 	}
 
-	b.consumerTracer.End(context.Background(), span, nil)
+	b.consumerTracer.End(context.Background(), span, err)
 }

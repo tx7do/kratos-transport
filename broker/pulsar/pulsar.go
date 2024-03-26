@@ -371,23 +371,28 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 				m.Body = cm.Payload()
 			}
 
-			if err := broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
+			if err = broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
 				p.err = err
-				log.Error(err)
+				log.Errorf("[pulsar]: unmarshal message failed: %v", err)
+				pb.finishConsumerSpan(span, err)
 				continue
 			}
 
-			err = sub.handler(ctx, p)
-			if err != nil {
-				log.Errorf("[pulsar]: process message failed: %v", err)
+			if err = sub.handler(ctx, p); err != nil {
+				p.err = err
+				log.Errorf("[pulsar]: handle message failed: %v", err)
+				pb.finishConsumerSpan(span, err)
+				continue
 			}
+
 			if sub.options.AutoAck {
 				if err = p.Ack(); err != nil {
+					p.err = err
 					log.Errorf("[pulsar]: unable to commit msg: %v", err)
 				}
 			}
 
-			pb.finishConsumerSpan(span)
+			pb.finishConsumerSpan(span, err)
 		}
 	}()
 
@@ -448,10 +453,10 @@ func (pb *pulsarBroker) startConsumerSpan(ctx context.Context, msg *pulsar.Consu
 	return ctx, span
 }
 
-func (pb *pulsarBroker) finishConsumerSpan(span trace.Span) {
+func (pb *pulsarBroker) finishConsumerSpan(span trace.Span, err error) {
 	if pb.consumerTracer == nil {
 		return
 	}
 
-	pb.consumerTracer.End(context.Background(), span, nil)
+	pb.consumerTracer.End(context.Background(), span, err)
 }

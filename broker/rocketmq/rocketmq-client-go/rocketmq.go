@@ -424,7 +424,7 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 		func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
 			//r.logger.Infof("[rocketmq] subscribe callback: %v \n", msgs)
 
-			var err error
+			var errSub error
 			var m broker.Message
 			for _, msg := range msgs {
 				p := &publication{topic: msg.Topic, reader: sub.reader, m: &m, rm: &msg.Message, ctx: options.Context}
@@ -439,23 +439,26 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 					m.Body = msg.Body
 				}
 
-				if err := broker.Unmarshal(r.options.Codec, msg.Body, &m.Body); err != nil {
-					p.err = err
-					r.logger.Errorf("%s", err.Error())
+				if errSub = broker.Unmarshal(r.options.Codec, msg.Body, &m.Body); errSub != nil {
+					p.err = errSub
+					r.logger.Errorf("%s", errSub.Error())
+					r.finishConsumerSpan(span, errSub)
+					continue
 				}
 
-				err = sub.handler(newCtx, p)
-				if err != nil {
-					r.logger.Errorf("process message failed: %v", err)
-					return consumer.ConsumeRetryLater, err
+				if errSub = sub.handler(newCtx, p); errSub != nil {
+					r.logger.Errorf("process message failed: %v", errSub)
+					r.finishConsumerSpan(span, errSub)
+					continue
 				}
+
 				if sub.options.AutoAck {
-					if err = p.Ack(); err != nil {
-						r.logger.Errorf("unable to commit msg: %v", err)
+					if errSub = p.Ack(); errSub != nil {
+						r.logger.Errorf("unable to commit msg: %v", errSub)
 					}
 				}
 
-				r.finishConsumerSpan(span)
+				r.finishConsumerSpan(span, errSub)
 			}
 
 			return consumer.ConsumeSuccess, nil
@@ -532,10 +535,10 @@ func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *primitive.M
 	return ctx, span
 }
 
-func (r *rocketmqBroker) finishConsumerSpan(span trace.Span) {
+func (r *rocketmqBroker) finishConsumerSpan(span trace.Span, err error) {
 	if r.consumerTracer == nil {
 		return
 	}
 
-	r.consumerTracer.End(context.Background(), span, nil)
+	r.consumerTracer.End(context.Background(), span, err)
 }

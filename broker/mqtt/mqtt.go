@@ -230,13 +230,13 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if err := broker.Unmarshal(m.options.Codec, mq.Payload(), &msg.Body); err != nil {
 			p.err = err
-			log.Error("mqtt broker unmarshal message failed:", err)
+			log.Error("[mqtt] unmarshal message failed:", err)
 			return
 		}
 
 		if err := handler(m.options.Context, p); err != nil {
 			p.err = err
-			log.Error("mqtt broker handle message failed:", err)
+			log.Error("[mqtt] handle message failed:", err)
 		}
 	}
 

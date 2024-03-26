@@ -248,9 +248,8 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			m.Body = msg.Body
 		}
 
-		if err := broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
-			p.err = err
-			log.Error(err)
+		if p.err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); p.err != nil {
+			log.Errorf("[rabbitmq] unmarshal message failed: %v", p.err)
 		}
 
 		p.err = handler(ctx, p)

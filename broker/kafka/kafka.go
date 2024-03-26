@@ -628,22 +628,26 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					m.Body = msg.Value
 				}
 
-				if err := broker.Unmarshal(b.options.Codec, msg.Value, &m.Body); err != nil {
+				if err = broker.Unmarshal(b.options.Codec, msg.Value, &m.Body); err != nil {
 					p.err = err
 					log.Errorf("[kafka] unmarshal message failed: %v", err)
+					b.finishConsumerSpan(span, err)
+					continue
 				}
 
-				err = sub.handler(ctx, p)
-				if err != nil {
-					log.Errorf("[kafka] process message failed: %v", err)
+				if err = sub.handler(ctx, p); err != nil {
+					log.Errorf("[kafka] handle message failed: %v", err)
+					b.finishConsumerSpan(span, err)
+					continue
 				}
+
 				if sub.options.AutoAck {
 					if err = p.Ack(); err != nil {
 						log.Errorf("[kafka] unable to commit msg: %v", err)
 					}
 				}
 
-				b.finishConsumerSpan(span)
+				b.finishConsumerSpan(span, err)
 			}
 		}
 	}()
@@ -711,10 +715,10 @@ func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Messag
 	return ctx, span
 }
 
-func (b *kafkaBroker) finishConsumerSpan(span trace.Span) {
+func (b *kafkaBroker) finishConsumerSpan(span trace.Span, err error) {
 	if b.consumerTracer == nil {
 		return
 	}
 
-	b.consumerTracer.End(context.Background(), span, nil)
+	b.consumerTracer.End(context.Background(), span, err)
 }

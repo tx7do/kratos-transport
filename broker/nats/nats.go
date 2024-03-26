@@ -264,6 +264,8 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	}
 
 	fn := func(msg *natsGo.Msg) {
+		var errSub error
+
 		m := &broker.Message{
 			Headers: natsHeaderToMap(msg.Header),
 			Body:    nil,
@@ -285,29 +287,35 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			m.Body = msg.Data
 		}
 
-		if err := broker.Unmarshal(b.options.Codec, msg.Data, &m.Body); err != nil {
-			pub.err = err
-			log.Errorf("[nats]: unmarshal message failed: %v", err)
+		if errSub = broker.Unmarshal(b.options.Codec, msg.Data, &m.Body); errSub != nil {
+			pub.err = errSub
+			log.Errorf("[nats]: unmarshal message failed: %v", errSub)
 			if eh != nil {
 				_ = eh(b.options.Context, pub)
 			}
+
+			b.finishConsumerSpan(span, errSub)
 			return
 		}
 
-		if err := handler(ctx, pub); err != nil {
-			pub.err = err
-			log.Errorf("[nats]: process message failed: %v", err)
+		if errSub = handler(ctx, pub); errSub != nil {
+			pub.err = errSub
+			log.Errorf("[nats]: handle message failed: %v", errSub)
 			if eh != nil {
 				_ = eh(b.options.Context, pub)
 			}
+
+			b.finishConsumerSpan(span, errSub)
+			return
 		}
+
 		if options.AutoAck {
-			if err := pub.Ack(); err != nil {
-				log.Errorf("[nats]: unable to commit msg: %v", err)
+			if errSub = pub.Ack(); errSub != nil {
+				log.Errorf("[nats]: unable to commit msg: %v", errSub)
 			}
 		}
 
-		b.finishConsumerSpan(span)
+		b.finishConsumerSpan(span, errSub)
 	}
 
 	var sub *natsGo.Subscription
@@ -392,10 +400,10 @@ func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *natsGo.Msg) (co
 	return ctx, span
 }
 
-func (b *natsBroker) finishConsumerSpan(span trace.Span) {
+func (b *natsBroker) finishConsumerSpan(span trace.Span, err error) {
 	if b.consumerTracer == nil {
 		return
 	}
 
-	b.consumerTracer.End(context.Background(), span, nil)
+	b.consumerTracer.End(context.Background(), span, err)
 }

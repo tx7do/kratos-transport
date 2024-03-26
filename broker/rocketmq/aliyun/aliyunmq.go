@@ -284,12 +284,15 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 						if err = broker.Unmarshal(r.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
 							p.err = err
 							LogError(err)
+							r.finishConsumerSpan(span, err)
+							continue
 						}
 
 						err = sub.handler(ctx, p)
 						if err != nil {
 							LogErrorf("process message failed: %v", err)
-							return err
+							r.finishConsumerSpan(span, err)
+							continue
 						}
 
 						if sub.options.AutoAck {
@@ -307,7 +310,7 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 							}
 						}
 
-						r.finishConsumerSpan(span)
+						r.finishConsumerSpan(span, err)
 					}
 
 					endChan <- 1
@@ -414,10 +417,10 @@ func (r *aliyunmqBroker) startConsumerSpan(ctx context.Context, msg *aliyun.Cons
 	return ctx, span
 }
 
-func (r *aliyunmqBroker) finishConsumerSpan(span trace.Span) {
+func (r *aliyunmqBroker) finishConsumerSpan(span trace.Span, err error) {
 	if r.consumerTracer == nil {
 		return
 	}
 
-	r.consumerTracer.End(context.Background(), span, nil)
+	r.consumerTracer.End(context.Background(), span, err)
 }
