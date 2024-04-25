@@ -282,3 +282,42 @@ func TestAllInOne(t *testing.T) {
 
 	<-interrupt
 }
+
+func TestWaitResultTask(t *testing.T) {
+
+	ctx := context.Background()
+
+	var err error
+
+	srv := NewServer(
+		WithAddress(localRedisAddr),
+	)
+
+	err = RegisterSubscriber(srv, testTask1, handleTask1)
+
+	defer func() {
+		if err = srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
+
+	go func() {
+		if err = srv.Start(ctx); err != nil {
+			panic(err)
+		}
+	}()
+
+	// 最多重试3次，10秒超时
+	err = srv.NewWaitResultTask(testTask1,
+		&TaskPayload{Message: "wait result task"},
+		asynq.Retention(time.Hour*1),
+		asynq.MaxRetry(3),
+		asynq.Timeout(10*time.Second),
+	)
+	if err != nil {
+		t.Errorf("expected nil got %v", err)
+		return
+	}
+
+	t.Logf("Wait for task result...")
+}
