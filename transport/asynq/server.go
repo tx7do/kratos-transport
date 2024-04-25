@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
-	"sync"
-
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/transport"
+	"net/url"
+	"sync"
 
 	"github.com/hibiken/asynq"
 
@@ -31,6 +30,7 @@ type Server struct {
 	asynqServer    *asynq.Server
 	asynqClient    *asynq.Client
 	asynqScheduler *asynq.Scheduler
+	asynqInspector *asynq.Inspector
 
 	mux           *asynq.ServeMux
 	asynqConfig   asynq.Config
@@ -170,6 +170,66 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 	LogDebugf("[%s] enqueued task: id=%s queue=%s", typeName, taskInfo.ID, taskInfo.Queue)
 
 	return nil
+}
+
+// NewWaitResultTask enqueue a new task and wait for the result
+func (s *Server) NewWaitResultTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
+	if s.asynqClient == nil {
+		if err := s.createAsynqClient(); err != nil {
+			return err
+		}
+	}
+
+	var err error
+
+	var payload []byte
+	if payload, err = broker.Marshal(s.codec, msg); err != nil {
+		return err
+	}
+
+	task := asynq.NewTask(typeName, payload, opts...)
+	if task == nil {
+		return errors.New("new task failed")
+	}
+
+	taskInfo, err := s.asynqClient.Enqueue(task, opts...)
+	if err != nil {
+		LogErrorf("[%s] Enqueue failed: %s", typeName, err.Error())
+		return err
+	}
+
+	if s.asynqInspector == nil {
+		if err := s.createAsynqInspector(); err != nil {
+			return err
+		}
+	}
+
+	_, err = waitResult(s.asynqInspector, taskInfo)
+	if err != nil {
+		LogErrorf("[%s] wait result failed: %s", typeName, err.Error())
+		return err
+	}
+
+	LogDebugf("[%s] enqueued task: id=%s queue=%s", typeName, taskInfo.ID, taskInfo.Queue)
+
+	return nil
+}
+
+func waitResult(intor *asynq.Inspector, info *asynq.TaskInfo) (*asynq.TaskInfo, error) {
+	taskInfo, err := intor.GetTaskInfo(info.Queue, info.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if taskInfo.State != asynq.TaskStateCompleted && taskInfo.State != asynq.TaskStateArchived && taskInfo.State != asynq.TaskStateRetry {
+		return waitResult(intor, info)
+	}
+
+	if taskInfo.State == asynq.TaskStateRetry {
+		return nil, fmt.Errorf("task state is %s", taskInfo.State.String())
+	}
+
+	return taskInfo, nil
 }
 
 // NewPeriodicTask enqueue a new crontab task
@@ -326,6 +386,11 @@ func (s *Server) Stop(_ context.Context) error {
 		s.asynqScheduler = nil
 	}
 
+	if s.asynqInspector != nil {
+		s.asynqInspector.Close()
+		s.asynqInspector = nil
+	}
+
 	return nil
 }
 
@@ -345,6 +410,10 @@ func (s *Server) init(opts ...ServerOption) {
 	if err = s.createAsynqScheduler(); err != nil {
 		s.err = err
 		LogError("create asynq scheduler failed:", err)
+	}
+	if err = s.createAsynqInspector(); err != nil {
+		s.err = err
+		LogError("create asynq inspector failed:", err)
 	}
 }
 
@@ -418,5 +487,19 @@ func (s *Server) runAsynqScheduler() error {
 		return err
 	}
 
+	return nil
+}
+
+// createAsynqInspector create asynq inspector
+func (s *Server) createAsynqInspector() error {
+	if s.asynqInspector != nil {
+		return nil
+	}
+
+	s.asynqInspector = asynq.NewInspector(s.redisOpt)
+	if s.asynqInspector == nil {
+		LogErrorf("create asynq inspector failed")
+		return errors.New("create asynq inspector failed")
+	}
 	return nil
 }
