@@ -6,7 +6,7 @@ toolchain go1.22.1
 
 require (
 	github.com/go-kratos/kratos/v2 v2.7.3
-	github.com/tx7do/kratos-transport v1.1.3
+	github.com/tx7do/kratos-transport v1.1.5
 	github.com/tx7do/kratos-transport/transport/kafka v1.2.5
 )
 
@@ -22,7 +22,7 @@ require (
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/segmentio/kafka-go v0.4.47 // indirect
-	github.com/tx7do/kratos-transport/broker/kafka v1.2.6 // indirect
+	github.com/tx7do/kratos-transport/broker/kafka v1.2.8 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect

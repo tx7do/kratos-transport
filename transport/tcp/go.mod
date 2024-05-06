@@ -7,7 +7,7 @@ toolchain go1.22.1
 require (
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/google/uuid v1.6.0
-	github.com/tx7do/kratos-transport v1.1.3
+	github.com/tx7do/kratos-transport v1.1.5
 )
 
 require (
@@ -15,7 +15,6 @@ require (
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.2.1 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.1 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	go.opentelemetry.io/otel v1.26.0 // indirect

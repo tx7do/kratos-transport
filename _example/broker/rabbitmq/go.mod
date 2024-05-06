@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.22.1
 
 require (
-	github.com/tx7do/kratos-transport v1.1.3
+	github.com/tx7do/kratos-transport v1.1.5
 	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.6
 )
 

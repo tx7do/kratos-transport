@@ -7,7 +7,7 @@ toolchain go1.22.1
 require (
 	github.com/apache/thrift v0.20.0
 	github.com/go-kratos/kratos/v2 v2.7.3
-	github.com/tx7do/kratos-transport v1.1.3
+	github.com/tx7do/kratos-transport v1.1.5
 )
 
 require (

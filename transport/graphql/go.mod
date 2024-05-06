@@ -8,13 +8,12 @@ require (
 	github.com/99designs/gqlgen v0.17.45
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/gorilla/mux v1.8.1
-	github.com/tx7do/kratos-transport v1.1.3
+	github.com/tx7do/kratos-transport v1.1.5
 )
 
 require (
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/go-playground/form/v4 v4.2.1 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
