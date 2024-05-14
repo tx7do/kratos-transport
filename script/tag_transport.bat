@@ -7,7 +7,7 @@ git tag transport/graphql/v1.2.8 --force
 git tag transport/hertz/v1.2.8 --force
 git tag transport/http3/v1.2.8 --force
 git tag transport/iris/v1.2.8 --force
-git tag transport/kafka/v1.2.8 --force
+git tag transport/kafka/v1.2.9 --force
 git tag transport/machinery/v1.2.8 --force
 git tag transport/mqtt/v1.2.8 --force
 git tag transport/nats/v1.2.8 --force
