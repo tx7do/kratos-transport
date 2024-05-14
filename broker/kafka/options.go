@@ -65,6 +65,7 @@ type maxAttemptsKey struct{}
 type readTimeoutKey struct{}
 type writeTimeoutKey struct{}
 type allowPublishAutoTopicCreationKey struct{}
+type completionKey struct{}
 
 // WithReaderConfig .
 func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
@@ -257,6 +258,11 @@ func WithWriteTimeout(timeout time.Duration) broker.Option {
 // WithAllowPublishAutoTopicCreation .
 func WithAllowPublishAutoTopicCreation(enable bool) broker.Option {
 	return broker.OptionContextWithValue(allowPublishAutoTopicCreationKey{}, enable)
+}
+
+// WithCompletion 消息发布完成回调
+func WithCompletion(completion func(messages []kafkaGo.Message, err error)) broker.Option {
+	return broker.OptionContextWithValue(completionKey{}, &completion)
 }
 
 ///

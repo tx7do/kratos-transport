@@ -90,6 +90,10 @@ func (b *kafkaBroker) Options() broker.Options {
 func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	b.options.Apply(opts...)
 
+	if value, ok := b.options.Context.Value(writerConfigKey{}).(WriterConfig); ok {
+		b.writerConfig = value
+	}
+
 	var addrs []string
 	for _, addr := range b.options.Addrs {
 		if len(addr) == 0 {
@@ -110,8 +114,8 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	}
 	b.writer = NewWriter(enableOneTopicOneWriter)
 
-	if value, ok := b.options.Context.Value(writerConfigKey{}).(WriterConfig); ok {
-		b.writerConfig = value
+	if value, ok := b.options.Context.Value(completionKey{}).(func(messages []kafkaGo.Message, err error)); ok {
+		b.writer.Writer.Completion = value
 	}
 
 	if b.readerConfig.Dialer == nil {
