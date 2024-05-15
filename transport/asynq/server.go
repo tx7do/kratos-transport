@@ -132,6 +132,51 @@ func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string
 	)
 }
 
+// RegisterSubscriberWithCtx register task subscriber with context
+func (s *Server) RegisterSubscriberWithCtx(taskType string,
+	handler func(context.Context, string, MessagePayload) error, binder Binder) error {
+	return s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
+		var payload MessagePayload
+		if binder != nil {
+			payload = binder()
+		} else {
+			payload = task.Payload()
+		}
+
+		if err := broker.Unmarshal(s.codec, task.Payload(), &payload); err != nil {
+			LogErrorf("unmarshal message failed: %s", err)
+			return err
+		}
+
+		if err := handler(ctx, task.Type(), payload); err != nil {
+			LogErrorf("handle message failed: %s", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
+// RegisterSubscriberWithCtx register task subscriber with context
+func RegisterSubscriberWithCtx[T any](srv *Server, taskType string,
+	handler func(context.Context, string, *T) error) error {
+	return srv.RegisterSubscriberWithCtx(taskType,
+		func(ctx context.Context, taskType string, payload MessagePayload) error {
+			switch t := payload.(type) {
+			case *T:
+				return handler(ctx, taskType, t)
+			default:
+				LogError("invalid payload struct type:", t)
+				return errors.New("invalid payload struct type")
+			}
+		},
+		func() any {
+			var t T
+			return &t
+		},
+	)
+}
+
 func (s *Server) handleFunc(pattern string, handler func(context.Context, *asynq.Task) error) error {
 	if s.started {
 		LogErrorf("handleFunc [%s] failed", pattern)
