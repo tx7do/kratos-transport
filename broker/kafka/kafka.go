@@ -623,8 +623,10 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 				ctx, span := b.startConsumerSpan(options.Context, &msg)
 
 				m := &broker.Message{
-					Headers: kafkaHeaderToMap(msg.Headers),
-					Body:    nil,
+					Headers:   kafkaHeaderToMap(msg.Headers),
+					Body:      nil,
+					Partition: msg.Partition,
+					Offset:    msg.Offset,
 				}
 
 				p := &publication{topic: msg.Topic, reader: sub.reader, m: m, km: msg, ctx: options.Context}

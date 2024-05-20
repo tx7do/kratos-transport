@@ -7,8 +7,10 @@ type Binder func() Any
 type Headers map[string]string
 
 type Message struct {
-	Headers Headers
-	Body    Any
+	Headers   Headers
+	Body      Any
+	Partition int
+	Offset    int64
 }
 
 func (m Message) GetHeaders() Headers {
