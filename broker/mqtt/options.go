@@ -109,6 +109,6 @@ func WithPublishQos(qos byte) broker.PublishOption {
 }
 
 // WithPublishRetained retained
-func WithPublishRetained(reatin bool) broker.PublishOption {
-	return broker.PublishContextWithValue(retainedPublishKey{}, reatin)
+func WithPublishRetained(retained bool) broker.PublishOption {
+	return broker.PublishContextWithValue(retainedPublishKey{}, retained)
 }
