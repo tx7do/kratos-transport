@@ -76,6 +76,8 @@ type WriterConfig struct {
 
 	// AllowAutoTopicCreation notifies Writer to create topic if missing.
 	AllowAutoTopicCreation bool
+
+	Completion func(messages []kafkaGo.Message, err error)
 }
 
 type Writer struct {
@@ -125,6 +127,7 @@ func (w *Writer) CreateProducer(writerConfig WriterConfig, saslMechanism sasl.Me
 		Logger:                 writerConfig.Logger,
 		ErrorLogger:            writerConfig.ErrorLogger,
 		AllowAutoTopicCreation: writerConfig.AllowAutoTopicCreation,
+		Completion:             writerConfig.Completion,
 	}
 
 	return writer

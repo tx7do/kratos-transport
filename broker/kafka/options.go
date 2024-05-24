@@ -262,7 +262,7 @@ func WithAllowPublishAutoTopicCreation(enable bool) broker.Option {
 
 // WithCompletion 消息发布完成回调
 func WithCompletion(completion func(messages []kafkaGo.Message, err error)) broker.Option {
-	return broker.OptionContextWithValue(completionKey{}, &completion)
+	return broker.OptionContextWithValue(completionKey{}, completion)
 }
 
 ///
