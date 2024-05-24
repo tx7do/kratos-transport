@@ -115,7 +115,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	b.writer = NewWriter(enableOneTopicOneWriter)
 
 	if value, ok := b.options.Context.Value(completionKey{}).(func(messages []kafkaGo.Message, err error)); ok {
-		b.writer.Writer.Completion = value
+		b.writerConfig.Completion = value
 	}
 
 	if b.readerConfig.Dialer == nil {
