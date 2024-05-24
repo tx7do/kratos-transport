@@ -262,13 +262,15 @@ func Test_Publish_WithCompletion(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	ctx := context.Background()
+
 	b := NewBroker(
 		broker.WithAddress(testBrokers),
 		broker.WithCodec("json"),
 		createTracerProvider("otlp-grpc", "subscribe_tracer_tester"),
 		WithAsync(true),
 		WithCompletion(func(messages []kafkaGo.Message, err error) {
-			t.Logf("send async message complete: %v", err)
+			t.Logf("send message complete: %v", err)
 		}),
 	)
 
@@ -280,12 +282,20 @@ func Test_Publish_WithCompletion(t *testing.T) {
 	}
 	defer b.Disconnect()
 
-	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
-		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupId),
-	)
-	assert.Nil(t, err)
+	var msg api.Hygrothermograph
+	const count = 1
+	for i := 0; i < count; i++ {
+		startTime := time.Now()
+		msg.Humidity = float64(rand.Intn(100))
+		msg.Temperature = float64(rand.Intn(100))
+		err := b.Publish(ctx, testTopic, msg)
+		assert.Nil(t, err)
+		elapsedTime := time.Since(startTime) / time.Millisecond
+		log.Infof("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+			i, elapsedTime, msg.Humidity, msg.Temperature)
+	}
+
+	log.Infof("total send %d messages\n", count)
 
 	<-interrupt
 }
