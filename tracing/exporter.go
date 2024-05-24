@@ -13,22 +13,30 @@ import (
 	traceSdk "go.opentelemetry.io/otel/sdk/trace"
 )
 
+const (
+	ExporterZipkin   = "zipkin"
+	ExporterJaeger   = "jaeger" // jaeger exporter is no longer supported, please use otlp-http or otlp-grpc replace it
+	ExporterOtlpHttp = "otlp-http"
+	ExporterOtlpGrpc = "otlp-grpc"
+	ExporterStdout   = "stdout"
+)
+
 // NewExporter 创建一个导出器，支持：zipkin、otlp-http、otlp-grpc
 func NewExporter(exporterName, endpoint string, insecure bool) (traceSdk.SpanExporter, error) {
 	ctx := context.Background()
 
 	switch exporterName {
-	case "zipkin":
+	case ExporterZipkin:
 		return NewZipkinExporter(ctx, endpoint)
-	case "jaeger":
+	case ExporterJaeger:
 		return nil, errors.New("jaeger exporter is no longer supported, please use otlp-http or otlp-grpc replace it")
-	case "otlp-http":
+	case ExporterOtlpHttp:
 		return NewOtlpHttpExporter(ctx, endpoint, insecure)
-	case "otlp-grpc":
+	case ExporterOtlpGrpc:
 		return NewOtlpGrpcExporter(ctx, endpoint, insecure)
 	default:
 		fallthrough
-	case "stdout":
+	case ExporterStdout:
 		return stdouttrace.New()
 	}
 }

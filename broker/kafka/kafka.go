@@ -115,6 +115,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	b.writer = NewWriter(enableOneTopicOneWriter)
 
 	if value, ok := b.options.Context.Value(completionKey{}).(func(messages []kafkaGo.Message, err error)); ok {
+		b.writer.Writer.Completion = value
 		b.writerConfig.Completion = value
 	}
 
@@ -611,9 +612,6 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 			case <-options.Context.Done():
 				return
 			default:
-				if _, ok := <-options.Context.Done(); ok {
-					return
-				}
 				msg, err := sub.reader.FetchMessage(options.Context)
 				if err != nil {
 					log.Errorf("[kafka] FetchMessage error: %s", err.Error())

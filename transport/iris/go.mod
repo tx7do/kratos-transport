@@ -8,11 +8,11 @@ require (
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/kataras/iris/v12 v12.2.11
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.5
+	github.com/tx7do/kratos-transport v1.1.6
 )
 
 require (
-	github.com/BurntSushi/toml v1.3.2 // indirect
+	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
 	github.com/CloudyKit/jet/v6 v6.2.0 // indirect
 	github.com/Joker/jade v1.1.3 // indirect
@@ -50,7 +50,7 @@ require (
 	github.com/schollz/closestmatch v2.1.0+incompatible // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/tdewolff/minify/v2 v2.20.26 // indirect
+	github.com/tdewolff/minify/v2 v2.20.31 // indirect
 	github.com/tdewolff/parse/v2 v2.7.14 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect

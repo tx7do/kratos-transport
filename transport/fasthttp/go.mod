@@ -5,11 +5,11 @@ go 1.21
 toolchain go1.22.1
 
 require (
-	github.com/fasthttp/router v1.5.0
+	github.com/fasthttp/router v1.5.1
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.5
-	github.com/valyala/fasthttp v1.53.0
+	github.com/tx7do/kratos-transport v1.1.6
+	github.com/valyala/fasthttp v1.54.0
 )
 
 require (

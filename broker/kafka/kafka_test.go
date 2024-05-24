@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	kafkaGo "github.com/segmentio/kafka-go"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -237,6 +238,38 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 		broker.WithAddress(testBrokers),
 		broker.WithCodec("json"),
 		createTracerProvider("otlp-grpc", "subscribe_tracer_tester"),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+	defer b.Disconnect()
+
+	_, err := b.Subscribe(testTopic,
+		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		api.HygrothermographCreator,
+		broker.WithQueueName(testGroupId),
+	)
+	assert.Nil(t, err)
+
+	<-interrupt
+}
+
+func Test_Publish_WithCompletion(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	b := NewBroker(
+		broker.WithAddress(testBrokers),
+		broker.WithCodec("json"),
+		createTracerProvider("otlp-grpc", "subscribe_tracer_tester"),
+		WithAsync(true),
+		WithCompletion(func(messages []kafkaGo.Message, err error) {
+			t.Logf("send async message complete: %v", err)
+		}),
 	)
 
 	_ = b.Init()

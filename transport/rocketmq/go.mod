@@ -7,7 +7,7 @@ toolchain go1.22.1
 require (
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.5
+	github.com/tx7do/kratos-transport v1.1.6
 	github.com/tx7do/kratos-transport/broker/rocketmq v1.2.8
 	go.opentelemetry.io/otel v1.27.0
 	go.opentelemetry.io/otel/trace v1.27.0
@@ -53,7 +53,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.53.0 // indirect
+	github.com/valyala/fasthttp v1.54.0 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.27.0 // indirect
