@@ -614,7 +614,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 			default:
 				msg, err := sub.reader.FetchMessage(options.Context)
 				if err != nil {
-					if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+					if errors.Is(err, io.EOF) {
 						log.Warnf("[kafka] FetchMessage EOF, closed.")
 						return
 					}
