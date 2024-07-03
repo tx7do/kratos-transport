@@ -2,10 +2,24 @@ package tcp
 
 import (
 	"crypto/tls"
+	"encoding/binary"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 )
+
+// default byte order is little endian.
+var byteOrder binary.ByteOrder = binary.LittleEndian
+
+// WithLittleEndian set little endian
+func WithLittleEndian() {
+	byteOrder = binary.LittleEndian
+}
+
+// WithBigEndian set big endian
+func WithBigEndian() {
+	byteOrder = binary.BigEndian
+}
 
 type ServerOption func(o *Server)
 

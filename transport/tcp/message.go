@@ -16,7 +16,7 @@ type Message struct {
 
 func (m *Message) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.LittleEndian, uint32(m.Type)); err != nil {
+	if err := binary.Write(buf, byteOrder, uint32(m.Type)); err != nil {
 		return nil, err
 	}
 	buf.Write(m.Body)
@@ -27,7 +27,7 @@ func (m *Message) Unmarshal(buf []byte) error {
 	network := new(bytes.Buffer)
 	network.Write(buf)
 
-	if err := binary.Read(network, binary.LittleEndian, &m.Type); err != nil {
+	if err := binary.Read(network, byteOrder, &m.Type); err != nil {
 		return err
 	}
 

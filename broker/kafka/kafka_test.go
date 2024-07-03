@@ -130,11 +130,11 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		err := b.Publish(ctx, testTopic, msg, WithHeaders(headers))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
-		log.Infof("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+		t.Logf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
 			i, elapsedTime, msg.Humidity, msg.Temperature)
 	}
 
-	log.Infof("total send %d messages\n", count)
+	t.Logf("total send %d messages\n", count)
 
 	<-interrupt
 }
@@ -222,11 +222,11 @@ func Test_Publish_WithTracer(t *testing.T) {
 		err := b.Publish(ctx, testTopic, msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
-		log.Infof("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+		t.Logf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
 			i, elapsedTime, msg.Humidity, msg.Temperature)
 	}
 
-	log.Infof("total send %d messages\n", count)
+	t.Logf("total send %d messages\n", count)
 
 	<-interrupt
 }
@@ -292,11 +292,11 @@ func Test_Publish_WithCompletion(t *testing.T) {
 		err := b.Publish(ctx, testTopic, msg)
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
-		log.Infof("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+		t.Logf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
 			i, elapsedTime, msg.Humidity, msg.Temperature)
 	}
 
-	log.Infof("total send %d messages\n", count)
+	t.Logf("total send %d messages\n", count)
 
 	<-interrupt
 }
