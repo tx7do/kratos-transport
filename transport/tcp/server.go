@@ -221,9 +221,24 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 	return buff, nil
 }
 
+// GetMessageHandler find message handler
+func (s *Server) GetMessageHandler(msgType MessageType) (error, *HandlerData) {
+	handlerData, ok := s.messageHandlers[msgType]
+	if !ok {
+		errMsg := fmt.Sprintf("[%d] message handler not found", msgType)
+		LogError(errMsg)
+		return errors.New(errMsg), nil
+	}
+
+	return nil, &handlerData
+}
+
+// messageHandler socket data process
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
+	var err error
+
 	if s.rawMessageHandler != nil {
-		if err := s.rawMessageHandler(sessionId, buf); err != nil {
+		if err = s.rawMessageHandler(sessionId, buf); err != nil {
 			LogErrorf("raw data handler exception: %s", err)
 			return err
 		}
@@ -231,15 +246,14 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	}
 
 	var msg Message
-	if err := msg.Unmarshal(buf); err != nil {
+	if err = msg.Unmarshal(buf); err != nil {
 		LogErrorf("decode message exception: %s", err)
 		return err
 	}
 
-	handlerData, ok := s.messageHandlers[msg.Type]
-	if !ok {
-		LogError("message type not found:", msg.Type)
-		return errors.New("message handler not found")
+	var handlerData *HandlerData
+	if err, handlerData = s.GetMessageHandler(msg.Type); err != nil {
+		return err
 	}
 
 	var payload MessagePayload
@@ -250,12 +264,12 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 		payload = msg.Body
 	}
 
-	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
+	if err = broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
 		LogErrorf("unmarshal message exception: %s", err)
 		return err
 	}
 
-	if err := handlerData.Handler(sessionId, payload); err != nil {
+	if err = handlerData.Handler(sessionId, payload); err != nil {
 		LogErrorf("message handler exception: %s", err)
 		return err
 	}
@@ -286,6 +300,7 @@ func (s *Server) run() {
 	}
 }
 
+// doAccept accept connection handler
 func (s *Server) doAccept() {
 	for {
 		if s.lis == nil {

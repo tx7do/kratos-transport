@@ -21,6 +21,8 @@ func WithBigEndian() {
 	byteOrder = binary.BigEndian
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 type ServerOption func(o *Server)
 
 func WithAddress(addr string) ServerOption {
