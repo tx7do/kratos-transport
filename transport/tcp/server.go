@@ -21,7 +21,7 @@ type ConnectHandler func(SessionID, bool)
 
 type MessageHandler func(SessionID, MessagePayload) error
 
-type RawMessageHandler func(SessionID, []byte) error
+type RawMessageHandler func(SessionID, []byte) (err error, msgType MessageType, msgBody []byte)
 
 type HandlerData struct {
 	Handler MessageHandler
@@ -233,15 +233,50 @@ func (s *Server) GetMessageHandler(msgType MessageType) (error, *HandlerData) {
 	return nil, &handlerData
 }
 
+func (s *Server) HandleMessage(sessionId SessionID, msgType MessageType, msgBody []byte) error {
+	var err error
+
+	var handlerData *HandlerData
+	if err, handlerData = s.GetMessageHandler(msgType); err != nil {
+		return err
+	}
+
+	var payload MessagePayload
+	if handlerData.Binder != nil {
+		payload = handlerData.Binder()
+	} else {
+		payload = msgBody
+	}
+
+	if err = broker.Unmarshal(s.codec, msgBody, &payload); err != nil {
+		LogErrorf("unmarshal message exception: %s", err)
+		return err
+	}
+
+	if err = handlerData.Handler(sessionId, payload); err != nil {
+		LogErrorf("message handler exception: %s", err)
+		return err
+	}
+
+	return nil
+}
+
 // messageHandler socket data process
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	var err error
 
 	if s.rawMessageHandler != nil {
-		if err = s.rawMessageHandler(sessionId, buf); err != nil {
+		var msgType MessageType
+		var msgBody []byte
+		if err, msgType, msgBody = s.rawMessageHandler(sessionId, buf); err != nil {
 			LogErrorf("raw data handler exception: %s", err)
 			return err
 		}
+
+		if err = s.HandleMessage(sessionId, msgType, msgBody); err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -251,26 +286,7 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 		return err
 	}
 
-	var handlerData *HandlerData
-	if err, handlerData = s.GetMessageHandler(msg.Type); err != nil {
-		return err
-	}
-
-	var payload MessagePayload
-
-	if handlerData.Binder != nil {
-		payload = handlerData.Binder()
-	} else {
-		payload = msg.Body
-	}
-
-	if err = broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
-		LogErrorf("unmarshal message exception: %s", err)
-		return err
-	}
-
-	if err = handlerData.Handler(sessionId, payload); err != nil {
-		LogErrorf("message handler exception: %s", err)
+	if err = s.HandleMessage(sessionId, msg.Type, msg.Body); err != nil {
 		return err
 	}
 
