@@ -7,9 +7,9 @@ toolchain go1.22.1
 require (
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.6
+	github.com/tx7do/kratos-transport v1.1.7
 )
 
 require (

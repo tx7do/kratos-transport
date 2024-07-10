@@ -5,11 +5,11 @@ go 1.21
 toolchain go1.22.1
 
 require (
-	github.com/fasthttp/router v1.5.1
+	github.com/fasthttp/router v1.5.2
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.6
-	github.com/valyala/fasthttp v1.54.0
+	github.com/tx7do/kratos-transport v1.1.7
+	github.com/valyala/fasthttp v1.55.0
 )
 
 require (
@@ -23,10 +23,10 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
-	github.com/klauspost/compress v1.17.8 // indirect
+	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/savsgio/gotils v0.0.0-20240303185622-093b76447511 // indirect
+	github.com/savsgio/gotils v0.0.0-20240704082632-aef3928b8a38 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.opentelemetry.io/otel v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.28.0 // indirect
