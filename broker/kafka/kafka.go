@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
+	"io"
 	"strconv"
 	"sync"
 	"time"
@@ -613,6 +614,10 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 			default:
 				msg, err := sub.reader.FetchMessage(options.Context)
 				if err != nil {
+					if errors.Is(err, io.EOF) {
+						return
+					}
+
 					log.Errorf("[kafka] FetchMessage error: %s", err.Error())
 					continue
 				}
