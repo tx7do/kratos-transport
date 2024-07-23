@@ -1,5 +1,7 @@
 package broker
 
+import "github.com/nats-io/nats.go"
+
 type Any interface{}
 
 type Binder func() Any
@@ -11,6 +13,8 @@ type Message struct {
 	Body      Any
 	Partition int
 	Offset    int64
+	Reply     Any
+	NatsMsg   *nats.Msg
 }
 
 func (m Message) GetHeaders() Headers {
@@ -23,3 +27,4 @@ func (m Message) GetHeader(key string) string {
 	}
 	return m.Headers[key]
 }
+
