@@ -176,6 +176,10 @@ func (m *mqttBroker) Publish(ctx context.Context, topic string, msg broker.Any, 
 	return m.publish(ctx, topic, buf, opts...)
 }
 
+func (m *mqttBroker) Request(ctx context.Context, topic string, msg broker.Any, timeout time.Duration, opts ...broker.PublishOption) (broker.Any, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (m *mqttBroker) publish(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
 	if !m.client.IsConnected() {
 		return errors.New("not connected")

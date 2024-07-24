@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 type Broker interface {
@@ -21,6 +22,8 @@ type Broker interface {
 	Publish(ctx context.Context, topic string, msg Any, opts ...PublishOption) error
 
 	Subscribe(topic string, handler Handler, binder Binder, opts ...SubscribeOption) (Subscriber, error)
+
+	Request(ctx context.Context, topic string, msg Any, timeout time.Duration, opts ...PublishOption) (Any, error)
 }
 
 func Subscribe[T any](broker Broker, topic string, handler func(context.Context, string, Headers, *T) error, opts ...SubscribeOption) (Subscriber, error) {

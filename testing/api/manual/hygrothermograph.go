@@ -16,6 +16,8 @@ type Hygrothermograph struct {
 
 func HygrothermographCreator() broker.Any { return &Hygrothermograph{} }
 
+type HygrothermographResponseHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) (broker.Any, error)
+
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error
 
 func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {

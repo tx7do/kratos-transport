@@ -11,6 +11,7 @@ type Message struct {
 	Body      Any
 	Partition int
 	Offset    int64
+	Msg       Any
 }
 
 func (m Message) GetHeaders() Headers {

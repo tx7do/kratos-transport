@@ -115,6 +115,28 @@ const (
 	testTopic   = "test_topic"
 )
 
+func RegisterHygrothermographResponseJsonHandler(fnc api.HygrothermographResponseHandler) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		switch t := event.Message().Body.(type) {
+		case *api.Hygrothermograph:
+			res, err := fnc(ctx, event.Topic(), event.Message().Headers, t)
+			if err != nil {
+				return err
+			}
+			rawMsg, _ := json.Marshal(res)
+			event.Message().Msg.(*natsGo.Msg).Respond(rawMsg)
+		default:
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+		return nil
+	}
+}
+
+func responseHandleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) (broker.Any, error) {
+	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	return msg, nil
+}
+
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
 	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
@@ -317,6 +339,71 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 	)
+	assert.Nil(t, err)
+
+	<-interrupt
+}
+
+func Test_Request_WithTracer(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	b := NewBroker(
+		broker.WithAddress(localBroker),
+		broker.WithCodec("json"),
+		createTracerProvider("otlp-grpc", "request_tracer_tester"),
+	)
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+
+	defer b.Disconnect()
+	ctx := context.Background()
+
+	var msg api.Hygrothermograph
+
+	const count = 10
+	for i := 0; i < count; i++ {
+		startTime := time.Now()
+		msg.Humidity = float64(rand.Intn(100))
+		msg.Temperature = float64(rand.Intn(100))
+
+		reply, err := b.Request(ctx, testTopic, msg, time.Second*2)
+		assert.Nil(t, err)
+
+		elapsedTime := time.Since(startTime) / time.Millisecond
+
+		natsMsg := reply.(*natsGo.Msg)
+		res := api.Hygrothermograph{}
+		err = json.Unmarshal(natsMsg.Data, &res)
+		assert.Nil(t, err)
+
+		fmt.Printf("Response %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n", i, elapsedTime, res.Humidity, res.Temperature)
+	}
+
+	fmt.Printf("total send %d messages\n", count)
+
+	<-interrupt
+}
+
+func Test_ResponseSubscribe_WithTracer(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	b := NewBroker(
+		broker.WithAddress(localBroker),
+		broker.WithCodec("json"),
+		createTracerProvider("otlp-grpc", "responseSubscribe_tracer_tester"),
+	)
+
+	defer b.Disconnect()
+	_ = b.Connect()
+
+	_, err := b.Subscribe(testTopic, RegisterHygrothermographResponseJsonHandler(responseHandleHygrothermograph), api.HygrothermographCreator)
+
 	assert.Nil(t, err)
 
 	<-interrupt
