@@ -115,6 +115,23 @@ const (
 	testTopic   = "test_topic"
 )
 
+func RegisterHygrothermographResponseJsonHandler(fnc api.HygrothermographResponseHandler) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		switch t := event.Message().Body.(type) {
+		case *api.Hygrothermograph:
+			res, err := fnc(ctx, event.Topic(), event.Message().Headers, t)
+			if err != nil {
+				return err
+			}
+			rawMsg, _ := json.Marshal(res)
+			event.Message().Msg.(*natsGo.Msg).Respond(rawMsg)
+		default:
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+		return nil
+	}
+}
+
 func responseHandleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) (broker.Any, error) {
 	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return msg, nil
@@ -385,7 +402,7 @@ func Test_ResponseSubscribe_WithTracer(t *testing.T) {
 	defer b.Disconnect()
 	_ = b.Connect()
 
-	_, err := b.Subscribe(testTopic, api.RegisterHygrothermographResponseJsonHandler(responseHandleHygrothermograph), api.HygrothermographCreator)
+	_, err := b.Subscribe(testTopic, RegisterHygrothermographResponseJsonHandler(responseHandleHygrothermograph), api.HygrothermographCreator)
 
 	assert.Nil(t, err)
 

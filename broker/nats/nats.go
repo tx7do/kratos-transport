@@ -248,7 +248,7 @@ func (b *natsBroker) Request(ctx context.Context, topic string, msg broker.Any, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return b.request(ctx, topic, buf, timeout, opts...)
 }
 
@@ -314,7 +314,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		m := &broker.Message{
 			Headers: natsHeaderToMap(msg.Header),
 			Body:    nil,
-			NatsMsg: msg,
+			Msg:     msg,
 		}
 
 		pub := &publication{t: msg.Subject, m: m}

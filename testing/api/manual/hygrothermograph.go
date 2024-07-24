@@ -63,23 +63,6 @@ func RegisterHygrothermographJsonHandler(fnc HygrothermographHandler) broker.Han
 	}
 }
 
-func RegisterHygrothermographResponseJsonHandler(fnc HygrothermographResponseHandler) broker.Handler {
-	return func(ctx context.Context, event broker.Event) error {
-		switch t := event.Message().Body.(type) {
-		case *Hygrothermograph:
-			res, err := fnc(ctx, event.Topic(), event.Message().Headers, t)
-			if err != nil {
-				return err
-			}
-			rawMsg, _ := json.Marshal(res)
-			event.Message().NatsMsg.Respond(rawMsg)
-		default:
-			return fmt.Errorf("unsupported type: %T", t)
-		}
-		return nil
-	}
-}
-
 func RegisterHygrothermographHandler(fnc HygrothermographHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		var msg *Hygrothermograph = nil
