@@ -52,8 +52,7 @@ func RegisterHygrothermographJsonHandler(fnc HygrothermographHandler) broker.Han
 	return func(ctx context.Context, event broker.Event) error {
 		switch t := event.Message().Body.(type) {
 		case *Hygrothermograph:
-			err := fnc(ctx, event.Topic(), event.Message().Headers, t)
-			if err != nil {
+			if err := fnc(ctx, event.Topic(), event.Message().Headers, t); err != nil {
 				return err
 			}
 		default:

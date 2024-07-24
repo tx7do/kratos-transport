@@ -303,7 +303,6 @@ func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg broker.A
 	return nil, errors.New("not implemented")
 }
 
-
 func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(r.options.Codec, msg)
 	if err != nil {
