@@ -12,14 +12,14 @@ require (
 	github.com/cloudwego/hertz v0.9.1
 	github.com/go-kratos/kratos/v2 v2.8.0
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.7
+	github.com/tx7do/kratos-transport v1.1.8
 )
 
 require (
 	github.com/andeya/ameda v1.5.3 // indirect
 	github.com/andeya/goutil v1.0.1 // indirect
 	github.com/bytedance/go-tagexpr/v2 v2.9.11 // indirect
-	github.com/bytedance/gopkg v0.0.0-20240531030433-5df24c0168e2 // indirect
+	github.com/bytedance/gopkg v0.0.0-20240711085056-a03554c296f8 // indirect
 	github.com/bytedance/sonic v1.11.9 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -36,7 +36,7 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
-	github.com/nyaruka/phonenumbers v1.3.6 // indirect
+	github.com/nyaruka/phonenumbers v1.4.0 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/tidwall/gjson v1.17.1 // indirect

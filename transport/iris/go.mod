@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.8.0
 	github.com/kataras/iris/v12 v12.2.11
 	github.com/stretchr/testify v1.9.0
-	github.com/tx7do/kratos-transport v1.1.7
+	github.com/tx7do/kratos-transport v1.1.8
 )
 
 require (
@@ -28,7 +28,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.2.1 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/gomarkdown/markdown v0.0.0-20240626202925-2eda941fd024 // indirect
+	github.com/gomarkdown/markdown v0.0.0-20240723152757-afa4a469d4f9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
@@ -67,7 +67,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/exp v0.0.0-20240707233637-46b078467d37 // indirect
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
