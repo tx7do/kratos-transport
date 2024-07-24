@@ -7,8 +7,8 @@ toolchain go1.22.1
 require (
 	github.com/go-kratos/kratos/v2 v2.7.3
 	github.com/tx7do/kratos-transport v1.1.7
-	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.11
-	github.com/tx7do/kratos-transport/transport/rabbitmq v1.2.5
+	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.12
+	github.com/tx7do/kratos-transport/transport/rabbitmq v1.2.12
 )
 
 require (
@@ -34,8 +34,8 @@ require (
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240709173604-40e1e62336c5 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240709173604-40e1e62336c5 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240711142825-46eb208f015d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240711142825-46eb208f015d // indirect
 	google.golang.org/grpc v1.65.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

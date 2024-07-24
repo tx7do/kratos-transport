@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"time"
-
-	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -23,6 +20,7 @@ import (
 	"github.com/tx7do/kratos-transport/tracing"
 
 	"github.com/tx7do/kratos-transport/broker"
+	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 )
 
 type rocketmqBroker struct {
@@ -299,7 +297,7 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocke
 	return c, nil
 }
 
-func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg broker.Any, timeout time.Duration, opts ...broker.PublishOption) (broker.Any, error) {
+func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
 	return nil, errors.New("not implemented")
 }
 

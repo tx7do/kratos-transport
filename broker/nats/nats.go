@@ -243,49 +243,6 @@ func (b *natsBroker) publish(ctx context.Context, topic string, buf []byte, opts
 	return err
 }
 
-func (b *natsBroker) Request(ctx context.Context, topic string, msg broker.Any, timeout time.Duration, opts ...broker.PublishOption) (broker.Any, error) {
-	buf, err := broker.Marshal(b.options.Codec, msg)
-	if err != nil {
-		return nil, err
-	}
-
-	return b.request(ctx, topic, buf, timeout, opts...)
-}
-
-func (b *natsBroker) request(ctx context.Context, topic string, buf []byte, timeout time.Duration, opts ...broker.PublishOption) (broker.Any, error) {
-	b.RLock()
-	defer b.RUnlock()
-
-	if b.conn == nil {
-		return nil, errors.New("not connected")
-	}
-
-	options := broker.PublishOptions{
-		Context: ctx,
-	}
-	for _, o := range opts {
-		o(&options)
-	}
-
-	m := natsGo.NewMsg(topic)
-	m.Data = buf
-
-	if headers, ok := options.Context.Value(headersKey{}).(map[string][]string); ok {
-		for k, v := range headers {
-			for _, vv := range v {
-				m.Header.Add(k, vv)
-			}
-		}
-	}
-	span := b.startProducerSpan(options.Context, m)
-
-	res, err := b.conn.RequestMsg(m, timeout)
-
-	b.finishProducerSpan(span, err)
-
-	return res, err
-}
-
 func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	b.RLock()
 	if b.conn == nil {
@@ -383,6 +340,52 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	b.subscribers.Add(topic, subs)
 
 	return subs, nil
+}
+
+func (b *natsBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+	buf, err := broker.Marshal(b.options.Codec, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.request(ctx, topic, buf, opts...)
+}
+
+func (b *natsBroker) request(ctx context.Context, topic string, buf []byte, opts ...broker.RequestOption) (broker.Any, error) {
+	b.RLock()
+	defer b.RUnlock()
+
+	if b.conn == nil {
+		return nil, errors.New("not connected")
+	}
+
+	options := broker.RequestOptions{
+		Context: ctx,
+	}
+	for _, o := range opts {
+		o(&options)
+	}
+
+	m := natsGo.NewMsg(topic)
+	m.Data = buf
+
+	var timeout = time.Second * 2
+	timeout, _ = options.Context.Value(requestTimeoutKey{}).(time.Duration)
+
+	if headers, ok := options.Context.Value(headersKey{}).(map[string][]string); ok {
+		for k, v := range headers {
+			for _, vv := range v {
+				m.Header.Add(k, vv)
+			}
+		}
+	}
+	span := b.startProducerSpan(options.Context, m)
+
+	res, err := b.conn.RequestMsg(m, timeout)
+
+	b.finishProducerSpan(span, err)
+
+	return res, err
 }
 
 func (b *natsBroker) onClose(_ *natsGo.Conn) {

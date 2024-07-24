@@ -3,6 +3,7 @@ package nats
 import (
 	natsGo "github.com/nats-io/nats.go"
 	"github.com/tx7do/kratos-transport/broker"
+	"time"
 )
 
 type optionsKey struct{}
@@ -22,4 +23,16 @@ type headersKey struct{}
 
 func WithHeaders(h map[string][]string) broker.PublishOption {
 	return broker.PublishContextWithValue(headersKey{}, h)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+type requestTimeoutKey struct{}
+
+func WithRequestTimeout(timeout time.Duration) broker.RequestOption {
+	return broker.RequestContextWithValue(requestTimeoutKey{}, timeout)
+}
+
+func WithRequestHeaders(h map[string][]string) broker.RequestOption {
+	return broker.RequestContextWithValue(headersKey{}, h)
 }

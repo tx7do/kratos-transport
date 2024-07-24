@@ -124,7 +124,7 @@ func RegisterHygrothermographResponseJsonHandler(fnc api.HygrothermographRespons
 				return err
 			}
 			rawMsg, _ := json.Marshal(res)
-			event.Message().Msg.(*natsGo.Msg).Respond(rawMsg)
+			_ = event.Message().Msg.(*natsGo.Msg).Respond(rawMsg)
 		default:
 			return fmt.Errorf("unsupported type: %T", t)
 		}
@@ -371,7 +371,7 @@ func Test_Request_WithTracer(t *testing.T) {
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
 
-		reply, err := b.Request(ctx, testTopic, msg, time.Second*2)
+		reply, err := b.Request(ctx, testTopic, msg, WithRequestTimeout(time.Second*2))
 		assert.Nil(t, err)
 
 		elapsedTime := time.Since(startTime) / time.Millisecond
@@ -381,7 +381,8 @@ func Test_Request_WithTracer(t *testing.T) {
 		err = json.Unmarshal(natsMsg.Data, &res)
 		assert.Nil(t, err)
 
-		fmt.Printf("Response %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n", i, elapsedTime, res.Humidity, res.Temperature)
+		fmt.Printf("Response %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+			i, elapsedTime, res.Humidity, res.Temperature)
 	}
 
 	fmt.Printf("total send %d messages\n", count)
@@ -402,7 +403,11 @@ func Test_ResponseSubscribe_WithTracer(t *testing.T) {
 	defer b.Disconnect()
 	_ = b.Connect()
 
-	_, err := b.Subscribe(testTopic, RegisterHygrothermographResponseJsonHandler(responseHandleHygrothermograph), api.HygrothermographCreator)
+	_, err := b.Subscribe(
+		testTopic,
+		RegisterHygrothermographResponseJsonHandler(responseHandleHygrothermograph),
+		api.HygrothermographCreator,
+	)
 
 	assert.Nil(t, err)
 

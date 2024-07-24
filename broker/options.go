@@ -234,3 +234,42 @@ func WithSubscribeContext(ctx context.Context) SubscribeOption {
 		o.Context = ctx
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+type RequestOptions struct {
+	Context context.Context
+}
+
+type RequestOption func(*RequestOptions)
+
+func (o *RequestOptions) Apply(opts ...RequestOption) {
+	for _, opt := range opts {
+		opt(o)
+	}
+}
+
+func NewRequestOptions(opts ...RequestOption) RequestOptions {
+	opt := RequestOptions{
+		Context: context.Background(),
+	}
+
+	opt.Apply(opts...)
+
+	return opt
+}
+
+func RequestContextWithValue(k, v interface{}) RequestOption {
+	return func(o *RequestOptions) {
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		o.Context = context.WithValue(o.Context, k, v)
+	}
+}
+
+func WithRequestContext(ctx context.Context) RequestOption {
+	return func(o *RequestOptions) {
+		o.Context = ctx
+	}
+}

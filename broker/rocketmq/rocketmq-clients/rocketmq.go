@@ -215,7 +215,7 @@ func (r *rocketmqBroker) Disconnect() error {
 	return nil
 }
 
-func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg broker.Any, timeout time.Duration, opts ...broker.PublishOption) (broker.Any, error) {
+func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
 	return nil, errors.New("not implemented")
 }
 
