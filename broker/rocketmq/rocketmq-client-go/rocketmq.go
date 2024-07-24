@@ -3,8 +3,10 @@ package rocketmqClientGo
 import (
 	"context"
 	"errors"
-	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 	"sync"
+	"time"
+
+	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
@@ -296,6 +298,11 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocke
 
 	return c, nil
 }
+
+func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg broker.Any, timeout time.Duration, opts ...broker.PublishOption) (broker.Any, error) {
+	return nil, errors.New("not implemented")
+}
+
 
 func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(r.options.Codec, msg)

@@ -169,6 +169,10 @@ func (pb *pulsarBroker) Disconnect() error {
 	return nil
 }
 
+func (b *pulsarBroker) Request(ctx context.Context, topic string, msg broker.Any, timeout time.Duration, opts ...broker.PublishOption) (broker.Any, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(pb.options.Codec, msg)
 	if err != nil {

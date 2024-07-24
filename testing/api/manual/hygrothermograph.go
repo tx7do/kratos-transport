@@ -16,7 +16,9 @@ type Hygrothermograph struct {
 
 func HygrothermographCreator() broker.Any { return &Hygrothermograph{} }
 
-type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) (broker.Any, error)
+type HygrothermographResponseHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) (broker.Any, error)
+
+type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error
 
 func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
@@ -38,7 +40,7 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 
-		if _, err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
+		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
 			return err
 		}
 
@@ -50,7 +52,7 @@ func RegisterHygrothermographJsonHandler(fnc HygrothermographHandler) broker.Han
 	return func(ctx context.Context, event broker.Event) error {
 		switch t := event.Message().Body.(type) {
 		case *Hygrothermograph:
-			_, err := fnc(ctx, event.Topic(), event.Message().Headers, t)
+			err := fnc(ctx, event.Topic(), event.Message().Headers, t)
 			if err != nil {
 				return err
 			}
@@ -61,7 +63,7 @@ func RegisterHygrothermographJsonHandler(fnc HygrothermographHandler) broker.Han
 	}
 }
 
-func RegisterHygrothermographResponseJsonHandler(fnc HygrothermographHandler) broker.Handler {
+func RegisterHygrothermographResponseJsonHandler(fnc HygrothermographResponseHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		switch t := event.Message().Body.(type) {
 		case *Hygrothermograph:
@@ -99,7 +101,7 @@ func RegisterHygrothermographHandler(fnc HygrothermographHandler) broker.Handler
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 
-		if _, err := fnc(ctx, event.Topic(), event.Message().Headers, msg); err != nil {
+		if err := fnc(ctx, event.Topic(), event.Message().Headers, msg); err != nil {
 			return err
 		}
 

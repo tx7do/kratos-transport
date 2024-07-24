@@ -23,10 +23,6 @@ type Broker interface {
 
 	Subscribe(topic string, handler Handler, binder Binder, opts ...SubscribeOption) (Subscriber, error)
 
-	Request
-}
-
-type Request interface {
 	Request(ctx context.Context, topic string, msg Any, timeout time.Duration, opts ...PublishOption) (Any, error)
 }
 
