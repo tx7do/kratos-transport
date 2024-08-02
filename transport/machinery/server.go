@@ -3,9 +3,10 @@ package machinery
 import (
 	"context"
 	"errors"
-	eagerBackend "github.com/RichardKnop/machinery/v2/backends/eager"
 	"net/url"
 	"sync"
+
+	eagerBackend "github.com/RichardKnop/machinery/v2/backends/eager"
 
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
@@ -185,7 +186,8 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	if err := s.newWorker(s.consumerOption.consumerTag, s.consumerOption.concurrency, s.consumerOption.queue); err != nil {
+	err := s.newWorker(s.consumerOption.consumerTag, s.consumerOption.concurrency, s.consumerOption.queue)
+	if err != nil && !errors.Is(err, machinery.ErrWorkerQuitGracefully) {
 		return err
 	}
 
