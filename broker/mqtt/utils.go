@@ -2,13 +2,16 @@ package mqtt
 
 import (
 	"fmt"
-	MQTT "github.com/eclipse/paho.mqtt.golang"
-	"math/rand"
 	"strconv"
 	"strings"
-	"time"
+
+	paho "github.com/eclipse/paho.mqtt.golang"
+	"github.com/google/uuid"
 )
 
+var clientIdPrefix = "kratos_server_"
+
+// setAddrs set the mqtt server address
 func setAddrs(addrs []string) []string {
 	cAddrs := make([]string, 0, len(addrs))
 
@@ -81,13 +84,20 @@ func setAddrs(addrs []string) []string {
 	return cAddrs
 }
 
+// generateClientId generate the client id
 func generateClientId() string {
-	return fmt.Sprintf("%d%d", time.Now().UnixNano(), rand.Intn(10))
+	return fmt.Sprintf("%s_%s", clientIdPrefix, uuid.New().String())
 }
 
-func checkClientToken(token MQTT.Token) (bool, error) {
+// checkClientToken check the client token
+func checkClientToken(token paho.Token) (bool, error) {
 	if token.Wait() && token.Error() != nil {
 		return false, token.Error()
 	}
 	return true, nil
+}
+
+// SetClientIdPrefix set the prefix of the client id
+func SetClientIdPrefix(prefix string) {
+	clientIdPrefix = prefix
 }

@@ -3,7 +3,7 @@ package mqtt
 import (
 	"sync"
 
-	MQTT "github.com/eclipse/paho.mqtt.golang"
+	paho "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -17,7 +17,7 @@ type subscriber struct {
 	topic  string
 	qos    byte
 
-	callback MQTT.MessageHandler
+	callback paho.MessageHandler
 }
 
 func (s *subscriber) Options() broker.SubscribeOptions {

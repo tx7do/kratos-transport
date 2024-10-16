@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	MQTT "github.com/eclipse/paho.mqtt.golang"
+	paho "github.com/eclipse/paho.mqtt.golang"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -14,7 +15,7 @@ import (
 type mqttBroker struct {
 	addrs   []string
 	options broker.Options
-	client  MQTT.Client
+	client  paho.Client
 
 	subscribers *broker.SubscriberSyncMap
 }
@@ -23,8 +24,8 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	return newBroker(opts...)
 }
 
-func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
-	cOpts := MQTT.NewClientOptions()
+func newClient(addrs []string, opts broker.Options, b *mqttBroker) paho.Client {
+	cOpts := paho.NewClientOptions()
 
 	// 是否清除会话，如果true，mqtt服务端将会清除掉
 	cOpts.SetCleanSession(true)
@@ -32,10 +33,7 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	cOpts.SetAutoReconnect(false)
 	// 设置连接之后恢复订阅
 	cOpts.SetResumeSubs(true)
-	// 设置保活时间
-	//cOpts.SetKeepAlive(60)
-	// 设置最大重连时间间隔
-	//cOpts.SetMaxReconnectInterval(30)
+
 	// 默认设置Client ID
 	cOpts.SetClientID(generateClientId())
 
@@ -59,6 +57,30 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	if clientId, ok := opts.Context.Value(clientIdKey{}).(string); ok && clientId != "" {
 		cOpts.SetClientID(clientId)
 	}
+
+	if pv, ok := opts.Context.Value(protocolVersionKey{}).(uint); ok {
+		cOpts.SetProtocolVersion(pv)
+	}
+
+	if k, ok := opts.Context.Value(keepAliveKey{}).(time.Duration); ok {
+		cOpts.SetKeepAlive(k)
+	}
+	if k, ok := opts.Context.Value(maxReconnectIntervalKey{}).(time.Duration); ok {
+		cOpts.SetMaxReconnectInterval(k)
+	}
+	if k, ok := opts.Context.Value(connectRetryIntervalKey{}).(time.Duration); ok {
+		cOpts.SetConnectRetryInterval(k)
+	}
+	if k, ok := opts.Context.Value(writeTimeoutKey{}).(time.Duration); ok {
+		cOpts.SetWriteTimeout(k)
+	}
+	if k, ok := opts.Context.Value(connectTimeoutKey{}).(time.Duration); ok {
+		cOpts.SetConnectTimeout(k)
+	}
+	if k, ok := opts.Context.Value(pingTimeoutKey{}).(time.Duration); ok {
+		cOpts.SetPingTimeout(k)
+	}
+
 	if enabled, ok := opts.Context.Value(cleanSessionKey{}).(bool); ok {
 		cOpts.SetCleanSession(enabled)
 	}
@@ -73,33 +95,33 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) MQTT.Client {
 	}
 
 	if _, ok := opts.Context.Value(errorLoggerKey{}).(bool); ok {
-		MQTT.ERROR = ErrorLogger{}
+		paho.ERROR = ErrorLogger{}
 	}
 	if _, ok := opts.Context.Value(criticalLoggerKey{}).(bool); ok {
-		MQTT.CRITICAL = CriticalLogger{}
+		paho.CRITICAL = CriticalLogger{}
 	}
 	if _, ok := opts.Context.Value(warnLoggerKey{}).(bool); ok {
-		MQTT.WARN = WarnLogger{}
+		paho.WARN = WarnLogger{}
 	}
 	if _, ok := opts.Context.Value(debugLoggerKey{}).(bool); ok {
-		MQTT.DEBUG = DebugLogger{}
+		paho.DEBUG = DebugLogger{}
 	}
 	if opt, ok := opts.Context.Value(debugLoggerKey{}).(LoggerOptions); ok {
 		if opt.Error {
-			MQTT.ERROR = ErrorLogger{}
+			paho.ERROR = ErrorLogger{}
 		}
 		if opt.Critical {
-			MQTT.CRITICAL = CriticalLogger{}
+			paho.CRITICAL = CriticalLogger{}
 		}
 		if opt.Warn {
-			MQTT.WARN = WarnLogger{}
+			paho.WARN = WarnLogger{}
 		}
 		if opt.Debug {
-			MQTT.DEBUG = DebugLogger{}
+			paho.DEBUG = DebugLogger{}
 		}
 	}
 
-	return MQTT.NewClient(cOpts)
+	return paho.NewClient(cOpts)
 }
 
 func newBroker(opts ...broker.Option) broker.Broker {
@@ -117,7 +139,7 @@ func newBroker(opts ...broker.Option) broker.Broker {
 }
 
 func (m *mqttBroker) Name() string {
-	return "MQTT"
+	return "paho"
 }
 
 func (m *mqttBroker) Options() broker.Options {
@@ -221,7 +243,7 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		qos = value
 	}
 
-	callback := func(c MQTT.Client, mq MQTT.Message) {
+	callback := func(c paho.Client, mq paho.Message) {
 		var msg broker.Message
 
 		p := &publication{topic: mq.Topic(), msg: &msg}
@@ -261,7 +283,7 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	return sub, nil
 }
 
-func (m *mqttBroker) doSubscribe(topic string, qos byte, callback MQTT.MessageHandler) error {
+func (m *mqttBroker) doSubscribe(topic string, qos byte, callback paho.MessageHandler) error {
 	t := m.client.Subscribe(topic, qos, callback)
 
 	if rs, err := checkClientToken(t); !rs {
@@ -271,7 +293,7 @@ func (m *mqttBroker) doSubscribe(topic string, qos byte, callback MQTT.MessageHa
 	return nil
 }
 
-func (m *mqttBroker) onConnect(_ MQTT.Client) {
+func (m *mqttBroker) onConnect(_ paho.Client) {
 	log.Debug("on connect")
 
 	m.subscribers.Foreach(func(topic string, sub broker.Subscriber) {
@@ -282,12 +304,12 @@ func (m *mqttBroker) onConnect(_ MQTT.Client) {
 	})
 }
 
-func (m *mqttBroker) onConnectionLost(client MQTT.Client, _ error) {
+func (m *mqttBroker) onConnectionLost(client paho.Client, _ error) {
 	log.Debug("on connect lost, try to reconnect")
 	m.loopConnect(client)
 }
 
-func (m *mqttBroker) loopConnect(client MQTT.Client) {
+func (m *mqttBroker) loopConnect(client paho.Client) {
 	for {
 		token := client.Connect()
 		if rs, err := checkClientToken(token); !rs {
