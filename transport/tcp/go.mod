@@ -7,7 +7,7 @@ toolchain go1.23.1
 require (
 	github.com/go-kratos/kratos/v2 v2.8.1
 	github.com/google/uuid v1.6.0
-	github.com/tx7do/kratos-transport v1.1.8
+	github.com/tx7do/kratos-transport v1.1.9
 )
 
 require (
