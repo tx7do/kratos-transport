@@ -86,9 +86,9 @@ func NewServer(opts ...ServerOption) *Server {
 		payloadType: PayloadTypeBinary,
 	}
 
-	srv.init(opts...)
-
-	srv.err = srv.listen()
+	if err := srv.init(opts...); err != nil {
+		panic("init websocket server failed")
+	}
 
 	return srv
 }
@@ -97,7 +97,7 @@ func (s *Server) Name() string {
 	return string(KindWebsocket)
 }
 
-func (s *Server) init(opts ...ServerOption) {
+func (s *Server) init(opts ...ServerOption) error {
 	for _, o := range opts {
 		o(s)
 	}
@@ -107,6 +107,10 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	http.HandleFunc(s.path, s.wsHandler)
+
+	s.err = s.listen()
+
+	return s.err
 }
 
 func (s *Server) SessionCount() int {

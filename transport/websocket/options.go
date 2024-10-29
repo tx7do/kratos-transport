@@ -19,13 +19,17 @@ type ServerOption func(o *Server)
 
 func WithNetwork(network string) ServerOption {
 	return func(s *Server) {
-		s.network = network
+		if network != "" {
+			s.network = network
+		}
 	}
 }
 
 func WithAddress(addr string) ServerOption {
 	return func(s *Server) {
-		s.address = addr
+		if addr != "" {
+			s.address = addr
+		}
 	}
 }
 
@@ -37,7 +41,9 @@ func WithTimeout(timeout time.Duration) ServerOption {
 
 func WithPath(path string) ServerOption {
 	return func(s *Server) {
-		s.path = path
+		if path != "" {
+			s.path = path
+		}
 	}
 }
 
@@ -61,7 +67,9 @@ func WithListener(lis net.Listener) ServerOption {
 
 func WithCodec(c string) ServerOption {
 	return func(s *Server) {
-		s.codec = encoding.GetCodec(c)
+		if c != "" {
+			s.codec = encoding.GetCodec(c)
+		}
 	}
 }
 
