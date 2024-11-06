@@ -27,21 +27,21 @@ func (s *SessionManager) Clean() {
 }
 
 func (s *SessionManager) Count() int {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	return len(s.sessions)
 }
 
 func (s *SessionManager) Get(sessionId SessionID) (*Session, bool) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	c, ok := s.sessions[sessionId]
 	return c, ok
 }
 
 func (s *SessionManager) Range(fn func(*Session)) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 
 	for _, v := range s.sessions {
 		fn(v)
@@ -50,28 +50,32 @@ func (s *SessionManager) Range(fn func(*Session)) {
 
 func (s *SessionManager) Add(c *Session) {
 	s.mtx.Lock()
-	defer s.mtx.Unlock()
 
 	//log.Info("[websocket] add session: ", c.SessionID())
 	s.sessions[c.SessionID()] = c
+
+	s.mtx.Unlock()
 
 	if s.connectHandler != nil {
 		s.connectHandler(c.SessionID(), true)
 	}
 }
 
-func (s *SessionManager) Remove(c *Session) {
+func (s *SessionManager) Remove(session *Session) {
 	s.mtx.Lock()
-	defer s.mtx.Unlock()
 
 	for k, v := range s.sessions {
-		if c == v {
-			//log.Info("[websocket] remove session: ", c.SessionID())
-			if s.connectHandler != nil {
-				s.connectHandler(c.SessionID(), false)
-			}
+		if session == v {
+			//log.Info("[websocket] remove session: ", session.SessionID())
 			delete(s.sessions, k)
+			s.mtx.Unlock()
+
+			if s.connectHandler != nil {
+				s.connectHandler(session.SessionID(), false)
+			}
 			return
 		}
 	}
+
+	s.mtx.Unlock()
 }
