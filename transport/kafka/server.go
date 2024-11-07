@@ -42,6 +42,8 @@ type Server struct {
 
 	keepAlive       *utils.KeepAliveService
 	enableKeepAlive bool
+
+	mws []broker.MiddlewareFunc
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -151,6 +153,11 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, di
 
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
 	opts = append([]broker.SubscribeOption{broker.WithSubscribeContext(ctx)}, opts...)
+
+	// handle middleware
+	for i := len(s.mws) - 1; i >= 0; i-- {
+		handler = s.mws[i](handler)
+	}
 
 	if s.started {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)
