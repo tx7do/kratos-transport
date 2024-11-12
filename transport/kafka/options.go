@@ -91,3 +91,12 @@ func WithPropagator(propagators propagation.TextMapPropagator) ServerOption {
 		s.brokerOpts = append(s.brokerOpts, broker.WithPropagator(propagators))
 	}
 }
+
+// WithMiddleware 注入中间件
+func WithMiddleware(m ...broker.MiddlewareFunc) ServerOption {
+	return func(s *Server) {
+		s.Lock()
+		defer s.Unlock()
+		s.mws = append(s.mws, m...)
+	}
+}
