@@ -11,8 +11,10 @@ import (
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
 	"github.com/gorilla/mux"
+
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -20,9 +22,9 @@ type Any interface{}
 type MessagePayload Any
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
-	_ http.Handler         = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
+	_ http.Handler               = (*Server)(nil)
 )
 
 type Server struct {

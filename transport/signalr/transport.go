@@ -4,17 +4,17 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 )
 
 const (
-	KindSignalR transport.Kind = "signalrsignalr"
+	KindSignalR kratosTransport.Kind = "signalr"
 )
 
 var _ Transporter = &Transport{}
 
 type Transporter interface {
-	transport.Transporter
+	kratosTransport.Transporter
 	Request() *http.Request
 	PathTemplate() string
 }
@@ -30,7 +30,7 @@ type Transport struct {
 }
 
 // Kind returns the transport kind.
-func (tr *Transport) Kind() transport.Kind {
+func (tr *Transport) Kind() kratosTransport.Kind {
 	return KindSignalR
 }
 
@@ -50,12 +50,12 @@ func (tr *Transport) Request() *http.Request {
 }
 
 // RequestHeader returns the request header.
-func (tr *Transport) RequestHeader() transport.Header {
+func (tr *Transport) RequestHeader() kratosTransport.Header {
 	return tr.reqHeader
 }
 
 // ReplyHeader returns the reply header.
-func (tr *Transport) ReplyHeader() transport.Header {
+func (tr *Transport) ReplyHeader() kratosTransport.Header {
 	return tr.replyHeader
 }
 
@@ -66,7 +66,7 @@ func (tr *Transport) PathTemplate() string {
 
 // SetOperation sets the transport operation.
 func SetOperation(ctx context.Context, op string) {
-	if tr, ok := transport.FromServerContext(ctx); ok {
+	if tr, ok := kratosTransport.FromServerContext(ctx); ok {
 		if tr, ok := tr.(*Transport); ok {
 			tr.operation = op
 		}

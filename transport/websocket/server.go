@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	ws "github.com/gorilla/websocket"
 
@@ -32,8 +32,8 @@ type HandlerData struct {
 type MessageHandlerMap map[MessageType]*HandlerData
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {

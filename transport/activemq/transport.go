@@ -2,14 +2,14 @@ package activemq
 
 import (
 	"github.com/go-kratos/kratos/v2/selector"
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 )
 
 const (
-	KindActiveMQ transport.Kind = "activemq"
+	KindActiveMQ kratosTransport.Kind = "activemq"
 )
 
-var _ transport.Transporter = &Transport{}
+var _ kratosTransport.Transporter = &Transport{}
 
 // Transport is a ActiveMQ transport.
 type Transport struct {
@@ -21,7 +21,7 @@ type Transport struct {
 }
 
 // Kind returns the transport kind.
-func (tr *Transport) Kind() transport.Kind {
+func (tr *Transport) Kind() kratosTransport.Kind {
 	return KindActiveMQ
 }
 
@@ -36,12 +36,12 @@ func (tr *Transport) Operation() string {
 }
 
 // RequestHeader returns the request header.
-func (tr *Transport) RequestHeader() transport.Header {
+func (tr *Transport) RequestHeader() kratosTransport.Header {
 	return tr.reqHeader
 }
 
 // ReplyHeader returns the reply header.
-func (tr *Transport) ReplyHeader() transport.Header {
+func (tr *Transport) ReplyHeader() kratosTransport.Header {
 	return tr.replyHeader
 }
 

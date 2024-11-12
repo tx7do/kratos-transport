@@ -15,16 +15,16 @@ import (
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
 
-	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/gorilla/mux"
 	"github.com/quic-go/quic-go/http3"
 )
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
@@ -172,7 +172,7 @@ func (s *Server) filter() mux.MiddlewareFunc {
 				pathTemplate: pathTemplate,
 			}
 
-			tr.request = req.WithContext(transport.NewServerContext(ctx, tr))
+			tr.request = req.WithContext(kratosTransport.NewServerContext(ctx, tr))
 			next.ServeHTTP(w, tr.request)
 		})
 	}

@@ -4,25 +4,27 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/transport"
 	"net/url"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hibiken/asynq"
 
+	"github.com/go-kratos/kratos/v2/encoding"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/utils"
+	"github.com/tx7do/kratos-transport/keepalive"
 )
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
 	sync.RWMutex
-	started bool
+	started atomic.Bool
 
 	baseCtx context.Context
 	err     error
@@ -37,7 +39,7 @@ type Server struct {
 	redisOpt      asynq.RedisClientOpt
 	schedulerOpts *asynq.SchedulerOpts
 
-	keepAlive       *utils.KeepAliveService
+	keepAlive       *keepalive.Service
 	enableKeepAlive bool
 
 	codec encoding.Codec
@@ -49,7 +51,7 @@ type Server struct {
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx: context.Background(),
-		started: false,
+		started: atomic.Bool{},
 
 		redisOpt: asynq.RedisClientOpt{
 			Addr: defaultRedisAddress,
@@ -62,7 +64,7 @@ func NewServer(opts ...ServerOption) *Server {
 		schedulerOpts: &asynq.SchedulerOpts{},
 		mux:           asynq.NewServeMux(),
 
-		keepAlive:       utils.NewKeepAliveService(nil),
+		keepAlive:       keepalive.NewKeepAliveService(nil),
 		enableKeepAlive: true,
 
 		codec: encoding.GetCodec("json"),
@@ -178,7 +180,7 @@ func RegisterSubscriberWithCtx[T any](srv *Server, taskType string,
 }
 
 func (s *Server) handleFunc(pattern string, handler func(context.Context, *asynq.Task) error) error {
-	if s.started {
+	if s.started.Load() {
 		LogErrorf("handleFunc [%s] failed", pattern)
 		return errors.New("cannot handle func, server already started")
 	}
@@ -383,7 +385,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	if s.started {
+	if s.started.Load() {
 		return nil
 	}
 
@@ -406,7 +408,7 @@ func (s *Server) Start(ctx context.Context) error {
 	LogInfof("server listening on: %s", s.redisOpt.Addr)
 
 	s.baseCtx = ctx
-	s.started = true
+	s.started.Store(true)
 
 	return nil
 }
@@ -414,7 +416,7 @@ func (s *Server) Start(ctx context.Context) error {
 // Stop the server
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping")
-	s.started = false
+	s.started.Store(false)
 
 	if s.asynqClient != nil {
 		_ = s.asynqClient.Close()
@@ -432,7 +434,7 @@ func (s *Server) Stop(_ context.Context) error {
 	}
 
 	if s.asynqInspector != nil {
-		s.asynqInspector.Close()
+		_ = s.asynqInspector.Close()
 		s.asynqInspector = nil
 	}
 

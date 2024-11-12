@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"sync"
+	"sync/atomic"
 
 	eagerBackend "github.com/RichardKnop/machinery/v2/backends/eager"
 
@@ -35,20 +36,20 @@ import (
 	redisLock "github.com/RichardKnop/machinery/v2/locks/redis"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
+	"github.com/tx7do/kratos-transport/keepalive"
 	"github.com/tx7do/kratos-transport/tracing"
-	"github.com/tx7do/kratos-transport/utils"
 )
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
 	sync.RWMutex
-	started bool
+	started atomic.Bool
 
 	baseCtx context.Context
 	err     error
@@ -65,14 +66,14 @@ type Server struct {
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
 
-	keepAlive       *utils.KeepAliveService
+	keepAlive       *keepalive.Service
 	enableKeepAlive bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx: context.Background(),
-		started: false,
+		started: atomic.Bool{},
 
 		cfg: &config.Config{
 			DefaultQueue:    "kratos_machinery_queue",
@@ -112,7 +113,7 @@ func NewServer(opts ...ServerOption) *Server {
 			retries:  1,
 		},
 
-		keepAlive:       utils.NewKeepAliveService(nil),
+		keepAlive:       keepalive.NewKeepAliveService(nil),
 		enableKeepAlive: true,
 	}
 
@@ -182,7 +183,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	if s.started {
+	if s.started.Load() {
 		return nil
 	}
 
@@ -201,14 +202,14 @@ func (s *Server) Start(ctx context.Context) error {
 	LogInfof("server listening on: %s", endpoint.String())
 
 	s.baseCtx = ctx
-	s.started = true
+	s.started.Store(true)
 
 	return nil
 }
 
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping")
-	s.started = false
+	s.started.Store(false)
 
 	s.machineryServer = nil
 

@@ -5,42 +5,35 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/kafka"
-	"github.com/tx7do/kratos-transport/utils"
+	"github.com/tx7do/kratos-transport/keepalive"
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
-
-type SubscriberMap map[string]broker.Subscriber
-
-type SubscribeOption struct {
-	handler          broker.Handler
-	binder           broker.Binder
-	subscribeOptions []broker.SubscribeOption
-}
-type SubscribeOptionMap map[string]*SubscribeOption
 
 type Server struct {
 	broker.Broker
 	brokerOpts []broker.Option
 
-	subscribers    SubscriberMap
-	subscriberOpts SubscribeOptionMap
+	subscribers    broker.SubscriberMap
+	subscriberOpts transport.SubscribeOptionMap
 
 	sync.RWMutex
-	started bool
+	started atomic.Bool
 
 	baseCtx context.Context
 	err     error
 
-	keepAlive       *utils.KeepAliveService
+	keepAlive       *keepalive.Service
 	enableKeepAlive bool
 
 	mws []broker.MiddlewareFunc
@@ -49,11 +42,11 @@ type Server struct {
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx:         context.Background(),
-		subscribers:     SubscriberMap{},
-		subscriberOpts:  SubscribeOptionMap{},
+		subscribers:     make(broker.SubscriberMap),
+		subscriberOpts:  make(transport.SubscribeOptionMap),
 		brokerOpts:      []broker.Option{},
-		started:         false,
-		keepAlive:       utils.NewKeepAliveService(nil),
+		started:         atomic.Bool{},
+		keepAlive:       keepalive.NewKeepAliveService(nil),
 		enableKeepAlive: true,
 	}
 
@@ -86,7 +79,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	if s.started {
+	if s.started.Load() {
 		return nil
 	}
 
@@ -115,13 +108,13 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	s.baseCtx = ctx
-	s.started = true
+	s.started.Store(true)
 
 	return nil
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	if s.started == false {
+	if s.started.Load() == false {
 		return nil
 	}
 	LogInfo("server stopping")
@@ -129,10 +122,10 @@ func (s *Server) Stop(_ context.Context) error {
 	for _, v := range s.subscribers {
 		_ = v.Unsubscribe(false)
 	}
-	s.subscribers = SubscriberMap{}
-	s.subscriberOpts = SubscribeOptionMap{}
+	s.subscribers = make(broker.SubscriberMap)
+	s.subscriberOpts = make(transport.SubscribeOptionMap)
 
-	s.started = false
+	s.started.Store(false)
 	return s.Disconnect()
 }
 
@@ -159,10 +152,10 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, di
 		handler = s.mws[i](handler)
 	}
 
-	if s.started {
+	if s.started.Load() {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)
 	} else {
-		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, subscribeOptions: opts}
+		s.subscriberOpts[topic] = &transport.SubscribeOption{Handler: handler, Binder: binder, SubscribeOptions: opts}
 	}
 	return nil
 }
@@ -204,8 +197,8 @@ func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, bind
 
 func (s *Server) doRegisterSubscriberMap() error {
 	for topic, opt := range s.subscriberOpts {
-		_ = s.doRegisterSubscriber(topic, opt.handler, opt.binder, opt.subscribeOptions...)
+		_ = s.doRegisterSubscriber(topic, opt.Handler, opt.Binder, opt.SubscribeOptions...)
 	}
-	s.subscriberOpts = SubscribeOptionMap{}
+	s.subscriberOpts = make(transport.SubscribeOptionMap)
 	return nil
 }

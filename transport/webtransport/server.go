@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	"github.com/tx7do/kratos-transport/broker"
 
 	"github.com/quic-go/quic-go/http3"
@@ -33,8 +33,8 @@ type HandlerData struct {
 type MessageHandlerMap map[MessageType]HandlerData
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
@@ -81,7 +81,7 @@ func (s *Server) init(opts ...ServerOption) {
 
 	s.Server = &http3.Server{
 		Addr: ":443",
-		QuicConfig: &quic.Config{
+		QUICConfig: &quic.Config{
 			MaxIdleTimeout:  idleTimeout,
 			KeepAlivePeriod: idleTimeout / 2,
 		},
@@ -107,28 +107,28 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 	s.Server.AdditionalSettings[settingsEnableWebtransport] = 1
 	s.Server.EnableDatagrams = true
-	s.Server.StreamHijacker = func(ft http3.FrameType, qConn quic.Connection, qStream quic.Stream, err error) (bool /* hijacked */, error) {
+	s.Server.StreamHijacker = func(ft http3.FrameType, qConn quic.ConnectionTracingID, qStream quic.Stream, err error) (bool /* hijacked */, error) {
 		if isWebTransportError(err) {
 			return true, nil
 		}
 		if ft != webTransportFrameType {
 			return false, nil
 		}
-		id, err := quicvarint.Read(quicvarint.NewReader(qStream))
+		_, err = quicvarint.Read(quicvarint.NewReader(qStream))
 		if err != nil {
 			if isWebTransportError(err) {
 				return true, nil
 			}
 			return false, err
 		}
-		s.sessions.AddStream(qConn, qStream, SessionID(id))
+		//s.sessions.AddStream(qConn, qStream, SessionID(id))
 		return true, nil
 	}
-	s.Server.UniStreamHijacker = func(st http3.StreamType, qConn quic.Connection, qStream quic.ReceiveStream, err error) (hijacked bool) {
+	s.Server.UniStreamHijacker = func(st http3.StreamType, qConn quic.ConnectionTracingID, qStream quic.ReceiveStream, err error) (hijacked bool) {
 		if st != webTransportUniStreamType && !isWebTransportError(err) {
 			return false
 		}
-		s.sessions.AddUniStream(qConn, qStream)
+		//s.sessions.AddUniStream(qConn, qStream)
 		return true
 	}
 
@@ -251,17 +251,17 @@ func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session := s.sessions.AddSession(
-		hijacker.StreamCreator(),
+	aSession := s.sessions.AddSession(
+		hijacker.Connection(),
 		sID,
 		r.Body.(http3.HTTPStreamer).HTTPStream(),
 	)
 
 	if s.connectHandler != nil {
-		s.connectHandler(session.SessionID(), true)
+		s.connectHandler(aSession.SessionID(), true)
 	}
 
-	go s.doAcceptStream(session)
+	go s.doAcceptStream(aSession)
 }
 
 func (s *Server) doAcceptStream(session *Session) {

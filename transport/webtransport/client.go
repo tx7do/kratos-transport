@@ -29,7 +29,7 @@ type ClientHandlerData struct {
 type ClientMessageHandlerMap map[MessageType]ClientHandlerData
 
 type Client struct {
-	transport *http3.RoundTripper
+	transport *http3.Transport
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -48,7 +48,7 @@ type Client struct {
 
 func NewClient(opts ...ClientOption) *Client {
 	cli := &Client{
-		transport:       &http3.RoundTripper{},
+		transport:       &http3.Transport{},
 		codec:           encoding.GetCodec("json"),
 		messageHandlers: make(ClientMessageHandlerMap),
 	}
@@ -83,35 +83,35 @@ func (c *Client) init(opts ...ClientOption) {
 		c.transport.AdditionalSettings = make(map[uint64]uint64)
 	}
 
-	c.transport.StreamHijacker = func(ft http3.FrameType, conn quic.Connection, str quic.Stream, e error) (hijacked bool, err error) {
+	c.transport.StreamHijacker = func(ft http3.FrameType, conn quic.ConnectionTracingID, str quic.Stream, e error) (hijacked bool, err error) {
 		if isWebTransportError(e) {
 			return true, nil
 		}
 		if ft != webTransportFrameType {
 			return false, nil
 		}
-		id, err := quicvarint.Read(quicvarint.NewReader(str))
+		_, err = quicvarint.Read(quicvarint.NewReader(str))
 		if err != nil {
 			if isWebTransportError(err) {
 				return true, nil
 			}
 			return false, err
 		}
-		c.sessions.AddStream(conn, str, SessionID(id))
+		//c.sessions.AddStream(conn, str, SessionID(id))
 		return true, nil
 	}
-	c.transport.UniStreamHijacker = func(st http3.StreamType, conn quic.Connection, str quic.ReceiveStream, err error) (hijacked bool) {
+	c.transport.UniStreamHijacker = func(st http3.StreamType, conn quic.ConnectionTracingID, str quic.ReceiveStream, err error) (hijacked bool) {
 		if st != webTransportUniStreamType && !isWebTransportError(err) {
 			return false
 		}
-		c.sessions.AddUniStream(conn, str)
+		//c.sessions.AddUniStream(conn, str)
 		return true
 	}
-	if c.transport.QuicConfig == nil {
-		c.transport.QuicConfig = &quic.Config{}
+	if c.transport.QUICConfig == nil {
+		c.transport.QUICConfig = &quic.Config{}
 	}
-	if c.transport.QuicConfig.MaxIncomingStreams == 0 {
-		c.transport.QuicConfig.MaxIncomingStreams = 100
+	if c.transport.QUICConfig.MaxIncomingStreams == 0 {
+		c.transport.QUICConfig.MaxIncomingStreams = 100
 	}
 }
 
@@ -123,7 +123,7 @@ func (c *Client) Connect() error {
 
 	rsp, err := c.transport.RoundTripOpt(req,
 		http3.RoundTripOpt{
-			DontCloseRequestStream: true,
+			OnlyCachedConn: true,
 		},
 	)
 	if err != nil {
@@ -135,7 +135,7 @@ func (c *Client) Connect() error {
 
 	stream := rsp.Body.(http3.HTTPStreamer).HTTPStream()
 	session := c.sessions.AddSession(
-		rsp.Body.(http3.Hijacker).StreamCreator(),
+		rsp.Body.(http3.Hijacker).Connection(),
 		SessionID(stream.StreamID()),
 		stream,
 	)
@@ -188,14 +188,14 @@ func (c *Client) SendRawData(data []byte) error {
 		return errors.New("[webtransport] send data failed, not connected")
 	}
 
-	stream, err := c.session.OpenStream()
+	aStream, err := c.session.OpenStream()
 	if err != nil {
 		log.Error("[webtransport] open qStream failed: ", err.Error())
 		return err
 	}
-	defer stream.Close()
+	defer aStream.Close()
 
-	_, err = stream.Write(data)
+	_, err = aStream.Write(data)
 	if err != nil {
 		log.Error("[webtransport] write qStream failed: ", err.Error())
 		return err

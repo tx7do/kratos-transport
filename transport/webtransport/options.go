@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+
+	"github.com/quic-go/quic-go"
 )
 
 type ServerOption func(*Server)
@@ -29,19 +31,19 @@ func WithTimeout(timeout time.Duration) ServerOption {
 
 func WithMaxIdleTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		if s.Server.QuicConfig == nil {
-			s.Server.QuicConfig = &quic.Config{}
+		if s.Server.QUICConfig == nil {
+			s.Server.QUICConfig = &quic.Config{}
 		}
-		s.Server.QuicConfig.MaxIdleTimeout = timeout
+		s.Server.QUICConfig.MaxIdleTimeout = timeout
 	}
 }
 
 func WithKeepAlivePeriod(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		if s.Server.QuicConfig == nil {
-			s.Server.QuicConfig = &quic.Config{}
+		if s.Server.QUICConfig == nil {
+			s.Server.QUICConfig = &quic.Config{}
 		}
-		s.Server.QuicConfig.KeepAlivePeriod = timeout
+		s.Server.QUICConfig.KeepAlivePeriod = timeout
 	}
 }
 
@@ -87,18 +89,18 @@ func WithClientCodec(c string) ClientOption {
 
 func WithClientMaxIdleTimeout(timeout time.Duration) ClientOption {
 	return func(s *Client) {
-		if s.transport.QuicConfig == nil {
-			s.transport.QuicConfig = &quic.Config{}
+		if s.transport.QUICConfig == nil {
+			s.transport.QUICConfig = &quic.Config{}
 		}
-		s.transport.QuicConfig.MaxIdleTimeout = timeout
+		s.transport.QUICConfig.MaxIdleTimeout = timeout
 	}
 }
 
 func WithClientKeepAlivePeriod(timeout time.Duration) ClientOption {
 	return func(s *Client) {
-		if s.transport.QuicConfig == nil {
-			s.transport.QuicConfig = &quic.Config{}
+		if s.transport.QUICConfig == nil {
+			s.transport.QUICConfig = &quic.Config{}
 		}
-		s.transport.QuicConfig.KeepAlivePeriod = timeout
+		s.transport.QUICConfig.KeepAlivePeriod = timeout
 	}
 }

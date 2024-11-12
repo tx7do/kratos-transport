@@ -5,29 +5,21 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 
-	"github.com/go-kratos/kratos/v2/transport"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
 	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
-
-	"github.com/tx7do/kratos-transport/utils"
+	"github.com/tx7do/kratos-transport/keepalive"
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
-	_ transport.Server     = (*Server)(nil)
-	_ transport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
-
-type SubscriberMap map[string]broker.Subscriber
-
-type SubscribeOption struct {
-	handler          broker.Handler
-	binder           broker.Binder
-	subscribeOptions []broker.SubscribeOption
-}
-type SubscribeOptionMap map[string]*SubscribeOption
 
 type Server struct {
 	broker.Broker
@@ -35,26 +27,26 @@ type Server struct {
 
 	brokerOpts []broker.Option
 
-	subscribers    SubscriberMap
-	subscriberOpts SubscribeOptionMap
+	subscribers    broker.SubscriberMap
+	subscriberOpts transport.SubscribeOptionMap
 
-	started bool
+	started atomic.Bool
 
 	baseCtx context.Context
 	err     error
 
-	keepAlive       *utils.KeepAliveService
+	keepAlive       *keepalive.Service
 	enableKeepAlive bool
 }
 
 func NewServer(driverType rocketmqOption.DriverType, opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx:         context.Background(),
-		subscribers:     SubscriberMap{},
-		subscriberOpts:  SubscribeOptionMap{},
+		subscribers:     make(broker.SubscriberMap),
+		subscriberOpts:  make(transport.SubscribeOptionMap),
 		brokerOpts:      []broker.Option{},
-		started:         false,
-		keepAlive:       utils.NewKeepAliveService(nil),
+		started:         atomic.Bool{},
+		keepAlive:       keepalive.NewKeepAliveService(nil),
 		enableKeepAlive: true,
 	}
 
@@ -80,7 +72,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	if s.started {
+	if s.started.Load() {
 		return nil
 	}
 
@@ -109,14 +101,14 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	s.baseCtx = ctx
-	s.started = true
+	s.started.Store(true)
 
 	return nil
 }
 
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping")
-	s.started = false
+	s.started.Store(false)
 	return s.Disconnect()
 }
 
@@ -144,10 +136,10 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, groupName string
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
 	opts = append([]broker.SubscribeOption{broker.WithSubscribeContext(ctx)}, opts...)
 
-	if s.started {
+	if s.started.Load() {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)
 	} else {
-		s.subscriberOpts[topic] = &SubscribeOption{handler: handler, binder: binder, subscribeOptions: opts}
+		s.subscriberOpts[topic] = &transport.SubscribeOption{Handler: handler, Binder: binder, SubscribeOptions: opts}
 	}
 	return nil
 }
@@ -187,8 +179,8 @@ func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, bind
 
 func (s *Server) doRegisterSubscriberMap() error {
 	for topic, opt := range s.subscriberOpts {
-		_ = s.doRegisterSubscriber(topic, opt.handler, opt.binder, opt.subscribeOptions...)
+		_ = s.doRegisterSubscriber(topic, opt.Handler, opt.Binder, opt.SubscribeOptions...)
 	}
-	s.subscriberOpts = SubscribeOptionMap{}
+	s.subscriberOpts = make(transport.SubscribeOptionMap)
 	return nil
 }
