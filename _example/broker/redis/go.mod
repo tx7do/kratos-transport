@@ -6,8 +6,8 @@ toolchain go1.23.3
 
 require (
 	github.com/go-kratos/kratos/v2 v2.8.2
-	github.com/tx7do/kratos-transport v1.1.11
-	github.com/tx7do/kratos-transport/broker/redis v1.2.16
+	github.com/tx7do/kratos-transport v1.1.12
+	github.com/tx7do/kratos-transport/broker/redis v1.2.17
 )
 
 require (
