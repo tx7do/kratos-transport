@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/tx7do/kratos-transport/transport/websocket"
 )
 
@@ -15,8 +17,9 @@ const (
 )
 
 type ChatMessage struct {
-	Type    int    `json:"type"`
-	Message string `json:"message"`
+	Sender    string `json:"sender"`
+	Timestamp string `json:"timestamp"`
+	Message   string `json:"message"`
 }
 
 func main() {
@@ -42,11 +45,11 @@ func main() {
 	}
 }
 
-func handleConnect(sessionId websocket.SessionID, register bool) {
-	if register {
-		fmt.Printf("%s connected\n", sessionId)
+func handleConnect(sessionId websocket.SessionID, queries url.Values, connect bool) {
+	if connect {
+		fmt.Printf("[%s] connected [%+v]\n", sessionId, queries)
 	} else {
-		fmt.Printf("%s disconnect\n", sessionId)
+		fmt.Printf("[%s] disconnect\n", sessionId)
 	}
 }
 
