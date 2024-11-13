@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -25,11 +26,11 @@ type ChatMessage struct {
 	Message string `json:"message"`
 }
 
-func handleConnect(sessionId SessionID, register bool) {
+func handleConnect(sessionId SessionID, queries url.Values, register bool) {
 	if register {
-		fmt.Printf("%s registered\n", sessionId)
+		fmt.Printf("[%s] registered [%+v]\n", sessionId, queries)
 	} else {
-		fmt.Printf("%s unregistered\n", sessionId)
+		fmt.Printf("[%s] unregistered\n", sessionId)
 	}
 }
 

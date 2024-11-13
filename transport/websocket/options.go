@@ -85,6 +85,13 @@ func WithPayloadType(payloadType PayloadType) ServerOption {
 	}
 }
 
+func WithInjectTokenToQuery(enable bool, tokenKey string) ServerOption {
+	return func(s *Server) {
+		s.injectToken = enable
+		s.tokenKey = tokenKey
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type ClientOption func(o *Client)

@@ -21,7 +21,7 @@ import (
 
 type Binder func() Any
 
-type ConnectHandler func(SessionID, bool)
+type ConnectHandler func(sessionId SessionID, queries url.Values, connect bool)
 
 type MessageHandler func(SessionID, MessagePayload) error
 
@@ -47,6 +47,8 @@ type Server struct {
 	address     string
 	path        string
 	strictSlash bool
+	injectToken bool
+	tokenKey    string
 
 	timeout time.Duration
 
@@ -70,6 +72,8 @@ func NewServer(opts ...ServerOption) *Server {
 		timeout:     1 * time.Second,
 		strictSlash: true,
 		path:        "/",
+		injectToken: true,
+		tokenKey:    "token",
 
 		messageHandlers: make(MessageHandlerMap),
 
@@ -312,13 +316,30 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 }
 
 func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
+	var token string
+	if req.Header != nil {
+		token = req.Header.Get("Sec-Websocket-Protocol")
+	}
+
+	if token != "" {
+		s.upgrader.Subprotocols = []string{req.Header.Get("Sec-Websocket-Protocol")} //设置Sec-Websocket-Protocol
+	}
+
 	conn, err := s.upgrader.Upgrade(res, req, nil)
 	if err != nil {
 		LogError("upgrade exception:", err)
 		return
 	}
 
-	session := NewSession(conn, s)
+	vars := req.URL.Query()
+
+	if token != "" {
+		if s.injectToken {
+			vars.Set(s.tokenKey, token)
+		}
+	}
+
+	session := NewSession(s, conn, vars)
 	session.server.register <- session
 
 	session.Listen()

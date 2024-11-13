@@ -1,6 +1,8 @@
 package websocket
 
 import (
+	"net/url"
+
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 )
@@ -10,13 +12,14 @@ var channelBufSize = 256
 type SessionID string
 
 type Session struct {
-	id     SessionID
-	conn   *ws.Conn
-	send   chan []byte
-	server *Server
+	id      SessionID
+	conn    *ws.Conn
+	queries url.Values
+	send    chan []byte
+	server  *Server
 }
 
-func NewSession(conn *ws.Conn, server *Server) *Session {
+func NewSession(server *Server, conn *ws.Conn, vars url.Values) *Session {
 	if conn == nil {
 		panic("conn cannot be nil")
 	}
@@ -24,94 +27,99 @@ func NewSession(conn *ws.Conn, server *Server) *Session {
 	u1, _ := uuid.NewUUID()
 
 	c := &Session{
-		id:     SessionID(u1.String()),
-		conn:   conn,
-		send:   make(chan []byte, channelBufSize),
-		server: server,
+		id:      SessionID(u1.String()),
+		conn:    conn,
+		queries: vars,
+		send:    make(chan []byte, channelBufSize),
+		server:  server,
 	}
 
 	return c
 }
 
-func (c *Session) Conn() *ws.Conn {
-	return c.conn
+func (s *Session) Conn() *ws.Conn {
+	return s.conn
 }
 
-func (c *Session) SessionID() SessionID {
-	return c.id
+func (s *Session) Queries() url.Values {
+	return s.queries
 }
 
-func (c *Session) SendMessage(message []byte) {
+func (s *Session) SessionID() SessionID {
+	return s.id
+}
+
+func (s *Session) SendMessage(message []byte) {
 	select {
-	case c.send <- message:
+	case s.send <- message:
 	}
 }
 
-func (c *Session) Close() {
-	c.server.unregister <- c
-	c.closeConnect()
+func (s *Session) Close() {
+	s.server.unregister <- s
+	s.closeConnect()
 }
 
-func (c *Session) Listen() {
-	go c.writePump()
-	go c.readPump()
+func (s *Session) Listen() {
+	go s.writePump()
+	go s.readPump()
 }
 
-func (c *Session) closeConnect() {
-	//LogInfo(c.SessionID(), " connection closed")
-	if c.conn != nil {
-		if err := c.conn.Close(); err != nil {
+func (s *Session) closeConnect() {
+	//LogInfo(s.SessionID(), " connection closed")
+	if s.conn != nil {
+		if err := s.conn.Close(); err != nil {
 			LogErrorf("disconnect error: %s", err.Error())
 		}
-		c.conn = nil
+		s.conn = nil
 	}
 }
 
-func (c *Session) sendPingMessage(message string) error {
-	if c.conn == nil {
+func (s *Session) sendPingMessage(message string) error {
+	if s.conn == nil {
 		return nil
 	}
-	return c.conn.WriteMessage(ws.PingMessage, []byte(message))
+	return s.conn.WriteMessage(ws.PingMessage, []byte(message))
 }
 
-func (c *Session) sendPongMessage(message string) error {
-	if c.conn == nil {
+func (s *Session) sendPongMessage(message string) error {
+	if s.conn == nil {
 		return nil
 	}
-	return c.conn.WriteMessage(ws.PongMessage, []byte(message))
+	return s.conn.WriteMessage(ws.PongMessage, []byte(message))
 }
 
-func (c *Session) sendTextMessage(message string) error {
-	if c.conn == nil {
+func (s *Session) sendTextMessage(message string) error {
+	if s.conn == nil {
 		return nil
 	}
-	return c.conn.WriteMessage(ws.TextMessage, []byte(message))
+	return s.conn.WriteMessage(ws.TextMessage, []byte(message))
 }
 
-func (c *Session) sendBinaryMessage(message []byte) error {
-	if c.conn == nil {
+func (s *Session) sendBinaryMessage(message []byte) error {
+	if s.conn == nil {
 		return nil
 	}
-	return c.conn.WriteMessage(ws.BinaryMessage, message)
+	return s.conn.WriteMessage(ws.BinaryMessage, message)
 }
 
-func (c *Session) writePump() {
-	defer c.Close()
+func (s *Session) writePump() {
+	defer s.Close()
 
 	for {
 		select {
-		case msg := <-c.send:
+		case msg := <-s.send:
 			var err error
-			switch c.server.payloadType {
+			switch s.server.payloadType {
 			case PayloadTypeBinary:
-				if err = c.sendBinaryMessage(msg); err != nil {
+				if err = s.sendBinaryMessage(msg); err != nil {
 					LogError("write binary message error: ", err)
 					return
 				}
 				break
 
 			case PayloadTypeText:
-				if err = c.sendTextMessage(string(msg)); err != nil {
+				if err = s.sendTextMessage(string(msg)); err != nil {
 					LogError("write text message error: ", err)
 					return
 				}
@@ -122,15 +130,15 @@ func (c *Session) writePump() {
 	}
 }
 
-func (c *Session) readPump() {
-	defer c.Close()
+func (s *Session) readPump() {
+	defer s.Close()
 
 	for {
-		if c.conn == nil {
+		if s.conn == nil {
 			break
 		}
 
-		messageType, data, err := c.conn.ReadMessage()
+		messageType, data, err := s.conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
 				LogErrorf("read message error: %v", err)
@@ -143,15 +151,15 @@ func (c *Session) readPump() {
 			return
 
 		case ws.BinaryMessage:
-			_ = c.server.messageHandler(c.SessionID(), data)
+			_ = s.server.messageHandler(s.SessionID(), data)
 			break
 
 		case ws.TextMessage:
-			_ = c.server.messageHandler(c.SessionID(), data)
+			_ = s.server.messageHandler(s.SessionID(), data)
 			break
 
 		case ws.PingMessage:
-			if err = c.sendPongMessage(""); err != nil {
+			if err = s.sendPongMessage(""); err != nil {
 				LogError("write pong message error: ", err)
 				return
 			}

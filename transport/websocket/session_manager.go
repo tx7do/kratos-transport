@@ -48,16 +48,15 @@ func (s *SessionManager) Range(fn func(*Session)) {
 	}
 }
 
-func (s *SessionManager) Add(c *Session) {
+func (s *SessionManager) Add(session *Session) {
 	s.mtx.Lock()
-
-	//log.Info("[websocket] add session: ", c.SessionID())
-	s.sessions[c.SessionID()] = c
-
+	s.sessions[session.SessionID()] = session
 	s.mtx.Unlock()
 
+	//log.Info("[websocket] add session: ", session.SessionID())
+
 	if s.connectHandler != nil {
-		s.connectHandler(c.SessionID(), true)
+		s.connectHandler(session.SessionID(), session.queries, true)
 	}
 }
 
@@ -71,7 +70,7 @@ func (s *SessionManager) Remove(session *Session) {
 			s.mtx.Unlock()
 
 			if s.connectHandler != nil {
-				s.connectHandler(session.SessionID(), false)
+				s.connectHandler(session.SessionID(), session.queries, false)
 			}
 			return
 		}
