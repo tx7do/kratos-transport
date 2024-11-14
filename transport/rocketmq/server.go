@@ -46,7 +46,7 @@ func NewServer(driverType rocketmqOption.DriverType, opts ...ServerOption) *Serv
 		subscriberOpts:  make(transport.SubscribeOptionMap),
 		brokerOpts:      []broker.Option{},
 		started:         atomic.Bool{},
-		keepAlive:       keepalive.NewKeepAliveService(nil),
+		keepAlive:       keepalive.NewKeepAliveService(),
 		enableKeepAlive: true,
 	}
 

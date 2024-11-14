@@ -113,7 +113,7 @@ func NewServer(opts ...ServerOption) *Server {
 			retries:  1,
 		},
 
-		keepAlive:       keepalive.NewKeepAliveService(nil),
+		keepAlive:       keepalive.NewKeepAliveService(),
 		enableKeepAlive: true,
 	}
 

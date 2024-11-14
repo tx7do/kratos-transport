@@ -48,7 +48,7 @@ func NewServer(opts ...ServerOption) *Server {
 		subscriberOpts:  make(transport.SubscribeOptionMap),
 		brokerOpts:      []broker.Option{},
 		started:         atomic.Bool{},
-		keepAlive:       keepalive.NewKeepAliveService(nil),
+		keepAlive:       keepalive.NewKeepAliveService(),
 		enableKeepAlive: true,
 	}
 
