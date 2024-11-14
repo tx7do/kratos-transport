@@ -64,7 +64,7 @@ func NewServer(opts ...ServerOption) *Server {
 		schedulerOpts: &asynq.SchedulerOpts{},
 		mux:           asynq.NewServeMux(),
 
-		keepAlive:       keepalive.NewKeepAliveService(nil),
+		keepAlive:       keepalive.NewKeepAliveService(),
 		enableKeepAlive: true,
 
 		codec: encoding.GetCodec("json"),

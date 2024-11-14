@@ -6,7 +6,7 @@ import (
 )
 
 func TestKeepAliveService(t *testing.T) {
-	svc := NewKeepAliveService(nil)
+	svc := NewKeepAliveService()
 	assert.NotNil(t, svc)
 	err := svc.Start()
 	assert.Nil(t, err)
