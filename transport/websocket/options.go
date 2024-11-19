@@ -3,6 +3,7 @@ package websocket
 import (
 	"crypto/tls"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -33,9 +34,9 @@ func WithAddress(addr string) ServerOption {
 	}
 }
 
-func WithTimeout(timeout time.Duration) ServerOption {
+func WithStrictSlash(strictSlash bool) ServerOption {
 	return func(s *Server) {
-		s.timeout = timeout
+		s.strictSlash = strictSlash
 	}
 }
 
@@ -70,6 +71,39 @@ func WithCodec(c string) ServerOption {
 		if c != "" {
 			s.codec = encoding.GetCodec(c)
 		}
+	}
+}
+
+func WithReadBufferSize(size int) ServerOption {
+	return func(s *Server) {
+		s.upgrader.ReadBufferSize = size
+	}
+}
+
+func WithWriteBufferSize(size int) ServerOption {
+	return func(s *Server) {
+		s.upgrader.WriteBufferSize = size
+	}
+}
+
+func WithCheckOrigin(domain string) ServerOption {
+	return func(s *Server) {
+		s.upgrader.CheckOrigin = func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			return origin == domain
+		}
+	}
+}
+
+func WithEnableCompression(enable bool) ServerOption {
+	return func(s *Server) {
+		s.upgrader.EnableCompression = enable
+	}
+}
+
+func WithHandshakeTimeout(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		s.upgrader.HandshakeTimeout = timeout
 	}
 }
 

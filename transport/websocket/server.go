@@ -5,14 +5,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"github.com/go-kratos/kratos/v2/encoding"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
-
-	"github.com/go-kratos/kratos/v2/encoding"
-	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	ws "github.com/gorilla/websocket"
 
@@ -50,8 +48,6 @@ type Server struct {
 	injectToken bool
 	tokenKey    string
 
-	timeout time.Duration
-
 	err   error
 	codec encoding.Codec
 
@@ -69,7 +65,6 @@ func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		network:     "tcp",
 		address:     ":0",
-		timeout:     1 * time.Second,
 		strictSlash: true,
 		path:        "/",
 		injectToken: true,
