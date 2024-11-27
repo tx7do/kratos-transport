@@ -2,9 +2,10 @@ package asynq
 
 import (
 	"crypto/tls"
-	"github.com/go-kratos/kratos/v2/encoding"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/encoding"
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/hibiken/asynq"
 )
 
@@ -152,6 +153,30 @@ func WithLocation(name string) ServerOption {
 	return func(s *Server) {
 		loc, _ := time.LoadLocation(name)
 		s.schedulerOpts.Location = loc
+	}
+}
+
+func WithLogger(log *log.Helper) ServerOption {
+	return func(s *Server) {
+		s.schedulerOpts.Logger = log
+	}
+}
+
+func WithLogLevel(log *log.Level) ServerOption {
+	return func(s *Server) {
+		s.schedulerOpts.LogLevel.Set(log.String())
+	}
+}
+
+func WithPreEnqueueFunc(fn func(task *asynq.Task, opts []asynq.Option)) ServerOption {
+	return func(s *Server) {
+		s.schedulerOpts.PreEnqueueFunc = fn
+	}
+}
+
+func WithPostEnqueueFunc(fn func(info *asynq.TaskInfo, err error)) ServerOption {
+	return func(s *Server) {
+		s.schedulerOpts.PostEnqueueFunc = fn
 	}
 }
 
