@@ -23,5 +23,6 @@ git tag transport/tcp/v1.2.18 --force
 git tag transport/thrift/v1.2.18 --force
 git tag transport/websocket/v1.2.18 --force
 git tag transport/webtransport/v1.2.18 --force
+git tag transport/trpc/v1.2.18 --force
 
 git push origin --tags
