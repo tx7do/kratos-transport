@@ -11,3 +11,5 @@ func WithService(serviceName string, service trpcServer.Service) ServerOption {
 		s.Server.AddService(serviceName, service)
 	}
 }
+
+type ClientOption func(o *Client)
