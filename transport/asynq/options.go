@@ -77,6 +77,12 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
+func WithConfig(cfg asynq.Config) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig = cfg
+	}
+}
+
 func WithConcurrency(concurrency int) ServerOption {
 	return func(s *Server) {
 		s.asynqConfig.Concurrency = concurrency
@@ -164,7 +170,7 @@ func WithLogger(log *log.Helper) ServerOption {
 
 func WithLogLevel(log *log.Level) ServerOption {
 	return func(s *Server) {
-		s.schedulerOpts.LogLevel.Set(log.String())
+		_ = s.schedulerOpts.LogLevel.Set(log.String())
 	}
 }
 
@@ -192,8 +198,14 @@ func WithIsFailure(c asynq.Config) ServerOption {
 	}
 }
 
-func WithConfig(c asynq.Config) ServerOption {
+func WithShutdownTimeout(t time.Duration) ServerOption {
 	return func(s *Server) {
-		s.asynqConfig = c
+		s.asynqConfig.ShutdownTimeout = t
+	}
+}
+
+func WithGracefullyShutdown(enable bool) ServerOption {
+	return func(s *Server) {
+		s.gracefullyShutdown = enable
 	}
 }

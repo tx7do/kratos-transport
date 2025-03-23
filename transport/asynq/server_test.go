@@ -15,6 +15,7 @@ import (
 
 const (
 	localRedisAddr = "127.0.0.1:6379"
+	redisPassword  = "123456"
 
 	testTask1        = "test_task_1"
 	testDelayTask    = "test_delay_task"
@@ -41,8 +42,8 @@ func handlePeriodicTask(taskType string, taskData *TaskPayload) error {
 }
 
 func TestNewTaskOnly(t *testing.T) {
-	//interrupt := make(chan os.Signal, 1)
-	//signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
@@ -50,7 +51,8 @@ func TestNewTaskOnly(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
-		WithRedisPassword("123456"),
+		WithRedisPassword(redisPassword),
+		WithShutdownTimeout(3*time.Second),
 	)
 
 	err = srv.NewTask(testTask1,
@@ -71,7 +73,7 @@ func TestNewTaskOnly(t *testing.T) {
 		}
 	}()
 
-	//<-interrupt
+	<-interrupt
 }
 
 func TestNewPeriodicTaskOnly(t *testing.T) {
@@ -84,7 +86,7 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
-		WithRedisPassword("123456"),
+		WithRedisPassword(redisPassword),
 	)
 
 	// 每分钟执行一次
@@ -118,7 +120,7 @@ func TestDelayTask(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
-		WithRedisPassword("123456"),
+		WithRedisPassword(redisPassword),
 	)
 
 	err = RegisterSubscriber(srv, testDelayTask, handleDelayTask)
@@ -164,7 +166,7 @@ func TestPeriodicTask(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
-		WithRedisPassword("123456"),
+		WithRedisPassword(redisPassword),
 	)
 
 	err = RegisterSubscriber(srv, testPeriodicTask, handlePeriodicTask)
@@ -200,7 +202,7 @@ func TestTaskSubscribe(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(localRedisAddr),
-		WithRedisPassword("123456"),
+		WithRedisPassword(redisPassword),
 	)
 
 	err = RegisterSubscriber(srv, testTask1, handleTask1)
