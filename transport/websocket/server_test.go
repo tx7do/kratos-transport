@@ -49,7 +49,7 @@ func TestServer(t *testing.T) {
 	ctx := context.Background()
 
 	srv := NewServer(
-		WithAddress(":10000"),
+		WithAddress(":9999"),
 		WithPath("/"),
 		WithConnectHandle(handleConnect),
 		WithCodec("json"),

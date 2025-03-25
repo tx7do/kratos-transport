@@ -3,6 +3,7 @@ package sse
 import (
 	"context"
 	"errors"
+	"github.com/go-kratos/kratos/v2/log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -45,6 +46,13 @@ func TestServerExistingStreamPublish(t *testing.T) {
 		WithAddress(":8800"),
 		WithCodec("json"),
 		WithPath("/events"),
+		WithSubscriberFunction(func(streamID StreamID, sub *Subscriber) {
+			var token string
+			if sub.URL != nil {
+				token = sub.URL.Query().Get("token")
+			}
+			log.Infof("subscriber [%s] [%+v] connected", streamID, token)
+		}),
 	)
 	defer s.Stop(ctx)
 

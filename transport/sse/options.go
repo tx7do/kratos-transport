@@ -90,9 +90,14 @@ func WithHeaders(headers map[string]string) ServerOption {
 	}
 }
 
-func WithSubscriberFunction(sub SubscriberFunction, unsub SubscriberFunction) ServerOption {
+func WithSubscriberFunction(sub SubscriberFunction) ServerOption {
 	return func(s *Server) {
 		s.subscribeFunc = sub
+	}
+}
+
+func WithUnSubscriberFunction(unsub SubscriberFunction) ServerOption {
+	return func(s *Server) {
 		s.unsubscribeFunc = unsub
 	}
 }
@@ -100,6 +105,12 @@ func WithSubscriberFunction(sub SubscriberFunction, unsub SubscriberFunction) Se
 func WithEventTTL(timeout time.Duration) ServerOption {
 	return func(s *Server) {
 		s.eventTTL = timeout
+	}
+}
+
+func WithStreamIdKey(key string) ServerOption {
+	return func(s *Server) {
+		s.streamIdKey = key
 	}
 }
 

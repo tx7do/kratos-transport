@@ -17,7 +17,11 @@
         alert('The browser does not support Server-Sent Events');
     }
 
-    const eventSource = new EventSource("http://localhost:8800/events?stream=test")
+    let streamId = 'test';
+    let authorizationToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30';
+    let targetUrl = `http://localhost:8800/events?stream=${streamId}&token=${authorizationToken}`;
+
+    const eventSource = new EventSource(targetUrl, {withCredentials: false});
 
     // 在事件源连接未能打开时触发。
     eventSource.onerror = function (error) {

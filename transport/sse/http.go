@@ -22,15 +22,15 @@ func (s *Server) prepareHeaderForSSE(w http.ResponseWriter) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	flusher, err := w.(http.Flusher)
-	if !err {
+	flusher, exist := w.(http.Flusher)
+	if !exist {
 		writeError(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
 
 	s.prepareHeaderForSSE(w)
 
-	streamID := r.URL.Query().Get("stream")
+	streamID := r.URL.Query().Get(s.streamIdKey)
 	if streamID == "" {
 		writeError(w, "Please specify a stream!", http.StatusInternalServerError)
 		return

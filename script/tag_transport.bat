@@ -18,7 +18,7 @@ git tag transport/redis/v1.2.18 --force
 git tag transport/rocketmq/v1.2.18 --force
 git tag transport/signalr/v1.2.18 --force
 git tag transport/socketio/v1.2.18 --force
-git tag transport/sse/v1.2.18 --force
+git tag transport/sse/v1.2.19 --force
 git tag transport/tcp/v1.2.18 --force
 git tag transport/thrift/v1.2.18 --force
 git tag transport/websocket/v1.2.18 --force

@@ -33,9 +33,10 @@ type Server struct {
 	lis     net.Listener
 	tlsConf *tls.Config
 
-	network string
-	address string
-	path    string
+	network     string
+	address     string
+	path        string
+	streamIdKey string
 
 	timeout time.Duration
 
@@ -68,6 +69,7 @@ func NewServer(opts ...ServerOption) *Server {
 		router:      mux.NewRouter(),
 		strictSlash: true,
 		path:        "/",
+		streamIdKey: "stream",
 
 		bufferSize:   DefaultBufferSize,
 		encodeBase64: false,
@@ -94,9 +96,11 @@ func (s *Server) Start(ctx context.Context) error {
 	if s.err != nil {
 		return s.err
 	}
+
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
+
 	LogInfof("server listening on: %s", s.lis.Addr().String())
 
 	s.HandleServeHTTP(s.path)
@@ -217,13 +221,53 @@ func (s *Server) TryPublish(_ context.Context, streamId StreamID, event *Event) 
 func (s *Server) PublishData(ctx context.Context, streamId StreamID, data MessagePayload) error {
 	event := &Event{}
 
-	var err error
-	event.Data, err = broker.Marshal(s.codec, data)
-	if err != nil {
-		return err
+	if data != nil {
+		var err error
+		event.Data, err = broker.Marshal(s.codec, data)
+		if err != nil {
+			return err
+		}
 	}
 
 	s.Publish(ctx, streamId, event)
+
+	return nil
+}
+
+func (s *Server) Notify(_ context.Context, event *Event) {
+	s.streamMgr.Range(func(stream *Stream) {
+		if stream == nil {
+			return
+		}
+
+		select {
+		case <-stream.quit:
+		case stream.event <- s.process(event):
+		}
+	})
+}
+
+func (s *Server) NotifyData(_ context.Context, data MessagePayload) error {
+	event := &Event{}
+
+	if data != nil {
+		var err error
+		event.Data, err = broker.Marshal(s.codec, data)
+		if err != nil {
+			return err
+		}
+	}
+
+	s.streamMgr.Range(func(stream *Stream) {
+		if stream == nil {
+			return
+		}
+
+		select {
+		case <-stream.quit:
+		case stream.event <- s.process(event):
+		}
+	})
 
 	return nil
 }

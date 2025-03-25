@@ -104,6 +104,7 @@ func (s *Stream) getSubIndex(sub *Subscriber) int {
 
 func (s *Stream) addSubscriber(eventId int, url *url.URL) *Subscriber {
 	atomic.AddInt32(&s.subscriberCount, 1)
+
 	sub := &Subscriber{
 		eventId:    eventId,
 		quit:       s.deregister,
