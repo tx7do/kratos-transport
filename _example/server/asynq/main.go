@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/hibiken/asynq"
 	"os"
 	"os/signal"
 	"syscall"
@@ -8,8 +9,6 @@ import (
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-
-	"github.com/hibiken/asynq"
 
 	asynqServer "github.com/tx7do/kratos-transport/transport/asynq"
 )
@@ -51,6 +50,7 @@ func main() {
 	srv := asynqServer.NewServer(
 		asynqServer.WithAddress(localRedisAddr),
 		asynqServer.WithRedisPassword(redisPassword),
+		asynqServer.WithRedisDatabase(1),
 		asynqServer.WithShutdownTimeout(3*time.Second),
 		asynqServer.WithConcurrency(10),
 	)
@@ -89,8 +89,26 @@ func main() {
 	// 周期性任务，每分钟执行一次
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
-		testPeriodicTask,
-		&TaskPayload{Message: "periodic task"},
+		testPeriodicTask+"1",
+		&TaskPayload{Message: "periodic task 1"},
+	)
+
+	_, err = srv.NewPeriodicTask(
+		"*/1 * * * ?",
+		testPeriodicTask+"2",
+		&TaskPayload{Message: "periodic task 2"},
+	)
+
+	_, err = srv.NewPeriodicTask(
+		"*/1 * * * ?",
+		testPeriodicTask+"3",
+		&TaskPayload{Message: "periodic task 3"},
+	)
+
+	_, err = srv.NewPeriodicTask(
+		"*/1 * * * ?",
+		"test_periodic_",
+		&TaskPayload{Message: "periodic task xxx"},
 	)
 
 	if err = app.Run(); err != nil {
