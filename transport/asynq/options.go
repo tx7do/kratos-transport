@@ -15,9 +15,9 @@ const (
 
 type ServerOption func(o *Server)
 
-func WithAddress(addr string) ServerOption {
+func WithRedisConnOpt(redisConnOpt asynq.RedisConnOpt) ServerOption {
 	return func(s *Server) {
-		s.redisOpt.Addr = addr
+		s.redisConnOpt = redisConnOpt
 	}
 }
 
@@ -28,52 +28,95 @@ func WithEnableKeepAlive(enable bool) ServerOption {
 	}
 }
 
-func WithRedisAuth(userName, password string) ServerOption {
-	return func(s *Server) {
-		s.redisOpt.Username = userName
-		s.redisOpt.Password = password
+// setRedisOption 是一个通用的辅助函数，用于设置 Redis 选项
+func setRedisOption(opt asynq.RedisConnOpt, fn func(*asynq.RedisClientOpt, *asynq.RedisClusterClientOpt, *asynq.RedisFailoverClientOpt)) {
+	if redisOpt, ok := opt.(*asynq.RedisClientOpt); ok {
+		fn(redisOpt, nil, nil)
+		return
 	}
-}
-
-func WithRedisPassword(password string) ServerOption {
-	return func(s *Server) {
-		s.redisOpt.Password = password
+	if redisClusterOpt, ok := opt.(*asynq.RedisClusterClientOpt); ok {
+		fn(nil, redisClusterOpt, nil)
+		return
 	}
-}
-
-func WithRedisDatabase(db int) ServerOption {
-	return func(s *Server) {
-		s.redisOpt.DB = db
+	if redisFailoverOpt, ok := opt.(*asynq.RedisFailoverClientOpt); ok {
+		fn(nil, nil, redisFailoverOpt)
 	}
 }
 
 func WithRedisPoolSize(size int) ServerOption {
 	return func(s *Server) {
-		s.redisOpt.PoolSize = size
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.PoolSize = size
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.PoolSize = size
+			}
+		})
 	}
 }
 
 func WithDialTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		s.redisOpt.DialTimeout = timeout
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.DialTimeout = timeout
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.DialTimeout = timeout
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.DialTimeout = timeout
+			}
+		})
 	}
 }
 
 func WithReadTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		s.redisOpt.ReadTimeout = timeout
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.ReadTimeout = timeout
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.ReadTimeout = timeout
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.ReadTimeout = timeout
+			}
+		})
 	}
 }
 
 func WithWriteTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		s.redisOpt.WriteTimeout = timeout
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.WriteTimeout = timeout
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.WriteTimeout = timeout
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.WriteTimeout = timeout
+			}
+		})
 	}
 }
 
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
-		s.redisOpt.TLSConfig = c
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.TLSConfig = c
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.TLSConfig = c
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.TLSConfig = c
+			}
+		})
 	}
 }
 
