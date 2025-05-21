@@ -16,8 +16,7 @@ import (
 var testServer *asynqServer.Server
 
 const (
-	localRedisAddr = "127.0.0.1:6379"
-	redisPassword  = "*Abcd123456"
+	localRedisURI = "redis://:*Abcd123456@127.0.0.1:6379/1"
 
 	testTask1        = "test_task_1"
 	testDelayTask    = "test_delay_task"
@@ -46,11 +45,13 @@ func handlePeriodicTask(taskType string, taskData *TaskPayload) error {
 func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
+	
 	srv := asynqServer.NewServer(
-		asynqServer.WithAddress(localRedisAddr),
-		asynqServer.WithRedisPassword(redisPassword),
-		asynqServer.WithRedisDatabase(1),
+		asynqServer.WithRedisConnOpt(redisConnOpt),
 		asynqServer.WithShutdownTimeout(3*time.Second),
 		asynqServer.WithConcurrency(10),
 	)
@@ -63,8 +64,6 @@ func main() {
 			srv,
 		),
 	)
-
-	var err error
 
 	err = asynqServer.RegisterSubscriber(srv, testTask1, handleTask1)
 

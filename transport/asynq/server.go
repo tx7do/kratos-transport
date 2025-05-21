@@ -36,7 +36,7 @@ type Server struct {
 
 	mux           *asynq.ServeMux
 	asynqConfig   asynq.Config
-	redisOpt      asynq.RedisClientOpt
+	redisConnOpt  asynq.RedisConnOpt
 	schedulerOpts *asynq.SchedulerOpts
 
 	keepAlive       *keepalive.Service
@@ -54,8 +54,7 @@ func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx: context.Background(),
 		started: atomic.Bool{},
-
-		redisOpt: asynq.RedisClientOpt{
+		redisConnOpt: asynq.RedisClientOpt{
 			Addr: defaultRedisAddress,
 			DB:   0,
 		},
@@ -409,8 +408,6 @@ func (s *Server) Start(ctx context.Context) error {
 		}()
 	}
 
-	LogInfof("server listening on: %s", s.redisOpt.Addr)
-
 	s.baseCtx = ctx
 	s.started.Store(true)
 
@@ -482,7 +479,7 @@ func (s *Server) createAsynqServer() error {
 		return nil
 	}
 
-	s.server = asynq.NewServer(s.redisOpt, s.asynqConfig)
+	s.server = asynq.NewServer(s.redisConnOpt, s.asynqConfig)
 	if s.server == nil {
 		LogErrorf("create asynq server failed")
 		return errors.New("create asynq server failed")
@@ -515,7 +512,7 @@ func (s *Server) createAsynqClient() error {
 		return nil
 	}
 
-	s.client = asynq.NewClient(s.redisOpt)
+	s.client = asynq.NewClient(s.redisConnOpt)
 	if s.client == nil {
 		LogErrorf("create asynq client failed")
 		return errors.New("create asynq client failed")
@@ -530,7 +527,7 @@ func (s *Server) createAsynqScheduler() error {
 		return nil
 	}
 
-	s.scheduler = asynq.NewScheduler(s.redisOpt, s.schedulerOpts)
+	s.scheduler = asynq.NewScheduler(s.redisConnOpt, s.schedulerOpts)
 	if s.scheduler == nil {
 		LogErrorf("create asynq scheduler failed")
 		return errors.New("create asynq scheduler failed")
@@ -560,7 +557,7 @@ func (s *Server) createAsynqInspector() error {
 		return nil
 	}
 
-	s.inspector = asynq.NewInspector(s.redisOpt)
+	s.inspector = asynq.NewInspector(s.redisConnOpt)
 	if s.inspector == nil {
 		LogErrorf("create asynq inspector failed")
 		return errors.New("create asynq inspector failed")

@@ -3,6 +3,7 @@ package asynq
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,8 +15,7 @@ import (
 )
 
 const (
-	localRedisAddr = "127.0.0.1:6379"
-	redisPassword  = "123456"
+	localRedisURI = "redis://:123456@127.0.0.1:6379"
 
 	testTask1        = "test_task_1"
 	testDelayTask    = "test_delay_task"
@@ -49,9 +49,12 @@ func TestNewTaskOnly(t *testing.T) {
 
 	var err error
 
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := NewServer(
-		WithAddress(localRedisAddr),
-		WithRedisPassword(redisPassword),
+		WithRedisConnOpt(redisConnOpt),
 		WithShutdownTimeout(3*time.Second),
 	)
 
@@ -84,9 +87,13 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 
 	var err error
 
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := NewServer(
-		WithAddress(localRedisAddr),
-		WithRedisPassword(redisPassword),
+		WithRedisConnOpt(redisConnOpt),
+		WithShutdownTimeout(3*time.Second),
 	)
 
 	// 每分钟执行一次
@@ -118,9 +125,13 @@ func TestDelayTask(t *testing.T) {
 	ctx := context.Background()
 	var err error
 
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := NewServer(
-		WithAddress(localRedisAddr),
-		WithRedisPassword(redisPassword),
+		WithRedisConnOpt(redisConnOpt),
+		WithShutdownTimeout(3*time.Second),
 	)
 
 	err = RegisterSubscriber(srv, testDelayTask, handleDelayTask)
@@ -164,9 +175,13 @@ func TestPeriodicTask(t *testing.T) {
 	ctx := context.Background()
 	var err error
 
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := NewServer(
-		WithAddress(localRedisAddr),
-		WithRedisPassword(redisPassword),
+		WithRedisConnOpt(redisConnOpt),
+		WithShutdownTimeout(3*time.Second),
 	)
 
 	err = RegisterSubscriber(srv, testPeriodicTask, handlePeriodicTask)
@@ -200,9 +215,13 @@ func TestTaskSubscribe(t *testing.T) {
 	ctx := context.Background()
 	var err error
 
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := NewServer(
-		WithAddress(localRedisAddr),
-		WithRedisPassword(redisPassword),
+		WithRedisConnOpt(redisConnOpt),
+		WithShutdownTimeout(3*time.Second),
 	)
 
 	err = RegisterSubscriber(srv, testTask1, handleTask1)
@@ -235,8 +254,13 @@ func TestAllInOne(t *testing.T) {
 
 	var err error
 
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := NewServer(
-		WithAddress(localRedisAddr),
+		WithRedisConnOpt(redisConnOpt),
+		WithShutdownTimeout(3*time.Second),
 	)
 
 	err = RegisterSubscriber(srv, testTask1, handleTask1)
@@ -291,8 +315,13 @@ func TestWaitResultTask(t *testing.T) {
 
 	var err error
 
+	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	srv := NewServer(
-		WithAddress(localRedisAddr),
+		WithRedisConnOpt(redisConnOpt),
+		WithShutdownTimeout(3*time.Second),
 	)
 
 	err = RegisterSubscriber(srv, testTask1, handleTask1)
