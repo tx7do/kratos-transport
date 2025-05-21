@@ -73,43 +73,50 @@ func main() {
 	err = asynqServer.RegisterSubscriber(srv, testPeriodicTask, handlePeriodicTask)
 
 	// 最多重试3次，10秒超时，20秒后过期
-	err = srv.NewTask(testTask1,
+	err = srv.NewTask(
+		testTask1,
 		&TaskPayload{Message: "delay task"},
 		asynq.MaxRetry(3),
 		asynq.Timeout(10*time.Second),
 		asynq.Deadline(time.Now().Add(20*time.Second)),
+		asynq.TaskID(testTask1),
 	)
 
 	// 延迟任务
-	err = srv.NewTask(testDelayTask,
+	err = srv.NewTask(
+		testDelayTask,
 		&TaskPayload{Message: "delay task"},
 		asynq.ProcessIn(3*time.Second),
+		asynq.TaskID(testDelayTask),
 	)
 
 	// 周期性任务，每分钟执行一次
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
-		testPeriodicTask+"1",
+		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 1"},
+		asynq.TaskID(testPeriodicTask+"1"),
 	)
 
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
-		testPeriodicTask+"2",
+		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 2"},
+		asynq.TaskID(testPeriodicTask+"2"),
 	)
 
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
-		testPeriodicTask+"3",
+		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 3"},
+		asynq.TaskID(testPeriodicTask+"3"),
 	)
 
-	_, err = srv.NewPeriodicTask(
-		"*/1 * * * ?",
-		"test_periodic_",
-		&TaskPayload{Message: "periodic task xxx"},
-	)
+	//_, err = srv.NewPeriodicTask(
+	//	"*/1 * * * ?",
+	//	"test_periodic_",
+	//	&TaskPayload{Message: "periodic task xxx"},
+	//)
 
 	if err = app.Run(); err != nil {
 		log.Error(err)
