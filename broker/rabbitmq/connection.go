@@ -285,12 +285,8 @@ func (r *rabbitConnection) Consume(queueName, routingKey string, bindArgs amqp.T
 }
 
 func (r *rabbitConnection) DeclarePublishQueue(queueName, routingKey string, bindArgs amqp.Table, queueArgs amqp.Table, durableQueue, autoDel bool) error {
-	if r.ExchangeChannel == nil {
-		var err error
-		r.ExchangeChannel, err = newRabbitChannel(r.Connection, r.qos)
-		if err != nil {
-			return err
-		}
+	if err := r.lazyInitPublishChannel(); err != nil {
+		return err
 	}
 
 	if err := r.ExchangeChannel.DeclareQueue(queueName, queueArgs, durableQueue, autoDel); err != nil {
@@ -305,6 +301,17 @@ func (r *rabbitConnection) DeclarePublishQueue(queueName, routingKey string, bin
 }
 
 func (r *rabbitConnection) Publish(ctx context.Context, exchangeName, routingKey string, msg amqp.Publishing) error {
+
+	if err := r.lazyInitPublishChannel(); err != nil {
+		return err
+	}
+
+	return r.ExchangeChannel.Publish(ctx, exchangeName, routingKey, msg)
+}
+
+func (r *rabbitConnection) lazyInitPublishChannel() error {
+	r.Lock()
+	defer r.Unlock()
 	if r.ExchangeChannel == nil {
 		var err error
 		// lazy init publish channel
@@ -313,6 +320,5 @@ func (r *rabbitConnection) Publish(ctx context.Context, exchangeName, routingKey
 			return err
 		}
 	}
-
-	return r.ExchangeChannel.Publish(ctx, exchangeName, routingKey, msg)
+	return nil
 }
