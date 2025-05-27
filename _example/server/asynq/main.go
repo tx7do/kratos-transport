@@ -49,7 +49,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	srv := asynqServer.NewServer(
 		asynqServer.WithRedisConnOpt(redisConnOpt),
 		asynqServer.WithShutdownTimeout(3*time.Second),
@@ -92,23 +92,23 @@ func main() {
 	// 周期性任务，每分钟执行一次
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
+		testPeriodicTask+"1",
 		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 1"},
-		asynq.TaskID(testPeriodicTask+"1"),
 	)
 
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
+		testPeriodicTask+"2",
 		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 2"},
-		asynq.TaskID(testPeriodicTask+"2"),
 	)
 
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
+		testPeriodicTask+"3",
 		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 3"},
-		asynq.TaskID(testPeriodicTask+"3"),
 	)
 
 	//_, err = srv.NewPeriodicTask(
