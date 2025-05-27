@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"net/url"
+	"time"
 
 	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
@@ -17,6 +18,9 @@ type Session struct {
 	queries url.Values
 	send    chan []byte
 	server  *Server
+
+	lastReadMessageTime  time.Time // 最后一次读取消息的时间
+	lastWriteMessageTime time.Time // 最后一次发送消息的时间
 }
 
 func NewSession(server *Server, conn *ws.Conn, vars url.Values) *Session {
@@ -109,6 +113,9 @@ func (s *Session) writePump() {
 	for {
 		select {
 		case msg := <-s.send:
+
+			s.lastWriteMessageTime = time.Now()
+
 			var err error
 			switch s.server.payloadType {
 			case PayloadTypeBinary:
@@ -145,6 +152,8 @@ func (s *Session) readPump() {
 			}
 			return
 		}
+
+		s.lastReadMessageTime = time.Now()
 
 		switch messageType {
 		case ws.CloseMessage:

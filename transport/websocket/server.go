@@ -5,29 +5,18 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/go-kratos/kratos/v2/encoding"
-	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/go-kratos/kratos/v2/encoding"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
 	ws "github.com/gorilla/websocket"
 
 	"github.com/tx7do/kratos-transport/broker"
 )
-
-type Binder func() Any
-
-type ConnectHandler func(sessionId SessionID, queries url.Values, connect bool)
-
-type MessageHandler func(SessionID, MessagePayload) error
-
-type HandlerData struct {
-	Handler MessageHandler
-	Binder  Binder
-}
-type MessageHandlerMap map[MessageType]*HandlerData
 
 var (
 	_ kratosTransport.Server     = (*Server)(nil)
@@ -230,6 +219,41 @@ func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 	})
 }
 
+// unmarshalMessageHeader unmarshal message header from buffer
+func (s *Server) unmarshalMessageHeader(buf []byte) (messageType MessageType, headerLen int, err error) {
+	return
+}
+
+// defaultUnmarshalMessageHeader unmarshal message header from buffer
+func (s *Server) defaultUnmarshalMessageHeader(buf []byte) (messageType MessageType, headerLen int, err error) {
+	switch s.payloadType {
+	default:
+	case PayloadTypeBinary:
+		var msg BinaryMessage
+		if err = msg.Unmarshal(buf); err != nil {
+			LogErrorf("unmarshal binary message header error: %s", err)
+			return 0, 0, err
+		}
+
+		return msg.Type, 32, nil
+
+	case PayloadTypeText:
+		var msg TextMessage
+		if err = msg.Unmarshal(buf); err != nil {
+			LogErrorf("unmarshal text message header error: %s", err)
+			return 0, 0, err
+		}
+	}
+
+	return
+}
+
+// unmarshalMessagePayload unmarshal message payload from buffer
+func (s *Server) unmarshalMessagePayload() {
+
+}
+
+// unmarshalMessage unmarshal message from buffer
 func (s *Server) unmarshalMessage(buf []byte) (*HandlerData, MessagePayload, error) {
 	var handler *HandlerData
 	var payload MessagePayload

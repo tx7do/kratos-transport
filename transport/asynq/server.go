@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-kratos/kratos/v2/encoding"
-	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	"net/url"
 	"sync"
 	"sync/atomic"
 
 	"github.com/hibiken/asynq"
+
+	"github.com/go-kratos/kratos/v2/encoding"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/keepalive"
@@ -193,6 +194,10 @@ func (s *Server) handleFunc(pattern string, handler func(context.Context, *asynq
 
 // NewTask enqueue a new task
 func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
+	if typeName == "" {
+		return errors.New("typeName cannot be empty")
+	}
+
 	if s.client == nil {
 		if err := s.createAsynqClient(); err != nil {
 			return err
@@ -224,6 +229,10 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 
 // NewWaitResultTask enqueue a new task and wait for the result
 func (s *Server) NewWaitResultTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
+	if typeName == "" {
+		return errors.New("typeName cannot be empty")
+	}
+
 	if s.client == nil {
 		if err := s.createAsynqClient(); err != nil {
 			return err
@@ -283,7 +292,17 @@ func waitResult(intor *asynq.Inspector, info *asynq.TaskInfo) (*asynq.TaskInfo, 
 }
 
 // NewPeriodicTask enqueue a new crontab task
-func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts ...asynq.Option) (string, error) {
+func (s *Server) NewPeriodicTask(cronSpec, taskId, typeName string, msg broker.Any, opts ...asynq.Option) (string, error) {
+	if cronSpec == "" {
+		return "", errors.New("cronSpec cannot be empty")
+	}
+	if typeName == "" {
+		return "", errors.New("typeName cannot be empty")
+	}
+	if taskId == "" {
+		return "", errors.New("taskId cannot be empty")
+	}
+
 	if s.scheduler == nil {
 		if err := s.createAsynqScheduler(); err != nil {
 			return "", err
@@ -298,7 +317,15 @@ func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts
 		return "", err
 	}
 
-	task := asynq.NewTask(typeName, payload, opts...)
+	var options []asynq.Option
+	if len(opts) > 0 {
+		options = opts
+	} else {
+		options = []asynq.Option{}
+	}
+	options = append(options, asynq.TaskID(taskId))
+
+	task := asynq.NewTask(typeName, payload, options...)
 	if task == nil {
 		return "", errors.New("new task failed")
 	}
@@ -317,18 +344,18 @@ func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts
 }
 
 // RemovePeriodicTask remove periodic task
-func (s *Server) RemovePeriodicTask(typeName string) error {
-	entryID := s.QueryPeriodicTaskEntryID(typeName)
-	if entryID == "" {
-		return errors.New(fmt.Sprintf("[%s] periodic task not exist", typeName))
+func (s *Server) RemovePeriodicTask(taskId string) error {
+	entryId := s.QueryPeriodicTaskEntryID(taskId)
+	if entryId == "" {
+		return errors.New(fmt.Sprintf("[%s] periodic task not exist", taskId))
 	}
 
-	if err := s.unregisterPeriodicTask(entryID); err != nil {
-		LogErrorf("[%s] dequeue periodic task failed: %s", entryID, err.Error())
+	if err := s.unregisterPeriodicTask(entryId); err != nil {
+		LogErrorf("[%s] dequeue periodic task failed: %s", entryId, err.Error())
 		return err
 	}
 
-	s.removePeriodicTaskEntryID(typeName)
+	s.removePeriodicTaskEntryID(entryId)
 
 	return nil
 }
@@ -344,38 +371,38 @@ func (s *Server) RemoveAllPeriodicTask() {
 	}
 }
 
-func (s *Server) unregisterPeriodicTask(entryID string) error {
+func (s *Server) unregisterPeriodicTask(entryId string) error {
 	if s.scheduler == nil {
 		return nil
 	}
 
-	if err := s.scheduler.Unregister(entryID); err != nil {
-		LogErrorf("[%s] dequeue periodic task failed: %s", entryID, err.Error())
+	if err := s.scheduler.Unregister(entryId); err != nil {
+		LogErrorf("[%s] dequeue periodic task failed: %s", entryId, err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (s *Server) addPeriodicTaskEntryID(typeName, entryID string) {
+func (s *Server) addPeriodicTaskEntryID(taskId, entryId string) {
 	s.mtxEntryIDs.Lock()
 	defer s.mtxEntryIDs.Unlock()
 
-	s.entryIDs[typeName] = entryID
+	s.entryIDs[taskId] = entryId
 }
 
-func (s *Server) removePeriodicTaskEntryID(typeName string) {
+func (s *Server) removePeriodicTaskEntryID(taskId string) {
 	s.mtxEntryIDs.Lock()
 	defer s.mtxEntryIDs.Unlock()
 
-	delete(s.entryIDs, typeName)
+	delete(s.entryIDs, taskId)
 }
 
-func (s *Server) QueryPeriodicTaskEntryID(typeName string) string {
+func (s *Server) QueryPeriodicTaskEntryID(taskId string) string {
 	s.mtxEntryIDs.RLock()
 	defer s.mtxEntryIDs.RUnlock()
 
-	entryID, ok := s.entryIDs[typeName]
+	entryID, ok := s.entryIDs[taskId]
 	if !ok {
 		return ""
 	}
