@@ -15,12 +15,6 @@ const (
 
 type ServerOption func(o *Server)
 
-func WithRedisConnOpt(redisConnOpt asynq.RedisConnOpt) ServerOption {
-	return func(s *Server) {
-		s.redisConnOpt = redisConnOpt
-	}
-}
-
 // WithEnableKeepAlive enable keep alive
 func WithEnableKeepAlive(enable bool) ServerOption {
 	return func(s *Server) {
@@ -40,6 +34,112 @@ func setRedisOption(opt asynq.RedisConnOpt, fn func(*asynq.RedisClientOpt, *asyn
 	}
 	if redisFailoverOpt, ok := opt.(*asynq.RedisFailoverClientOpt); ok {
 		fn(nil, nil, redisFailoverOpt)
+	}
+}
+
+func WithRedisConnOpt(redisConnOpt asynq.RedisConnOpt) ServerOption {
+	return func(s *Server) {
+		s.redisConnOpt = redisConnOpt
+	}
+}
+
+func WithRedisURI(uri string) ServerOption {
+	return func(s *Server) {
+		redisConnOpt, err := asynq.ParseRedisURI(uri)
+		if err != nil {
+			panic(err)
+		}
+		s.redisConnOpt = redisConnOpt
+	}
+}
+
+func WithRedisAddress(address string) ServerOption {
+	return func(s *Server) {
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.Addr = address
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.Addrs = []string{address}
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.SentinelAddrs = []string{address}
+			}
+		})
+	}
+}
+
+func WithRedisSentinelAddrs(addrs []string) ServerOption {
+	return func(s *Server) {
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.SentinelAddrs = addrs
+			}
+		})
+	}
+}
+
+func WithRedisUsername(username string) ServerOption {
+	return func(s *Server) {
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.Username = username
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.Username = username
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.Username = username
+			}
+		})
+	}
+}
+
+func WithRedisPassword(password string) ServerOption {
+	return func(s *Server) {
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.Password = password
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.Password = password
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.Password = password
+			}
+		})
+	}
+}
+
+func WithRedisAuth(username, password string) ServerOption {
+	return func(s *Server) {
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.Username = username
+				redisOpt.Password = password
+			}
+			if redisClusterOpt != nil {
+				redisClusterOpt.Username = username
+				redisClusterOpt.Password = password
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.Username = username
+				redisFailoverOpt.Password = password
+			}
+		})
+	}
+}
+
+func WithRedisDB(db int) ServerOption {
+	return func(s *Server) {
+		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
+			if redisOpt != nil {
+				redisOpt.DB = db
+			}
+			if redisFailoverOpt != nil {
+				redisFailoverOpt.DB = db
+			}
+		})
 	}
 }
 
