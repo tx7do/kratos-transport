@@ -91,6 +91,10 @@ func (s *Server) Endpoint() (*url.URL, error) {
 		return nil, s.err
 	}
 
+	if !s.enableKeepAlive {
+		return nil, s.err
+	}
+
 	return s.keepAlive.Endpoint()
 }
 
