@@ -14,7 +14,7 @@
 
 ```go
 asynq.NewServer(
-asynq.WithEnableKeepAlive(true),
+    asynq.WithEnableKeepAlive(true),
 )
 ```
 
@@ -24,4 +24,7 @@ asynq.WithEnableKeepAlive(true),
 
 很多时候，是因为服务器具有多张网卡（包括Docker的虚拟网卡），导致程序自动选择的网卡是到达不了注册服务器的。所以，网络不通。
 
-要解决这个问题，我们提供了一个简单的解决方案，设置一个环境变量`KRATOS_TRANSPORT_KEEPALIVE_INTERFACE`，绑定一个正确的网卡。
+要解决这个问题，我们提供了一个简单的解决方案:
+
+- 设置环境变量`KRATOS_TRANSPORT_KEEPALIVE_INTERFACE`，绑定一个正确的网卡。
+- 设置环境变量`KRATOS_TRANSPORT_KEEPALIVE_HOST`，绑定一个正确的IP地址。

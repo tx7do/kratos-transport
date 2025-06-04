@@ -81,10 +81,17 @@ func (s *Service) generateEndpoint(host string) error {
 		// generate a port
 		port := generatePort(10000, 65535)
 
-		// query network interface
 		if host == "" {
-			if itf, ok := os.LookupEnv("KRATOS_TRANSPORT_KEEPALIVE_INTERFACE"); ok {
-				h, err := getIPAddress(itf)
+			if itf, ok := os.LookupEnv(EnvKeyInterface); ok {
+				h, err := getIPByInterfaceName(itf)
+				if err != nil {
+					return err
+				}
+				host = h
+			} else if h, ok := os.LookupEnv(EnvKeyHost); ok {
+				host = h
+			} else {
+				h, err := getLocalIP()
 				if err != nil {
 					return err
 				}
