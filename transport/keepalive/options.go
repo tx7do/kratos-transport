@@ -36,3 +36,9 @@ func WithEndpoint(endpoint *url.URL) ServerOption {
 		s.endpoint = endpoint
 	}
 }
+
+func WithServiceKind(name string) ServerOption {
+	return func(s *Server) {
+		s.serviceKind = name
+	}
+}

@@ -34,6 +34,8 @@ type Server struct {
 
 	network string
 	address string
+
+	serviceKind string
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -42,6 +44,8 @@ func NewServer(opts ...ServerOption) *Server {
 
 		network: "tcp",
 		address: "",
+
+		serviceKind: KindKeepAlive,
 	}
 
 	srv.init(opts...)
@@ -55,7 +59,8 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	if s.address == "" {
-		s.address = fmt.Sprintf(":%d", generatePort())
+		addr, _ := generateHost()
+		s.address = fmt.Sprintf("%s:%d", addr, generatePort())
 	}
 
 	s.Server = grpc.NewServer(s.grpcOpts...)
@@ -84,12 +89,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Debug("keep alive service stopping...")
+	log.Infof("%s server stopping...", s.serviceKind)
 
 	s.health.Shutdown()
 	s.GracefulStop()
 
-	log.Debug("keep alive service stopped")
+	log.Infof("%s service stopped", s.serviceKind)
 
 	return nil
 }
@@ -111,7 +116,7 @@ func (s *Server) listenAndEndpoint() error {
 			return err
 		}
 
-		s.endpoint = &url.URL{Scheme: KindKeepAlive, Host: addr}
+		s.endpoint = &url.URL{Scheme: s.serviceKind, Host: addr}
 	}
 
 	return nil

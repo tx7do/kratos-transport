@@ -15,7 +15,7 @@ func generateNumber(minNum, maxNum int) int {
 	return rand.Intn(maxNum-minNum) + minNum
 }
 
-func parseHost() (string, error) {
+func generateHost() (string, error) {
 	if itf, ok := os.LookupEnv(EnvKeyInterface); ok {
 		h, err := transport.GetIPAddressByInterfaceName(itf)
 		if err != nil {
