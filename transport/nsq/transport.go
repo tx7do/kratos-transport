@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindNSQ kratosTransport.Kind = "nsq"
+	KindNSQ = "nsq"
 )
 
 var _ kratosTransport.Transporter = &Transport{}

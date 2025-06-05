@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindRedis kratosTransport.Kind = "redis"
+	KindRedis = "redis"
 )
 
 var _ kratosTransport.Transporter = &Transport{}

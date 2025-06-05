@@ -2,7 +2,9 @@ package rocketmq
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -11,11 +13,14 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rocketmq"
 	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
+
 	"github.com/tx7do/kratos-transport/transport"
+	"github.com/tx7do/kratos-transport/transport/keepalive"
 )
 
 var (
-	_ kratosTransport.Server = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
@@ -23,6 +28,7 @@ type Server struct {
 	sync.RWMutex
 
 	brokerOpts []broker.Option
+	driverType rocketmqOption.DriverType
 
 	subscribers    broker.SubscriberMap
 	subscriberOpts transport.SubscribeOptionMap
@@ -31,6 +37,8 @@ type Server struct {
 
 	baseCtx context.Context
 	err     error
+
+	keepaliveServer *keepalive.Server
 }
 
 func NewServer(driverType rocketmqOption.DriverType, opts ...ServerOption) *Server {
@@ -40,11 +48,10 @@ func NewServer(driverType rocketmqOption.DriverType, opts ...ServerOption) *Serv
 		subscriberOpts: make(transport.SubscribeOptionMap),
 		brokerOpts:     []broker.Option{},
 		started:        atomic.Bool{},
+		driverType:     driverType,
 	}
 
 	srv.init(opts...)
-
-	srv.Broker = rocketmq.NewBroker(driverType, srv.brokerOpts...)
 
 	return srv
 }
@@ -53,10 +60,17 @@ func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
+
+	s.keepaliveServer = keepalive.NewServer(
+		keepalive.WithServiceKind(KindRocketMQ),
+	)
+
+	s.Broker = rocketmq.NewBroker(s.driverType, s.brokerOpts...)
+
 }
 
 func (s *Server) Name() string {
-	return string(KindRocketMQ)
+	return KindRocketMQ
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -68,21 +82,26 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	s.err = s.Init()
-	if s.err != nil {
+	if s.keepaliveServer != nil {
+		go func() {
+			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
+				LogErrorf("keepalive server start failed: %s", s.err.Error())
+			}
+		}()
+	}
+
+	if s.err = s.Init(); s.err != nil {
 		LogErrorf("init broker failed: [%s]", s.err.Error())
 		return s.err
 	}
 
-	s.err = s.Connect()
-	if s.err != nil {
+	if s.err = s.Connect(); s.err != nil {
 		return s.err
 	}
 
 	LogInfof("server listening on: %s", s.Address())
 
-	s.err = s.doRegisterSubscriberMap()
-	if s.err != nil {
+	if s.err = s.doRegisterSubscriberMap(); s.err != nil {
 		return s.err
 	}
 
@@ -92,12 +111,19 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(_ context.Context) error {
+func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
 	s.started.Store(false)
 	err := s.Disconnect()
 	s.err = nil
+
+	if s.keepaliveServer != nil {
+		if err := s.keepaliveServer.Stop(ctx); err != nil {
+			LogError("keepalive server stop failed", s.err)
+		}
+		s.keepaliveServer = nil
+	}
 
 	LogInfo("server stopped.")
 
@@ -167,4 +193,12 @@ func (s *Server) doRegisterSubscriberMap() error {
 	}
 	s.subscriberOpts = make(transport.SubscribeOptionMap)
 	return nil
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
+	if s.keepaliveServer == nil {
+		return nil, errors.New("keepalive server is nil")
+	}
+
+	return s.keepaliveServer.Endpoint()
 }

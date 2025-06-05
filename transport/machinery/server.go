@@ -3,6 +3,7 @@ package machinery
 import (
 	"context"
 	"errors"
+	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -38,10 +39,12 @@ import (
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/tracing"
+	"github.com/tx7do/kratos-transport/transport/keepalive"
 )
 
 var (
-	_ kratosTransport.Server = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
@@ -62,6 +65,8 @@ type Server struct {
 	tracingOpts    []tracing.Option
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
+
+	keepaliveServer *keepalive.Server
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -113,8 +118,27 @@ func NewServer(opts ...ServerOption) *Server {
 	return srv
 }
 
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
+
+	if len(s.tracingOpts) > 0 {
+		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-producer", s.tracingOpts...)
+		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
+	}
+
+	s.keepaliveServer = keepalive.NewServer(
+		keepalive.WithServiceKind(KindMachinery),
+	)
+
+	s.installLogger()
+
+	s.createMachineryServer()
+}
+
 func (s *Server) Name() string {
-	return string(KindMachinery)
+	return KindMachinery
 }
 
 func (s *Server) HandleFunc(name string, handler interface{}) error {
@@ -170,8 +194,19 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	err := s.newWorker(s.consumerOption.consumerTag, s.consumerOption.concurrency, s.consumerOption.queue)
-	if err != nil && !errors.Is(err, machinery.ErrWorkerQuitGracefully) {
+	if s.keepaliveServer != nil {
+		go func() {
+			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
+				LogErrorf("keepalive server start failed: %s", s.err.Error())
+			}
+		}()
+	}
+
+	if err := s.newWorker(
+		s.consumerOption.consumerTag,
+		s.consumerOption.concurrency,
+		s.consumerOption.queue,
+	); err != nil && !errors.Is(err, machinery.ErrWorkerQuitGracefully) {
 		return err
 	}
 
@@ -183,7 +218,7 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(_ context.Context) error {
+func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
 	s.started.Store(false)
@@ -191,24 +226,16 @@ func (s *Server) Stop(_ context.Context) error {
 	s.machineryServer = nil
 	s.err = nil
 
+	if s.keepaliveServer != nil {
+		if err := s.keepaliveServer.Stop(ctx); err != nil {
+			LogError("keepalive server stop failed", s.err)
+		}
+		s.keepaliveServer = nil
+	}
+
 	LogInfo("server stopped.")
 
 	return nil
-}
-
-func (s *Server) init(opts ...ServerOption) {
-	for _, o := range opts {
-		o(s)
-	}
-
-	if len(s.tracingOpts) > 0 {
-		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-producer", s.tracingOpts...)
-		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
-	}
-
-	s.installLogger()
-
-	s.createMachineryServer()
 }
 
 // installLogger 安装日志记录器
@@ -506,4 +533,12 @@ func (s *Server) finishConsumerSpan(span trace.Span, err error) {
 	}
 
 	s.consumerTracer.End(context.Background(), span, err)
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
+	if s.keepaliveServer == nil {
+		return nil, errors.New("keepalive server is nil")
+	}
+
+	return s.keepaliveServer.Endpoint()
 }

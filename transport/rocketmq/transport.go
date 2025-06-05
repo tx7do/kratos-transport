@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindRocketMQ kratosTransport.Kind = "rocketmq"
+	KindRocketMQ = "rocketmq"
 )
 
 var _ kratosTransport.Transporter = &Transport{}

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindMQTT kratosTransport.Kind = "mqtt"
+	KindMQTT = "mqtt"
 )
 
 var _ kratosTransport.Transporter = &Transport{}

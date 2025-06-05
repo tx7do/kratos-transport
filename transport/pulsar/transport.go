@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindPulsar kratosTransport.Kind = "pulsar"
+	KindPulsar = "pulsar"
 )
 
 var _ kratosTransport.Transporter = &Transport{}

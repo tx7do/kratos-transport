@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindNATS kratosTransport.Kind = "nats"
+	KindNATS = "nats"
 )
 
 var _ kratosTransport.Transporter = &Transport{}

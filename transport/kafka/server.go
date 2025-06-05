@@ -2,7 +2,9 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -10,11 +12,14 @@ import (
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/kafka"
+
 	"github.com/tx7do/kratos-transport/transport"
+	"github.com/tx7do/kratos-transport/transport/keepalive"
 )
 
 var (
-	_ kratosTransport.Server = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
@@ -31,6 +36,8 @@ type Server struct {
 	err     error
 
 	mws []broker.MiddlewareFunc
+
+	keepaliveServer *keepalive.Server
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -42,21 +49,26 @@ func NewServer(opts ...ServerOption) *Server {
 		started:        atomic.Bool{},
 	}
 
-	srv.doInjectOptions(opts...)
-
-	srv.Broker = kafka.NewBroker(srv.brokerOpts...)
+	srv.init(opts...)
 
 	return srv
 }
 
-func (s *Server) doInjectOptions(opts ...ServerOption) {
+func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
+
+	s.keepaliveServer = keepalive.NewServer(
+		keepalive.WithServiceKind(KindKafka),
+	)
+
+	s.Broker = kafka.NewBroker(s.brokerOpts...)
+
 }
 
 func (s *Server) Name() string {
-	return string(KindKafka)
+	return KindKafka
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -68,21 +80,26 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	s.err = s.Init()
-	if s.err != nil {
+	if s.keepaliveServer != nil {
+		go func() {
+			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
+				LogErrorf("keepalive server start failed: %s", s.err.Error())
+			}
+		}()
+	}
+
+	if s.err = s.Init(); s.err != nil {
 		LogErrorf("init broker failed: [%s]", s.err.Error())
 		return s.err
 	}
 
-	s.err = s.Connect()
-	if s.err != nil {
+	if s.err = s.Connect(); s.err != nil {
 		return s.err
 	}
 
 	LogInfof("server listening on: %s", s.Address())
 
-	s.err = s.doRegisterSubscriberMap()
-	if s.err != nil {
+	if s.err = s.doRegisterSubscriberMap(); s.err != nil {
 		return s.err
 	}
 
@@ -92,14 +109,12 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(_ context.Context) error {
+func (s *Server) Stop(ctx context.Context) error {
 	if s.started.Load() == false {
 		return nil
 	}
 
 	LogInfo("server stopping...")
-
-	s.err = nil
 
 	for _, v := range s.subscribers {
 		_ = v.Unsubscribe(false)
@@ -109,6 +124,14 @@ func (s *Server) Stop(_ context.Context) error {
 
 	s.started.Store(false)
 	err := s.Disconnect()
+	s.err = nil
+
+	if s.keepaliveServer != nil {
+		if err := s.keepaliveServer.Stop(ctx); err != nil {
+			LogError("keepalive server stop failed", s.err)
+		}
+		s.keepaliveServer = nil
+	}
 
 	LogInfo("server stopped.")
 
@@ -187,4 +210,12 @@ func (s *Server) doRegisterSubscriberMap() error {
 	}
 	s.subscriberOpts = make(transport.SubscribeOptionMap)
 	return nil
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
+	if s.keepaliveServer == nil {
+		return nil, errors.New("keepalive server is nil")
+	}
+
+	return s.keepaliveServer.Endpoint()
 }
