@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/nsqio/go-nsq v1.1.0
 	github.com/stretchr/testify v1.10.0
-	github.com/tx7do/kratos-transport v1.1.14
+	github.com/tx7do/kratos-transport v1.1.15
 )
 
 require (
