@@ -435,6 +435,12 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
+	if s.keepaliveServer != nil {
+		if err := s.keepaliveServer.Start(ctx); err != nil {
+			LogErrorf("keepalive server start failed: %s", err.Error())
+		}
+	}
+
 	if s.err = s.runAsynqScheduler(); s.err != nil {
 		LogError("run asynq scheduler failed", s.err)
 		return s.err
@@ -483,10 +489,12 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 	s.err = nil
 
-	//if s.keepaliveServer != nil {
-	//	_ = s.keepaliveServer.Stop(ctx)
-	//	s.keepaliveServer = nil
-	//}
+	if s.keepaliveServer != nil {
+		if err := s.keepaliveServer.Stop(ctx); err != nil {
+			LogError("keepalive server stop failed", s.err)
+		}
+		s.keepaliveServer = nil
+	}
 
 	LogInfo("server stopped.")
 
