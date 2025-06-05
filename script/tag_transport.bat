@@ -1,5 +1,5 @@
 git tag transport/activemq/v1.2.20 --force
-git tag transport/asynq/v1.2.22 --force
+git tag transport/asynq/v1.2.23 --force
 git tag transport/fasthttp/v1.2.20 --force
 git tag transport/gin/v1.2.20 --force
 git tag transport/gozero/v1.2.20 --force
