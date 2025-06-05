@@ -9,6 +9,7 @@ require (
 	github.com/hibiken/asynq v0.25.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tx7do/kratos-transport v1.1.16
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.3
 )
 
 require (

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -13,10 +14,12 @@ import (
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/transport/keepalive"
 )
 
 var (
-	_ kratosTransport.Server = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
@@ -43,6 +46,8 @@ type Server struct {
 
 	entryIDs    map[string]string
 	mtxEntryIDs sync.RWMutex
+
+	keepaliveServer *keepalive.Server
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -73,8 +78,32 @@ func NewServer(opts ...ServerOption) *Server {
 	return srv
 }
 
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
+
+	var err error
+	if err = s.createAsynqServer(); err != nil {
+		s.err = err
+		LogError("create asynq server failed:", err)
+	}
+	if err = s.createAsynqClient(); err != nil {
+		s.err = err
+		LogError("create asynq client failed:", err)
+	}
+	if err = s.createAsynqScheduler(); err != nil {
+		s.err = err
+		LogError("create asynq scheduler failed:", err)
+	}
+	if err = s.createAsynqInspector(); err != nil {
+		s.err = err
+		LogError("create asynq inspector failed:", err)
+	}
+}
+
 func (s *Server) Name() string {
-	return string(KindAsynq)
+	return KindAsynq
 }
 
 // RegisterSubscriber register task subscriber
@@ -402,6 +431,10 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
+	s.keepaliveServer = keepalive.NewServer(
+		keepalive.WithServiceKind(KindAsynq),
+	)
+
 	if s.err = s.runAsynqScheduler(); s.err != nil {
 		LogError("run asynq scheduler failed", s.err)
 		return s.err
@@ -419,8 +452,8 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 // Stop the server
-func (s *Server) Stop(_ context.Context) error {
-	LogInfo("server stopping")
+func (s *Server) Stop(ctx context.Context) error {
+	LogInfo("server stopping...")
 
 	s.started.Store(false)
 
@@ -450,32 +483,14 @@ func (s *Server) Stop(_ context.Context) error {
 	}
 	s.err = nil
 
-	LogInfo("server stopped")
+	if s.keepaliveServer != nil {
+		_ = s.keepaliveServer.Stop(ctx)
+		s.keepaliveServer = nil
+	}
+
+	LogInfo("server stopped.")
 
 	return nil
-}
-
-func (s *Server) init(opts ...ServerOption) {
-	for _, o := range opts {
-		o(s)
-	}
-	var err error
-	if err = s.createAsynqServer(); err != nil {
-		s.err = err
-		LogError("create asynq server failed:", err)
-	}
-	if err = s.createAsynqClient(); err != nil {
-		s.err = err
-		LogError("create asynq client failed:", err)
-	}
-	if err = s.createAsynqScheduler(); err != nil {
-		s.err = err
-		LogError("create asynq scheduler failed:", err)
-	}
-	if err = s.createAsynqInspector(); err != nil {
-		s.err = err
-		LogError("create asynq inspector failed:", err)
-	}
 }
 
 // createAsynqServer create asynq server
@@ -568,4 +583,12 @@ func (s *Server) createAsynqInspector() error {
 		return errors.New("create asynq inspector failed")
 	}
 	return nil
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
+	if s.keepaliveServer == nil {
+		return nil, errors.New("keepalive server is nil")
+	}
+
+	return s.keepaliveServer.Endpoint()
 }

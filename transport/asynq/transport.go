@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindAsynq kratosTransport.Kind = "asynq"
+	KindAsynq = "asynq"
 )
 
 var _ kratosTransport.Transporter = &Transport{}
