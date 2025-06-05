@@ -24,6 +24,7 @@ var (
 
 type Server struct {
 	sync.RWMutex
+
 	started atomic.Bool
 
 	baseCtx context.Context
@@ -210,6 +211,10 @@ func (s *Server) handleFunc(pattern string, handler func(context.Context, *asynq
 
 // NewTask enqueue a new task
 func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
+	if !s.started.Load() {
+		return errors.New("cannot create task, server already started")
+	}
+
 	if typeName == "" {
 		return errors.New("typeName cannot be empty")
 	}
@@ -245,6 +250,10 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 
 // NewWaitResultTask enqueue a new task and wait for the result
 func (s *Server) NewWaitResultTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
+	if !s.started.Load() {
+		return errors.New("cannot create task, server already started")
+	}
+
 	if typeName == "" {
 		return errors.New("typeName cannot be empty")
 	}
@@ -309,6 +318,10 @@ func waitResult(intor *asynq.Inspector, info *asynq.TaskInfo) (*asynq.TaskInfo, 
 
 // NewPeriodicTask enqueue a new crontab task
 func (s *Server) NewPeriodicTask(cronSpec, taskId, typeName string, msg broker.Any, opts ...asynq.Option) (string, error) {
+	if !s.started.Load() {
+		return "", errors.New("cannot create periodic task, server already started")
+	}
+
 	if cronSpec == "" {
 		return "", errors.New("cronSpec cannot be empty")
 	}
@@ -459,6 +472,10 @@ func (s *Server) Start(ctx context.Context) error {
 
 // Stop the server
 func (s *Server) Stop(ctx context.Context) error {
+	if !s.started.Load() {
+		return nil
+	}
+
 	LogInfo("server stopping...")
 
 	s.started.Store(false)

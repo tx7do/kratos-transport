@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/philippseith/signalr"
@@ -77,7 +76,7 @@ func (s *Server) Start(_ context.Context) error {
 		return s.err
 	}
 
-	log.Infof("[signalr] server listening on: %s", s.lis.Addr().String())
+	LogInfof("server listening on: %s", s.lis.Addr().String())
 
 	//handler := handlers.CORS(
 	//	handlers.AllowedMethods([]string{"GET", "POST", "OPTIONS"}),
@@ -103,12 +102,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[signalr] server stopping...")
+	LogInfo("server stopping...")
 
 	err := s.lis.Close()
 	s.err = nil
 
-	log.Info("[signalr] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

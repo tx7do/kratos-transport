@@ -65,7 +65,7 @@ func (c *Session) closeConnect() {
 	//LogInfo(c.SessionID(), " connection closed")
 	if c.conn != nil {
 		if err := c.conn.Close(); err != nil {
-			LogErrorf("[tcp] disconnect error: %s", err.Error())
+			LogErrorf("disconnect error: %s", err.Error())
 		}
 		c.conn = nil
 	}
@@ -83,7 +83,7 @@ func (c *Session) writePump() {
 			}
 			var err error
 			if _, err = c.conn.Write(msg); err != nil {
-				LogError("[tcp] write message error: ", err)
+				LogError("write message error: ", err)
 				return
 			}
 		}
@@ -103,12 +103,12 @@ func (c *Session) readPump() {
 		}
 
 		if readLen, err = c.conn.Read(buf); err != nil {
-			LogErrorf("[tcp] read message error: %v", err)
+			LogErrorf("read message error: %v", err)
 			return
 		}
 
 		if err = c.server.handleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
-			LogErrorf("[tcp] process message error: %v", err)
+			LogErrorf("process message error: %v", err)
 		}
 	}
 }

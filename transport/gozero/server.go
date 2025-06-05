@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -76,7 +75,7 @@ func (s *Server) Start(_ context.Context) error {
 		return err
 	}
 
-	log.Infof("[go-zero] server listening on: %d", s.cfg.Port)
+	LogInfof("server listening on: %d", s.cfg.Port)
 
 	s.Server.Start()
 
@@ -84,12 +83,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[go-zero] server stopping...")
+	LogInfo("server stopping...")
 
 	s.Server.Stop()
 	s.err = nil
 
-	log.Info("[go-zero] server stopped")
+	LogInfo("server stopped")
 
 	return nil
 }

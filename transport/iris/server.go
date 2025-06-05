@@ -11,7 +11,6 @@ import (
 	"github.com/kataras/iris/v12"
 
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/transport"
@@ -86,7 +85,7 @@ func (s *Server) Start(_ context.Context) error {
 		return s.err
 	}
 
-	log.Infof("[Iris] server listening on: %s", s.addr)
+	LogInfof("server listening on: %s", s.addr)
 
 	var err error
 	if len(s.certFile) != 0 && len(s.keyFile) != 0 {
@@ -102,12 +101,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[Iris] server stopping...")
+	LogInfo("server stopping...")
 
 	err := s.Application.Shutdown(ctx)
 	s.err = nil
 
-	log.Info("[Iris] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

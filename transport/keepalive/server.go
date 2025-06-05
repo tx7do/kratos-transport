@@ -104,14 +104,14 @@ func (s *Server) Stop(_ context.Context) error {
 		return nil
 	}
 
-	log.Infof("%s server stopping...", s.serviceKind)
+	log.Infof("[%s] server stopping...", s.serviceKind)
 
 	s.started.Store(false)
 
 	s.health.Shutdown()
 	s.GracefulStop()
 
-	log.Infof("%s service stopped", s.serviceKind)
+	log.Infof("[%s] service stopped", s.serviceKind)
 
 	return nil
 }

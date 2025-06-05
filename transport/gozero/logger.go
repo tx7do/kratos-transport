@@ -1,4 +1,4 @@
-package trpc
+package gozero
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	logKey = "[" + KindTRPC + "]"
+	logKey = "[" + KindGoZero + "]"
 )
 
 ///

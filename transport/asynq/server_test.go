@@ -3,7 +3,6 @@ package asynq
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -51,7 +50,7 @@ func TestNewTaskOnly(t *testing.T) {
 
 	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	srv := NewServer(
 		WithRedisConnOpt(redisConnOpt),
@@ -89,7 +88,7 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 
 	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	srv := NewServer(
 		WithRedisConnOpt(redisConnOpt),
@@ -128,7 +127,7 @@ func TestDelayTask(t *testing.T) {
 
 	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	srv := NewServer(
 		WithRedisConnOpt(redisConnOpt),
@@ -178,7 +177,7 @@ func TestPeriodicTask(t *testing.T) {
 
 	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	srv := NewServer(
 		WithRedisConnOpt(redisConnOpt),
@@ -219,7 +218,7 @@ func TestTaskSubscribe(t *testing.T) {
 
 	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	srv := NewServer(
 		WithRedisConnOpt(redisConnOpt),
@@ -258,7 +257,7 @@ func TestAllInOne(t *testing.T) {
 
 	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	srv := NewServer(
 		WithRedisConnOpt(redisConnOpt),
@@ -320,7 +319,7 @@ func TestWaitResultTask(t *testing.T) {
 
 	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
 	srv := NewServer(
 		WithRedisConnOpt(redisConnOpt),

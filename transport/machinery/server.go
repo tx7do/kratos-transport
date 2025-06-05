@@ -299,7 +299,7 @@ func (s *Server) registerTask(name string, handler interface{}) error {
 func (s *Server) newWorker(consumerTag string, concurrency int, queue string) error {
 	worker := s.machineryServer.NewCustomQueueWorker(consumerTag, concurrency, queue)
 	if worker == nil {
-		return errors.New("[machinery] create worker failed")
+		return errors.New("create worker failed")
 	}
 
 	worker.SetPreTaskHandler(func(signature *tasks.Signature) {
@@ -340,7 +340,7 @@ func (s *Server) newTask(cronSpec, lockName, typeName string, opts ...TaskOption
 
 func (s *Server) newGroup(cronSpec, lockName string, concurrency int, groupTasks ...TasksOption) error {
 	if len(groupTasks) == 0 {
-		return errors.New("[machinery] group task is empty")
+		return errors.New("group task is empty")
 	}
 
 	var signatures = make([]*tasks.Signature, 0, len(groupTasks))
@@ -350,7 +350,7 @@ func (s *Server) newGroup(cronSpec, lockName string, concurrency int, groupTasks
 	}
 
 	if len(signatures) == 0 {
-		return errors.New("[machinery] group task is empty")
+		return errors.New("group task is empty")
 	}
 
 	var err error
@@ -378,7 +378,7 @@ func (s *Server) newGroup(cronSpec, lockName string, concurrency int, groupTasks
 
 func (s *Server) newChord(cronSpec, lockName string, concurrency int, groupTasks ...TasksOption) error {
 	if len(groupTasks) < 2 {
-		return errors.New("[machinery] chord task is empty")
+		return errors.New("chord task is empty")
 	}
 
 	var signatures = make([]*tasks.Signature, 0, len(groupTasks))
@@ -420,7 +420,7 @@ func (s *Server) newChord(cronSpec, lockName string, concurrency int, groupTasks
 
 func (s *Server) newChain(cronSpec, lockName string, chainTasks ...TasksOption) error {
 	if len(chainTasks) == 0 {
-		return errors.New("[machinery] chain task is empty")
+		return errors.New("chain task is empty")
 	}
 
 	var signatures = make([]*tasks.Signature, 0, len(chainTasks))
@@ -430,7 +430,7 @@ func (s *Server) newChain(cronSpec, lockName string, chainTasks ...TasksOption) 
 	}
 
 	if len(signatures) == 0 {
-		return errors.New("[machinery] chain task is empty")
+		return errors.New("chain task is empty")
 	}
 
 	var err error

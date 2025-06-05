@@ -14,7 +14,6 @@ import (
 	"github.com/quic-go/quic-go"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	"github.com/tx7do/kratos-transport/broker"
 
@@ -130,10 +129,10 @@ func (s *Server) Start(_ context.Context) error {
 		return err
 	}
 
-	log.Infof("[webtransport] server listening on: %s", s.Addr)
+	LogInfof("server listening on: %s", s.Addr)
 
 	if err := s.ListenAndServe(); err != nil {
-		log.Errorf("[webtransport] start server failed: %s", err.Error())
+		LogErrorf("start server failed: %s", err.Error())
 		return err
 	}
 
@@ -141,7 +140,7 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[webtransport] server stopping...")
+	LogInfo("server stopping...")
 
 	if s.ctxCancel != nil {
 		s.ctxCancel()
@@ -150,7 +149,7 @@ func (s *Server) Stop(_ context.Context) error {
 	err := s.Server.Close()
 	s.refCount.Wait()
 
-	log.Info("[webtransport] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }
@@ -189,13 +188,13 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
-		log.Errorf("[webtransport] decode message exception: %s", err)
+		LogErrorf("decode message exception: %s", err)
 		return err
 	}
 
 	handlerData, ok := s.messageHandlers[msg.Type]
 	if !ok {
-		log.Error("[webtransport] message type not found:", msg.Type)
+		LogError("message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}
 
@@ -208,12 +207,12 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 	}
 
 	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
-		log.Errorf("[webtransport] unmarshal message exception: %s", err)
+		LogErrorf("unmarshal message exception: %s", err)
 		return err
 	}
 
 	if err := handlerData.Handler(sessionId, payload); err != nil {
-		log.Errorf("[webtransport] message handler exception: %s", err)
+		LogErrorf("message handler exception: %s", err)
 		return err
 	}
 

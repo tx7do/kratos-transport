@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	socketIo "github.com/googollee/go-socket.io"
@@ -72,11 +71,11 @@ func (s *Server) Start(_ context.Context) error {
 		return s.err
 	}
 
-	log.Infof("[socket.io] server listening on: %s", s.address)
+	LogInfof("server listening on: %s", s.address)
 
 	go func() {
 		if err := s.Server.Serve(); err != nil {
-			log.Fatalf("socketio listen error: %s\n", err)
+			LogFatalf("socketio listen error: %s\n", err)
 		}
 	}()
 
@@ -95,13 +94,13 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[socket.io] server stopping...")
+	LogInfo("server stopping...")
 
 	//_ = s.lis.Close()
 	err := s.Server.Close()
 	s.err = nil
 
-	log.Info("[socket.io] server stopped")
+	LogInfo("server stopped")
 
 	return err
 }

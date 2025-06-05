@@ -53,7 +53,7 @@ func (s *SessionManager) Add(session *Session) {
 	s.sessions[session.SessionID()] = session
 	s.mtx.Unlock()
 
-	//log.Info("[websocket] add session: ", session.SessionID())
+	//LogInfo("add session: ", session.SessionID())
 
 	if s.connectHandler != nil {
 		s.connectHandler(session.SessionID(), session.queries, true)
@@ -65,7 +65,7 @@ func (s *SessionManager) Remove(session *Session) {
 
 	for k, v := range s.sessions {
 		if session == v {
-			//log.Info("[websocket] remove session: ", session.SessionID())
+			//LogInfo("remove session: ", session.SessionID())
 			delete(s.sessions, k)
 			s.mtx.Unlock()
 

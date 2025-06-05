@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +51,7 @@ func TestServerExistingStreamPublish(t *testing.T) {
 			if sub.URL != nil {
 				token = sub.URL.Query().Get("token")
 			}
-			log.Infof("subscriber [%s] [%+v] connected", streamID, token)
+			LogInfof("subscriber [%s] [%+v] connected", streamID, token)
 		}),
 	)
 	defer s.Stop(ctx)

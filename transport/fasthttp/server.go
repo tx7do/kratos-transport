@@ -12,7 +12,6 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
@@ -112,7 +111,7 @@ func (s *Server) Start(_ context.Context) error {
 		return err
 	}
 
-	log.Infof("[fasthttp] server listening on: %s", s.address)
+	LogInfof("server listening on: %s", s.address)
 
 	var err error
 	if s.tlsConf != nil {
@@ -128,12 +127,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[fasthttp] server stopping...")
+	LogInfo("server stopping...")
 
 	err := s.Server.Shutdown()
 	s.err = nil
 
-	log.Info("[fasthttp] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

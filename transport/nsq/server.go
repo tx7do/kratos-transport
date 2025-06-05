@@ -68,7 +68,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.err = s.Init()
 	if s.err != nil {
-		LogErrorf("[nsq] init broker failed: [%s]", s.err.Error())
+		LogErrorf("init broker failed: [%s]", s.err.Error())
 		return s.err
 	}
 

@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
@@ -108,7 +107,7 @@ func (s *Server) Start(_ context.Context) error {
 		return err
 	}
 
-	log.Infof("[GIN] server listening on: %s", s.address)
+	LogInfof("server listening on: %s", s.address)
 
 	var err error
 	if s.tlsConf != nil {
@@ -124,12 +123,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[GIN] server stopping...")
+	LogInfo("server stopping...")
 
 	err := s.server.Shutdown(ctx)
 	s.err = nil
 
-	log.Info("[GIN] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

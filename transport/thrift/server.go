@@ -10,7 +10,6 @@ import (
 
 	"github.com/apache/thrift/lib/go/thrift"
 
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/transport"
@@ -124,7 +123,7 @@ func (s *Server) Start(_ context.Context) error {
 		return err
 	}
 
-	log.Infof("[redis] server listening on: %s", s.address)
+	LogInfof("server listening on: %s", s.address)
 
 	s.Server = thrift.NewTSimpleServer4(s.processor, serverTransport, transportFactory, protocolFactory)
 	if err := s.Server.Serve(); err != nil {
@@ -135,7 +134,7 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[thrift] server stopping...")
+	LogInfo("server stopping...")
 
 	var err error
 
@@ -143,7 +142,7 @@ func (s *Server) Stop(_ context.Context) error {
 		err = s.Server.Stop()
 	}
 
-	log.Info("[thrift] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

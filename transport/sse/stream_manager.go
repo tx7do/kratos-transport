@@ -63,7 +63,7 @@ func (s *StreamManager) Add(stream *Stream) {
 		return
 	}
 
-	//log.Info("[sse] add stream: ", stream.StreamID())
+	//LogInfo("add stream: ", stream.StreamID())
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	s.streams[stream.StreamID()] = stream
@@ -85,7 +85,7 @@ func (s *StreamManager) Remove(stream *Stream) {
 
 	for k, v := range s.streams {
 		if stream == v {
-			//log.Info("[sse] remove stream: ", stream.StreamID())
+			//LogInfo("remove stream: ", stream.StreamID())
 			s.streams[k].close()
 			delete(s.streams, k)
 			return

@@ -3,7 +3,6 @@ package kafka
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -32,10 +31,9 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 
 func loggingMiddlerware(next broker.Handler) broker.Handler {
 	return func(ctx context.Context, evt broker.Event) error {
-		log.Println("1")
 		err := next(ctx, evt)
 		if err != nil {
-			log.Printf("err is %+v", err)
+			LogErrorf("err is %+v", err)
 		}
 		return nil
 	}
@@ -45,10 +43,10 @@ func recoveryMiddlerware(next broker.Handler) broker.Handler {
 	return func(ctx context.Context, evt broker.Event) error {
 		defer func() {
 			if rerr := recover(); rerr != nil {
-				log.Println(rerr)
+				LogError(rerr)
 			}
 		}()
-		log.Println("recover middleware")
+		LogInfo("recover middleware")
 		return next(ctx, evt)
 	}
 }

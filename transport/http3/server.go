@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
@@ -115,10 +114,10 @@ func (s *Server) Start(_ context.Context) error {
 		return s.err
 	}
 
-	log.Infof("[HTTP3] server listening on: %s", s.Addr)
+	LogInfof("server listening on: %s", s.Addr)
 
 	if err := s.ListenAndServe(); err != nil {
-		log.Errorf("[HTTP3] start server failed: %s", err.Error())
+		LogErrorf("start server failed: %s", err.Error())
 		return err
 	}
 
@@ -126,12 +125,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[HTTP3] server stopping...")
+	LogInfo("server stopping...")
 
 	err := s.Close()
 	s.err = nil
 
-	log.Info("[HTTP3] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

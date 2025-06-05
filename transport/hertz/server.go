@@ -10,7 +10,6 @@ import (
 
 	hertz "github.com/cloudwego/hertz/pkg/app/server"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-kratos/kratos/v2/middleware"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
@@ -92,18 +91,18 @@ func (s *Server) Start(_ context.Context) error {
 		return err
 	}
 
-	log.Infof("[hertz] server listening on: %s", s.addr)
+	LogInfof("server listening on: %s", s.addr)
 
 	return s.Hertz.Run()
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[hertz] server stopping...")
+	LogInfo("server stopping...")
 
 	err := s.Hertz.Shutdown(ctx)
 	s.err = nil
 
-	log.Info("[hertz] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

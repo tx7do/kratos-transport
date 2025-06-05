@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
-	"github.com/go-kratos/kratos/v2/log"
-
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/tx7do/kratos-transport/broker"
@@ -102,13 +100,13 @@ func (c *Client) Connect() error {
 		return fmt.Errorf("received status %d", rsp.StatusCode)
 	}
 
-	log.Infof("[webtransport] client connected to: %s", c.url)
+	LogInfof("client connected to: %s", c.url)
 
 	return nil
 }
 
 func (c *Client) Disconnect() error {
-	log.Info("[webtransport] client stopping")
+	LogInfo("client stopping")
 	return nil
 }
 
@@ -169,13 +167,13 @@ func (c *Client) newWebTransportRequest() (*http.Request, error) {
 func (c *Client) messageHandler(buf []byte) error {
 	var msg Message
 	if err := msg.Unmarshal(buf); err != nil {
-		log.Errorf("[webtransport] decode message exception: %s", err)
+		LogErrorf("decode message exception: %s", err)
 		return err
 	}
 
 	handlerData, ok := c.messageHandlers[msg.Type]
 	if !ok {
-		log.Error("[webtransport] message type not found:", msg.Type)
+		LogError("message type not found:", msg.Type)
 		return errors.New("message handler not found")
 	}
 
@@ -188,12 +186,12 @@ func (c *Client) messageHandler(buf []byte) error {
 	}
 
 	if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
-		log.Errorf("[webtransport] unmarshal message exception: %s", err)
+		LogErrorf("unmarshal message exception: %s", err)
 		return err
 	}
 
 	if err := handlerData.Handler(payload); err != nil {
-		log.Errorf("[webtransport] message handler exception: %s", err)
+		LogErrorf("message handler exception: %s", err)
 		return err
 	}
 

@@ -3,7 +3,6 @@ package graphql
 import (
 	"context"
 	"crypto/tls"
-	"github.com/tx7do/kratos-transport/transport"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,8 +14,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -122,7 +122,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	log.Infof("server listening on: %s", s.lis.Addr().String())
+	LogInfof("server listening on: %s", s.lis.Addr().String())
 	var err error
 	if s.tlsConf != nil {
 		err = s.ServeTLS(s.lis, "", "")
@@ -136,12 +136,12 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[graphql] server stopping...")
+	LogInfo("server stopping...")
 
 	err := s.Shutdown(ctx)
 	s.err = nil
 
-	log.Info("[graphql] server stopped.")
+	LogInfo("server stopped.")
 
 	return err
 }

@@ -3,7 +3,6 @@ package sse
 import (
 	"context"
 	"crypto/tls"
-	"github.com/tx7do/kratos-transport/transport"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 type MessagePayload any
