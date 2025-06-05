@@ -83,6 +83,10 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
+	s.keepaliveServer = keepalive.NewServer(
+		keepalive.WithServiceKind(KindAsynq),
+	)
+
 	var err error
 	if err = s.createAsynqServer(); err != nil {
 		s.err = err
@@ -431,10 +435,6 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	s.keepaliveServer = keepalive.NewServer(
-		keepalive.WithServiceKind(KindAsynq),
-	)
-
 	if s.err = s.runAsynqScheduler(); s.err != nil {
 		LogError("run asynq scheduler failed", s.err)
 		return s.err
@@ -483,10 +483,10 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 	s.err = nil
 
-	if s.keepaliveServer != nil {
-		_ = s.keepaliveServer.Stop(ctx)
-		s.keepaliveServer = nil
-	}
+	//if s.keepaliveServer != nil {
+	//	_ = s.keepaliveServer.Stop(ctx)
+	//	s.keepaliveServer = nil
+	//}
 
 	LogInfo("server stopped.")
 
