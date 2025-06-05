@@ -6,15 +6,12 @@ toolchain go1.24.3
 
 require (
 	github.com/go-kratos/kratos/v2 v2.8.4
-	github.com/golang/mock v1.6.0
 	github.com/quic-go/quic-go v0.52.0
-	github.com/stretchr/testify v1.10.0
 	github.com/tx7do/kratos-transport v1.1.14
 )
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.2.1 // indirect
@@ -24,7 +21,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/onsi/ginkgo/v2 v2.23.4 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.36.0 // indirect
