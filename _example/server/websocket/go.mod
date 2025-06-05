@@ -6,7 +6,7 @@ toolchain go1.24.3
 
 require (
 	github.com/go-kratos/kratos/v2 v2.8.4
-	github.com/tx7do/kratos-transport/transport/websocket v1.2.21
+	github.com/tx7do/kratos-transport/transport/websocket v1.2.22
 )
 
 require (
