@@ -108,7 +108,7 @@ func TestClient(t *testing.T) {
 	cli, err := kHttp.NewClient(ctx,
 		kHttp.WithEndpoint("127.0.0.1:8800"),
 		kHttp.WithTLSConfig(tlsConf),
-		kHttp.WithTransport(&http3.RoundTripper{TLSClientConfig: tlsConf, QuicConfig: &qconf}),
+		kHttp.WithTransport(&http3.Transport{TLSClientConfig: tlsConf, QUICConfig: &qconf}),
 	)
 	assert.Nil(t, err)
 	assert.NotNil(t, cli)

@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -15,8 +14,6 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/quic-go/quic-go/quicvarint"
-
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -38,9 +35,6 @@ type Client struct {
 	tlsConf *tls.Config
 
 	url string
-
-	sessions *sessionManager
-	session  *Session
 
 	codec           encoding.Codec
 	messageHandlers ClientMessageHandlerMap
@@ -67,7 +61,6 @@ func (c *Client) init(opts ...ClientOption) {
 	if timeout == 0 {
 		timeout = 5 * time.Second
 	}
-	c.sessions = newSessionManager(timeout)
 
 	if c.tlsConf == nil {
 		c.tlsConf = &tls.Config{
@@ -83,30 +76,6 @@ func (c *Client) init(opts ...ClientOption) {
 		c.transport.AdditionalSettings = make(map[uint64]uint64)
 	}
 
-	c.transport.StreamHijacker = func(ft http3.FrameType, conn quic.ConnectionTracingID, str quic.Stream, e error) (hijacked bool, err error) {
-		if isWebTransportError(e) {
-			return true, nil
-		}
-		if ft != webTransportFrameType {
-			return false, nil
-		}
-		_, err = quicvarint.Read(quicvarint.NewReader(str))
-		if err != nil {
-			if isWebTransportError(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		//c.sessions.AddStream(conn, str, SessionID(id))
-		return true, nil
-	}
-	c.transport.UniStreamHijacker = func(st http3.StreamType, conn quic.ConnectionTracingID, str quic.ReceiveStream, err error) (hijacked bool) {
-		if st != webTransportUniStreamType && !isWebTransportError(err) {
-			return false
-		}
-		//c.sessions.AddUniStream(conn, str)
-		return true
-	}
 	if c.transport.QUICConfig == nil {
 		c.transport.QUICConfig = &quic.Config{}
 	}
@@ -132,17 +101,6 @@ func (c *Client) Connect() error {
 	if rsp.StatusCode < 200 || rsp.StatusCode >= 300 {
 		return fmt.Errorf("received status %d", rsp.StatusCode)
 	}
-
-	stream := rsp.Body.(http3.HTTPStreamer).HTTPStream()
-	session := c.sessions.AddSession(
-		rsp.Body.(http3.Hijacker).Connection(),
-		SessionID(stream.StreamID()),
-		stream,
-	)
-
-	c.session = session
-
-	go c.doAcceptStream(session)
 
 	log.Infof("[webtransport] client connected to: %s", c.url)
 
@@ -184,56 +142,7 @@ func (c *Client) SendMessage(messageType int, message interface{}) error {
 }
 
 func (c *Client) SendRawData(data []byte) error {
-	if c.session == nil {
-		return errors.New("[webtransport] send data failed, not connected")
-	}
-
-	aStream, err := c.session.OpenStream()
-	if err != nil {
-		log.Error("[webtransport] open qStream failed: ", err.Error())
-		return err
-	}
-	defer aStream.Close()
-
-	_, err = aStream.Write(data)
-	if err != nil {
-		log.Error("[webtransport] write qStream failed: ", err.Error())
-		return err
-	}
-
 	return nil
-}
-
-func (c *Client) doAcceptStream(session *Session) {
-	for {
-		acceptStream, err := session.AcceptStream(c.ctx)
-		if err != nil {
-			log.Debug("[webtransport] accept stream failed: ", err.Error())
-			break
-		}
-		data, err := io.ReadAll(acceptStream)
-		if err != nil {
-			log.Error("[webtransport] read data failed: ", err.Error())
-		}
-		// log.Debug("[webtransport] receive data: ", string(data))
-		_ = c.messageHandler(data)
-	}
-}
-
-func (c *Client) doAcceptUniStream(session *Session) {
-	for {
-		acceptStream, err := session.AcceptUniStream(c.ctx)
-		if err != nil {
-			log.Debug("[webtransport] accept uni stream failed: ", err.Error())
-			break
-		}
-		data, err := io.ReadAll(acceptStream)
-		if err != nil {
-			log.Error("[webtransport] read uni data failed: ", err.Error())
-		}
-		//log.Debug("[webtransport] receive uni data: ", string(data))
-		_ = c.messageHandler(data)
-	}
 }
 
 func (c *Client) newWebTransportRequest() (*http.Request, error) {

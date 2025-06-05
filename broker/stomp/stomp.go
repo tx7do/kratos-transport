@@ -198,7 +198,7 @@ func (b *stompBroker) publish(ctx context.Context, topic string, msg []byte, opt
 		o(&options)
 	}
 
-	stompOpt := make([]func(*frameV3.Frame) error, 0, 0)
+	stompOpt := make([]func(*frameV3.Frame) error, 0)
 
 	span := b.startProducerSpan(options.Context, topic, &stompOpt)
 

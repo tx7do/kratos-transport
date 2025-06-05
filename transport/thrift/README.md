@@ -272,11 +272,13 @@ service HygrothermographService {
 ```go
 package server
 
+import "context"
+
 type HygrothermographHandler struct {
 }
 
 func NewHygrothermographHandler() *HygrothermographHandler {
-    return &HygrothermographHandler{}
+  return &HygrothermographHandler{}
 }
 
 func (p *HygrothermographHandler) GetHygrothermograph(ctx context.Context) (_r *api.Hygrothermograph, _err error) {

@@ -54,7 +54,7 @@ func TestServer(t *testing.T) {
 				return errors.New("invalid payload type")
 			}
 		},
-		func() Any { return &api.ChatMessage{} },
+		func() any { return &api.ChatMessage{} },
 	)
 
 	if err := srv.Start(ctx); err != nil {

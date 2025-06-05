@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"github.com/quic-go/quic-go"
-	"io"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/quic-go/quic-go"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
@@ -17,20 +17,7 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 
 	"github.com/quic-go/quic-go/http3"
-	"github.com/quic-go/quic-go/quicvarint"
 )
-
-type Binder func() Any
-
-type ConnectHandler func(SessionID, bool)
-
-type MessageHandler func(SessionID, MessagePayload) error
-
-type HandlerData struct {
-	Handler MessageHandler
-	Binder  Binder
-}
-type MessageHandlerMap map[MessageType]HandlerData
 
 var (
 	_ kratosTransport.Server     = (*Server)(nil)
@@ -44,7 +31,6 @@ type Server struct {
 	endpoint *url.URL
 	timeout  time.Duration
 
-	upgrader    *Upgrader
 	mux         *http.ServeMux
 	path        string
 	strictSlash bool
@@ -56,8 +42,6 @@ type Server struct {
 	messageHandlers MessageHandlerMap
 	connectHandler  ConnectHandler
 	codec           encoding.Codec
-
-	sessions *sessionManager
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -66,9 +50,7 @@ func NewServer(opts ...ServerOption) *Server {
 		ctx:       ctx,
 		ctxCancel: ctxCancel,
 		mux:       http.NewServeMux(),
-		upgrader: &Upgrader{
-			CheckOrigin: func(r *http.Request) bool { return true },
-		},
+
 		messageHandlers: make(MessageHandlerMap),
 		codec:           encoding.GetCodec("json"),
 	}
@@ -100,36 +82,9 @@ func (s *Server) init(opts ...ServerOption) {
 	if timeout == 0 {
 		timeout = 5 * time.Second
 	}
-	s.sessions = newSessionManager(timeout)
 
 	if s.Server.AdditionalSettings == nil {
 		s.Server.AdditionalSettings = make(map[uint64]uint64)
-	}
-	s.Server.AdditionalSettings[settingsEnableWebtransport] = 1
-	s.Server.EnableDatagrams = true
-	s.Server.StreamHijacker = func(ft http3.FrameType, qConn quic.ConnectionTracingID, qStream quic.Stream, err error) (bool /* hijacked */, error) {
-		if isWebTransportError(err) {
-			return true, nil
-		}
-		if ft != webTransportFrameType {
-			return false, nil
-		}
-		_, err = quicvarint.Read(quicvarint.NewReader(qStream))
-		if err != nil {
-			if isWebTransportError(err) {
-				return true, nil
-			}
-			return false, err
-		}
-		//s.sessions.AddStream(qConn, qStream, SessionID(id))
-		return true, nil
-	}
-	s.Server.UniStreamHijacker = func(st http3.StreamType, qConn quic.ConnectionTracingID, qStream quic.ReceiveStream, err error) (hijacked bool) {
-		if st != webTransportUniStreamType && !isWebTransportError(err) {
-			return false
-		}
-		//s.sessions.AddUniStream(qConn, qStream)
-		return true
 	}
 
 	s.mux.HandleFunc(s.path, s.addHandler)
@@ -158,14 +113,14 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) Stop(ctx context.Context) error {
 	log.Info("[webtransport] server stopping")
+
 	if s.ctxCancel != nil {
 		s.ctxCancel()
 	}
-	if s.sessions != nil {
-		s.sessions.Close()
-	}
+
 	err := s.Server.Close()
 	s.refCount.Wait()
+
 	return err
 }
 
@@ -235,69 +190,4 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 }
 
 func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
-	httpStreamer, err := s.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Error("[webtransport] upgrade exception:", err)
-		w.WriteHeader(404)
-		return
-	}
-
-	httpStream := httpStreamer.HTTPStream()
-	sID := SessionID(httpStream.StreamID())
-
-	hijacker, ok := w.(http3.Hijacker)
-	if !ok { // should never happen, unless quic-go changed the API
-		log.Error("[webtransport] failed to hijack")
-		return
-	}
-
-	aSession := s.sessions.AddSession(
-		hijacker.Connection(),
-		sID,
-		r.Body.(http3.HTTPStreamer).HTTPStream(),
-	)
-
-	if s.connectHandler != nil {
-		s.connectHandler(aSession.SessionID(), true)
-	}
-
-	go s.doAcceptStream(aSession)
-}
-
-func (s *Server) doAcceptStream(session *Session) {
-	for {
-		acceptStream, err := session.AcceptStream(s.ctx)
-		if err != nil {
-			log.Debug("[webtransport] accept stream failed: ", err.Error())
-			if s.connectHandler != nil {
-				s.connectHandler(session.SessionID(), false)
-			}
-			break
-		}
-		data, err := io.ReadAll(acceptStream)
-		if err != nil {
-			log.Error("[webtransport] read data failed: ", err.Error())
-		}
-		//log.Debug("receive data: ", string(data))
-		_ = s.messageHandler(session.SessionID(), data)
-	}
-}
-
-func (s *Server) doAcceptUniStream(session *Session) {
-	for {
-		acceptStream, err := session.AcceptUniStream(s.ctx)
-		if err != nil {
-			log.Debug("[webtransport] accept uni stream failed: ", err.Error())
-			if s.connectHandler != nil {
-				s.connectHandler(session.SessionID(), false)
-			}
-			break
-		}
-		data, err := io.ReadAll(acceptStream)
-		if err != nil {
-			log.Error("[webtransport] read uni data failed: ", err.Error())
-		}
-		//log.Debug("receive data: ", string(data))
-		_ = s.messageHandler(session.SessionID(), data)
-	}
 }

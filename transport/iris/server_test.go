@@ -43,7 +43,7 @@ func TestServer(t *testing.T) {
 		var out api.Hygrothermograph
 		out.Humidity = strconv.FormatInt(int64(rand.Intn(100)), 10)
 		out.Temperature = strconv.FormatInt(int64(rand.Intn(100)), 10)
-		_, _ = ctx.JSON(&out)
+		_ = ctx.JSON(&out)
 	})
 
 	if err := srv.Start(ctx); err != nil {

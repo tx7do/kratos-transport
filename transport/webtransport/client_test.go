@@ -40,7 +40,7 @@ func TestClient(t *testing.T) {
 				return errors.New("invalid payload type")
 			}
 		},
-		func() Any { return &api.ChatMessage{} },
+		func() any { return &api.ChatMessage{} },
 	)
 
 	err := cli.Connect()

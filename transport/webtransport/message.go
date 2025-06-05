@@ -5,10 +5,6 @@ import (
 	"encoding/binary"
 )
 
-type Any interface{}
-type MessageType uint32
-type MessagePayload Any
-
 type Message struct {
 	Type MessageType
 	Body []byte
