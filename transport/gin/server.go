@@ -3,9 +3,9 @@ package gin
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +15,8 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -28,7 +30,11 @@ type Server struct {
 
 	tlsConf *tls.Config
 	timeout time.Duration
-	addr    string
+
+	network  string
+	address  string
+	endpoint *url.URL
+	lis      net.Listener
 
 	err error
 
@@ -41,6 +47,7 @@ type Server struct {
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
+		network: "tcp",
 		timeout: 1 * time.Second,
 		dec:     kHttp.DefaultRequestDecoder,
 		enc:     kHttp.DefaultResponseEncoder,
@@ -60,41 +67,54 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	s.server = &http.Server{
-		Addr:      s.addr,
+		Addr:      s.address,
 		Handler:   s.Engine,
 		TLSConfig: s.tlsConf,
 	}
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.addr
-
-	prefix := "http://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "http://") {
-			prefix = "http://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "https://") {
-			prefix = "https://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
-
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-
-	return endpoint, s.err
+	return s.endpoint, nil
 }
 
-func (s *Server) Start(ctx context.Context) error {
-	log.Infof("[GIN] server listening on: %s", s.addr)
+func (s *Server) listenAndEndpoint() error {
+	if s.lis == nil {
+		lis, err := net.Listen(s.network, s.address)
+		if err != nil {
+			return err
+		}
+		s.lis = lis
+	}
+
+	if s.endpoint == nil {
+		// 如果传入的是完整的ip地址，则不需要调整。
+		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
+		addr, err := transport.AdjustAddress(s.address, s.lis)
+		if err != nil {
+			return err
+		}
+
+		s.endpoint = &url.URL{Scheme: KindGin, Host: addr}
+	}
+
+	return nil
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if err := s.listenAndEndpoint(); err != nil {
+		return err
+	}
+
+	log.Infof("[GIN] server listening on: %s", s.address)
 
 	var err error
 	if s.tlsConf != nil {
-		err = s.server.ListenAndServeTLS("", "")
+		err = s.server.ServeTLS(s.lis, "", "")
 	} else {
-		err = s.server.ListenAndServe()
+		err = s.server.Serve(s.lis)
 	}
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -104,8 +124,14 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[GIN] server stopping")
-	return s.server.Shutdown(ctx)
+	log.Info("[GIN] server stopping...")
+
+	err := s.server.Shutdown(ctx)
+	s.err = nil
+
+	log.Info("[GIN] server stopped.")
+
+	return err
 }
 
 func (s *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {

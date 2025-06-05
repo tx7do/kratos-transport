@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -17,6 +19,12 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 
 	"github.com/quic-go/quic-go/http3"
+
+	"github.com/tx7do/kratos-transport/transport"
+)
+
+const (
+	KindWebtransport = "webtransport"
 )
 
 var (
@@ -92,15 +100,36 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	if s.endpoint == nil {
-		var err error
-		s.endpoint, err = url.Parse(s.Addr)
-		return s.endpoint, err
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
 	return s.endpoint, nil
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) listenAndEndpoint() error {
+	if s.endpoint == nil {
+		host, port, err := net.SplitHostPort(s.Addr)
+		if err != nil {
+			return err
+		}
+
+		if host == "" {
+			ip, _ := transport.GetLocalIP()
+			host = ip
+		}
+
+		addr := host + ":" + fmt.Sprint(port)
+		s.endpoint = &url.URL{Scheme: KindWebtransport, Host: addr}
+	}
+
+	return nil
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if err := s.listenAndEndpoint(); err != nil {
+		return err
+	}
+
 	log.Infof("[webtransport] server listening on: %s", s.Addr)
 
 	if err := s.ListenAndServe(); err != nil {
@@ -111,8 +140,8 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[webtransport] server stopping")
+func (s *Server) Stop(_ context.Context) error {
+	log.Info("[webtransport] server stopping...")
 
 	if s.ctxCancel != nil {
 		s.ctxCancel()
@@ -120,6 +149,8 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	err := s.Server.Close()
 	s.refCount.Wait()
+
+	log.Info("[webtransport] server stopped.")
 
 	return err
 }

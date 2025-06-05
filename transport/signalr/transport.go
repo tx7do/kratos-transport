@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindSignalR kratosTransport.Kind = "signalr"
+	KindSignalR = "signalr"
 )
 
 var _ Transporter = &Transport{}

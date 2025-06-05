@@ -18,7 +18,7 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 
 func WithAddress(addr string) ServerOption {
 	return func(s *Server) {
-		s.addr = addr
+		s.address = addr
 	}
 }
 

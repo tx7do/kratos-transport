@@ -7,10 +7,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"math/big"
+	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/quic-go/quic-go/http3"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -79,31 +82,39 @@ func (s *Server) init(opts ...ServerOption) {
 	s.router.MethodNotAllowedHandler = http.DefaultServeMux
 
 	s.Server.Handler = kHttp.FilterChain(s.filters...)(s.router)
-
-	_, _ = s.Endpoint()
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.Addr
-
-	prefix := "http://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "http://") {
-			prefix = "http://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "https://") {
-			prefix = "https://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
-
-	s.endpoint, s.err = url.Parse(addr)
-
-	return s.endpoint, s.err
+	return s.endpoint, nil
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) listenAndEndpoint() error {
+	if s.endpoint == nil {
+		host, port, err := net.SplitHostPort(s.Addr)
+		if err != nil {
+			return err
+		}
+
+		if host == "" {
+			ip, _ := transport.GetLocalIP()
+			host = ip
+		}
+
+		addr := host + ":" + fmt.Sprint(port)
+		s.endpoint = &url.URL{Scheme: KindHTTP3, Host: addr}
+	}
+
+	return nil
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if s.err = s.listenAndEndpoint(); s.err != nil {
+		return s.err
+	}
+
 	log.Infof("[HTTP3] server listening on: %s", s.Addr)
 
 	if err := s.ListenAndServe(); err != nil {
@@ -114,9 +125,15 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[HTTP3] server stopping")
-	return s.Close()
+func (s *Server) Stop(_ context.Context) error {
+	log.Info("[HTTP3] server stopping...")
+
+	err := s.Close()
+	s.err = nil
+
+	log.Info("[HTTP3] server stopped.")
+
+	return err
 }
 
 func (s *Server) Route(prefix string, filters ...kHttp.FilterFunc) *Router {

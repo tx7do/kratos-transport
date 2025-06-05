@@ -17,10 +17,15 @@ func WithTLSConfig(certFile, keyFile string) ServerOption {
 
 func WithAddress(addr string) ServerOption {
 	return func(s *Server) {
-		_, strPort, _ := net.SplitHostPort(addr)
+		host, strPort, _ := net.SplitHostPort(addr)
 
-		port, _ := strconv.Atoi(strPort)
-		s.cfg.Port = port
+		if host != "" {
+			s.cfg.Host = host
+		}
+		if strPort != "" {
+			port, _ := strconv.Atoi(strPort)
+			s.cfg.Port = port
+		}
 	}
 }
 

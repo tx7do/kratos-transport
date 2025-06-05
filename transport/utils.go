@@ -3,6 +3,7 @@ package transport
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 )
 
@@ -152,4 +153,9 @@ func AdjustScheme(scheme string, isSecure bool) string {
 		return scheme + "s"
 	}
 	return scheme
+}
+
+// NewRegistryEndpoint creates a new registry endpoint URL.
+func NewRegistryEndpoint(serviceKindName string, host string) *url.URL {
+	return &url.URL{Scheme: serviceKindName, Host: host}
 }

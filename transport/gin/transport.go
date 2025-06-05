@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindGin kratosTransport.Kind = "gin"
+	KindGin = "gin"
 )
 
 var _ Transporter = &Transport{}

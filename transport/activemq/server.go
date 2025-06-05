@@ -91,9 +91,15 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	LogInfo("server stopping")
+	LogInfo("server stopping...")
+
+	s.err = nil
 	s.started.Store(false)
-	return s.Disconnect()
+	err := s.Disconnect()
+
+	LogInfo("server stopped.")
+
+	return err
 }
 
 func (s *Server) RegisterSubscriber(ctx context.Context, topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {

@@ -5,17 +5,16 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"github.com/go-kratos/kratos/v2/encoding"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
-
-	"github.com/go-kratos/kratos/v2/encoding"
-	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	ws "github.com/gorilla/websocket"
 
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -29,6 +28,7 @@ type Server struct {
 	lis      net.Listener
 	tlsConf  *tls.Config
 	upgrader *ws.Upgrader
+	endpoint *url.URL
 
 	network     string
 	address     string
@@ -116,13 +116,11 @@ func (s *Server) init(opts ...ServerOption) error {
 
 	http.HandleFunc(s.path, s.wsHandler)
 
-	s.err = s.listen()
-
 	return s.err
 }
 
 func (s *Server) Name() string {
-	return string(KindWebsocket)
+	return KindWebsocket
 }
 
 func (s *Server) SessionCount() int {
@@ -371,37 +369,34 @@ func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	session.Listen()
 }
 
-func (s *Server) listen() error {
+func (s *Server) listenAndEndpoint() error {
 	if s.lis == nil {
 		lis, err := net.Listen(s.network, s.address)
 		if err != nil {
-			s.err = err
 			return err
 		}
 		s.lis = lis
+	}
+
+	if s.endpoint == nil {
+		// 如果传入的是完整的ip地址，则不需要调整。
+		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
+		addr, err := transport.AdjustAddress(s.address, s.lis)
+		if err != nil {
+			return err
+		}
+
+		s.endpoint = &url.URL{Scheme: KindWebsocket, Host: addr}
 	}
 
 	return nil
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.address
-
-	prefix := "ws://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "ws://") {
-			prefix = "ws://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "wss://") {
-			prefix = "wss://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
-
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-	return endpoint, nil
+	return s.endpoint, nil
 }
 
 func (s *Server) run() {
@@ -416,9 +411,14 @@ func (s *Server) run() {
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	if s.err = s.listenAndEndpoint(); s.err != nil {
+		return s.err
+	}
+
 	if s.err != nil {
 		return s.err
 	}
+
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
@@ -439,6 +439,12 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	LogInfo("server stopping")
-	return s.Shutdown(ctx)
+	LogInfo("server stopping...")
+
+	err := s.Shutdown(ctx)
+	s.err = nil
+
+	LogInfo("server stopped.")
+
+	return err
 }

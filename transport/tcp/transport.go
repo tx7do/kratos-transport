@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindTcp kratosTransport.Kind = "tcp"
+	KindTcp = "tcp"
 )
 
 var _ Transporter = &Transport{}

@@ -12,6 +12,8 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/rest"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -25,6 +27,8 @@ type Server struct {
 	cfg rest.RestConf
 
 	err error
+
+	endpoint *url.URL
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -52,20 +56,26 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	prefix := "http://"
-	if len(s.cfg.CertFile) == 0 && len(s.cfg.KeyFile) == 0 {
-		prefix = "http://"
-	} else {
-		prefix = "https://"
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(fmt.Sprint(prefix, ":", s.cfg.Port))
-
-	return endpoint, s.err
+	return s.endpoint, nil
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) listenAndEndpoint() error {
+	if s.endpoint == nil {
+		ip, _ := transport.GetLocalIP()
+		host := ip + ":" + fmt.Sprint(s.cfg.Port)
+		s.endpoint = &url.URL{Scheme: KindGoZero, Host: host}
+	}
+	return nil
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if err := s.listenAndEndpoint(); err != nil {
+		return err
+	}
+
 	log.Infof("[go-zero] server listening on: %d", s.cfg.Port)
 
 	s.Server.Start()
@@ -73,9 +83,14 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[go-zero] server stopping")
+func (s *Server) Stop(_ context.Context) error {
+	log.Info("[go-zero] server stopping...")
+
 	s.Server.Stop()
+	s.err = nil
+
+	log.Info("[go-zero] server stopped")
+
 	return nil
 }
 

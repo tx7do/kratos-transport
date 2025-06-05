@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindFastHttp kratosTransport.Kind = "fasthttp"
+	KindFastHttp = "fasthttp"
 )
 
 var _ Transporter = &Transport{}

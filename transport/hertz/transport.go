@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindHertz kratosTransport.Kind = "hertz"
+	KindHertz = "hertz"
 )
 
 var _ Transporter = &Transport{}

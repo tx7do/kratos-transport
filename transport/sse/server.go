@@ -3,6 +3,7 @@ package sse
 import (
 	"context"
 	"crypto/tls"
+	"github.com/tx7do/kratos-transport/transport"
 	"net"
 	"net/http"
 	"net/url"
@@ -88,10 +89,14 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return string(KindSSE)
+	return KindSSE
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	if err := s.listenAndEndpoint(); err != nil {
+		return err
+	}
+
 	if s.err != nil {
 		return s.err
 	}
@@ -118,10 +123,16 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
+	LogInfo("server stopping...")
+
 	s.streamMgr.Clean()
 
-	LogInfo("server stopping")
-	return s.Shutdown(ctx)
+	err := s.Shutdown(ctx)
+	s.err = nil
+
+	LogInfo("server stopped.")
+
+	return err
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
@@ -141,11 +152,15 @@ func (s *Server) listenAndEndpoint() error {
 	}
 
 	if s.endpoint == nil {
-		endpoint, err := url.Parse(s.network + "://" + s.address)
+		// 如果传入的是完整的ip地址，则不需要调整。
+		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
+		addr, err := transport.AdjustAddress(s.address, s.lis)
 		if err != nil {
+			s.err = err
 			return err
 		}
-		s.endpoint = endpoint
+
+		s.endpoint = &url.URL{Scheme: KindSSE, Host: addr}
 	}
 
 	return nil

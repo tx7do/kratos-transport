@@ -448,6 +448,7 @@ func (s *Server) Stop(_ context.Context) error {
 		_ = s.inspector.Close()
 		s.inspector = nil
 	}
+	s.err = nil
 
 	LogInfo("server stopped")
 

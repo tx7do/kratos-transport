@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
 	"github.com/tx7do/kratos-transport/broker"
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -21,8 +22,9 @@ var (
 )
 
 type Server struct {
-	lis     net.Listener
-	tlsConf *tls.Config
+	lis      net.Listener
+	tlsConf  *tls.Config
+	endpoint *url.URL
 
 	network string
 	address string
@@ -89,27 +91,37 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Name() string {
-	return string(KindTcp)
+	return KindTcp
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.address
-
-	prefix := "tcp://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "tcp://") {
-			prefix = "tcp://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "tcp://") {
-			prefix = "tcp://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
+	return s.endpoint, nil
+}
 
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-	return endpoint, nil
+func (s *Server) listenAndEndpoint() error {
+	if s.lis == nil {
+		lis, err := net.Listen(s.network, s.address)
+		if err != nil {
+			return err
+		}
+		s.lis = lis
+	}
+
+	if s.endpoint == nil {
+		// 如果传入的是完整的ip地址，则不需要调整。
+		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
+		addr, err := transport.AdjustAddress(s.address, s.lis)
+		if err != nil {
+			return err
+		}
+
+		s.endpoint = &url.URL{Scheme: KindTcp, Host: addr}
+	}
+
+	return nil
 }
 
 func (s *Server) SessionCount() int {
@@ -203,7 +215,7 @@ func (s *Server) Broadcast(messageType NetMessageType, message NetMessagePayload
 }
 
 func (s *Server) Start(_ context.Context) error {
-	if s.err = s.listen(); s.err != nil {
+	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}
 
@@ -217,14 +229,19 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	LogInfo("server stopping")
+	LogInfo("server stopping ...")
+
+	var err error
 
 	if s.lis != nil {
-		_ = s.lis.Close()
+		err = s.lis.Close()
 		s.lis = nil
 	}
+	s.err = nil
 
-	return nil
+	LogInfo("server stopped")
+
+	return err
 }
 
 func (s *Server) marshalNetPacket(messageType NetMessageType, message NetMessagePayload) ([]byte, error) {
@@ -306,18 +323,6 @@ func (s *Server) defaultHandleSocketRawData(sessionId SessionID, buf []byte) err
 	if err = handler.Handler(sessionId, payload); err != nil {
 		LogErrorf("message handler failed: %s", err)
 		return err
-	}
-
-	return nil
-}
-
-func (s *Server) listen() error {
-	if s.lis == nil {
-		lis, err := net.Listen(s.network, s.address)
-		if err != nil {
-			return err
-		}
-		s.lis = lis
 	}
 
 	return nil

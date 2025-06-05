@@ -3,10 +3,10 @@ package graphql
 import (
 	"context"
 	"crypto/tls"
+	"github.com/tx7do/kratos-transport/transport"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -26,11 +26,13 @@ var (
 
 type Server struct {
 	*http.Server
+
 	es graphql.ExecutableSchema
 
-	lis     net.Listener
-	tlsConf *tls.Config
-	router  *mux.Router
+	lis      net.Listener
+	tlsConf  *tls.Config
+	router   *mux.Router
+	endpoint *url.URL
 
 	network string
 	address string
@@ -51,17 +53,15 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.init(opts...)
 
-	srv.err = srv.listenAndEndpoint()
-
 	return srv
 }
 
 func (s *Server) Name() string {
-	return string(KindGraphQL)
+	return KindGraphQL
 }
 
 func (s *Server) Handle(path string, es graphql.ExecutableSchema) {
-	s.router.Handle(path, handler.NewDefaultServer(es))
+	s.router.Handle(path, handler.New(es))
 }
 
 func (s *Server) init(opts ...ServerOption) {
@@ -89,34 +89,36 @@ func (s *Server) listenAndEndpoint() error {
 		s.lis = lis
 	}
 
+	if s.endpoint == nil {
+		// 如果传入的是完整的ip地址，则不需要调整。
+		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
+		addr, err := transport.AdjustAddress(s.address, s.lis)
+		if err != nil {
+			return err
+		}
+
+		s.endpoint = &url.URL{Scheme: KindGraphQL, Host: addr}
+	}
+
 	return nil
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.address
-
-	prefix := "http://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "http://") {
-			prefix = "http://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "https://") {
-			prefix = "https://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
-
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-
-	return endpoint, s.err
+	return s.endpoint, nil
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	if s.err = s.listenAndEndpoint(); s.err != nil {
+		return s.err
+	}
+
 	if s.err != nil {
 		return s.err
 	}
+
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
@@ -134,6 +136,12 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[graphql] server stopping")
-	return s.Shutdown(ctx)
+	log.Info("[graphql] server stopping...")
+
+	err := s.Shutdown(ctx)
+	s.err = nil
+
+	log.Info("[graphql] server stopped.")
+
+	return err
 }

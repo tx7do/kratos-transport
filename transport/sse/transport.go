@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindSSE kratosTransport.Kind = "sse"
+	KindSSE = "sse"
 )
 
 var _ Transporter = &Transport{}

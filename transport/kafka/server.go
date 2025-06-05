@@ -96,7 +96,10 @@ func (s *Server) Stop(_ context.Context) error {
 	if s.started.Load() == false {
 		return nil
 	}
-	LogInfo("server stopping")
+
+	LogInfo("server stopping...")
+
+	s.err = nil
 
 	for _, v := range s.subscribers {
 		_ = v.Unsubscribe(false)
@@ -105,7 +108,11 @@ func (s *Server) Stop(_ context.Context) error {
 	s.subscriberOpts = make(transport.SubscribeOptionMap)
 
 	s.started.Store(false)
-	return s.Disconnect()
+	err := s.Disconnect()
+
+	LogInfo("server stopped.")
+
+	return err
 }
 
 // RegisterSubscriber 注册一个订阅者

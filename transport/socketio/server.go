@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/go-kratos/kratos/v2/log"
@@ -15,12 +14,14 @@ import (
 
 	socketIo "github.com/googollee/go-socket.io"
 	"github.com/googollee/go-socket.io/engineio"
-	"github.com/googollee/go-socket.io/engineio/transport"
+	socketIoTransport "github.com/googollee/go-socket.io/engineio/transport"
 	"github.com/googollee/go-socket.io/engineio/transport/polling"
 	"github.com/googollee/go-socket.io/engineio/transport/websocket"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -31,8 +32,9 @@ var (
 type Server struct {
 	*socketIo.Server
 
-	lis     net.Listener
-	tlsConf *tls.Config
+	lis      net.Listener
+	tlsConf  *tls.Config
+	endpoint *url.URL
 
 	network string
 	address string
@@ -54,16 +56,18 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.init(opts...)
 
-	srv.err = srv.listen()
-
 	return srv
 }
 
 func (s *Server) Name() string {
-	return string(KindSocketIo)
+	return KindSocketIo
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if s.err = s.listenAndEndpoint(); s.err != nil {
+		return s.err
+	}
+
 	if s.err != nil {
 		return s.err
 	}
@@ -91,29 +95,45 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	log.Info("[socket.io] server stopping")
-	_ = s.lis.Close()
-	return s.Server.Close()
+	log.Info("[socket.io] server stopping...")
+
+	//_ = s.lis.Close()
+	err := s.Server.Close()
+	s.err = nil
+
+	log.Info("[socket.io] server stopped")
+
+	return err
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.address
-
-	prefix := "http://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "http://") {
-			prefix = "http://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "https://") {
-			prefix = "https://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
+	return s.endpoint, nil
+}
 
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-	return endpoint, nil
+func (s *Server) listenAndEndpoint() error {
+	if s.lis == nil {
+		lis, err := net.Listen(s.network, s.address)
+		if err != nil {
+			return err
+		}
+		s.lis = lis
+	}
+
+	if s.endpoint == nil {
+		// 如果传入的是完整的ip地址，则不需要调整。
+		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
+		addr, err := transport.AdjustAddress(s.address, s.lis)
+		if err != nil {
+			return err
+		}
+
+		s.endpoint = &url.URL{Scheme: KindSocketIo, Host: addr}
+	}
+
+	return nil
 }
 
 func (s *Server) RegisterConnectHandler(namespace string, f func(socketIo.Conn) error) {
@@ -134,7 +154,7 @@ func (s *Server) RegisterEventHandler(namespace, event string, f interface{}) {
 
 func (s *Server) init(opts ...ServerOption) {
 	server := socketIo.NewServer(&engineio.Options{
-		Transports: []transport.Transport{
+		Transports: []socketIoTransport.Transport{
 			&polling.Transport{
 				CheckOrigin: func(r *http.Request) bool { return true },
 			},
@@ -156,17 +176,4 @@ func (s *Server) init(opts ...ServerOption) {
 	s.router.Use(mux.CORSMethodMiddleware(s.router))
 
 	s.router.Handle(s.path, server)
-}
-
-func (s *Server) listen() error {
-	if s.lis == nil {
-		lis, err := net.Listen(s.network, s.address)
-		if err != nil {
-			s.err = err
-			return err
-		}
-		s.lis = lis
-	}
-
-	return nil
 }

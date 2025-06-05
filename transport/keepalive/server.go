@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -102,11 +104,14 @@ func (s *Server) listenAndEndpoint() error {
 	}
 
 	if s.endpoint == nil {
-		endpoint, err := url.Parse(s.network + "://" + s.address)
+		// 如果传入的是完整的ip地址，则不需要调整。
+		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
+		addr, err := transport.AdjustAddress(s.address, s.lis)
 		if err != nil {
 			return err
 		}
-		s.endpoint = endpoint
+
+		s.endpoint = &url.URL{Scheme: KindKeepAlive, Host: addr}
 	}
 
 	return nil

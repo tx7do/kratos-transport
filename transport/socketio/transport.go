@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindSocketIo kratosTransport.Kind = "socket.io"
+	KindSocketIo = "socket.io"
 )
 
 var _ Transporter = &Transport{}

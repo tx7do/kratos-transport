@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindWebsocket kratosTransport.Kind = "websocket"
+	KindWebsocket = "websocket"
 )
 
 var _ Transporter = &Transport{}

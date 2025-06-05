@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindHTTP3 kratosTransport.Kind = "http3"
+	KindHTTP3 = "http3"
 )
 
 var _ Transporter = &Transport{}

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindGraphQL kratosTransport.Kind = "graphql"
+	KindGraphQL = "graphql"
 )
 
 var _ Transporter = &Transport{}

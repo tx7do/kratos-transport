@@ -7,7 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/go-kratos/kratos/v2 v2.8.4
 	github.com/stretchr/testify v1.10.0
-	github.com/tx7do/kratos-transport v1.1.15
+	github.com/tx7do/kratos-transport v1.1.16
 	github.com/tx7do/kratos-transport/broker/nsq v1.2.19
 )
 

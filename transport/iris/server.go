@@ -2,9 +2,10 @@ package iris
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/kataras/iris/v12"
@@ -12,6 +13,8 @@ import (
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -43,40 +46,46 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) init(opts ...ServerOption) {
-
 	for _, o := range opts {
 		o(s)
 	}
-
-	s.endpoint, _ = url.Parse(s.addr)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.addr
-
-	prefix := "http://"
-	if len(s.certFile) == 0 && len(s.keyFile) == 0 {
-		if !strings.HasPrefix(addr, "http://") {
-			prefix = "http://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "https://") {
-			prefix = "https://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
+	return s.endpoint, nil
+}
 
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
+func (s *Server) listenAndEndpoint() error {
+	if s.endpoint == nil {
+		host, port, err := net.SplitHostPort(s.addr)
+		if err != nil {
+			return err
+		}
 
-	return endpoint, s.err
+		if host == "" {
+			ip, _ := transport.GetLocalIP()
+			host = ip
+		}
+
+		addr := host + ":" + fmt.Sprint(port)
+		s.endpoint = &url.URL{Scheme: KindIris, Host: addr}
+	}
+
+	return nil
 }
 
 func (s *Server) Name() string {
-	return string(KindIris)
+	return KindIris
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) Start(_ context.Context) error {
+	if s.err = s.listenAndEndpoint(); s.err != nil {
+		return s.err
+	}
+
 	log.Infof("[Iris] server listening on: %s", s.addr)
 
 	var err error
@@ -93,8 +102,14 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[Iris] server stopping")
-	return s.Application.Shutdown(ctx)
+	log.Info("[Iris] server stopping...")
+
+	err := s.Application.Shutdown(ctx)
+	s.err = nil
+
+	log.Info("[Iris] server stopped.")
+
+	return err
 }
 
 func (s *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {

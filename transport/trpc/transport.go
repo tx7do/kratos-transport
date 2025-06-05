@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	KindTRPC kratosTransport.Kind = "tRPC"
+	KindTRPC = "tRPC"
 )
 
 var _ Transporter = &Transport{}

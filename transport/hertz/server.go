@@ -3,8 +3,9 @@ package hertz
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
+	"net"
 	"net/url"
-	"strings"
 	"time"
 
 	hertz "github.com/cloudwego/hertz/pkg/app/server"
@@ -13,6 +14,8 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	kHttp "github.com/go-kratos/kratos/v2/transport/http"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -23,9 +26,10 @@ var (
 type Server struct {
 	*hertz.Hertz
 
-	tlsConf *tls.Config
-	timeout time.Duration
-	addr    string
+	tlsConf  *tls.Config
+	timeout  time.Duration
+	addr     string
+	endpoint *url.URL
 
 	err error
 
@@ -58,33 +62,48 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.addr
-
-	prefix := "http://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "http://") {
-			prefix = "http://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "https://") {
-			prefix = "https://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
-
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-
-	return endpoint, s.err
+	return s.endpoint, nil
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) listenAndEndpoint() error {
+	if s.endpoint == nil {
+		host, port, err := net.SplitHostPort(s.addr)
+		if err != nil {
+			return err
+		}
+
+		if host == "" {
+			ip, _ := transport.GetLocalIP()
+			host = ip
+		}
+
+		addr := host + ":" + fmt.Sprint(port)
+		s.endpoint = &url.URL{Scheme: KindHertz, Host: addr}
+	}
+
+	return nil
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if err := s.listenAndEndpoint(); err != nil {
+		return err
+	}
+
 	log.Infof("[hertz] server listening on: %s", s.addr)
 
 	return s.Hertz.Run()
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[hertz] server stopping")
-	return s.Hertz.Shutdown(ctx)
+	log.Info("[hertz] server stopping...")
+
+	err := s.Hertz.Shutdown(ctx)
+	s.err = nil
+
+	log.Info("[hertz] server stopped.")
+
+	return err
 }

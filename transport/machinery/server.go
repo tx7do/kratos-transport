@@ -184,10 +184,14 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
-	LogInfo("server stopping")
+	LogInfo("server stopping...")
+
 	s.started.Store(false)
 
 	s.machineryServer = nil
+	s.err = nil
+
+	LogInfo("server stopped.")
 
 	return nil
 }

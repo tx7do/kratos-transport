@@ -4,12 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
+	"net"
 	"net/url"
 
 	"github.com/apache/thrift/lib/go/thrift"
 
 	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
+	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
@@ -25,7 +29,8 @@ var (
 type Server struct {
 	Server *thrift.TSimpleServer
 
-	tlsConf *tls.Config
+	tlsConf  *tls.Config
+	endpoint *url.URL
 
 	address string
 
@@ -54,7 +59,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return string(KindThrift)
+	return KindThrift
 }
 
 func (s *Server) init(opts ...ServerOption) {
@@ -64,10 +69,36 @@ func (s *Server) init(opts ...ServerOption) {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	return url.Parse("tcp://" + s.address)
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
+	}
+	return s.endpoint, nil
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) listenAndEndpoint() error {
+	if s.endpoint == nil {
+		host, port, err := net.SplitHostPort(s.address)
+		if err != nil {
+			return err
+		}
+
+		if host == "" {
+			ip, _ := transport.GetLocalIP()
+			host = ip
+		}
+
+		addr := host + ":" + fmt.Sprint(port)
+		s.endpoint = &url.URL{Scheme: KindThrift, Host: addr}
+	}
+
+	return nil
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if s.err = s.listenAndEndpoint(); s.err != nil {
+		return s.err
+	}
+
 	if s.err != nil {
 		return s.err
 	}
@@ -103,12 +134,16 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(ctx context.Context) error {
-	log.Info("[thrift] server stopping")
+func (s *Server) Stop(_ context.Context) error {
+	log.Info("[thrift] server stopping...")
+
+	var err error
 
 	if s.Server != nil {
-		return s.Server.Stop()
+		err = s.Server.Stop()
 	}
 
-	return nil
+	log.Info("[thrift] server stopped.")
+
+	return err
 }

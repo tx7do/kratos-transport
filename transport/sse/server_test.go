@@ -3,6 +3,7 @@ package sse
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -99,4 +100,10 @@ func TestServerNonExistentStreamPublish(t *testing.T) {
 	})
 
 	<-interrupt
+}
+
+func TestServerPublishData(t *testing.T) {
+	host, port, err := net.SplitHostPort("127.0.0.1:8800")
+	require.NoError(t, err)
+	t.Logf("host: %s, port: %s", host, port)
 }
