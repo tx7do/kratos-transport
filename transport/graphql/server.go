@@ -97,7 +97,7 @@ func (s *Server) listenAndEndpoint() error {
 			return err
 		}
 
-		s.endpoint = &url.URL{Scheme: KindGraphQL, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindGraphQL, addr)
 	}
 
 	return nil

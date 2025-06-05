@@ -133,7 +133,7 @@ func (s *Server) listenAndEndpoint() error {
 			return err
 		}
 
-		s.endpoint = &url.URL{Scheme: s.serviceKind, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(s.serviceKind, addr)
 	}
 
 	return nil

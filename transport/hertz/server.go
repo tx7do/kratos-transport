@@ -80,7 +80,7 @@ func (s *Server) listenAndEndpoint() error {
 		}
 
 		addr := host + ":" + fmt.Sprint(port)
-		s.endpoint = &url.URL{Scheme: KindHertz, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindHertz, addr)
 	}
 
 	return nil

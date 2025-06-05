@@ -103,7 +103,7 @@ func (s *Server) listenAndEndpoint() error {
 		}
 
 		addr := host + ":" + fmt.Sprint(port)
-		s.endpoint = &url.URL{Scheme: KindHTTP3, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindHTTP3, addr)
 	}
 
 	return nil

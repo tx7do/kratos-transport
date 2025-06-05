@@ -386,7 +386,7 @@ func (s *Server) listenAndEndpoint() error {
 			return err
 		}
 
-		s.endpoint = &url.URL{Scheme: KindWebsocket, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindWebsocket, addr)
 	}
 
 	return nil

@@ -160,7 +160,7 @@ func (s *Server) listenAndEndpoint() error {
 			return err
 		}
 
-		s.endpoint = &url.URL{Scheme: KindSSE, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindSSE, addr)
 	}
 
 	return nil

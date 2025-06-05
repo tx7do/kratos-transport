@@ -87,7 +87,7 @@ func (s *Server) listenAndEndpoint() error {
 		}
 
 		addr := host + ":" + fmt.Sprint(port)
-		s.endpoint = &url.URL{Scheme: KindThrift, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindThrift, addr)
 	}
 
 	return nil

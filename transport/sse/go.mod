@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.8.4
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.10.0
-	github.com/tx7do/kratos-transport v1.1.16
+	github.com/tx7do/kratos-transport v1.1.17
 	gopkg.in/cenkalti/backoff.v1 v1.1.0
 )
 
@@ -38,7 +38,7 @@ require (
 	golang.org/x/text v0.25.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
-	google.golang.org/grpc v1.72.2 // indirect
+	google.golang.org/grpc v1.73.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

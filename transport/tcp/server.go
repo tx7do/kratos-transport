@@ -118,7 +118,7 @@ func (s *Server) listenAndEndpoint() error {
 			return err
 		}
 
-		s.endpoint = &url.URL{Scheme: KindTcp, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindTcp, addr)
 	}
 
 	return nil

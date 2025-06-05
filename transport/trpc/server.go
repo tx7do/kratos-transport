@@ -69,7 +69,7 @@ func (s *Server) listenAndEndpoint() error {
 		}
 
 		addr := host + ":" + fmt.Sprint(port)
-		s.endpoint = &url.URL{Scheme: KindTRPC, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindTRPC, addr)
 	}
 
 	return nil

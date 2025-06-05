@@ -70,7 +70,7 @@ func (s *Server) listenAndEndpoint() error {
 		}
 
 		addr := host + ":" + fmt.Sprint(port)
-		s.endpoint = &url.URL{Scheme: KindIris, Host: addr}
+		s.endpoint = transport.NewRegistryEndpoint(KindIris, addr)
 	}
 
 	return nil

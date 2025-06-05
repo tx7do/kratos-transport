@@ -65,7 +65,7 @@ func (s *Server) listenAndEndpoint() error {
 	if s.endpoint == nil {
 		ip, _ := transport.GetLocalIP()
 		host := ip + ":" + fmt.Sprint(s.cfg.Port)
-		s.endpoint = &url.URL{Scheme: KindGoZero, Host: host}
+		s.endpoint = transport.NewRegistryEndpoint(KindGoZero, host)
 	}
 	return nil
 }
