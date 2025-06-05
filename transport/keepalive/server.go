@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync/atomic"
 
 	"github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
@@ -36,6 +37,8 @@ type Server struct {
 	address string
 
 	serviceKind string
+
+	started atomic.Bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -46,6 +49,8 @@ func NewServer(opts ...ServerOption) *Server {
 		address: "",
 
 		serviceKind: KindKeepAlive,
+
+		started: atomic.Bool{},
 	}
 
 	srv.init(opts...)
@@ -73,13 +78,19 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if s.started.Load() {
+		return nil
+	}
+
 	if err := s.listenAndEndpoint(); err != nil {
 		return err
 	}
 
+	s.started.Store(true)
+
 	s.health.Resume()
 
-	log.Debugf("keep alive server started at %s", s.lis.Addr().String())
+	log.Infof("[%s] server listening on: %s", s.serviceKind, s.lis.Addr().String())
 
 	if err := s.Serve(s.lis); !errors.Is(err, http.ErrServerClosed) {
 		return err
@@ -89,7 +100,13 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
+	if !s.started.Load() {
+		return nil
+	}
+
 	log.Infof("%s server stopping...", s.serviceKind)
+
+	s.started.Store(false)
 
 	s.health.Shutdown()
 	s.GracefulStop()
