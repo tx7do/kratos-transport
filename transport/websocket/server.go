@@ -40,14 +40,19 @@ type Server struct {
 	err   error
 	codec encoding.Codec
 
-	messageHandlers MessageHandlerMap
-
 	sessionMgr *SessionManager
 
 	register   chan *Session
 	unregister chan *Session
 
 	payloadType PayloadType
+
+	messageHandlers NetMessageHandlerMap
+
+	netPacketMarshaler   NetPacketMarshaler
+	netPacketUnmarshaler NetPacketUnmarshaler
+
+	socketRawDataHandler SocketRawDataHandler
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -59,7 +64,7 @@ func NewServer(opts ...ServerOption) *Server {
 		injectToken: true,
 		tokenKey:    "token",
 
-		messageHandlers: make(MessageHandlerMap),
+		messageHandlers: make(NetMessageHandlerMap),
 
 		sessionMgr: NewSessionManager(),
 		upgrader: &ws.Upgrader{
@@ -75,14 +80,11 @@ func NewServer(opts ...ServerOption) *Server {
 	}
 
 	if err := srv.init(opts...); err != nil {
-		panic("init websocket server failed")
+		LogError("websocket server init error:", err)
+		return nil
 	}
 
 	return srv
-}
-
-func (s *Server) Name() string {
-	return string(KindWebsocket)
 }
 
 func (s *Server) init(opts ...ServerOption) error {
@@ -94,6 +96,24 @@ func (s *Server) init(opts ...ServerOption) error {
 		TLSConfig: s.tlsConf,
 	}
 
+	if s.netPacketMarshaler == nil {
+		s.netPacketMarshaler = s.defaultMarshalNetPacket
+	}
+	if s.netPacketUnmarshaler == nil {
+		s.netPacketUnmarshaler = s.defaultUnmarshalNetPacket
+	}
+
+	if s.socketRawDataHandler == nil {
+		s.socketRawDataHandler = s.defaultHandleSocketRawData
+	}
+
+	if s.codec == nil {
+		s.codec = encoding.GetCodec("json")
+		if s.codec == nil {
+			s.codec = encoding.GetCodec("bytes")
+		}
+	}
+
 	http.HandleFunc(s.path, s.wsHandler)
 
 	s.err = s.listen()
@@ -101,21 +121,25 @@ func (s *Server) init(opts ...ServerOption) error {
 	return s.err
 }
 
+func (s *Server) Name() string {
+	return string(KindWebsocket)
+}
+
 func (s *Server) SessionCount() int {
 	return s.sessionMgr.Count()
 }
 
-func (s *Server) RegisterMessageHandler(messageType MessageType, handler MessageHandler, binder Binder) {
+func (s *Server) RegisterMessageHandler(messageType NetMessageType, handler NetMessageHandler, binder Creator) {
 	if _, ok := s.messageHandlers[messageType]; ok {
 		return
 	}
 
-	s.messageHandlers[messageType] = &HandlerData{
+	s.messageHandlers[messageType] = &MessageHandlerData{
 		handler, binder,
 	}
 }
 
-func RegisterServerMessageHandler[T any](srv *Server, messageType MessageType, handler func(SessionID, *T) error) {
+func RegisterServerMessageHandler[T any](srv *Server, messageType NetMessageType, handler func(SessionID, *T) error) {
 	srv.RegisterMessageHandler(messageType,
 		func(sessionId SessionID, payload MessagePayload) error {
 			switch t := payload.(type) {
@@ -126,26 +150,38 @@ func RegisterServerMessageHandler[T any](srv *Server, messageType MessageType, h
 				return errors.New("invalid payload struct type")
 			}
 		},
-		func() Any {
+		func() any {
 			var t T
 			return &t
 		},
 	)
 }
 
-func (s *Server) DeregisterMessageHandler(messageType MessageType) {
+func (s *Server) DeregisterMessageHandler(messageType NetMessageType) {
 	delete(s.messageHandlers, messageType)
 }
 
-func (s *Server) marshalMessage(messageType MessageType, message MessagePayload) ([]byte, error) {
+func (s *Server) GetMessageHandler(messageType NetMessageType) *MessageHandlerData {
+	return s.messageHandlers[messageType]
+}
+
+func (s *Server) marshalMessage(messageType NetMessageType, message MessagePayload) ([]byte, error) {
+	if s.netPacketMarshaler == nil {
+		return s.defaultMarshalNetPacket(messageType, message)
+	} else {
+		return s.netPacketMarshaler(messageType, message)
+	}
+}
+
+func (s *Server) defaultMarshalNetPacket(messageType NetMessageType, message MessagePayload) ([]byte, error) {
 	var err error
 	var buff []byte
 
 	switch s.payloadType {
 	case PayloadTypeBinary:
-		var msg BinaryMessage
+		var msg BinaryNetPacket
 		msg.Type = messageType
-		msg.Body, err = broker.Marshal(s.codec, message)
+		msg.Payload, err = broker.Marshal(s.codec, message)
 		if err != nil {
 			return nil, err
 		}
@@ -157,10 +193,10 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 
 	case PayloadTypeText:
 		var buf []byte
-		var msg TextMessage
+		var msg TextNetPacket
 		msg.Type = messageType
 		buf, err = broker.Marshal(s.codec, message)
-		msg.Body = string(buf)
+		msg.Payload = string(buf)
 		if err != nil {
 			return nil, err
 		}
@@ -171,46 +207,54 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 		break
 	}
 
-	//LogInfo("marshalMessage:", string(buff))
+	//LogInfo("defaultMarshalNetPacket:", string(buff))
 
 	return buff, nil
 }
 
-func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) {
+func (s *Server) SendRawMessage(sessionId SessionID, message []byte) error {
 	c, ok := s.sessionMgr.Get(sessionId)
 	if !ok {
 		LogError("session not found:", sessionId)
-		return
+		return errors.New("session not found")
 	}
+
+	c.SendMessage(message)
+
+	return nil
+}
+
+func (s *Server) SendMessage(sessionId SessionID, messageType NetMessageType, message MessagePayload) error {
+	var err error
+	var buf []byte
 
 	switch s.payloadType {
 	case PayloadTypeBinary:
-		buf, err := s.marshalMessage(messageType, message)
+		buf, err = s.marshalMessage(messageType, message)
 		if err != nil {
-			LogError("marshal message exception:", err)
-			return
+			LogError("marshal binary message error:", err)
+			return err
 		}
 
-		c.SendMessage(buf)
 		break
 
 	case PayloadTypeText:
-		buf, err := s.codec.Marshal(message)
+		buf, err = s.codec.Marshal(message)
 		if err != nil {
-			LogError("marshal message exception:", err)
-			return
+			LogError("marshal text message error:", err)
+			return err
 		}
 
-		c.SendMessage(buf)
 		break
 	}
 
+	return s.SendRawMessage(sessionId, buf)
 }
 
-func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
+func (s *Server) Broadcast(messageType NetMessageType, message MessagePayload) {
 	buf, err := s.marshalMessage(messageType, message)
 	if err != nil {
-		LogError(" marshal message exception:", err)
+		LogError(" marshal message error:", err)
 		return
 	}
 
@@ -219,108 +263,71 @@ func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
 	})
 }
 
-// unmarshalMessageHeader unmarshal message header from buffer
-func (s *Server) unmarshalMessageHeader(buf []byte) (messageType MessageType, headerLen int, err error) {
-	return
-}
-
-// defaultUnmarshalMessageHeader unmarshal message header from buffer
-func (s *Server) defaultUnmarshalMessageHeader(buf []byte) (messageType MessageType, headerLen int, err error) {
-	switch s.payloadType {
-	default:
-	case PayloadTypeBinary:
-		var msg BinaryMessage
-		if err = msg.Unmarshal(buf); err != nil {
-			LogErrorf("unmarshal binary message header error: %s", err)
-			return 0, 0, err
-		}
-
-		return msg.Type, 32, nil
-
-	case PayloadTypeText:
-		var msg TextMessage
-		if err = msg.Unmarshal(buf); err != nil {
-			LogErrorf("unmarshal text message header error: %s", err)
-			return 0, 0, err
-		}
+func (s *Server) unmarshalNetPacket(buf []byte) (*MessageHandlerData, MessagePayload, error) {
+	if s.netPacketUnmarshaler != nil {
+		return s.netPacketUnmarshaler(buf)
+	} else {
+		return s.defaultUnmarshalNetPacket(buf)
 	}
-
-	return
 }
 
-// unmarshalMessagePayload unmarshal message payload from buffer
-func (s *Server) unmarshalMessagePayload() {
-
-}
-
-// unmarshalMessage unmarshal message from buffer
-func (s *Server) unmarshalMessage(buf []byte) (*HandlerData, MessagePayload, error) {
-	var handler *HandlerData
-	var payload MessagePayload
+func (s *Server) defaultUnmarshalNetPacket(buf []byte) (handler *MessageHandlerData, payload MessagePayload, err error) {
+	var messageType NetMessageType
+	var rawPayload []byte
 
 	switch s.payloadType {
 	case PayloadTypeBinary:
-		var msg BinaryMessage
-		if err := msg.Unmarshal(buf); err != nil {
+		var msg BinaryNetPacket
+		if err = msg.Unmarshal(buf); err != nil {
 			LogErrorf("decode message exception: %s", err)
 			return nil, nil, err
 		}
-
-		var ok bool
-		handler, ok = s.messageHandlers[msg.Type]
-		if !ok {
-			LogError("message handler not found:", msg.Type)
-			return nil, nil, errors.New("message handler not found")
-		}
-
-		if handler.Binder != nil {
-			payload = handler.Binder()
-		} else {
-			payload = msg.Body
-		}
-
-		if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
-			LogErrorf("unmarshal message exception: %s", err)
-			return nil, nil, err
-		}
-		//LogDebug(string(msg.Body))
+		messageType = msg.Type
+		rawPayload = msg.Payload
 
 	case PayloadTypeText:
-		var msg TextMessage
-		if err := msg.Unmarshal(buf); err != nil {
+		var msg TextNetPacket
+		if err = msg.Unmarshal(buf); err != nil {
 			LogErrorf("decode message exception: %s", err)
 			return nil, nil, err
 		}
-
-		var ok bool
-		handler, ok = s.messageHandlers[msg.Type]
-		if !ok {
-			LogError("message handler not found:", msg.Type)
-			return nil, nil, errors.New("message handler not found")
-		}
-
-		if handler.Binder != nil {
-			payload = handler.Binder()
-		} else {
-			payload = msg.Body
-		}
-
-		if err := broker.Unmarshal(s.codec, []byte(msg.Body), &payload); err != nil {
-			LogErrorf("unmarshal message exception: %s", err)
-			return nil, nil, err
-		}
-		//LogDebug(string(msg.Body))
+		messageType = msg.Type
+		rawPayload = []byte(msg.Payload)
 	}
 
-	return handler, payload, nil
+	if handler = s.GetMessageHandler(messageType); handler == nil {
+		LogError("message handler not found:", messageType)
+		return nil, nil, errors.New("message handler not found")
+	}
+
+	if payload = handler.Create(); payload == nil {
+		payload = rawPayload
+	}
+
+	if err = broker.Unmarshal(s.codec, rawPayload, &payload); err != nil {
+		LogErrorf("unmarshal message exception: %s", err)
+		return nil, nil, err
+	}
+	//LogDebug(string(rawPayload))
+
+	return
 }
 
-func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
+// handleSocketRawData process raw data received from socket
+func (s *Server) handleSocketRawData(sessionId SessionID, buf []byte) error {
+	if s.socketRawDataHandler != nil {
+		return s.socketRawDataHandler(sessionId, buf)
+	} else {
+		return s.defaultHandleSocketRawData(sessionId, buf)
+	}
+}
+
+func (s *Server) defaultHandleSocketRawData(sessionId SessionID, buf []byte) error {
 	var err error
-	var handler *HandlerData
+	var handler *MessageHandlerData
 	var payload MessagePayload
 
-	if handler, payload, err = s.unmarshalMessage(buf); err != nil {
+	if handler, payload, err = s.unmarshalNetPacket(buf); err != nil {
 		LogErrorf("unmarshal message failed: %s", err)
 		return err
 	}

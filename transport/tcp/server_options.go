@@ -37,18 +37,6 @@ func WithTimeout(timeout time.Duration) ServerOption {
 	}
 }
 
-func WithConnectHandler(h ConnectHandler) ServerOption {
-	return func(s *Server) {
-		s.connectHandler = h
-	}
-}
-
-func WithRawDataHandler(h RawMessageHandler) ServerOption {
-	return func(s *Server) {
-		s.rawMessageHandler = h
-	}
-}
-
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
 		s.tlsConf = c
@@ -67,30 +55,34 @@ func WithChannelBufferSize(size int) ServerOption {
 	}
 }
 
-func WithRecvBufferSize(size int) ServerOption {
+func WithReceiveBufferSize(size int) ServerOption {
 	return func(_ *Server) {
 		recvBufferSize = size
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-type ClientOption func(o *Client)
-
-func WithClientCodec(codec string) ClientOption {
-	return func(c *Client) {
-		c.codec = encoding.GetCodec(codec)
+func WithMessageMarshaler(m NetPacketMarshaler) ServerOption {
+	return func(s *Server) {
+		s.netPacketMarshaler = m
 	}
 }
 
-func WithEndpoint(uri string) ClientOption {
-	return func(c *Client) {
-		c.url = uri
+func WithMessageUnmarshaler(m NetPacketUnmarshaler) ServerOption {
+	return func(s *Server) {
+		s.netPacketUnmarshaler = m
 	}
 }
 
-func WithClientRawDataHandler(h ClientRawMessageHandler) ClientOption {
-	return func(c *Client) {
-		c.rawMessageHandler = h
+func WithSocketConnectHandler(h SocketConnectHandler) ServerOption {
+	return func(s *Server) {
+		s.socketConnectHandler = h
+	}
+}
+
+func WithSocketRawDataHandler(h SocketRawDataHandler) ServerOption {
+	return func(s *Server) {
+		if h != nil {
+			s.socketRawDataHandler = h
+		}
 	}
 }

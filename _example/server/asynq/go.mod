@@ -28,7 +28,7 @@ require (
 	github.com/redis/go-redis/v9 v9.9.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/spf13/cast v1.9.2 // indirect
-	github.com/tx7do/kratos-transport v1.1.14 // indirect
+	github.com/tx7do/kratos-transport v1.1.15 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.36.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.36.0 // indirect

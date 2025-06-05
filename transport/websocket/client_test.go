@@ -33,7 +33,7 @@ func TestClient(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	cli := NewClient(
-		WithEndpoint("ws://localhost:10000/"),
+		WithEndpoint("ws://localhost:9999/"),
 		WithClientCodec("json"),
 		//WithClientPayloadType(PayloadTypeText),
 	)

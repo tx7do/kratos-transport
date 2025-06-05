@@ -26,7 +26,7 @@ func main() {
 	wsSrv := websocket.NewServer(
 		websocket.WithAddress(":8800"),
 		websocket.WithPath("/ws"),
-		websocket.WithConnectHandle(handleConnect),
+		websocket.WithSocketConnectHandler(handleConnect),
 		websocket.WithCodec("json"),
 	)
 

@@ -16,4 +16,12 @@ type HandlerData struct {
 	Handler MessageHandler
 	Binder  Binder
 }
+
+func (h *HandlerData) Create() any {
+	if h.Binder != nil {
+		return h.Binder()
+	}
+	return nil
+}
+
 type MessageHandlerMap map[MessageType]HandlerData

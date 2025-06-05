@@ -2,19 +2,30 @@ package websocket
 
 import "net/url"
 
-type Binder func() Any
+// SocketConnectHandler socket connect handler
+type SocketConnectHandler func(sessionId SessionID, queries url.Values, connect bool)
 
-// ConnectHandler 连接处理器
-type ConnectHandler func(sessionId SessionID, queries url.Values, connect bool)
+// SocketRawDataHandler socket raw data handler
+type SocketRawDataHandler func(sessionId SessionID, buf []byte) error
 
-// MessageHandler 消息处理器
-type MessageHandler func(SessionID, MessagePayload) error
+type NetPacketMarshaler func(messageType NetMessageType, message MessagePayload) ([]byte, error)
+type NetPacketUnmarshaler func(buf []byte) (*MessageHandlerData, MessagePayload, error)
 
-// MessageHeaderUnmarshaler 解析消息头处理器
-type MessageHeaderUnmarshaler func(buf []byte) (messageType MessageType, headerLen int, err error)
+// NetMessageHandler net message handler
+type NetMessageHandler func(SessionID, MessagePayload) error
 
-type HandlerData struct {
-	Handler MessageHandler
-	Binder  Binder
+type Creator func() any
+
+type MessageHandlerData struct {
+	Handler NetMessageHandler
+	Creator Creator
 }
-type MessageHandlerMap map[MessageType]*HandlerData
+
+func (h *MessageHandlerData) Create() any {
+	if h.Creator != nil {
+		return h.Creator()
+	}
+	return nil
+}
+
+type NetMessageHandlerMap map[NetMessageType]*MessageHandlerData

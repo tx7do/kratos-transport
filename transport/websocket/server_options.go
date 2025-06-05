@@ -48,12 +48,6 @@ func WithPath(path string) ServerOption {
 	}
 }
 
-func WithConnectHandle(h ConnectHandler) ServerOption {
-	return func(s *Server) {
-		s.sessionMgr.RegisterConnectHandler(h)
-	}
-}
-
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(o *Server) {
 		o.tlsConf = c
@@ -126,24 +120,28 @@ func WithInjectTokenToQuery(enable bool, tokenKey string) ServerOption {
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-type ClientOption func(o *Client)
-
-func WithClientCodec(c string) ClientOption {
-	return func(o *Client) {
-		o.codec = encoding.GetCodec(c)
+func WithMessageMarshaler(m NetPacketMarshaler) ServerOption {
+	return func(s *Server) {
+		s.netPacketMarshaler = m
 	}
 }
 
-func WithEndpoint(uri string) ClientOption {
-	return func(o *Client) {
-		o.url = uri
+func WithMessageUnmarshaler(m NetPacketUnmarshaler) ServerOption {
+	return func(s *Server) {
+		s.netPacketUnmarshaler = m
 	}
 }
 
-func WithClientPayloadType(payloadType PayloadType) ClientOption {
-	return func(c *Client) {
-		c.payloadType = payloadType
+func WithSocketConnectHandler(h SocketConnectHandler) ServerOption {
+	return func(s *Server) {
+		s.sessionMgr.RegisterConnectHandler(h)
+	}
+}
+
+func WithSocketRawDataHandler(h SocketRawDataHandler) ServerOption {
+	return func(s *Server) {
+		if h != nil {
+			s.socketRawDataHandler = h
+		}
 	}
 }

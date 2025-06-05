@@ -2,12 +2,20 @@ package asynq
 
 type MessagePayload any
 
-type Binder func() any
+type Creator func() any
 
 type MessageHandler func(string, MessagePayload) error
 
-type HandlerData struct {
+type MessageHandlerData struct {
 	Handler MessageHandler
-	Binder  Binder
+	Creator Creator
 }
-type MessageHandlerMap map[string]HandlerData
+
+func (h *MessageHandlerData) Create() any {
+	if h.Creator != nil {
+		return h.Creator()
+	}
+	return nil
+}
+
+type MessageHandlerMap map[string]MessageHandlerData

@@ -7,7 +7,7 @@ type SessionMap map[SessionID]*Session
 type SessionManager struct {
 	sessions       SessionMap
 	mtx            sync.RWMutex
-	connectHandler ConnectHandler
+	connectHandler SocketConnectHandler
 }
 
 func NewSessionManager() *SessionManager {
@@ -16,7 +16,7 @@ func NewSessionManager() *SessionManager {
 	}
 }
 
-func (s *SessionManager) RegisterConnectHandler(handler ConnectHandler) {
+func (s *SessionManager) RegisterConnectHandler(handler SocketConnectHandler) {
 	s.connectHandler = handler
 }
 

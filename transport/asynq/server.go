@@ -78,12 +78,12 @@ func (s *Server) Name() string {
 }
 
 // RegisterSubscriber register task subscriber
-func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, binder Binder) error {
+func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, creator Creator) error {
 	return s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
 		var payload MessagePayload
 
-		if binder != nil {
-			payload = binder()
+		if creator != nil {
+			payload = creator()
 		} else {
 			payload = task.Payload()
 		}
@@ -123,11 +123,11 @@ func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string
 
 // RegisterSubscriberWithCtx register task subscriber with context
 func (s *Server) RegisterSubscriberWithCtx(taskType string,
-	handler func(context.Context, string, MessagePayload) error, binder Binder) error {
+	handler func(context.Context, string, MessagePayload) error, creator Creator) error {
 	return s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
 		var payload MessagePayload
-		if binder != nil {
-			payload = binder()
+		if creator != nil {
+			payload = creator()
 		} else {
 			payload = task.Payload()
 		}

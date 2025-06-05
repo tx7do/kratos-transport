@@ -45,7 +45,7 @@ func TestServer(t *testing.T) {
 
 	srv := NewServer(
 		WithAddress(":8100"),
-		WithConnectHandler(handleConnect),
+		WithSocketConnectHandler(handleConnect),
 		WithCodec("json"),
 	)
 

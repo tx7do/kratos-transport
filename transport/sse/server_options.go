@@ -113,13 +113,3 @@ func WithStreamIdKey(key string) ServerOption {
 		s.streamIdKey = key
 	}
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-type ClientOption func(o *Client)
-
-func WithEndpoint(uri string) ClientOption {
-	return func(c *Client) {
-		c.url = uri
-	}
-}

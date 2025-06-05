@@ -5,25 +5,24 @@ import (
 	"encoding/binary"
 )
 
-type Any interface{}
-type MessageType uint32
-type MessagePayload Any
+type NetMessageType uint32
+type NetMessagePayload any
 
-type Message struct {
-	Type MessageType
-	Body []byte
+type NetPacket struct {
+	Type    NetMessageType
+	Payload []byte
 }
 
-func (m *Message) Marshal() ([]byte, error) {
+func (m *NetPacket) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := binary.Write(buf, byteOrder, uint32(m.Type)); err != nil {
 		return nil, err
 	}
-	buf.Write(m.Body)
+	buf.Write(m.Payload)
 	return buf.Bytes(), nil
 }
 
-func (m *Message) Unmarshal(buf []byte) error {
+func (m *NetPacket) Unmarshal(buf []byte) error {
 	network := new(bytes.Buffer)
 	network.Write(buf)
 
@@ -31,7 +30,7 @@ func (m *Message) Unmarshal(buf []byte) error {
 		return err
 	}
 
-	m.Body = network.Bytes()
+	m.Payload = network.Bytes()
 
 	return nil
 }

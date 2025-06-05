@@ -8,7 +8,7 @@ require (
 	github.com/fasthttp/router v1.5.4
 	github.com/go-kratos/kratos/v2 v2.8.4
 	github.com/stretchr/testify v1.10.0
-	github.com/tx7do/kratos-transport v1.1.14
+	github.com/tx7do/kratos-transport v1.1.15
 	github.com/valyala/fasthttp v1.62.0
 )
 

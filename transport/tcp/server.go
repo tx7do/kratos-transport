@@ -15,20 +15,6 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-type Binder func() Any
-
-type ConnectHandler func(SessionID, bool)
-
-type MessageHandler func(SessionID, MessagePayload) error
-
-type RawMessageHandler func(SessionID, []byte) (err error, msgType MessageType, msgBody []byte)
-
-type HandlerData struct {
-	Handler MessageHandler
-	Binder  Binder
-}
-type MessageHandlerMap map[MessageType]HandlerData
-
 var (
 	_ kratosTransport.Server     = (*Server)(nil)
 	_ kratosTransport.Endpointer = (*Server)(nil)
@@ -46,9 +32,13 @@ type Server struct {
 	err   error
 	codec encoding.Codec
 
-	messageHandlers   MessageHandlerMap
-	rawMessageHandler RawMessageHandler
-	connectHandler    ConnectHandler
+	messageHandlers NetMessageHandlerMap
+
+	socketConnectHandler SocketConnectHandler
+	socketRawDataHandler SocketRawDataHandler
+
+	netPacketMarshaler   NetPacketMarshaler
+	netPacketUnmarshaler NetPacketUnmarshaler
 
 	sessions   SessionMap
 	register   chan *Session
@@ -61,7 +51,7 @@ func NewServer(opts ...ServerOption) *Server {
 		address: ":0",
 		timeout: 1 * time.Second,
 
-		messageHandlers: make(MessageHandlerMap),
+		messageHandlers: make(NetMessageHandlerMap),
 
 		sessions: SessionMap{},
 
@@ -72,6 +62,30 @@ func NewServer(opts ...ServerOption) *Server {
 	srv.init(opts...)
 
 	return srv
+}
+
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
+
+	if s.netPacketMarshaler == nil {
+		s.netPacketMarshaler = s.defaultMarshalNetPacket
+	}
+	if s.netPacketUnmarshaler == nil {
+		s.netPacketUnmarshaler = s.defaultUnmarshalNetPacket
+	}
+
+	if s.socketRawDataHandler == nil {
+		s.socketRawDataHandler = s.defaultHandleSocketRawData
+	}
+
+	if s.codec == nil {
+		s.codec = encoding.GetCodec("json")
+		if s.codec == nil {
+			s.codec = encoding.GetCodec("bytes")
+		}
+	}
 }
 
 func (s *Server) Name() string {
@@ -102,19 +116,19 @@ func (s *Server) SessionCount() int {
 	return len(s.sessions)
 }
 
-func (s *Server) RegisterMessageHandler(messageType MessageType, handler MessageHandler, binder Binder) {
+func (s *Server) RegisterMessageHandler(messageType NetMessageType, handler NetMessageHandler, binder Creator) {
 	if _, ok := s.messageHandlers[messageType]; ok {
 		return
 	}
 
-	s.messageHandlers[messageType] = HandlerData{
+	s.messageHandlers[messageType] = MessageHandlerData{
 		handler, binder,
 	}
 }
 
-func RegisterServerMessageHandler[T any](srv *Server, messageType MessageType, handler func(SessionID, *T) error) {
+func RegisterServerMessageHandler[T any](srv *Server, messageType NetMessageType, handler func(SessionID, *T) error) {
 	srv.RegisterMessageHandler(messageType,
-		func(sessionId SessionID, payload MessagePayload) error {
+		func(sessionId SessionID, payload NetMessagePayload) error {
 			switch t := payload.(type) {
 			case *T:
 				return handler(sessionId, t)
@@ -123,21 +137,33 @@ func RegisterServerMessageHandler[T any](srv *Server, messageType MessageType, h
 				return errors.New("invalid payload struct type")
 			}
 		},
-		func() Any {
+		func() any {
 			var t T
 			return &t
 		},
 	)
 }
 
-func (s *Server) DeregisterMessageHandler(messageType MessageType) {
+func (s *Server) DeregisterMessageHandler(messageType NetMessageType) {
 	delete(s.messageHandlers, messageType)
+}
+
+// GetMessageHandler find message handler
+func (s *Server) GetMessageHandler(msgType NetMessageType) (error, *MessageHandlerData) {
+	handlerData, ok := s.messageHandlers[msgType]
+	if !ok {
+		errMsg := fmt.Sprintf("[%d] message handler not found", msgType)
+		LogError(errMsg)
+		return errors.New(errMsg), nil
+	}
+
+	return nil, &handlerData
 }
 
 // SendRawData send raw data to client
 func (s *Server) SendRawData(sessionId SessionID, message []byte) error {
-	session, ok := s.sessions[sessionId]
-	if !ok {
+	session := s.getSession(sessionId)
+	if session == nil {
 		LogError("session not found:", sessionId)
 		return errors.New(fmt.Sprintf("session not found: %s", sessionId))
 	}
@@ -148,13 +174,16 @@ func (s *Server) SendRawData(sessionId SessionID, message []byte) error {
 }
 
 func (s *Server) BroadcastRawData(message []byte) {
-	for _, c := range s.sessions {
-		c.SendMessage(message)
-	}
+	s.rangeSessions(
+		func(id SessionID, session *Session) bool {
+			session.SendMessage(message)
+			return false
+		},
+	)
 }
 
-func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, message MessagePayload) error {
-	buf, err := s.marshalMessage(messageType, message)
+func (s *Server) SendMessage(sessionId SessionID, messageType NetMessageType, message NetMessagePayload) error {
+	buf, err := s.marshalNetPacket(messageType, message)
 	if err != nil {
 		LogError("marshal message exception:", err)
 		return errors.New(fmt.Sprintf("marshal message exception: %s", err.Error()))
@@ -163,20 +192,14 @@ func (s *Server) SendMessage(sessionId SessionID, messageType MessageType, messa
 	return s.SendRawData(sessionId, buf)
 }
 
-func (s *Server) Broadcast(messageType MessageType, message MessagePayload) {
-	buf, err := s.marshalMessage(messageType, message)
+func (s *Server) Broadcast(messageType NetMessageType, message NetMessagePayload) {
+	buf, err := s.marshalNetPacket(messageType, message)
 	if err != nil {
 		LogError(" marshal message exception:", err)
 		return
 	}
 
 	s.BroadcastRawData(buf)
-}
-
-func (s *Server) init(opts ...ServerOption) {
-	for _, o := range opts {
-		o(s)
-	}
 }
 
 func (s *Server) Start(_ context.Context) error {
@@ -204,11 +227,19 @@ func (s *Server) Stop(_ context.Context) error {
 	return nil
 }
 
-func (s *Server) marshalMessage(messageType MessageType, message MessagePayload) ([]byte, error) {
+func (s *Server) marshalNetPacket(messageType NetMessageType, message NetMessagePayload) ([]byte, error) {
+	if s.netPacketMarshaler != nil {
+		return s.netPacketMarshaler(messageType, message)
+	} else {
+		return s.defaultMarshalNetPacket(messageType, message)
+	}
+}
+
+func (s *Server) defaultMarshalNetPacket(messageType NetMessageType, message NetMessagePayload) ([]byte, error) {
 	var err error
-	var msg Message
+	var msg NetPacket
 	msg.Type = messageType
-	msg.Body, err = broker.Marshal(s.codec, message)
+	msg.Payload, err = broker.Marshal(s.codec, message)
 	if err != nil {
 		return nil, err
 	}
@@ -221,72 +252,59 @@ func (s *Server) marshalMessage(messageType MessageType, message MessagePayload)
 	return buff, nil
 }
 
-// GetMessageHandler find message handler
-func (s *Server) GetMessageHandler(msgType MessageType) (error, *HandlerData) {
-	handlerData, ok := s.messageHandlers[msgType]
-	if !ok {
-		errMsg := fmt.Sprintf("[%d] message handler not found", msgType)
-		LogError(errMsg)
-		return errors.New(errMsg), nil
-	}
-
-	return nil, &handlerData
-}
-
-func (s *Server) HandleMessage(sessionId SessionID, msgType MessageType, msgBody []byte) error {
-	var err error
-
-	var handlerData *HandlerData
-	if err, handlerData = s.GetMessageHandler(msgType); err != nil {
-		return err
-	}
-
-	var payload MessagePayload
-	if handlerData.Binder != nil {
-		payload = handlerData.Binder()
+func (s *Server) unmarshalNetPacket(buf []byte) (*MessageHandlerData, NetMessagePayload, error) {
+	if s.netPacketUnmarshaler != nil {
+		return s.netPacketUnmarshaler(buf)
 	} else {
-		payload = msgBody
+		return s.defaultUnmarshalNetPacket(buf)
 	}
-
-	if err = broker.Unmarshal(s.codec, msgBody, &payload); err != nil {
-		LogErrorf("unmarshal message exception: %s", err)
-		return err
-	}
-
-	if err = handlerData.Handler(sessionId, payload); err != nil {
-		LogErrorf("message handler exception: %s", err)
-		return err
-	}
-
-	return nil
 }
 
-// messageHandler socket data process
-func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
-	var err error
-
-	if s.rawMessageHandler != nil {
-		var msgType MessageType
-		var msgBody []byte
-		if err, msgType, msgBody = s.rawMessageHandler(sessionId, buf); err != nil {
-			LogErrorf("raw data handler exception: %s", err)
-			return err
-		}
-
-		if err = s.HandleMessage(sessionId, msgType, msgBody); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	var msg Message
+func (s *Server) defaultUnmarshalNetPacket(buf []byte) (handler *MessageHandlerData, payload NetMessagePayload, err error) {
+	var msg NetPacket
 	if err = msg.Unmarshal(buf); err != nil {
 		LogErrorf("decode message exception: %s", err)
-		return err
+		return
 	}
 
-	if err = s.HandleMessage(sessionId, msg.Type, msg.Body); err != nil {
+	if err, handler = s.GetMessageHandler(msg.Type); err != nil {
+		return
+	}
+
+	if payload = handler.Create(); payload == nil {
+		payload = msg.Payload
+	}
+
+	if err = broker.Unmarshal(s.codec, msg.Payload, &payload); err != nil {
+		LogErrorf("unmarshal message exception: %s", err)
+		return
+	}
+
+	return
+}
+
+// handleSocketRawData process raw data received from socket
+func (s *Server) handleSocketRawData(sessionId SessionID, buf []byte) error {
+	if s.socketRawDataHandler != nil {
+		return s.socketRawDataHandler(sessionId, buf)
+	} else {
+		return s.defaultHandleSocketRawData(sessionId, buf)
+	}
+}
+
+func (s *Server) defaultHandleSocketRawData(sessionId SessionID, buf []byte) error {
+	var err error
+	var handler *MessageHandlerData
+	var payload NetMessagePayload
+
+	if handler, payload, err = s.unmarshalNetPacket(buf); err != nil {
+		LogErrorf("unmarshal message failed: %s", err)
+		return err
+	}
+	//LogDebug(payload)
+
+	if err = handler.Handler(sessionId, payload); err != nil {
+		LogErrorf("message handler failed: %s", err)
 		return err
 	}
 
@@ -337,22 +355,45 @@ func (s *Server) doAccept() {
 }
 
 func (s *Server) addSession(c *Session) {
+	if c == nil {
+		return
+	}
+
 	//LogInfo("add session: ", c.SessionID())
 	s.sessions[c.SessionID()] = c
 
-	if s.connectHandler != nil {
-		s.connectHandler(c.SessionID(), true)
+	if s.socketConnectHandler != nil {
+		s.socketConnectHandler(c.SessionID(), true)
 	}
 }
 
 func (s *Server) removeSession(c *Session) {
-	for k, v := range s.sessions {
-		if c == v {
-			//LogInfo("remove session: ", c.SessionID())
-			if s.connectHandler != nil {
-				s.connectHandler(c.SessionID(), false)
+	if c == nil {
+		return
+	}
+
+	s.rangeSessions(
+		func(id SessionID, session *Session) bool {
+			if c.SessionID() == session.SessionID() {
+				//LogInfo("remove session: ", c.SessionID())
+				if s.socketConnectHandler != nil {
+					s.socketConnectHandler(c.SessionID(), false)
+				}
+				delete(s.sessions, id)
+				return true
 			}
-			delete(s.sessions, k)
+			return false
+		},
+	)
+}
+
+func (s *Server) getSession(sessionId SessionID) *Session {
+	return s.sessions[sessionId]
+}
+
+func (s *Server) rangeSessions(fn func(SessionID, *Session) bool) {
+	for sessionId, session := range s.sessions {
+		if fn(sessionId, session) {
 			return
 		}
 	}

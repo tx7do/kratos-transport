@@ -10,15 +10,15 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-type ClientMessageHandler func(MessagePayload) error
+type ClientMessageHandler func(NetMessagePayload) error
 
 type ClientRawMessageHandler func([]byte) error
 
 type ClientHandlerData struct {
 	Handler ClientMessageHandler
-	Binder  Binder
+	Creator Creator
 }
-type ClientMessageHandlerMap map[MessageType]ClientHandlerData
+type ClientMessageHandlerMap map[NetMessageType]ClientHandlerData
 
 type Client struct {
 	conn net.Conn
@@ -91,7 +91,7 @@ func (c *Client) Disconnect() {
 	}
 }
 
-func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientMessageHandler, binder Binder) {
+func (c *Client) RegisterMessageHandler(messageType NetMessageType, handler ClientMessageHandler, binder Creator) {
 	if _, ok := c.messageHandlers[messageType]; ok {
 		return
 	}
@@ -99,9 +99,9 @@ func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientM
 	c.messageHandlers[messageType] = ClientHandlerData{handler, binder}
 }
 
-func RegisterClientMessageHandler[T any](cli *Client, messageType MessageType, handler func(*T) error) {
+func RegisterClientMessageHandler[T any](cli *Client, messageType NetMessageType, handler func(*T) error) {
 	cli.RegisterMessageHandler(messageType,
-		func(payload MessagePayload) error {
+		func(payload NetMessagePayload) error {
 			switch t := payload.(type) {
 			case *T:
 				return handler(t)
@@ -110,14 +110,14 @@ func RegisterClientMessageHandler[T any](cli *Client, messageType MessageType, h
 				return errors.New("invalid payload struct type")
 			}
 		},
-		func() Any {
+		func() any {
 			var t T
 			return &t
 		},
 	)
 }
 
-func (c *Client) DeregisterMessageHandler(messageType MessageType) {
+func (c *Client) DeregisterMessageHandler(messageType NetMessageType) {
 	delete(c.messageHandlers, messageType)
 }
 
@@ -129,9 +129,9 @@ func (c *Client) SendRawData(message []byte) error {
 }
 
 func (c *Client) SendMessage(messageType int, message interface{}) error {
-	var msg Message
-	msg.Type = MessageType(messageType)
-	msg.Body, _ = broker.Marshal(c.codec, message)
+	var msg NetPacket
+	msg.Type = NetMessageType(messageType)
+	msg.Payload, _ = broker.Marshal(c.codec, message)
 
 	var err error
 
@@ -172,7 +172,7 @@ func (c *Client) run() {
 }
 
 func (c *Client) messageHandler(buf []byte) error {
-	var msg Message
+	var msg NetPacket
 	if err := msg.Unmarshal(buf); err != nil {
 		LogErrorf("decode message exception: %s", err)
 		return err
@@ -184,15 +184,15 @@ func (c *Client) messageHandler(buf []byte) error {
 		return errors.New("message handler not found")
 	}
 
-	var payload MessagePayload
+	var payload NetMessagePayload
 
-	if handlerData.Binder != nil {
-		payload = handlerData.Binder()
+	if handlerData.Creator != nil {
+		payload = handlerData.Creator()
 	} else {
-		payload = msg.Body
+		payload = msg.Payload
 	}
 
-	if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
+	if err := broker.Unmarshal(c.codec, msg.Payload, &payload); err != nil {
 		LogErrorf("unmarshal message exception: %s", err)
 		return err
 	}

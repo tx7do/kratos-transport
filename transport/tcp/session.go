@@ -107,7 +107,7 @@ func (c *Session) readPump() {
 			return
 		}
 
-		if err = c.server.messageHandler(c.SessionID(), buf[:readLen]); err != nil {
+		if err = c.server.handleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
 			LogErrorf("[tcp] process message error: %v", err)
 		}
 	}

@@ -18,8 +18,7 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-type Any interface{}
-type MessagePayload Any
+type MessagePayload any
 
 var (
 	_ kratosTransport.Server     = (*Server)(nil)

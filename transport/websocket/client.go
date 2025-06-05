@@ -17,9 +17,9 @@ type ClientMessageHandler func(MessagePayload) error
 
 type ClientHandlerData struct {
 	Handler ClientMessageHandler
-	Binder  Binder
+	Creator Creator
 }
-type ClientMessageHandlerMap map[MessageType]*ClientHandlerData
+type ClientMessageHandlerMap map[NetMessageType]*ClientHandlerData
 
 type Client struct {
 	conn *ws.Conn
@@ -85,7 +85,7 @@ func (c *Client) Disconnect() {
 	}
 }
 
-func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientMessageHandler, binder Binder) {
+func (c *Client) RegisterMessageHandler(messageType NetMessageType, handler ClientMessageHandler, binder Creator) {
 	if _, ok := c.messageHandlers[messageType]; ok {
 		return
 	}
@@ -93,7 +93,7 @@ func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientM
 	c.messageHandlers[messageType] = &ClientHandlerData{handler, binder}
 }
 
-func RegisterClientMessageHandler[T any](cli *Client, messageType MessageType, handler func(*T) error) {
+func RegisterClientMessageHandler[T any](cli *Client, messageType NetMessageType, handler func(*T) error) {
 	cli.RegisterMessageHandler(messageType,
 		func(payload MessagePayload) error {
 			switch t := payload.(type) {
@@ -104,26 +104,26 @@ func RegisterClientMessageHandler[T any](cli *Client, messageType MessageType, h
 				return errors.New("invalid payload struct type")
 			}
 		},
-		func() Any {
+		func() any {
 			var t T
 			return &t
 		},
 	)
 }
 
-func (c *Client) DeregisterMessageHandler(messageType MessageType) {
+func (c *Client) DeregisterMessageHandler(messageType NetMessageType) {
 	delete(c.messageHandlers, messageType)
 }
 
-func (c *Client) marshalMessage(messageType MessageType, message MessagePayload) ([]byte, error) {
+func (c *Client) marshalMessage(messageType NetMessageType, message MessagePayload) ([]byte, error) {
 	var err error
 	var buff []byte
 
 	switch c.payloadType {
 	case PayloadTypeBinary:
-		var msg BinaryMessage
+		var msg BinaryNetPacket
 		msg.Type = messageType
-		msg.Body, err = broker.Marshal(c.codec, message)
+		msg.Payload, err = broker.Marshal(c.codec, message)
 		if err != nil {
 			return nil, err
 		}
@@ -135,10 +135,10 @@ func (c *Client) marshalMessage(messageType MessageType, message MessagePayload)
 
 	case PayloadTypeText:
 		var buf []byte
-		var msg TextMessage
+		var msg TextNetPacket
 		msg.Type = messageType
 		buf, err = broker.Marshal(c.codec, message)
-		msg.Body = string(buf)
+		msg.Payload = string(buf)
 		if err != nil {
 			return nil, err
 		}
@@ -149,12 +149,12 @@ func (c *Client) marshalMessage(messageType MessageType, message MessagePayload)
 		break
 	}
 
-	//LogInfo("marshalMessage:", string(buff))
+	//LogInfo("defaultMarshalNetPacket:", string(buff))
 
 	return buff, nil
 }
 
-func (c *Client) SendMessage(messageType MessageType, message interface{}) error {
+func (c *Client) SendMessage(messageType NetMessageType, message interface{}) error {
 	buff, err := c.marshalMessage(messageType, message)
 	if err != nil {
 		LogError("marshal message exception:", err)
@@ -238,7 +238,7 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 
 	switch c.payloadType {
 	case PayloadTypeBinary:
-		var msg BinaryMessage
+		var msg BinaryNetPacket
 		if err := msg.Unmarshal(buf); err != nil {
 			LogErrorf("decode message exception: %s", err)
 			return nil, nil, err
@@ -251,20 +251,20 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 			return nil, nil, errors.New("message handler not found")
 		}
 
-		if handler.Binder != nil {
-			payload = handler.Binder()
+		if handler.Creator != nil {
+			payload = handler.Creator()
 		} else {
-			payload = msg.Body
+			payload = msg.Payload
 		}
 
-		if err := broker.Unmarshal(c.codec, msg.Body, &payload); err != nil {
+		if err := broker.Unmarshal(c.codec, msg.Payload, &payload); err != nil {
 			LogErrorf("unmarshal message exception: %s", err)
 			return nil, nil, err
 		}
-		//LogDebug(string(msg.Body))
+		//LogDebug(string(msg.Payload))
 
 	case PayloadTypeText:
-		var msg TextMessage
+		var msg TextNetPacket
 		if err := msg.Unmarshal(buf); err != nil {
 			LogErrorf("decode message exception: %s", err)
 			return nil, nil, err
@@ -277,17 +277,17 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 			return nil, nil, errors.New("message handler not found")
 		}
 
-		if handler.Binder != nil {
-			payload = handler.Binder()
+		if handler.Creator != nil {
+			payload = handler.Creator()
 		} else {
-			payload = msg.Body
+			payload = msg.Payload
 		}
 
-		if err := broker.Unmarshal(c.codec, []byte(msg.Body), &payload); err != nil {
+		if err := broker.Unmarshal(c.codec, []byte(msg.Payload), &payload); err != nil {
 			LogErrorf("unmarshal message exception: %s", err)
 			return nil, nil, err
 		}
-		//LogDebug(string(msg.Body))
+		//LogDebug(string(msg.Payload))
 	}
 
 	return handler, payload, nil

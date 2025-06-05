@@ -160,11 +160,11 @@ func (s *Session) readPump() {
 			return
 
 		case ws.BinaryMessage:
-			_ = s.server.messageHandler(s.SessionID(), data)
+			_ = s.server.handleSocketRawData(s.SessionID(), data)
 			break
 
 		case ws.TextMessage:
-			_ = s.server.messageHandler(s.SessionID(), data)
+			_ = s.server.handleSocketRawData(s.SessionID(), data)
 			break
 
 		case ws.PingMessage:

@@ -8,8 +8,8 @@ require (
 	github.com/go-kratos/kratos/v2 v2.8.4
 	github.com/segmentio/kafka-go v0.4.48
 	github.com/stretchr/testify v1.10.0
-	github.com/tx7do/kratos-transport v1.1.14
-	github.com/tx7do/kratos-transport/broker/kafka v1.2.18
+	github.com/tx7do/kratos-transport v1.1.15
+	github.com/tx7do/kratos-transport/broker/kafka v1.2.19
 	go.opentelemetry.io/otel v1.36.0
 	go.opentelemetry.io/otel/trace v1.36.0
 )

@@ -291,7 +291,7 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 			nm.DisableAutoResponse()
 		}
 
-		//fmt.Println("receive message:", nm.ID, nm.Body)
+		//fmt.Println("receive message:", nm.ID, nm.Payload)
 
 		var m broker.Message
 		var errSub error

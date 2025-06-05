@@ -6,25 +6,24 @@ import (
 	"encoding/json"
 )
 
-type Any interface{}
-type MessageType uint32
-type MessagePayload Any
+type NetMessageType uint32
+type MessagePayload any
 
-type BinaryMessage struct {
-	Type MessageType
-	Body []byte
+type BinaryNetPacket struct {
+	Type    NetMessageType
+	Payload []byte
 }
 
-func (m *BinaryMessage) Marshal() ([]byte, error) {
+func (m *BinaryNetPacket) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := binary.Write(buf, binary.LittleEndian, uint32(m.Type)); err != nil {
 		return nil, err
 	}
-	buf.Write(m.Body)
+	buf.Write(m.Payload)
 	return buf.Bytes(), nil
 }
 
-func (m *BinaryMessage) Unmarshal(buf []byte) error {
+func (m *BinaryNetPacket) Unmarshal(buf []byte) error {
 	network := new(bytes.Buffer)
 	network.Write(buf)
 
@@ -32,20 +31,20 @@ func (m *BinaryMessage) Unmarshal(buf []byte) error {
 		return err
 	}
 
-	m.Body = network.Bytes()
+	m.Payload = network.Bytes()
 
 	return nil
 }
 
-type TextMessage struct {
-	Type MessageType `json:"type" xml:"type"`
-	Body string      `json:"body" xml:"body"`
+type TextNetPacket struct {
+	Type    NetMessageType `json:"type" xml:"type"`
+	Payload string         `json:"payload" xml:"payload"`
 }
 
-func (m *TextMessage) Marshal() ([]byte, error) {
+func (m *TextNetPacket) Marshal() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func (m *TextMessage) Unmarshal(buf []byte) error {
+func (m *TextNetPacket) Unmarshal(buf []byte) error {
 	return json.Unmarshal(buf, m)
 }

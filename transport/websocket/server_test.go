@@ -51,7 +51,7 @@ func TestServer(t *testing.T) {
 	srv := NewServer(
 		WithAddress(":9999"),
 		WithPath("/"),
-		WithConnectHandle(handleConnect),
+		WithSocketConnectHandler(handleConnect),
 		WithCodec("json"),
 		//WithPayloadType(PayloadTypeText),
 	)
@@ -74,9 +74,9 @@ func TestServer(t *testing.T) {
 }
 
 func TestGob(t *testing.T) {
-	var msg BinaryMessage
+	var msg BinaryNetPacket
 	msg.Type = MessageTypeChat
-	msg.Body = []byte("")
+	msg.Payload = []byte("")
 
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -86,17 +86,17 @@ func TestGob(t *testing.T) {
 }
 
 func TestMessageMarshal(t *testing.T) {
-	var msg BinaryMessage
+	var msg BinaryNetPacket
 	msg.Type = 10000
-	msg.Body = []byte("Hello World")
+	msg.Payload = []byte("Hello World")
 
 	buf, err := msg.Marshal()
 	assert.Nil(t, err)
 
 	fmt.Printf("%s\n", string(buf))
 
-	var msg1 BinaryMessage
+	var msg1 BinaryNetPacket
 	_ = msg1.Unmarshal(buf)
 
-	fmt.Printf("[%d] [%s]\n", msg1.Type, string(msg1.Body))
+	fmt.Printf("[%d] [%s]\n", msg1.Type, string(msg1.Payload))
 }
