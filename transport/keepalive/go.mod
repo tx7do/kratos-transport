@@ -1,4 +1,4 @@
-module github.com/tx7do/kratos-transport/keepalive
+module github.com/tx7do/kratos-transport/transport/keepalive
 
 go 1.23.0
 
