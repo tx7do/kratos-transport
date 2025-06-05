@@ -92,7 +92,7 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	}
 
 	if !s.enableKeepAlive {
-		return nil, s.err
+		return &url.URL{}, s.err
 	}
 
 	return s.keepAlive.Endpoint()
