@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KindActiveMQ kratosTransport.Kind = "activemq"
+	KindActiveMQ = "activemq"
 )
 
 var _ kratosTransport.Transporter = &Transport{}

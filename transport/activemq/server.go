@@ -2,7 +2,9 @@ package activemq
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -10,25 +12,30 @@ import (
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/stomp"
+
 	"github.com/tx7do/kratos-transport/transport"
+	"github.com/tx7do/kratos-transport/transport/keepalive"
 )
 
 var (
-	_ kratosTransport.Server = (*Server)(nil)
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
 type Server struct {
+	sync.RWMutex
 	broker.Broker
 	brokerOpts []broker.Option
 
 	subscribers    broker.SubscriberMap
 	subscriberOpts transport.SubscribeOptionMap
 
-	sync.RWMutex
 	started atomic.Bool
 
 	baseCtx context.Context
 	err     error
+
+	keepaliveServer *keepalive.Server
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -42,8 +49,6 @@ func NewServer(opts ...ServerOption) *Server {
 
 	srv.init(opts...)
 
-	srv.Broker = stomp.NewBroker(srv.brokerOpts...)
-
 	return srv
 }
 
@@ -51,10 +56,17 @@ func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
+
+	s.keepaliveServer = keepalive.NewServer(
+		keepalive.WithServiceKind(KindActiveMQ),
+	)
+
+	s.Broker = stomp.NewBroker(s.brokerOpts...)
+
 }
 
 func (s *Server) Name() string {
-	return string(KindActiveMQ)
+	return KindActiveMQ
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -64,6 +76,14 @@ func (s *Server) Start(ctx context.Context) error {
 
 	if s.started.Load() {
 		return nil
+	}
+
+	if s.keepaliveServer != nil {
+		go func() {
+			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
+				LogErrorf("keepalive server start failed: %s", s.err.Error())
+			}
+		}()
 	}
 
 	s.err = s.Init()
@@ -90,12 +110,19 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(_ context.Context) error {
+func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
 	s.err = nil
 	s.started.Store(false)
 	err := s.Disconnect()
+
+	if s.keepaliveServer != nil {
+		if err := s.keepaliveServer.Stop(ctx); err != nil {
+			LogError("keepalive server stop failed", s.err)
+		}
+		s.keepaliveServer = nil
+	}
 
 	LogInfo("server stopped.")
 
@@ -163,4 +190,12 @@ func (s *Server) doRegisterSubscriberMap() error {
 	}
 	s.subscriberOpts = make(transport.SubscribeOptionMap)
 	return nil
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
+	if s.keepaliveServer == nil {
+		return nil, errors.New("keepalive server is nil")
+	}
+
+	return s.keepaliveServer.Endpoint()
 }

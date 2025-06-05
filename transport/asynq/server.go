@@ -449,9 +449,11 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	if s.keepaliveServer != nil {
-		if err := s.keepaliveServer.Start(ctx); err != nil {
-			LogErrorf("keepalive server start failed: %s", err.Error())
-		}
+		go func() {
+			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
+				LogErrorf("keepalive server start failed: %s", s.err.Error())
+			}
+		}()
 	}
 
 	if s.err = s.runAsynqScheduler(); s.err != nil {

@@ -39,6 +39,7 @@ type Server struct {
 	serviceKind string
 
 	started atomic.Bool
+	err     error
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -82,8 +83,8 @@ func (s *Server) Start(_ context.Context) error {
 		return nil
 	}
 
-	if err := s.listenAndEndpoint(); err != nil {
-		return err
+	if s.err = s.listenAndEndpoint(); s.err != nil {
+		return s.err
 	}
 
 	s.started.Store(true)
@@ -92,8 +93,8 @@ func (s *Server) Start(_ context.Context) error {
 
 	log.Infof("[%s] server listening on: %s", s.serviceKind, s.lis.Addr().String())
 
-	if err := s.Serve(s.lis); !errors.Is(err, http.ErrServerClosed) {
-		return err
+	if s.err = s.Serve(s.lis); !errors.Is(s.err, http.ErrServerClosed) {
+		return s.err
 	}
 
 	return nil
@@ -110,6 +111,7 @@ func (s *Server) Stop(_ context.Context) error {
 
 	s.health.Shutdown()
 	s.GracefulStop()
+	s.err = nil
 
 	log.Infof("[%s] service stopped", s.serviceKind)
 
