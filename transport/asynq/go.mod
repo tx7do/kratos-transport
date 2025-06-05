@@ -9,7 +9,7 @@ require (
 	github.com/hibiken/asynq v0.25.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tx7do/kratos-transport v1.1.17
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.4
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.5
 )
 
 require (
@@ -49,4 +49,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/tx7do/kratos-transport => ../../
+replace (
+	github.com/tx7do/kratos-transport => ../../
+	github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
+)
