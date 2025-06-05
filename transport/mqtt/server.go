@@ -3,7 +3,6 @@ package mqtt
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -11,13 +10,11 @@ import (
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/mqtt"
-	"github.com/tx7do/kratos-transport/keepalive"
 	"github.com/tx7do/kratos-transport/transport"
 )
 
 var (
-	_ kratosTransport.Server     = (*Server)(nil)
-	_ kratosTransport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server = (*Server)(nil)
 )
 
 type Server struct {
@@ -32,20 +29,15 @@ type Server struct {
 
 	baseCtx context.Context
 	err     error
-
-	keepAlive       *keepalive.Service
-	enableKeepAlive bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		baseCtx:         context.Background(),
-		subscribers:     make(broker.SubscriberMap),
-		subscriberOpts:  make(transport.SubscribeOptionMap),
-		brokerOpts:      []broker.Option{},
-		started:         atomic.Bool{},
-		keepAlive:       keepalive.NewKeepAliveService(),
-		enableKeepAlive: true,
+		baseCtx:        context.Background(),
+		subscribers:    make(broker.SubscriberMap),
+		subscriberOpts: make(transport.SubscribeOptionMap),
+		brokerOpts:     []broker.Option{},
+		started:        atomic.Bool{},
 	}
 
 	srv.init(opts...)
@@ -63,18 +55,6 @@ func (s *Server) init(opts ...ServerOption) {
 
 func (s *Server) Name() string {
 	return string(KindMQTT)
-}
-
-func (s *Server) Endpoint() (*url.URL, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-
-	if !s.enableKeepAlive {
-		return nil, s.err
-	}
-
-	return s.keepAlive.Endpoint()
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -95,12 +75,6 @@ func (s *Server) Start(ctx context.Context) error {
 	s.err = s.Connect()
 	if s.err != nil {
 		return s.err
-	}
-
-	if s.enableKeepAlive {
-		go func() {
-			_ = s.keepAlive.Start()
-		}()
 	}
 
 	LogInfof("server listening on: %s", s.Address())

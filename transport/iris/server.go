@@ -72,6 +72,10 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	return endpoint, s.err
 }
 
+func (s *Server) Name() string {
+	return string(KindIris)
+}
+
 func (s *Server) Start(ctx context.Context) error {
 	log.Infof("[Iris] server listening on: %s", s.addr)
 

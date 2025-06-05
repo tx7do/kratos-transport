@@ -2,6 +2,7 @@ package rocketmq
 
 import (
 	"crypto/tls"
+
 	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 
 	"go.opentelemetry.io/otel/propagation"
@@ -25,13 +26,6 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 			s.brokerOpts = append(s.brokerOpts, broker.WithEnableSecure(true))
 		}
 		s.brokerOpts = append(s.brokerOpts, broker.WithTLSConfig(c))
-	}
-}
-
-// WithEnableKeepAlive enable keep alive
-func WithEnableKeepAlive(enable bool) ServerOption {
-	return func(s *Server) {
-		s.enableKeepAlive = enable
 	}
 }
 

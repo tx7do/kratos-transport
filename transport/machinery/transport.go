@@ -1,4 +1,4 @@
-package nsq
+package machinery
 
 import (
 	"github.com/go-kratos/kratos/v2/selector"
@@ -6,12 +6,12 @@ import (
 )
 
 const (
-	KindNSQ kratosTransport.Kind = "nsq"
+	KindMachinery kratosTransport.Kind = "machinery"
 )
 
 var _ kratosTransport.Transporter = &Transport{}
 
-// Transport is a NSQ transport.
+// Transport is a Machinery transport.
 type Transport struct {
 	endpoint    string
 	operation   string
@@ -22,7 +22,7 @@ type Transport struct {
 
 // Kind returns the transport kind.
 func (tr *Transport) Kind() kratosTransport.Kind {
-	return KindNSQ
+	return KindMachinery
 }
 
 // Endpoint returns the transport endpoint.
@@ -59,6 +59,7 @@ func (hc headerCarrier) Get(_ string) string {
 
 // Set stores the key-value pair.
 func (hc headerCarrier) Set(_ string, _ string) {
+
 }
 
 // Keys lists the keys stored in this carrier.

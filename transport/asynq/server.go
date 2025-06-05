@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -14,12 +13,10 @@ import (
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/keepalive"
 )
 
 var (
-	_ kratosTransport.Server     = (*Server)(nil)
-	_ kratosTransport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server = (*Server)(nil)
 )
 
 type Server struct {
@@ -39,9 +36,6 @@ type Server struct {
 	asynqConfig   asynq.Config
 	redisConnOpt  asynq.RedisConnOpt
 	schedulerOpts *asynq.SchedulerOpts
-
-	keepAlive       *keepalive.Service
-	enableKeepAlive bool
 
 	gracefullyShutdown bool
 
@@ -66,9 +60,6 @@ func NewServer(opts ...ServerOption) *Server {
 		schedulerOpts: &asynq.SchedulerOpts{},
 		mux:           asynq.NewServeMux(),
 
-		keepAlive:       keepalive.NewKeepAliveService(),
-		enableKeepAlive: true,
-
 		codec: encoding.GetCodec("json"),
 
 		entryIDs:    make(map[string]string),
@@ -83,19 +74,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return "asynq"
-}
-
-func (s *Server) Endpoint() (*url.URL, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-
-	if !s.enableKeepAlive {
-		return &url.URL{}, s.err
-	}
-
-	return s.keepAlive.Endpoint()
+	return string(KindAsynq)
 }
 
 // RegisterSubscriber register task subscriber
@@ -431,12 +410,6 @@ func (s *Server) Start(ctx context.Context) error {
 	if s.err = s.runAsynqServer(); s.err != nil {
 		LogError("run asynq server failed", s.err)
 		return s.err
-	}
-
-	if s.enableKeepAlive {
-		go func() {
-			_ = s.keepAlive.Start()
-		}()
 	}
 
 	s.baseCtx = ctx

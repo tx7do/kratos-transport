@@ -4,7 +4,7 @@ go 1.23.0
 
 toolchain go1.24.3
 
-replace github.com/tx7do/kratos-transport => ../
+replace github.com/tx7do/kratos-transport => ../../
 
 require (
 	github.com/go-kratos/kratos/v2 v2.8.4

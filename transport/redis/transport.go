@@ -11,7 +11,7 @@ const (
 
 var _ kratosTransport.Transporter = &Transport{}
 
-// Transport is a redis transport.
+// Transport is a Redis transport.
 type Transport struct {
 	endpoint    string
 	operation   string

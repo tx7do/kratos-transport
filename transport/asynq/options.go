@@ -15,13 +15,6 @@ const (
 
 type ServerOption func(o *Server)
 
-// WithEnableKeepAlive enable keep alive
-func WithEnableKeepAlive(enable bool) ServerOption {
-	return func(s *Server) {
-		s.enableKeepAlive = enable
-	}
-}
-
 // setRedisOption 是一个通用的辅助函数，用于设置 Redis 选项
 func setRedisOption(opt asynq.RedisConnOpt, fn func(*asynq.RedisClientOpt, *asynq.RedisClusterClientOpt, *asynq.RedisFailoverClientOpt)) {
 	if redisOpt, ok := opt.(*asynq.RedisClientOpt); ok {

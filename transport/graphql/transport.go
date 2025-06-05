@@ -19,7 +19,7 @@ type Transporter interface {
 	PathTemplate() string
 }
 
-// Transport is a graphql transport.
+// Transport is a GraphQL transport.
 type Transport struct {
 	endpoint     string
 	operation    string

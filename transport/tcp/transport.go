@@ -19,7 +19,7 @@ type Transporter interface {
 	PathTemplate() string
 }
 
-// Transport is a tcp transport.
+// Transport is a TCP transport.
 type Transport struct {
 	endpoint  string
 	operation string

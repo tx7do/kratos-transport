@@ -17,7 +17,7 @@ type Transporter interface {
 	kratosTransport.Transporter
 }
 
-// Transport is a thrift transport.
+// Transport is a Thrift transport.
 type Transport struct {
 	endpoint    string
 	operation   string

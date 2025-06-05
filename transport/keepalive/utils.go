@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 )
 
 func getIPAddress(interfaceName string) (string, error) {
@@ -90,6 +91,28 @@ func getPublicIP() (string, error) {
 	return localAddr.IP.String(), nil
 }
 
-func generatePort(min, max int) int {
-	return rand.Intn(max-min) + min
+func generatePort() int {
+	return generateNumber(10000, 65535)
+}
+
+func generateNumber(minNum, maxNum int) int {
+	return rand.Intn(maxNum-minNum) + minNum
+}
+
+func parseHost() (string, error) {
+	if itf, ok := os.LookupEnv(EnvKeyInterface); ok {
+		h, err := getIPByInterfaceName(itf)
+		if err != nil {
+			return "", err
+		}
+		return h, nil
+	} else if h, ok := os.LookupEnv(EnvKeyHost); ok {
+		return h, nil
+	} else {
+		h, err := getLocalIP()
+		if err != nil {
+			return "", err
+		}
+		return h, nil
+	}
 }

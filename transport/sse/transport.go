@@ -19,7 +19,7 @@ type Transporter interface {
 	PathTemplate() string
 }
 
-// Transport is a websocket transport.
+// Transport is a SSE transport.
 type Transport struct {
 	endpoint     string
 	operation    string

@@ -25,4 +25,6 @@ git tag transport/websocket/v1.2.20 --force
 git tag transport/webtransport/v1.2.20 --force
 git tag transport/trpc/v1.2.20 --force
 
+git tag transport/keepalive/v1.0.0 --force
+
 git push origin --tags

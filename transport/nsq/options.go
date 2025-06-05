@@ -37,13 +37,6 @@ func WithTLSConfig(c *tls.Config) ServerOption {
 	}
 }
 
-// WithEnableKeepAlive enable keep alive
-func WithEnableKeepAlive(enable bool) ServerOption {
-	return func(s *Server) {
-		s.enableKeepAlive = enable
-	}
-}
-
 func WithCodec(c string) ServerOption {
 	return func(s *Server) {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))

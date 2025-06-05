@@ -272,7 +272,13 @@ service HygrothermographService {
 ```go
 package server
 
-import "context"
+import (
+  "context"
+  "fmt"
+  "math/rand"
+
+  api "github.com/tx7do/kratos-transport/testing/api/thrift/gen-go/hygrothermograph"
+)
 
 type HygrothermographHandler struct {
 }

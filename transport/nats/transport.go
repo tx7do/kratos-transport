@@ -11,7 +11,7 @@ const (
 
 var _ kratosTransport.Transporter = &Transport{}
 
-// Transport is a Kafka transport.
+// Transport is a NATS transport.
 type Transport struct {
 	endpoint    string
 	operation   string

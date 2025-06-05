@@ -20,7 +20,7 @@ type Transporter interface {
 	PathTemplate() string
 }
 
-// Transport is an HTTP transport.
+// Transport is an GoZero transport.
 type Transport struct {
 	endpoint     string
 	operation    string

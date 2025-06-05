@@ -1,0 +1,145 @@
+package keepalive
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"net/url"
+
+	"github.com/go-kratos/kratos/v2/errors"
+	"github.com/go-kratos/kratos/v2/log"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+)
+
+var (
+	_ kratosTransport.Server     = (*Server)(nil)
+	_ kratosTransport.Endpointer = (*Server)(nil)
+)
+
+type Server struct {
+	*grpc.Server
+	health *health.Server
+
+	grpcOpts []grpc.ServerOption
+
+	lis      net.Listener
+	endpoint *url.URL
+
+	network string
+	address string
+}
+
+func NewServer(opts ...ServerOption) *Server {
+	srv := &Server{
+		health: health.NewServer(),
+
+		network: "tcp",
+		address: "",
+	}
+
+	srv.init(opts...)
+
+	return srv
+}
+
+func (s *Server) init(opts ...ServerOption) {
+	for _, o := range opts {
+		o(s)
+	}
+
+	if s.address == "" {
+		s.address = fmt.Sprintf(":%d", generatePort())
+	}
+
+	s.Server = grpc.NewServer(s.grpcOpts...)
+
+	grpc_health_v1.RegisterHealthServer(s.Server, s.health)
+}
+
+func (s *Server) Name() string {
+	return KindKeepAlive
+}
+
+func (s *Server) Start(_ context.Context) error {
+	if err := s.listenAndEndpoint(); err != nil {
+		return err
+	}
+
+	s.health.Resume()
+
+	log.Debugf("keep alive server started at %s", s.lis.Addr().String())
+
+	if err := s.Serve(s.lis); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) Stop(_ context.Context) error {
+	log.Debug("keep alive service stopping...")
+
+	s.health.Shutdown()
+	s.GracefulStop()
+
+	log.Debug("keep alive service stopped")
+
+	return nil
+}
+
+// generateEndpoint generates a TCP endpoint for the keep-alive service.
+func (s *Server) generateEndpoint(host string) error {
+	if s.endpoint != nil {
+		return nil
+	}
+
+	for {
+		// generate a port
+		port := generatePort()
+
+		if host == "" {
+
+		}
+
+		addr := fmt.Sprintf("%s:%d", host, port)
+		lis, err := net.Listen("tcp", addr)
+		if err == nil && lis != nil {
+			s.lis = lis
+			endpoint, _ := url.Parse("tcp://" + addr)
+			s.endpoint = endpoint
+			return nil
+		}
+	}
+}
+
+func (s *Server) listenAndEndpoint() error {
+	if s.lis == nil {
+		lis, err := net.Listen(s.network, s.address)
+		if err != nil {
+			return err
+		}
+		s.lis = lis
+	}
+
+	if s.endpoint == nil {
+		endpoint, err := url.Parse(s.network + "://" + s.address)
+		if err != nil {
+			return err
+		}
+		s.endpoint = endpoint
+	}
+
+	return nil
+}
+
+func (s *Server) Endpoint() (*url.URL, error) {
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
+	}
+	return s.endpoint, nil
+}

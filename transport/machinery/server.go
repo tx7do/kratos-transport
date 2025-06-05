@@ -3,7 +3,6 @@ package machinery
 import (
 	"context"
 	"errors"
-	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -38,13 +37,11 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
-	"github.com/tx7do/kratos-transport/keepalive"
 	"github.com/tx7do/kratos-transport/tracing"
 )
 
 var (
-	_ kratosTransport.Server     = (*Server)(nil)
-	_ kratosTransport.Endpointer = (*Server)(nil)
+	_ kratosTransport.Server = (*Server)(nil)
 )
 
 type Server struct {
@@ -65,9 +62,6 @@ type Server struct {
 	tracingOpts    []tracing.Option
 	producerTracer *tracing.Tracer
 	consumerTracer *tracing.Tracer
-
-	keepAlive       *keepalive.Service
-	enableKeepAlive bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -112,9 +106,6 @@ func NewServer(opts ...ServerOption) *Server {
 			db:       0,
 			retries:  1,
 		},
-
-		keepAlive:       keepalive.NewKeepAliveService(),
-		enableKeepAlive: true,
 	}
 
 	srv.init(opts...)
@@ -123,19 +114,7 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) Name() string {
-	return "machinery"
-}
-
-func (s *Server) Endpoint() (*url.URL, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-
-	if !s.enableKeepAlive {
-		return nil, s.err
-	}
-
-	return s.keepAlive.Endpoint()
+	return string(KindMachinery)
 }
 
 func (s *Server) HandleFunc(name string, handler interface{}) error {
@@ -196,14 +175,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 
-	if s.enableKeepAlive {
-		go func() {
-			_ = s.keepAlive.Start()
-		}()
-	}
-
-	endpoint, _ := s.Endpoint()
-	LogInfof("server listening on: %s", endpoint.String())
+	LogInfof("server started")
 
 	s.baseCtx = ctx
 	s.started.Store(true)
