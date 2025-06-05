@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -29,8 +28,9 @@ var (
 type Server struct {
 	*http.Server
 
-	lis     net.Listener
-	tlsConf *tls.Config
+	lis      net.Listener
+	tlsConf  *tls.Config
+	endpoint *url.URL
 
 	network     string
 	address     string
@@ -125,23 +125,30 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	addr := s.address
-
-	prefix := "http://"
-	if s.tlsConf == nil {
-		if !strings.HasPrefix(addr, "http://") {
-			prefix = "http://"
-		}
-	} else {
-		if !strings.HasPrefix(addr, "https://") {
-			prefix = "https://"
-		}
+	if err := s.listenAndEndpoint(); err != nil {
+		return nil, err
 	}
-	addr = prefix + addr
+	return s.endpoint, nil
+}
 
-	var endpoint *url.URL
-	endpoint, s.err = url.Parse(addr)
-	return endpoint, nil
+func (s *Server) listenAndEndpoint() error {
+	if s.lis == nil {
+		lis, err := net.Listen(s.network, s.address)
+		if err != nil {
+			return err
+		}
+		s.lis = lis
+	}
+
+	if s.endpoint == nil {
+		endpoint, err := url.Parse(s.network + "://" + s.address)
+		if err != nil {
+			return err
+		}
+		s.endpoint = endpoint
+	}
+
+	return nil
 }
 
 func (s *Server) Handle(path string, h http.Handler) {

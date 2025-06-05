@@ -92,31 +92,6 @@ func (s *Server) Stop(_ context.Context) error {
 	return nil
 }
 
-// generateEndpoint generates a TCP endpoint for the keep-alive service.
-func (s *Server) generateEndpoint(host string) error {
-	if s.endpoint != nil {
-		return nil
-	}
-
-	for {
-		// generate a port
-		port := generatePort()
-
-		if host == "" {
-
-		}
-
-		addr := fmt.Sprintf("%s:%d", host, port)
-		lis, err := net.Listen("tcp", addr)
-		if err == nil && lis != nil {
-			s.lis = lis
-			endpoint, _ := url.Parse("tcp://" + addr)
-			s.endpoint = endpoint
-			return nil
-		}
-	}
-}
-
 func (s *Server) listenAndEndpoint() error {
 	if s.lis == nil {
 		lis, err := net.Listen(s.network, s.address)

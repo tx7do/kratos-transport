@@ -3,13 +3,13 @@ package sse
 import (
 	"context"
 	"errors"
-	"github.com/go-kratos/kratos/v2/log"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
