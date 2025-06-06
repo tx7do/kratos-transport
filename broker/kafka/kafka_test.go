@@ -23,8 +23,11 @@ import (
 
 const (
 	testBrokers = "localhost:9092"
-	testTopic   = "logger.sensor.ts"
-	testGroupId = "fx-group"
+
+	testTopic         = "logger.sensor.ts"
+	testWildCardTopic = "logger.sensor.+"
+
+	testGroupId = "logger-group"
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
@@ -156,7 +159,8 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	}
 	defer b.Disconnect()
 
-	_, err := b.Subscribe(testTopic,
+	_, err := b.Subscribe(
+		testTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testGroupId),
@@ -319,10 +323,47 @@ func Test_Subscribe_WithWildcardTopic(t *testing.T) {
 	}
 	defer b.Disconnect()
 
-	_, err := b.Subscribe("logger.sensor.+",
+	_, err := b.Subscribe(testWildCardTopic,
 		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testGroupId),
+	)
+	assert.Nil(t, err)
+
+	<-interrupt
+}
+
+func Test_Subscribe_Batch(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	b := NewBroker(
+		broker.WithAddress(testBrokers),
+		broker.WithCodec("json"),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+	defer b.Disconnect()
+
+	// 双触发机制
+	// 1. 时间驱动：即使消息数量未达到batchSize，只要batchInterval超时，就会触发批处理。
+	// 2. 数量驱动：若消息堆积速度快，当消息数量达到batchSize时，立即触发批处理（不等待batchInterval）。
+
+	_, err := b.Subscribe(testTopic,
+		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		api.HygrothermographCreator,
+		broker.WithQueueName(testGroupId),
+		WithMinBytes(10e3),         // 10MB
+		WithMaxBytes(10e3),         // 10MB
+		WithMaxWait(3*time.Second), // 等待消息的最大时间
+		WithReadLagInterval(-1),    // 禁用消费滞后统计以提高性能
+		WithSubscribeBatchSize(100),
+		WithSubscribeBatchInterval(5*time.Second),
 	)
 	assert.Nil(t, err)
 

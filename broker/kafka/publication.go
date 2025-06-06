@@ -10,12 +10,27 @@ import (
 )
 
 type publication struct {
-	topic  string
-	err    error
-	m      *broker.Message
-	ctx    context.Context
+	topic string
+
+	bm *broker.Message
+	km kafkaGo.Message
+
 	reader *kafkaGo.Reader
-	km     kafkaGo.Message
+
+	ctx context.Context
+	err error
+}
+
+func newPublication(ctx context.Context, reader *kafkaGo.Reader, km kafkaGo.Message, bm *broker.Message) *publication {
+	pub := &publication{
+		topic:  km.Topic,
+		reader: reader,
+		bm:     bm,
+		km:     km,
+		ctx:    ctx,
+	}
+
+	return pub
 }
 
 func (p *publication) Topic() string {
@@ -23,7 +38,7 @@ func (p *publication) Topic() string {
 }
 
 func (p *publication) Message() *broker.Message {
-	return p.m
+	return p.bm
 }
 
 func (p *publication) RawMessage() interface{} {

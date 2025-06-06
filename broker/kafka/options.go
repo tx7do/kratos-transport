@@ -33,25 +33,10 @@ const (
 /// Option
 ///
 
-type retriesCountKey struct{}
-type queueCapacityKey struct{}
-type minBytesKey struct{}
-type maxBytesKey struct{}
-type maxWaitKey struct{}
-type readLagIntervalKey struct{}
-type heartbeatIntervalKey struct{}
-type commitIntervalKey struct{}
-type partitionWatchIntervalKey struct{}
-type watchPartitionChangesKey struct{}
-type sessionTimeoutKey struct{}
-type rebalanceTimeoutKey struct{}
-type retentionTimeKey struct{}
-type startOffsetKey struct{}
-type mechanismKey struct{}
 type readerConfigKey struct{}
 type writerConfigKey struct{}
-type dialerConfigKey struct{}
-type dialerTimeoutKey struct{}
+type retriesCountKey struct{}
+type mechanismKey struct{}
 type loggerKey struct{}
 type errorLoggerKey struct{}
 type enableLoggerKey struct{}
@@ -61,7 +46,6 @@ type batchSizeKey struct{}
 type batchTimeoutKey struct{}
 type batchBytesKey struct{}
 type asyncKey struct{}
-type maxAttemptsKey struct{}
 type readTimeoutKey struct{}
 type writeTimeoutKey struct{}
 type allowPublishAutoTopicCreationKey struct{}
@@ -75,11 +59,6 @@ func WithReaderConfig(cfg kafkaGo.ReaderConfig) broker.Option {
 // WithWriterConfig .
 func WithWriterConfig(cfg WriterConfig) broker.Option {
 	return broker.OptionContextWithValue(writerConfigKey{}, cfg)
-}
-
-// WithDialer .
-func WithDialer(cfg *kafkaGo.Dialer) broker.Option {
-	return broker.OptionContextWithValue(dialerConfigKey{}, cfg)
 }
 
 // WithEnableOneTopicOneWriter .
@@ -112,81 +91,6 @@ func WithScramMechanism(algoName ScramAlgorithm, username, password string) brok
 	}
 
 	return broker.OptionContextWithValue(mechanismKey{}, mechanism)
-}
-
-// WithDialerTimeout .
-func WithDialerTimeout(tm time.Duration) broker.Option {
-	return broker.OptionContextWithValue(dialerTimeoutKey{}, tm)
-}
-
-// WithRetries 设置消息重发的次数
-func WithRetries(cnt int) broker.Option {
-	return broker.OptionContextWithValue(retriesCountKey{}, cnt)
-}
-
-// WithQueueCapacity .
-func WithQueueCapacity(cap int) broker.Option {
-	return broker.OptionContextWithValue(queueCapacityKey{}, cap)
-}
-
-// WithMinBytes fetch.min.bytes
-func WithMinBytes(bytes int) broker.Option {
-	return broker.OptionContextWithValue(minBytesKey{}, bytes)
-}
-
-// WithMaxBytes .
-func WithMaxBytes(bytes int) broker.Option {
-	return broker.OptionContextWithValue(maxBytesKey{}, bytes)
-}
-
-// WithMaxWait fetch.max.wait.ms
-func WithMaxWait(time time.Duration) broker.Option {
-	return broker.OptionContextWithValue(maxWaitKey{}, time)
-}
-
-// WithReadLagInterval .
-func WithReadLagInterval(interval time.Duration) broker.Option {
-	return broker.OptionContextWithValue(readLagIntervalKey{}, interval)
-}
-
-// WithHeartbeatInterval .
-func WithHeartbeatInterval(interval time.Duration) broker.Option {
-	return broker.OptionContextWithValue(heartbeatIntervalKey{}, interval)
-}
-
-// WithCommitInterval .
-func WithCommitInterval(interval time.Duration) broker.Option {
-	return broker.OptionContextWithValue(commitIntervalKey{}, interval)
-}
-
-// WithPartitionWatchInterval .
-func WithPartitionWatchInterval(interval time.Duration) broker.Option {
-	return broker.OptionContextWithValue(partitionWatchIntervalKey{}, interval)
-}
-
-// WithWatchPartitionChanges .
-func WithWatchPartitionChanges(enable bool) broker.Option {
-	return broker.OptionContextWithValue(watchPartitionChangesKey{}, enable)
-}
-
-// WithSessionTimeout .
-func WithSessionTimeout(timeout time.Duration) broker.Option {
-	return broker.OptionContextWithValue(sessionTimeoutKey{}, timeout)
-}
-
-// WithRebalanceTimeout .
-func WithRebalanceTimeout(timeout time.Duration) broker.Option {
-	return broker.OptionContextWithValue(rebalanceTimeoutKey{}, timeout)
-}
-
-// WithRetentionTime .
-func WithRetentionTime(time time.Duration) broker.Option {
-	return broker.OptionContextWithValue(retentionTimeKey{}, time)
-}
-
-// WithStartOffset .
-func WithStartOffset(offset int64) broker.Option {
-	return broker.OptionContextWithValue(startOffsetKey{}, offset)
 }
 
 // WithMaxAttempts .
@@ -272,6 +176,7 @@ func WithCompletion(completion func(messages []kafkaGo.Message, err error)) brok
 type messageHeadersKey struct{}
 type messageKeyKey struct{}
 type messageOffsetKey struct{}
+
 type balancerKey struct{}
 type balancerValue struct {
 	Name       BalancerName
@@ -363,6 +268,30 @@ type autoSubscribeCreateTopicValue struct {
 	ReplicationFactor int
 }
 
+type queueCapacityKey struct{}
+type minBytesKey struct{}
+type maxBytesKey struct{}
+type maxWaitKey struct{}
+type readLagIntervalKey struct{}
+type heartbeatIntervalKey struct{}
+type commitIntervalKey struct{}
+type partitionWatchIntervalKey struct{}
+type watchPartitionChangesKey struct{}
+type sessionTimeoutKey struct{}
+type rebalanceTimeoutKey struct{}
+type retentionTimeKey struct{}
+type startOffsetKey struct{}
+type dialerConfigKey struct{}
+type dialerTimeoutKey struct{}
+type maxAttemptsKey struct{}
+type partitionKey struct{}
+type readBatchTimeoutKey struct{}
+type readBackoffMin struct{}
+type readBackoffMax struct{}
+
+type subscribeBatchSizeKey struct{}
+type subscribeBatchIntervalKey struct{}
+
 func WithSubscribeAutoCreateTopic(topic string, numPartitions, replicationFactor int) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(autoSubscribeCreateTopicKey{},
 		&autoSubscribeCreateTopicValue{
@@ -371,4 +300,108 @@ func WithSubscribeAutoCreateTopic(topic string, numPartitions, replicationFactor
 			ReplicationFactor: replicationFactor,
 		},
 	)
+}
+
+// WithDialerTimeout .
+func WithDialerTimeout(tm time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(dialerTimeoutKey{}, tm)
+}
+
+// WithRetries 设置消息重发的次数
+func WithRetries(cnt int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(retriesCountKey{}, cnt)
+}
+
+// WithQueueCapacity .
+func WithQueueCapacity(cap int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(queueCapacityKey{}, cap)
+}
+
+// WithMinBytes fetch.min.bytes
+func WithMinBytes(bytes int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(minBytesKey{}, bytes)
+}
+
+// WithMaxBytes .
+func WithMaxBytes(bytes int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(maxBytesKey{}, bytes)
+}
+
+// WithMaxWait fetch.max.wait.ms
+func WithMaxWait(time time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(maxWaitKey{}, time)
+}
+
+// WithReadLagInterval .
+func WithReadLagInterval(interval time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(readLagIntervalKey{}, interval)
+}
+
+// WithHeartbeatInterval .
+func WithHeartbeatInterval(interval time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(heartbeatIntervalKey{}, interval)
+}
+
+// WithCommitInterval .
+func WithCommitInterval(interval time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(commitIntervalKey{}, interval)
+}
+
+// WithPartitionWatchInterval .
+func WithPartitionWatchInterval(interval time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(partitionWatchIntervalKey{}, interval)
+}
+
+// WithWatchPartitionChanges .
+func WithWatchPartitionChanges(enable bool) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(watchPartitionChangesKey{}, enable)
+}
+
+// WithSessionTimeout .
+func WithSessionTimeout(timeout time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(sessionTimeoutKey{}, timeout)
+}
+
+// WithRebalanceTimeout .
+func WithRebalanceTimeout(timeout time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(rebalanceTimeoutKey{}, timeout)
+}
+
+// WithRetentionTime .
+func WithRetentionTime(time time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(retentionTimeKey{}, time)
+}
+
+// WithStartOffset .
+func WithStartOffset(offset int64) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(startOffsetKey{}, offset)
+}
+
+// WithDialer .
+func WithDialer(cfg *kafkaGo.Dialer) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(dialerConfigKey{}, cfg)
+}
+
+func WithPartition(partition int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(partitionKey{}, partition)
+}
+
+func WithReadBatchTimeout(tm time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(readBatchTimeoutKey{}, tm)
+}
+
+func WithReadBackoffMin(tm time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(readBackoffMin{}, tm)
+}
+
+func WithReadBackoffMax(tm time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(readBackoffMax{}, tm)
+}
+
+func WithSubscribeBatchSize(batchSize int) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeBatchSizeKey{}, batchSize)
+}
+
+func WithSubscribeBatchInterval(batchInterval time.Duration) broker.SubscribeOption {
+	return broker.SubscribeContextWithValue(subscribeBatchIntervalKey{}, batchInterval)
 }

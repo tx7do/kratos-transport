@@ -7,7 +7,7 @@ import (
 )
 
 func TestCreateTopic(t *testing.T) {
-	err := CreateTopic(defaultAddr, testTopic, 1, 1)
+	err := CreateTopic(defaultAddr, testTopic, 100, 1)
 	assert.Nil(t, err)
 }
 

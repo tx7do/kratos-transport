@@ -5,16 +5,10 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
-	"io"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
-
-	"go.opentelemetry.io/otel/attribute"
-	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
-	"go.opentelemetry.io/otel/trace"
 
 	kafkaGo "github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
@@ -93,6 +87,10 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		b.writerConfig = value
 	}
 
+	if value, ok := b.options.Context.Value(mechanismKey{}).(sasl.Mechanism); ok {
+		b.saslMechanism = value
+	}
+
 	var addrs []string
 	for _, addr := range b.options.Addrs {
 		if len(addr) == 0 {
@@ -117,55 +115,15 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 		b.writerConfig.Completion = value
 	}
 
+	if value, ok := b.options.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
+		b.readerConfig = value
+	}
+
 	if b.readerConfig.Dialer == nil {
 		b.readerConfig.Dialer = kafkaGo.DefaultDialer
 	}
 
-	if value, ok := b.options.Context.Value(queueCapacityKey{}).(int); ok {
-		b.readerConfig.QueueCapacity = value
-	}
-	if value, ok := b.options.Context.Value(minBytesKey{}).(int); ok {
-		b.readerConfig.MinBytes = value
-	}
-	if value, ok := b.options.Context.Value(maxBytesKey{}).(int); ok {
-		b.readerConfig.MaxBytes = value
-	}
-	if value, ok := b.options.Context.Value(maxWaitKey{}).(time.Duration); ok {
-		b.readerConfig.MaxWait = value
-	}
-	if value, ok := b.options.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.ReadLagInterval = value
-	}
-	if value, ok := b.options.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.HeartbeatInterval = value
-	}
-	if value, ok := b.options.Context.Value(commitIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.CommitInterval = value
-	}
-	if value, ok := b.options.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
-		b.readerConfig.PartitionWatchInterval = value
-	}
-	if value, ok := b.options.Context.Value(watchPartitionChangesKey{}).(bool); ok {
-		b.readerConfig.WatchPartitionChanges = value
-	}
-	if value, ok := b.options.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
-		b.readerConfig.SessionTimeout = value
-	}
-	if value, ok := b.options.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
-		b.readerConfig.RebalanceTimeout = value
-	}
-	if value, ok := b.options.Context.Value(retentionTimeKey{}).(time.Duration); ok {
-		b.readerConfig.RetentionTime = value
-	}
-	if value, ok := b.options.Context.Value(startOffsetKey{}).(int64); ok {
-		b.readerConfig.StartOffset = value
-	}
-	if value, ok := b.options.Context.Value(maxAttemptsKey{}).(int); ok {
-		b.readerConfig.MaxAttempts = value
-	}
-	if value, ok := b.options.Context.Value(mechanismKey{}).(sasl.Mechanism); ok {
-		b.saslMechanism = value
-
+	if b.saslMechanism != nil {
 		if b.readerConfig.Dialer == nil {
 			dialer := &kafkaGo.Dialer{
 				Timeout:       10 * time.Second,
@@ -175,17 +133,6 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 			b.readerConfig.Dialer = dialer
 		} else {
 			b.readerConfig.Dialer.SASLMechanism = b.saslMechanism
-		}
-	}
-	if value, ok := b.options.Context.Value(readerConfigKey{}).(kafkaGo.ReaderConfig); ok {
-		b.readerConfig = value
-	}
-	if value, ok := b.options.Context.Value(dialerConfigKey{}).(*kafkaGo.Dialer); ok {
-		b.readerConfig.Dialer = value
-	}
-	if value, ok := b.options.Context.Value(dialerTimeoutKey{}).(time.Duration); ok {
-		if b.readerConfig.Dialer != nil {
-			b.readerConfig.Dialer.Timeout = value
 		}
 	}
 
@@ -205,8 +152,8 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	}
 
 	if len(b.options.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "kafka-producer", b.options.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "kafka-consumer", b.options.Tracings...)
+		b.newProducerTracer()
+		b.newConsumerTracer()
 	}
 
 	if value, ok := b.options.Context.Value(loggerKey{}).(kafkaGo.Logger); ok {
@@ -414,12 +361,12 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, b
 			case []byte:
 				header.Value = t
 			default:
-				var buf bytes.Buffer
-				enc := gob.NewEncoder(&buf)
+				var bBuf bytes.Buffer
+				enc := gob.NewEncoder(&bBuf)
 				if err := enc.Encode(v); err != nil {
 					continue
 				}
-				header.Value = buf.Bytes()
+				header.Value = bBuf.Bytes()
 			}
 			kMsg.Headers = append(kMsg.Headers, header)
 		}
@@ -509,12 +456,12 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []
 			case []byte:
 				header.Value = t
 			default:
-				var buf bytes.Buffer
-				enc := gob.NewEncoder(&buf)
+				var bBuf bytes.Buffer
+				enc := gob.NewEncoder(&bBuf)
 				if err := enc.Encode(v); err != nil {
 					continue
 				}
-				header.Value = buf.Bytes()
+				header.Value = bBuf.Bytes()
 			}
 			kMsg.Headers = append(kMsg.Headers, header)
 		}
@@ -595,154 +542,100 @@ func (b *kafkaBroker) Subscribe(
 		o(&options)
 	}
 
+	readerConfig := b.readerConfig
+	readerConfig.Topic = topic
+	readerConfig.GroupID = options.Queue
+
+	//LogInfof("topic: %s, group: %s, queue: %s", readerConfig.Topic, readerConfig.GroupID, options.Queue)
+
 	if value, ok := options.Context.Value(autoSubscribeCreateTopicKey{}).(*autoSubscribeCreateTopicValue); ok {
 		if err := CreateTopic(b.Address(), value.Topic, value.NumPartitions, value.ReplicationFactor); err != nil {
 			LogErrorf("create topic error: %s", err.Error())
 		}
 	}
 
-	readerConfig := b.readerConfig
-	readerConfig.Topic = topic
-	readerConfig.GroupID = options.Queue
+	if readerConfig.Dialer == nil {
+		readerConfig.Dialer = kafkaGo.DefaultDialer
+	}
 
-	sub := &subscriber{
-		options: options,
-		topic:   topic,
-		handler: handler,
-		reader:  kafkaGo.NewReader(readerConfig),
+	if value, ok := b.options.Context.Value(queueCapacityKey{}).(int); ok {
+		readerConfig.QueueCapacity = value
+	}
+	if value, ok := b.options.Context.Value(minBytesKey{}).(int); ok {
+		readerConfig.MinBytes = value
+	}
+	if value, ok := b.options.Context.Value(maxBytesKey{}).(int); ok {
+		readerConfig.MaxBytes = value
+	}
+	if value, ok := b.options.Context.Value(maxWaitKey{}).(time.Duration); ok {
+		readerConfig.MaxWait = value
+	}
+	if value, ok := b.options.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
+		readerConfig.ReadLagInterval = value
+	}
+	if value, ok := b.options.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
+		readerConfig.HeartbeatInterval = value
+	}
+	if value, ok := b.options.Context.Value(commitIntervalKey{}).(time.Duration); ok {
+		readerConfig.CommitInterval = value
+	}
+	if value, ok := b.options.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
+		readerConfig.PartitionWatchInterval = value
+	}
+	if value, ok := b.options.Context.Value(watchPartitionChangesKey{}).(bool); ok {
+		readerConfig.WatchPartitionChanges = value
+	}
+	if value, ok := b.options.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
+		readerConfig.SessionTimeout = value
+	}
+	if value, ok := b.options.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
+		readerConfig.RebalanceTimeout = value
+	}
+	if value, ok := b.options.Context.Value(retentionTimeKey{}).(time.Duration); ok {
+		readerConfig.RetentionTime = value
+	}
+	if value, ok := b.options.Context.Value(startOffsetKey{}).(int64); ok {
+		readerConfig.StartOffset = value
+	}
+	if value, ok := b.options.Context.Value(maxAttemptsKey{}).(int); ok {
+		readerConfig.MaxAttempts = value
+	}
+	if value, ok := b.options.Context.Value(dialerConfigKey{}).(*kafkaGo.Dialer); ok {
+		readerConfig.Dialer = value
+	}
+	if value, ok := b.options.Context.Value(dialerTimeoutKey{}).(time.Duration); ok {
+		if readerConfig.Dialer != nil {
+			readerConfig.Dialer.Timeout = value
+		}
+	}
+
+	if value, ok := b.options.Context.Value(partitionKey{}).(int); ok {
+		readerConfig.Partition = value
+	}
+	if value, ok := b.options.Context.Value(readBatchTimeoutKey{}).(time.Duration); ok {
+		readerConfig.ReadBatchTimeout = value
+	}
+	if value, ok := b.options.Context.Value(readBackoffMin{}).(time.Duration); ok {
+		readerConfig.ReadBackoffMin = value
+	}
+	if value, ok := b.options.Context.Value(readBackoffMax{}).(time.Duration); ok {
+		readerConfig.ReadBackoffMax = value
+	}
+
+	sub := newSubscriber(b, topic, options, readerConfig, handler, binder)
+
+	if value, ok := options.Context.Value(subscribeBatchSizeKey{}).(int); ok {
+		sub.batchSize = value
+	}
+	if value, ok := options.Context.Value(subscribeBatchIntervalKey{}).(time.Duration); ok {
+		sub.batchInterval = value
 	}
 
 	go func() {
-
-		for {
-			select {
-			case <-options.Context.Done():
-				return
-			default:
-				msg, err := sub.reader.FetchMessage(options.Context)
-				if err != nil {
-					if errors.Is(err, io.EOF) {
-						return
-					}
-
-					LogErrorf("FetchMessage error: %s", err.Error())
-					continue
-				}
-
-				ctx, span := b.startConsumerSpan(options.Context, &msg)
-
-				m := &broker.Message{
-					Headers:   kafkaHeaderToMap(msg.Headers),
-					Body:      nil,
-					Partition: msg.Partition,
-					Offset:    msg.Offset,
-				}
-
-				p := &publication{
-					topic:  msg.Topic,
-					reader: sub.reader,
-					m:      m,
-					km:     msg,
-					ctx:    options.Context,
-				}
-
-				if binder != nil {
-					m.Body = binder()
-				} else {
-					m.Body = msg.Value
-				}
-
-				if err = broker.Unmarshal(b.options.Codec, msg.Value, &m.Body); err != nil {
-					p.err = err
-					LogErrorf("unmarshal message failed: %v", err)
-					b.finishConsumerSpan(span, err)
-					continue
-				}
-
-				if err = sub.handler(ctx, p); err != nil {
-					LogErrorf("handle message failed: %v", err)
-					b.finishConsumerSpan(span, err)
-					continue
-				}
-
-				if sub.options.AutoAck {
-					if err = p.Ack(); err != nil {
-						LogErrorf("unable to commit msg: %v", err)
-					}
-				}
-
-				b.finishConsumerSpan(span, err)
-			}
-		}
+		sub.run()
 	}()
 
 	b.subscribers.Add(topic, sub)
 
 	return sub, nil
-}
-
-func (b *kafkaBroker) onMessage() {
-
-}
-
-func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) trace.Span {
-	if b.producerTracer == nil {
-		return nil
-	}
-
-	carrier := NewMessageCarrier(msg)
-
-	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("kafka"),
-		semConv.MessagingDestinationKindTopic,
-		semConv.MessagingDestinationKey.String(msg.Topic),
-	}
-
-	var span trace.Span
-	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
-
-	return span
-}
-
-func (b *kafkaBroker) finishProducerSpan(span trace.Span, partition int32, offset int64, err error) {
-	if b.producerTracer == nil {
-		return
-	}
-
-	attrs := []attribute.KeyValue{
-		semConv.MessagingMessageIDKey.String(strconv.FormatInt(offset, 10)),
-		semConv.MessagingKafkaPartitionKey.Int64(int64(partition)),
-	}
-
-	b.producerTracer.End(context.Background(), span, err, attrs...)
-}
-
-func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Message) (context.Context, trace.Span) {
-	if b.consumerTracer == nil {
-		return ctx, nil
-	}
-
-	carrier := NewMessageCarrier(msg)
-
-	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("kafka"),
-		semConv.MessagingDestinationKindTopic,
-		semConv.MessagingDestinationKey.String(msg.Topic),
-		semConv.MessagingOperationReceive,
-		semConv.MessagingMessageIDKey.String(strconv.FormatInt(msg.Offset, 10)),
-		semConv.MessagingKafkaPartitionKey.Int64(int64(msg.Partition)),
-	}
-
-	var span trace.Span
-	ctx, span = b.consumerTracer.Start(ctx, carrier, attrs...)
-
-	return ctx, span
-}
-
-func (b *kafkaBroker) finishConsumerSpan(span trace.Span, err error) {
-	if b.consumerTracer == nil {
-		return
-	}
-
-	b.consumerTracer.End(context.Background(), span, err)
 }
