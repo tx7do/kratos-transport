@@ -16,8 +16,6 @@ import (
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/go-kratos/kratos/v2/log"
-
 	kafkaGo "github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 
@@ -454,7 +452,7 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, b
 
 	err = writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
-		log.Errorf("WriteMessages error: %s", err.Error())
+		LogErrorf("WriteMessages error: %s", err.Error())
 		switch cached {
 		case false:
 			var kerr kafkaGo.Error
@@ -547,7 +545,7 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []
 
 	err = b.writer.Writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
-		log.Errorf("WriteMessages error: %s", err.Error())
+		LogErrorf("WriteMessages error: %s", err.Error())
 		switch cached {
 		case false:
 			var kerr kafkaGo.Error
@@ -582,7 +580,12 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []
 	return err
 }
 
-func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (b *kafkaBroker) Subscribe(
+	topic string,
+	handler broker.Handler,
+	binder broker.Binder,
+	opts ...broker.SubscribeOption,
+) (broker.Subscriber, error) {
 	options := broker.SubscribeOptions{
 		Context: context.Background(),
 		AutoAck: true,
@@ -594,7 +597,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 	if value, ok := options.Context.Value(autoSubscribeCreateTopicKey{}).(*autoSubscribeCreateTopicValue); ok {
 		if err := CreateTopic(b.Address(), value.Topic, value.NumPartitions, value.ReplicationFactor); err != nil {
-			log.Errorf("[kafka] create topic error: %s", err.Error())
+			LogErrorf("create topic error: %s", err.Error())
 		}
 	}
 
@@ -622,7 +625,7 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 						return
 					}
 
-					log.Errorf("[kafka] FetchMessage error: %s", err.Error())
+					LogErrorf("FetchMessage error: %s", err.Error())
 					continue
 				}
 
@@ -635,7 +638,13 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					Offset:    msg.Offset,
 				}
 
-				p := &publication{topic: msg.Topic, reader: sub.reader, m: m, km: msg, ctx: options.Context}
+				p := &publication{
+					topic:  msg.Topic,
+					reader: sub.reader,
+					m:      m,
+					km:     msg,
+					ctx:    options.Context,
+				}
 
 				if binder != nil {
 					m.Body = binder()
@@ -645,20 +654,20 @@ func (b *kafkaBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if err = broker.Unmarshal(b.options.Codec, msg.Value, &m.Body); err != nil {
 					p.err = err
-					log.Errorf("[kafka] unmarshal message failed: %v", err)
+					LogErrorf("unmarshal message failed: %v", err)
 					b.finishConsumerSpan(span, err)
 					continue
 				}
 
 				if err = sub.handler(ctx, p); err != nil {
-					log.Errorf("[kafka] handle message failed: %v", err)
+					LogErrorf("handle message failed: %v", err)
 					b.finishConsumerSpan(span, err)
 					continue
 				}
 
 				if sub.options.AutoAck {
 					if err = p.Ack(); err != nil {
-						log.Errorf("[kafka] unable to commit msg: %v", err)
+						LogErrorf("unable to commit msg: %v", err)
 					}
 				}
 

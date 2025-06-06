@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"sync"
+	"time"
 
 	kafkaGo "github.com/segmentio/kafka-go"
 
@@ -18,6 +19,9 @@ type subscriber struct {
 	reader  *kafkaGo.Reader
 	closed  bool
 	done    chan struct{}
+
+	batchSize     int
+	batchInterval time.Duration
 }
 
 func (s *subscriber) Options() broker.SubscribeOptions {
