@@ -2,6 +2,7 @@ package nsq
 
 import (
 	"errors"
+
 	NSQ "github.com/nsqio/go-nsq"
 	"github.com/tx7do/kratos-transport/broker"
 )

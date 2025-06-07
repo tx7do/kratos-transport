@@ -10,7 +10,6 @@ import (
 	kProto "github.com/go-kratos/kratos/v2/encoding/proto"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/go-kratos/kratos/v2/log"
 	natsGo "github.com/nats-io/nats.go"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -286,24 +285,24 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			} else {
 				m.Body = binder()
 			}
+
+			if errSub = broker.Unmarshal(b.options.Codec, msg.Data, &m.Body); errSub != nil {
+				pub.err = errSub
+				LogErrorf("unmarshal message failed: %v", errSub)
+				if eh != nil {
+					_ = eh(b.options.Context, pub)
+				}
+
+				b.finishConsumerSpan(span, errSub)
+				return
+			}
 		} else {
 			m.Body = msg.Data
 		}
 
-		if errSub = broker.Unmarshal(b.options.Codec, msg.Data, &m.Body); errSub != nil {
-			pub.err = errSub
-			log.Errorf("[nats]: unmarshal message failed: %v", errSub)
-			if eh != nil {
-				_ = eh(b.options.Context, pub)
-			}
-
-			b.finishConsumerSpan(span, errSub)
-			return
-		}
-
 		if errSub = handler(ctx, pub); errSub != nil {
 			pub.err = errSub
-			log.Errorf("[nats]: handle message failed: %v", errSub)
+			LogErrorf("handle message failed: %v", errSub)
 			if eh != nil {
 				_ = eh(b.options.Context, pub)
 			}
@@ -314,7 +313,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if options.AutoAck {
 			if errSub = pub.Ack(); errSub != nil {
-				log.Errorf("[nats]: unable to commit msg: %v", errSub)
+				LogErrorf("unable to commit msg: %v", errSub)
 			}
 		}
 

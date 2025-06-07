@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	natsGo "github.com/nats-io/nats.go"
 
 	"github.com/stretchr/testify/assert"
@@ -133,12 +132,12 @@ func RegisterHygrothermographResponseJsonHandler(fnc api.HygrothermographRespons
 }
 
 func responseHandleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) (broker.Any, error) {
-	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	LogInfof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return msg, nil
 }
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	LogInfof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 

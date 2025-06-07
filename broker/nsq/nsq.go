@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 	NSQ "github.com/nsqio/go-nsq"
 	"github.com/tx7do/kratos-transport/broker"
@@ -298,16 +297,15 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		if binder != nil {
 			m.Body = binder()
+
+			if errSub = broker.Unmarshal(b.options.Codec, nm.Body, &m.Body); errSub != nil {
+				return errSub
+			}
 		} else {
 			m.Body = nm.Body
 		}
 
 		p := &publication{topic: topic, nsqMsg: nm, msg: &m}
-
-		if errSub = broker.Unmarshal(b.options.Codec, nm.Body, &m.Body); errSub != nil {
-			p.err = errSub
-			return errSub
-		}
 
 		if errSub = handler(b.options.Context, p); errSub != nil {
 			p.err = errSub
@@ -316,7 +314,7 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		if options.AutoAck {
 			if errSub = p.Ack(); err != nil {
-				log.Errorf("[nats]: unable to commit msg: %v", errSub)
+				LogErrorf("unable to commit msg: %v", errSub)
 			}
 		}
 

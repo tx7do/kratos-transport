@@ -158,6 +158,8 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 			strLevel = "error"
 		case log.LevelInfo:
 			strLevel = "info"
+		default:
+			panic("unhandled default case")
 		}
 		_ = os.Setenv(rmqClient.CLIENT_LOG_LEVEL, strLevel)
 	}
@@ -301,7 +303,7 @@ func (r *rocketmqBroker) doSend(ctx context.Context, producer rmqClient.Producer
 	var receipts []*rmqClient.SendReceipt
 	receipts, err = producer.Send(r.options.Context, rMsg)
 	if err != nil {
-		log.Errorf("[rocketmq]: send message error: %s\n", err)
+		LogErrorf("send message error: %s\n", err)
 		r.finishProducerSpan(ctx, span, nil, err)
 	} else {
 		r.finishProducerSpan(ctx, span, receipts[0], nil)
@@ -314,7 +316,7 @@ func (r *rocketmqBroker) doSendAsync(ctx context.Context, producer rmqClient.Pro
 
 	producer.SendAsync(ctx, rMsg, func(ctx context.Context, receipts []*rmqClient.SendReceipt, err error) {
 		if err != nil {
-			log.Errorf("[rocketmq]: send async message error: %s\n", err)
+			LogErrorf("send async message error: %s\n", err)
 			r.finishProducerSpan(ctx, span, nil, err)
 		} else {
 			r.finishProducerSpan(ctx, span, receipts[0], nil)
@@ -336,15 +338,12 @@ func (r *rocketmqBroker) doSendTransaction(ctx context.Context, producer rmqClie
 	}
 
 	if err = transaction.Commit(); err != nil {
+		LogErrorf("send transaction message error: %s\n", err)
+		r.finishProducerSpan(ctx, span, nil, err)
 		return err
 	}
 
-	if err != nil {
-		log.Errorf("[rocketmq]: send transaction message error: %s\n", err)
-		r.finishProducerSpan(ctx, span, nil, err)
-	} else {
-		r.finishProducerSpan(ctx, span, receipts[0], nil)
-	}
+	r.finishProducerSpan(ctx, span, receipts[0], nil)
 
 	return nil
 }
@@ -471,7 +470,7 @@ func (r *rocketmqBroker) run() {
 		// process message
 		for _, mv := range messages {
 			if mv == nil {
-				log.Errorf("received message is nil")
+				LogErrorf("received message is nil")
 				continue
 			}
 
@@ -480,7 +479,7 @@ func (r *rocketmqBroker) run() {
 			sub := r.subscribers.Get(mv.GetTopic())
 			if sub == nil {
 				err = errors.New(fmt.Sprintf("[%s] subscriber not found", mv.GetTopic()))
-				log.Errorf(err.Error())
+				LogErrorf(err.Error())
 				r.finishConsumerSpan(span, err)
 				continue
 			}
@@ -488,7 +487,7 @@ func (r *rocketmqBroker) run() {
 			aSub := sub.(*subscriber)
 
 			if err = aSub.onMessage(newCtx, mv); err != nil {
-				log.Errorf("[%s] subscriber not found", mv.GetTopic())
+				LogErrorf("[%s] subscriber not found", mv.GetTopic())
 				r.finishConsumerSpan(span, err)
 				continue
 			}

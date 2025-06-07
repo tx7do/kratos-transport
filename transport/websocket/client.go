@@ -253,14 +253,15 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 
 		if handler.Creator != nil {
 			payload = handler.Creator()
+
+			if err := broker.Unmarshal(c.codec, msg.Payload, &payload); err != nil {
+				LogErrorf("unmarshal message exception: %s", err)
+				return nil, nil, err
+			}
 		} else {
 			payload = msg.Payload
 		}
 
-		if err := broker.Unmarshal(c.codec, msg.Payload, &payload); err != nil {
-			LogErrorf("unmarshal message exception: %s", err)
-			return nil, nil, err
-		}
 		//LogDebug(string(msg.Payload))
 
 	case PayloadTypeText:
@@ -279,14 +280,15 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 
 		if handler.Creator != nil {
 			payload = handler.Creator()
+
+			if err := broker.Unmarshal(c.codec, []byte(msg.Payload), &payload); err != nil {
+				LogErrorf("unmarshal message exception: %s", err)
+				return nil, nil, err
+			}
 		} else {
 			payload = msg.Payload
 		}
 
-		if err := broker.Unmarshal(c.codec, []byte(msg.Payload), &payload); err != nil {
-			LogErrorf("unmarshal message exception: %s", err)
-			return nil, nil, err
-		}
 		//LogDebug(string(msg.Payload))
 	}
 

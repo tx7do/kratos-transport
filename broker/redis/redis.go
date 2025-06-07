@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gomodule/redigo/redis"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -106,7 +105,7 @@ func (b *redisBroker) Connect() error {
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
 			_, err := c.Do("PING")
 			if nil != err {
-				log.Error("[redis] ping error:" + err.Error())
+				LogError("ping error:" + err.Error())
 			}
 			return err
 		},

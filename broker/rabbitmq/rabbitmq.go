@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
@@ -248,12 +247,12 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 
 		if binder != nil {
 			m.Body = binder()
+
+			if p.err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); p.err != nil {
+				LogErrorf("unmarshal message failed: %v", p.err)
+			}
 		} else {
 			m.Body = msg.Body
-		}
-
-		if p.err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); p.err != nil {
-			log.Errorf("[rabbitmq] unmarshal message failed: %v", p.err)
 		}
 
 		p.err = handler(ctx, p)

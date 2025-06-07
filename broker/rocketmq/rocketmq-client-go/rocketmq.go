@@ -439,15 +439,15 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 				if binder != nil {
 					m.Body = binder()
+
+					if errSub = broker.Unmarshal(r.options.Codec, msg.Body, &m.Body); errSub != nil {
+						p.err = errSub
+						r.logger.Errorf("%s", errSub.Error())
+						r.finishConsumerSpan(span, errSub)
+						continue
+					}
 				} else {
 					m.Body = msg.Body
-				}
-
-				if errSub = broker.Unmarshal(r.options.Codec, msg.Body, &m.Body); errSub != nil {
-					p.err = errSub
-					r.logger.Errorf("%s", errSub.Error())
-					r.finishConsumerSpan(span, errSub)
-					continue
 				}
 
 				if errSub = sub.handler(newCtx, p); errSub != nil {

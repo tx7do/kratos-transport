@@ -57,6 +57,10 @@ func LogFatalf(format string, args ...interface{}) {
 	log.Fatalf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
+///
+/// Logger
+///
+
 type Logger struct {
 }
 

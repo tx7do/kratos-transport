@@ -78,6 +78,11 @@ func (s *subscriber) onMessage(ctx context.Context, msg *rmqClient.MessageView) 
 
 	if s.binder != nil {
 		outMessage.Body = s.binder()
+
+		if err := broker.Unmarshal(s.r.options.Codec, msg.GetBody(), &outMessage.Body); err != nil {
+			//LogError(err)
+			return err
+		}
 	} else {
 		outMessage.Body = msg.GetBody()
 	}
@@ -90,11 +95,6 @@ func (s *subscriber) onMessage(ctx context.Context, msg *rmqClient.MessageView) 
 		message:    &outMessage,
 		reader:     s.reader,
 		rmqMessage: msg,
-	}
-
-	if p.err = broker.Unmarshal(s.r.options.Codec, msg.GetBody(), &outMessage.Body); p.err != nil {
-		//log.Error("[redis]", err)
-		return p.err
 	}
 
 	if p.err = s.handler(ctx, &p); p.err != nil {

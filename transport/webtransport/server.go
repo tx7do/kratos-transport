@@ -202,13 +202,13 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 
 	if handlerData.Binder != nil {
 		payload = handlerData.Binder()
+
+		if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
+			LogErrorf("unmarshal message exception: %s", err)
+			return err
+		}
 	} else {
 		payload = msg.Body
-	}
-
-	if err := broker.Unmarshal(s.codec, msg.Body, &payload); err != nil {
-		LogErrorf("unmarshal message exception: %s", err)
-		return err
 	}
 
 	if err := handlerData.Handler(sessionId, payload); err != nil {

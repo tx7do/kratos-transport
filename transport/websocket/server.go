@@ -300,12 +300,13 @@ func (s *Server) defaultUnmarshalNetPacket(buf []byte) (handler *MessageHandlerD
 
 	if payload = handler.Create(); payload == nil {
 		payload = rawPayload
+	} else {
+		if err = broker.Unmarshal(s.codec, rawPayload, &payload); err != nil {
+			LogErrorf("unmarshal message exception: %s", err)
+			return nil, nil, err
+		}
 	}
 
-	if err = broker.Unmarshal(s.codec, rawPayload, &payload); err != nil {
-		LogErrorf("unmarshal message exception: %s", err)
-		return nil, nil, err
-	}
 	//LogDebug(string(rawPayload))
 
 	return

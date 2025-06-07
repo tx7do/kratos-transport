@@ -281,19 +281,17 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 
 						if sub.binder != nil {
 							m.Body = sub.binder()
+
+							if err = broker.Unmarshal(r.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
+								LogError(err)
+								r.finishConsumerSpan(span, err)
+								continue
+							}
 						} else {
 							m.Body = msg.MessageBody
 						}
 
-						if err = broker.Unmarshal(r.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
-							p.err = err
-							LogError(err)
-							r.finishConsumerSpan(span, err)
-							continue
-						}
-
-						err = sub.handler(ctx, p)
-						if err != nil {
+						if err = sub.handler(ctx, p); err != nil {
 							LogErrorf("process message failed: %v", err)
 							r.finishConsumerSpan(span, err)
 							continue

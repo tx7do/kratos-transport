@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -26,7 +24,7 @@ const (
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	LogInfof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 

@@ -226,18 +226,17 @@ func (s *subscriber) handleMessage(km kafkaGo.Message) bool {
 
 	if s.binder != nil {
 		bm.Body = s.binder()
+
+		if err = broker.Unmarshal(s.b.options.Codec, km.Value, &bm.Body); err != nil {
+			LogErrorf("unmarshal message failed: %v", err)
+			s.b.finishConsumerSpan(span, err)
+			return true
+		}
 	} else {
 		bm.Body = km.Value
 	}
 
 	pub := newPublication(s.options.Context, s.reader, km, bm)
-
-	if err = broker.Unmarshal(s.b.options.Codec, km.Value, &bm.Body); err != nil {
-		pub.err = err
-		LogErrorf("unmarshal message failed: %v", err)
-		s.b.finishConsumerSpan(span, err)
-		return true
-	}
 
 	if err = s.handler(ctx, pub); err != nil {
 		LogErrorf("handle message failed: %v", err)

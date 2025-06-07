@@ -118,13 +118,13 @@ func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, cre
 
 		if creator != nil {
 			payload = creator()
+
+			if err := broker.Unmarshal(s.codec, task.Payload(), &payload); err != nil {
+				LogErrorf("unmarshal message failed: %s", err)
+				return err
+			}
 		} else {
 			payload = task.Payload()
-		}
-
-		if err := broker.Unmarshal(s.codec, task.Payload(), &payload); err != nil {
-			LogErrorf("unmarshal message failed: %s", err)
-			return err
 		}
 
 		if err := handler(task.Type(), payload); err != nil {
@@ -162,13 +162,13 @@ func (s *Server) RegisterSubscriberWithCtx(taskType string,
 		var payload MessagePayload
 		if creator != nil {
 			payload = creator()
+
+			if err := broker.Unmarshal(s.codec, task.Payload(), &payload); err != nil {
+				LogErrorf("unmarshal message failed: %s", err)
+				return err
+			}
 		} else {
 			payload = task.Payload()
-		}
-
-		if err := broker.Unmarshal(s.codec, task.Payload(), &payload); err != nil {
-			LogErrorf("unmarshal message failed: %s", err)
-			return err
 		}
 
 		if err := handler(ctx, task.Type(), payload); err != nil {

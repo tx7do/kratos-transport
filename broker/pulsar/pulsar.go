@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/uuid"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -119,7 +118,7 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	var err error
 	pb.client, err = pulsar.NewClient(pulsarOptions)
 	if err != nil {
-		log.Errorf("Could not instantiate Pulsar client: %v", err)
+		LogErrorf("Could not instantiate Pulsar client: %v", err)
 		return err
 	}
 
@@ -270,7 +269,7 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg []byte, o
 	var messageId pulsar.MessageID
 	messageId, err = producer.Send(pb.options.Context, &pulsarMsg)
 	if err != nil {
-		log.Errorf("[pulsar]: send message error: %s\n", err)
+		LogErrorf("send message error: %s\n", err)
 		switch cached {
 		case false:
 		case true:
@@ -371,20 +370,19 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 
 			if binder != nil {
 				m.Body = binder()
+
+				if err = broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
+					LogErrorf("unmarshal message failed: %v", err)
+					pb.finishConsumerSpan(span, err)
+					continue
+				}
 			} else {
 				m.Body = cm.Payload()
 			}
 
-			if err = broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
-				p.err = err
-				log.Errorf("[pulsar]: unmarshal message failed: %v", err)
-				pb.finishConsumerSpan(span, err)
-				continue
-			}
-
 			if err = sub.handler(ctx, p); err != nil {
 				p.err = err
-				log.Errorf("[pulsar]: handle message failed: %v", err)
+				LogErrorf("handle message failed: %v", err)
 				pb.finishConsumerSpan(span, err)
 				continue
 			}
@@ -392,7 +390,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			if sub.options.AutoAck {
 				if err = p.Ack(); err != nil {
 					p.err = err
-					log.Errorf("[pulsar]: unable to commit msg: %v", err)
+					LogErrorf("unable to commit msg: %v", err)
 				}
 			}
 

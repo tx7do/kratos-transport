@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/gomodule/redigo/redis"
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -36,6 +35,11 @@ func (s *subscriber) onMessage(channel string, data []byte) error {
 
 	if s.binder != nil {
 		m.Body = s.binder()
+
+		if err := broker.Unmarshal(s.b.options.Codec, data, &m.Body); err != nil {
+			//LogError(err)
+			return err
+		}
 	} else {
 		m.Body = data
 	}
@@ -43,11 +47,6 @@ func (s *subscriber) onMessage(channel string, data []byte) error {
 	p := publication{
 		topic:   channel,
 		message: &m,
-	}
-
-	if p.err = broker.Unmarshal(s.b.options.Codec, data, &m.Body); p.err != nil {
-		//log.Error("[redis]", err)
-		return p.err
 	}
 
 	if p.err = s.handler(s.options.Context, &p); p.err != nil {
@@ -78,7 +77,7 @@ func (s *subscriber) recv() {
 	defer func(conn *redis.PubSubConn) {
 		err := conn.Close()
 		if err != nil {
-			log.Error("[redis] close pubsub connection error: ", err)
+			LogError(" close pubsub connection error: ", err)
 		}
 	}(s.conn)
 
@@ -107,7 +106,7 @@ func (s *subscriber) recv() {
 	for {
 		switch x := s.conn.Receive().(type) {
 		case error:
-			log.Errorf("[redis] recv error: %s\n", x.Error())
+			LogErrorf(" recv error: %s\n", x.Error())
 			s.done <- x
 			return
 
@@ -125,7 +124,7 @@ func (s *subscriber) recv() {
 			}
 
 		case redis.Pong:
-			log.Debug("[redis] pong")
+			LogDebug(" pong")
 		}
 	}
 }

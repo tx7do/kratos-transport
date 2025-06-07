@@ -12,8 +12,6 @@ import (
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/go-kratos/kratos/v2/log"
-
 	stompV3 "github.com/go-stomp/stomp/v3"
 	frameV3 "github.com/go-stomp/stomp/v3/frame"
 
@@ -136,7 +134,7 @@ func (b *stompBroker) Connect() error {
 		}
 	}
 	if host, ok := b.options.Context.Value(vHostKey{}).(string); ok {
-		log.Infof("Adding host: %s", host)
+		LogInfof("Adding host: %s", host)
 		stompOpts = append(stompOpts, stompV3.ConnOpt.Host(host))
 	}
 	if v, ok := b.options.Context.Value(heartBeatKey{}).(*heartbeatTimeout); ok {
@@ -277,15 +275,15 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if binder != nil {
 					m.Body = binder()
+
+					if err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
+						p.err = err
+						LogError(err)
+						b.finishConsumerSpan(span, p.err)
+						return
+					}
 				} else {
 					m.Body = msg.Body
-				}
-
-				if err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
-					p.err = err
-					log.Error(err)
-					b.finishConsumerSpan(span, p.err)
-					return
 				}
 
 				if err = handler(ctx, p); p.err != nil {

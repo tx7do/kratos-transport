@@ -8,7 +8,6 @@ import (
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -139,7 +138,7 @@ func newBroker(opts ...broker.Option) broker.Broker {
 }
 
 func (m *mqttBroker) Name() string {
-	return "paho"
+	return "mqtt"
 }
 
 func (m *mqttBroker) Options() broker.Options {
@@ -250,19 +249,19 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if binder != nil {
 			msg.Body = binder()
+
+			if err := broker.Unmarshal(m.options.Codec, mq.Payload(), &msg.Body); err != nil {
+				p.err = err
+				LogError("unmarshal message failed:", err)
+				return
+			}
 		} else {
 			msg.Body = mq.Payload()
 		}
 
-		if err := broker.Unmarshal(m.options.Codec, mq.Payload(), &msg.Body); err != nil {
-			p.err = err
-			log.Error("[mqtt] unmarshal message failed:", err)
-			return
-		}
-
 		if err := handler(m.options.Context, p); err != nil {
 			p.err = err
-			log.Error("[mqtt] handle message failed:", err)
+			LogError("handle message failed:", err)
 		}
 	}
 
@@ -294,18 +293,18 @@ func (m *mqttBroker) doSubscribe(topic string, qos byte, callback paho.MessageHa
 }
 
 func (m *mqttBroker) onConnect(_ paho.Client) {
-	log.Debug("on connect")
+	LogDebug("on connect")
 
 	m.subscribers.Foreach(func(topic string, sub broker.Subscriber) {
 		aSub := sub.(*subscriber)
 		if err := m.doSubscribe(aSub.topic, aSub.qos, aSub.callback); err != nil {
-			log.Error("mqtt broker subscribe message failed:", err)
+			LogError("mqtt broker subscribe message failed:", err)
 		}
 	})
 }
 
 func (m *mqttBroker) onConnectionLost(client paho.Client, _ error) {
-	log.Debug("on connect lost, try to reconnect")
+	LogDebug("on connect lost, try to reconnect")
 	m.loopConnect(client)
 }
 
@@ -313,7 +312,7 @@ func (m *mqttBroker) loopConnect(client paho.Client) {
 	for {
 		token := client.Connect()
 		if rs, err := checkClientToken(token); !rs {
-			log.Errorf("connect error: %s", err.Error())
+			LogErrorf("connect error: %s", err.Error())
 		} else {
 			break
 		}
