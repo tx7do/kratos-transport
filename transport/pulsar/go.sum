@@ -191,8 +191,8 @@ github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFA
 github.com/tklauser/go-sysconf v0.3.12/go.mod h1:Ho14jnntGE1fpdOqQEEaiKRpvIavV0hSfmBq8nJbHYI=
 github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+Fk=
 github.com/tklauser/numcpus v0.6.1/go.mod h1:1XfjsgE2zo8GVw7POkMbHENHzVg3GzmoZ9fESEdAacY=
-github.com/tx7do/kratos-transport/transport/keepalive v1.0.5 h1:cUNyUEoDBf1Ou+ldoBnaa4UQBdlx/UxYhEoTLs30zeM=
-github.com/tx7do/kratos-transport/transport/keepalive v1.0.5/go.mod h1:jhqIP/cOaZDFutyJrlRzU14+1jEhUIsA4Jie05MhliQ=
+github.com/tx7do/kratos-transport/transport/keepalive v1.0.6 h1:9iXsR6HKkafsbvMXlRX2wytPOtDUnccQCWmyHC6RQys=
+github.com/tx7do/kratos-transport/transport/keepalive v1.0.6/go.mod h1:3DV3CN3QvI6mYf2kyCw64L4kQaUdytrmOLuGYBFk8aU=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

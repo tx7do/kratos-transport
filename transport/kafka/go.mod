@@ -10,7 +10,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tx7do/kratos-transport v1.1.17
 	github.com/tx7do/kratos-transport/broker/kafka v1.2.21
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.5
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.6
 	go.opentelemetry.io/otel v1.36.0
 	go.opentelemetry.io/otel/trace v1.36.0
 )
