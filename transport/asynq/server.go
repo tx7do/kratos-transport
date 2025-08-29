@@ -2,11 +2,13 @@ package asynq
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/url"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/hibiken/asynq"
 
@@ -41,6 +43,21 @@ type Server struct {
 	redisConnOpt  asynq.RedisConnOpt
 	schedulerOpts *asynq.SchedulerOpts
 
+	addresses        []string
+	username         *string
+	password         *string
+	db               *int
+	poolSize         *int
+	dialTimeout      *time.Duration
+	readTimeout      *time.Duration
+	writeTimeout     *time.Duration
+	tlsConfig        *tls.Config
+	maxRedirects     *int
+	masterName       *string
+	sentinelUsername *string
+	sentinelPassword *string
+	network          *string
+
 	gracefullyShutdown bool
 
 	codec encoding.Codec
@@ -53,14 +70,11 @@ type Server struct {
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		baseCtx: context.Background(),
-		started: atomic.Bool{},
-		redisConnOpt: asynq.RedisClientOpt{
-			Addr: defaultRedisAddress,
-			DB:   0,
-		},
+		baseCtx:      context.Background(),
+		started:      atomic.Bool{},
+		redisConnOpt: newRedisClientOpt(),
 		asynqConfig: asynq.Config{
-			Concurrency: 20,
+			Concurrency: defaultConcurrency,
 			Logger:      newLogger(),
 		},
 		schedulerOpts: &asynq.SchedulerOpts{},
@@ -79,9 +93,125 @@ func NewServer(opts ...ServerOption) *Server {
 	return srv
 }
 
+func (s *Server) updateRedisClientOpt(opt *asynq.RedisClientOpt) {
+	if s.username != nil {
+		opt.Username = *s.username
+	}
+	if s.password != nil {
+		opt.Password = *s.password
+	}
+	if s.db != nil {
+		opt.DB = *s.db
+	}
+	if len(s.addresses) > 0 {
+		opt.Addr = s.addresses[0]
+	}
+	if s.poolSize != nil {
+		opt.PoolSize = *s.poolSize
+	}
+	if s.dialTimeout != nil {
+		opt.DialTimeout = *s.dialTimeout
+	}
+	if s.readTimeout != nil {
+		opt.ReadTimeout = *s.readTimeout
+	}
+	if s.writeTimeout != nil {
+		opt.WriteTimeout = *s.writeTimeout
+	}
+	if s.tlsConfig != nil {
+		opt.TLSConfig = s.tlsConfig
+	}
+	if s.network != nil {
+		opt.Network = *s.network
+	}
+}
+
+func (s *Server) updateRedisClusterClientOpt(opt *asynq.RedisClusterClientOpt) {
+	if s.username != nil {
+		opt.Username = *s.username
+	}
+	if s.password != nil {
+		opt.Password = *s.password
+	}
+	if len(s.addresses) > 0 {
+		opt.Addrs = s.addresses
+	}
+	if s.dialTimeout != nil {
+		opt.DialTimeout = *s.dialTimeout
+	}
+	if s.readTimeout != nil {
+		opt.ReadTimeout = *s.readTimeout
+	}
+	if s.writeTimeout != nil {
+		opt.WriteTimeout = *s.writeTimeout
+	}
+	if s.tlsConfig != nil {
+		opt.TLSConfig = s.tlsConfig
+	}
+	if s.maxRedirects != nil {
+		opt.MaxRedirects = *s.maxRedirects
+	}
+}
+
+func (s *Server) updateRedisFailoverClientOpt(opt *asynq.RedisFailoverClientOpt) {
+	if s.username != nil {
+		opt.Username = *s.username
+	}
+	if s.password != nil {
+		opt.Password = *s.password
+	}
+	if s.db != nil {
+		opt.DB = *s.db
+	}
+	if len(s.addresses) > 0 {
+		opt.SentinelAddrs = s.addresses
+	}
+	if s.poolSize != nil {
+		opt.PoolSize = *s.poolSize
+	}
+	if s.dialTimeout != nil {
+		opt.DialTimeout = *s.dialTimeout
+	}
+	if s.readTimeout != nil {
+		opt.ReadTimeout = *s.readTimeout
+	}
+	if s.writeTimeout != nil {
+		opt.WriteTimeout = *s.writeTimeout
+	}
+	if s.tlsConfig != nil {
+		opt.TLSConfig = s.tlsConfig
+	}
+	if s.masterName != nil {
+		opt.MasterName = *s.masterName
+	}
+	if s.sentinelUsername != nil {
+		opt.SentinelUsername = *s.sentinelUsername
+	}
+	if s.sentinelPassword != nil {
+		opt.SentinelPassword = *s.sentinelPassword
+	}
+}
+
 func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
+	}
+
+	switch v := s.redisConnOpt.(type) {
+	case *asynq.RedisClientOpt:
+		s.updateRedisClientOpt(v)
+	case asynq.RedisClientOpt:
+		s.updateRedisClientOpt(&v)
+
+	case *asynq.RedisClusterClientOpt:
+		s.updateRedisClusterClientOpt(v)
+	case asynq.RedisClusterClientOpt:
+		s.updateRedisClusterClientOpt(&v)
+
+	case *asynq.RedisFailoverClientOpt:
+		s.updateRedisFailoverClientOpt(v)
+	case asynq.RedisFailoverClientOpt:
+		s.updateRedisFailoverClientOpt(&v)
 	}
 
 	s.keepaliveServer = keepalive.NewServer(

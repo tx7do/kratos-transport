@@ -48,12 +48,8 @@ func TestNewTaskOnly(t *testing.T) {
 
 	var err error
 
-	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := NewServer(
-		WithRedisConnOpt(redisConnOpt),
+		WithRedisURI(localRedisURI),
 		WithShutdownTimeout(3*time.Second),
 	)
 
@@ -86,12 +82,8 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 
 	var err error
 
-	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := NewServer(
-		WithRedisConnOpt(redisConnOpt),
+		WithRedisURI(localRedisURI),
 		WithShutdownTimeout(3*time.Second),
 	)
 
@@ -125,12 +117,8 @@ func TestDelayTask(t *testing.T) {
 	ctx := context.Background()
 	var err error
 
-	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := NewServer(
-		WithRedisConnOpt(redisConnOpt),
+		WithRedisURI(localRedisURI),
 		WithShutdownTimeout(3*time.Second),
 	)
 
@@ -175,12 +163,8 @@ func TestPeriodicTask(t *testing.T) {
 	ctx := context.Background()
 	var err error
 
-	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := NewServer(
-		WithRedisConnOpt(redisConnOpt),
+		WithRedisURI(localRedisURI),
 		WithShutdownTimeout(3*time.Second),
 	)
 
@@ -216,12 +200,8 @@ func TestTaskSubscribe(t *testing.T) {
 	ctx := context.Background()
 	var err error
 
-	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := NewServer(
-		WithRedisConnOpt(redisConnOpt),
+		WithRedisURI(localRedisURI),
 		WithShutdownTimeout(3*time.Second),
 	)
 
@@ -255,12 +235,8 @@ func TestAllInOne(t *testing.T) {
 
 	var err error
 
-	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := NewServer(
-		WithRedisConnOpt(redisConnOpt),
+		WithRedisURI(localRedisURI),
 		WithShutdownTimeout(3*time.Second),
 	)
 
@@ -317,12 +293,8 @@ func TestWaitResultTask(t *testing.T) {
 
 	var err error
 
-	redisConnOpt, err := asynq.ParseRedisURI(localRedisURI)
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := NewServer(
-		WithRedisConnOpt(redisConnOpt),
+		WithRedisURI(localRedisURI),
 		WithShutdownTimeout(3*time.Second),
 	)
 

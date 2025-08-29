@@ -10,23 +10,52 @@ import (
 )
 
 const (
-	defaultRedisAddress = "127.0.0.1:6379"
+	RedisTypeSingle   = "single"
+	RedisTypeCluster  = "cluster"
+	RedisTypeSentinel = "sentinel"
 )
+
+const (
+	defaultRedisAddress = "127.0.0.1:6379"
+	defaultRedisDB      = 0
+	defaultConcurrency  = 20
+)
+
+func newRedisClientOpt() asynq.RedisConnOpt {
+	return &asynq.RedisClientOpt{
+		Addr: defaultRedisAddress,
+		DB:   defaultRedisDB,
+	}
+}
+
+func newRedisClusterClientOpt() asynq.RedisConnOpt {
+	return &asynq.RedisClusterClientOpt{
+		Addrs: []string{defaultRedisAddress},
+	}
+}
+
+func newRedisFailoverClientOpt() asynq.RedisConnOpt {
+	return &asynq.RedisFailoverClientOpt{
+		MasterName:    "mymaster",
+		SentinelAddrs: []string{defaultRedisAddress},
+		DB:            defaultRedisDB,
+	}
+}
 
 type ServerOption func(o *Server)
 
-// setRedisOption 是一个通用的辅助函数，用于设置 Redis 选项
-func setRedisOption(opt asynq.RedisConnOpt, fn func(*asynq.RedisClientOpt, *asynq.RedisClusterClientOpt, *asynq.RedisFailoverClientOpt)) {
-	if redisOpt, ok := opt.(*asynq.RedisClientOpt); ok {
-		fn(redisOpt, nil, nil)
-		return
-	}
-	if redisClusterOpt, ok := opt.(*asynq.RedisClusterClientOpt); ok {
-		fn(nil, redisClusterOpt, nil)
-		return
-	}
-	if redisFailoverOpt, ok := opt.(*asynq.RedisFailoverClientOpt); ok {
-		fn(nil, nil, redisFailoverOpt)
+func WithRedisType(redisType string) ServerOption {
+	return func(s *Server) {
+		switch redisType {
+		case RedisTypeSingle:
+			s.redisConnOpt = newRedisClientOpt()
+		case RedisTypeCluster:
+			s.redisConnOpt = newRedisClusterClientOpt()
+		case RedisTypeSentinel:
+			s.redisConnOpt = newRedisFailoverClientOpt()
+		default:
+			panic("unknown redis type " + redisType)
+		}
 	}
 }
 
@@ -36,6 +65,12 @@ func WithRedisConnOpt(redisConnOpt asynq.RedisConnOpt) ServerOption {
 	}
 }
 
+// WithRedisURI 设置 Redis 连接 URI
+// 支持三种类型的 Redis 连接：单节点、集群和哨兵模式
+// URI 格式如下：
+// 单节点模式: redis://[:password@]host:port[/db]。比如："redis://127.0.0.1:6379"
+// 集群模式: redis+cluster://[:password@]host1:port1,host2:port2,...[/db]。比如："redis+cluster://127.0.0.1:6379,127.0.0.2:6379"
+// 哨兵模式: redis+sentinel://[:password@]host1:port1,host2:port2,.../mastername[/db]。比如："redis+sentinel://mymaster@127.0.0.1:26379,127.0.0.2:26379"
 func WithRedisURI(uri string) ServerOption {
 	return func(s *Server) {
 		redisConnOpt, err := asynq.ParseRedisURI(uri)
@@ -46,182 +81,121 @@ func WithRedisURI(uri string) ServerOption {
 	}
 }
 
+// WithRedisAddress 设置 Redis 地址，格式为 "host:port"
 func WithRedisAddress(address string) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.Addr = address
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.Addrs = []string{address}
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.SentinelAddrs = []string{address}
-			}
-		})
+		s.addresses = []string{address}
 	}
 }
 
-func WithRedisSentinelAddrs(addrs []string) ServerOption {
+// WithRedisAddresses 设置 Redis 地址列表
+func WithRedisAddresses(addresses []string) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.SentinelAddrs = addrs
-			}
-		})
+		s.addresses = addresses
 	}
 }
 
 func WithRedisUsername(username string) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.Username = username
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.Username = username
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.Username = username
-			}
-		})
+		s.username = &username
 	}
 }
 
 func WithRedisPassword(password string) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.Password = password
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.Password = password
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.Password = password
-			}
-		})
+		s.password = &password
 	}
 }
 
 func WithRedisAuth(username, password string) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.Username = username
-				redisOpt.Password = password
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.Username = username
-				redisClusterOpt.Password = password
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.Username = username
-				redisFailoverOpt.Password = password
-			}
-		})
+		s.username = &username
+		s.password = &password
 	}
 }
 
 func WithRedisDB(db int) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.DB = db
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.DB = db
-			}
-		})
+		s.db = &db
 	}
 }
 
 func WithRedisPoolSize(size int) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.PoolSize = size
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.PoolSize = size
-			}
-		})
+		s.poolSize = &size
 	}
 }
 
 func WithDialTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.DialTimeout = timeout
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.DialTimeout = timeout
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.DialTimeout = timeout
-			}
-		})
+		s.dialTimeout = &timeout
 	}
 }
 
 func WithReadTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.ReadTimeout = timeout
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.ReadTimeout = timeout
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.ReadTimeout = timeout
-			}
-		})
+		s.readTimeout = &timeout
 	}
 }
 
 func WithWriteTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.WriteTimeout = timeout
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.WriteTimeout = timeout
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.WriteTimeout = timeout
-			}
-		})
+		s.writeTimeout = &timeout
 	}
 }
 
-func WithTLSConfig(c *tls.Config) ServerOption {
+func WithTLSConfig(tlsConfig *tls.Config) ServerOption {
 	return func(s *Server) {
-		setRedisOption(s.redisConnOpt, func(redisOpt *asynq.RedisClientOpt, redisClusterOpt *asynq.RedisClusterClientOpt, redisFailoverOpt *asynq.RedisFailoverClientOpt) {
-			if redisOpt != nil {
-				redisOpt.TLSConfig = c
-			}
-			if redisClusterOpt != nil {
-				redisClusterOpt.TLSConfig = c
-			}
-			if redisFailoverOpt != nil {
-				redisFailoverOpt.TLSConfig = c
-			}
-		})
+		s.tlsConfig = tlsConfig
 	}
 }
 
-func WithConfig(cfg asynq.Config) ServerOption {
+func WithMaxRedirects(maxRedirects *int) ServerOption {
 	return func(s *Server) {
-		s.asynqConfig = cfg
+		s.maxRedirects = maxRedirects
+	}
+}
+
+func WithMasterName(masterName *string) ServerOption {
+	return func(s *Server) {
+		s.masterName = masterName
+	}
+}
+
+func WithSentinelUsername(sentinelUsername *string) ServerOption {
+	return func(s *Server) {
+		s.sentinelUsername = sentinelUsername
+	}
+}
+
+func WithSentinelPassword(sentinelPassword *string) ServerOption {
+	return func(s *Server) {
+		s.sentinelPassword = sentinelPassword
+	}
+}
+
+func WithSentinelAuth(username, password *string) ServerOption {
+	return func(s *Server) {
+		s.sentinelUsername = username
+		s.sentinelPassword = password
+	}
+}
+
+func WithNetwork(network *string) ServerOption {
+	return func(s *Server) {
+		s.network = network
 	}
 }
 
 func WithConcurrency(concurrency int) ServerOption {
 	return func(s *Server) {
 		s.asynqConfig.Concurrency = concurrency
+	}
+}
+
+func WithConfig(cfg asynq.Config) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig = cfg
 	}
 }
 
