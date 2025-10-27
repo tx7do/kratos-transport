@@ -65,6 +65,8 @@ type Server struct {
 	entryIDs    map[string]string
 	mtxEntryIDs sync.RWMutex
 
+	typeNameMap sync.Map
+
 	keepaliveServer *keepalive.Server
 }
 
@@ -84,6 +86,8 @@ func NewServer(opts ...ServerOption) *Server {
 
 		entryIDs:    make(map[string]string),
 		mtxEntryIDs: sync.RWMutex{},
+
+		typeNameMap: sync.Map{},
 
 		gracefullyShutdown: false,
 	}
@@ -237,13 +241,32 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 }
 
+// Name returns the name of server
 func (s *Server) Name() string {
 	return KindAsynq
 }
 
+// TaskTypeExists check if task type is registered
+func (s *Server) TaskTypeExists(taskType string) bool {
+	_, ok := s.typeNameMap.Load(taskType)
+	return ok
+}
+
+// GetRegisteredTaskTypes get all registered task types
+func (s *Server) GetRegisteredTaskTypes() []string {
+	var types []string
+	s.typeNameMap.Range(func(key, value any) bool {
+		if typeName, ok := key.(string); ok {
+			types = append(types, typeName)
+		}
+		return true
+	})
+	return types
+}
+
 // RegisterSubscriber register task subscriber
 func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, creator Creator) error {
-	return s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
+	err := s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
 		var payload MessagePayload
 
 		if creator != nil {
@@ -264,6 +287,13 @@ func (s *Server) RegisterSubscriber(taskType string, handler MessageHandler, cre
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	s.typeNameMap.Store(taskType, true)
+
+	return nil
 }
 
 // RegisterSubscriber register task subscriber
@@ -286,9 +316,12 @@ func RegisterSubscriber[T any](srv *Server, taskType string, handler func(string
 }
 
 // RegisterSubscriberWithCtx register task subscriber with context
-func (s *Server) RegisterSubscriberWithCtx(taskType string,
-	handler func(context.Context, string, MessagePayload) error, creator Creator) error {
-	return s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
+func (s *Server) RegisterSubscriberWithCtx(
+	taskType string,
+	handler func(context.Context, string, MessagePayload) error,
+	creator Creator,
+) error {
+	err := s.handleFunc(taskType, func(ctx context.Context, task *asynq.Task) error {
 		var payload MessagePayload
 		if creator != nil {
 			payload = creator()
@@ -308,6 +341,13 @@ func (s *Server) RegisterSubscriberWithCtx(taskType string,
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	s.typeNameMap.Store(taskType, true)
+
+	return nil
 }
 
 // RegisterSubscriberWithCtx register task subscriber with context
