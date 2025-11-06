@@ -24,6 +24,7 @@ git tag transport/thrift/v1.2.24 --force
 git tag transport/websocket/v1.2.24 --force
 git tag transport/webtransport/v1.2.24 --force
 git tag transport/trpc/v1.2.24 --force
+git tag transport/mcp/v1.0.0 --force
 
 git tag transport/keepalive/v1.0.6 --force
 

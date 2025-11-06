@@ -46,6 +46,7 @@
 - [SSE](https://en.wikipedia.org/wiki/Server-sent_events)
 - [SignalR](https://learn.microsoft.com/en-us/aspnet/signalr/overview/getting-started/introduction-to-signalr)
 - [Socket.IO](https://socket.io/zh-CN/docs/v4/)
+- [MCP](https://modelcontextprotocol.io/)
 
 ## 支持的消息代理（Broker）
 
@@ -67,6 +68,7 @@
 - [kratos-chatroom](https://github.com/tx7do/kratos-chatroom) 一个简单的Websocket聊天室的示例
 - [kratos-cqrs](https://github.com/tx7do/kratos-cqrs) 一个CQRS架构模式的示例
 - [kratos-realtimemap](https://github.com/tx7do/kratos-realtimemap) 一个物联网的公共交通实时显示地图的示例
-- [kratos-bi](https://github.com/tx7do/kratos-bi) 一个BI系统的示例
+- [kratos-uba](https://github.com/tx7do/kratos-uba) 一个UBA系统
+- [go-kratos-admin](https://github.com/tx7do/go-kratos-admin) 一个Admin系统
 
 以上示例在[Kratos官方示例代码库](https://github.com/go-kratos/examples)中也可以找到。
