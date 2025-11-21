@@ -101,17 +101,18 @@ func TestServer(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
+	ctx := context.Background()
+
 	httpTransport, err := transport.NewStreamableHTTP("http://localhost:8080/mcp")
-	c := client.NewClient(httpTransport)
 	assert.NoError(t, err)
-	defer c.Close()
+	assert.NotNil(t, httpTransport)
 
 	mcpClient := client.NewClient(
 		httpTransport,
 	)
 	assert.NotNil(t, mcpClient)
+	defer mcpClient.Close()
 
-	ctx := context.Background()
 	err = mcpClient.Start(ctx)
 	assert.NoError(t, err)
 
@@ -121,7 +122,7 @@ func TestClient(t *testing.T) {
 			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
 			Capabilities:    mcp.ClientCapabilities{},
 			ClientInfo: mcp.Implementation{
-				Name:    "sampling-http-client",
+				Name:    "calculate-http-client",
 				Version: "1.0.0",
 			},
 		},
