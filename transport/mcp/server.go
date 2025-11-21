@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -13,6 +14,12 @@ import (
 	"github.com/tx7do/kratos-transport/transport/keepalive"
 
 	"github.com/mark3labs/mcp-go/server"
+)
+
+const (
+	DefaultMCPServerName    = "MCP Server"
+	DefaultMCPServerVersion = "1.0.0"
+	DefaultMCPServerAddress = ":8080"
 )
 
 var (
@@ -32,6 +39,7 @@ type Server struct {
 
 	keepaliveServer *keepalive.Server
 	mcpServer       *server.MCPServer
+	endpoint        *url.URL
 
 	mcpOpts []server.ServerOption
 
@@ -44,9 +52,9 @@ func NewServer(opts ...ServerOption) *Server {
 		baseCtx:       context.Background(),
 		started:       atomic.Bool{},
 		serverType:    ServerTypeStdio,
-		serverVersion: "1.0.0",
-		serverName:    "MCP Server",
-		serverAddr:    ":8080",
+		serverVersion: DefaultMCPServerVersion,
+		serverName:    DefaultMCPServerName,
+		serverAddr:    DefaultMCPServerAddress,
 	}
 
 	srv.init(opts...)
@@ -59,10 +67,36 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
-	// Create a new Keep Alive Server
-	s.keepaliveServer = keepalive.NewServer(
-		keepalive.WithServiceKind(KindMCP),
-	)
+	switch s.serverType {
+	case ServerTypeSSE, ServerTypeHTTP:
+		log.Infof("MCP server type set to %s, address: %s", s.serverType, s.serverAddr)
+	case ServerTypeInProcess:
+		log.Info("MCP server type set to IN_PROCESS")
+		s.newKeepaliveServer()
+	case ServerTypeStdio:
+		log.Info("MCP server type set to STDIO")
+		fallthrough
+	default:
+		log.Warnf("Unsupported MCP server type: %s, defaulting to STDIO", s.serverType)
+		s.serverType = ServerTypeStdio
+		s.newKeepaliveServer()
+	}
+
+	if s.keepaliveServer != nil {
+		s.endpoint, _ = s.keepaliveServer.Endpoint()
+	} else {
+		host := s.serverAddr
+		if host == "" {
+			host = DefaultMCPServerAddress
+		}
+		if strings.HasPrefix(host, ":") {
+			host = "localhost" + host
+		}
+		s.endpoint = &url.URL{
+			Scheme: "http",
+			Host:   host,
+		}
+	}
 
 	// Create a new MCP server
 	s.mcpServer = server.NewMCPServer(s.serverName, s.serverVersion, s.mcpOpts...)
@@ -75,8 +109,9 @@ func (s *Server) Name() string {
 func (s *Server) Start(ctx context.Context) error {
 	s.mu.RLock()
 	if s.err != nil {
+		e := s.err
 		s.mu.RUnlock()
-		return s.err
+		return e
 	}
 	s.mu.RUnlock()
 
@@ -86,25 +121,15 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	// Start the keep alive server
-	if s.keepaliveServer != nil {
-		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-				s.mu.Lock()
-				s.err = errors.Join(s.err, errors.New("keepalive server start failed: "+err.Error()))
-				s.mu.Unlock()
-				LogErrorf("keepalive server start failed, err: %v", err)
-			}
-		}()
-	}
+	s.startKeepaliveServer(ctx)
 
 	// Start the MCP server
-	if err := s.startMCPServer(); err != nil {
-		s.mu.Lock()
-		s.err = errors.Join(s.err, err)
-		s.mu.Unlock()
-		_ = s.Stop(ctx)
-		return err
-	}
+	go func() {
+		if err := s.startMCPServer(); err != nil {
+			s.setErr(err)
+			s.stopKeepaliveServer(ctx)
+		}
+	}()
 
 	s.baseCtx = ctx
 	s.started.Store(true)
@@ -124,16 +149,17 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	s.started.Store(false)
 
-	s.err = nil
+	s.stopKeepaliveServer(ctx)
 
-	if s.keepaliveServer != nil {
-		if s.err = s.keepaliveServer.Stop(ctx); s.err != nil {
-			LogError("keepalive server stop failed", s.err)
-		}
-		s.keepaliveServer = nil
+	s.mu.RLock()
+	err := s.err
+	s.mu.RUnlock()
+
+	if err != nil {
+		LogError("server stopped with error", err)
+	} else {
+		LogInfo("server stopped.")
 	}
-
-	LogInfo("server stopped.")
 
 	return s.err
 }
@@ -142,11 +168,11 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if s.keepaliveServer == nil {
-		return nil, errors.New("keepalive server is nil")
+	if s.endpoint == nil {
+		return nil, errors.New("endpoint is nil")
 	}
 
-	return s.keepaliveServer.Endpoint()
+	return s.endpoint, nil
 }
 
 func (s *Server) RegisterHandler(tool mcp.Tool, handler server.ToolHandlerFunc) error {
@@ -173,14 +199,14 @@ func (s *Server) startMCPServer() error {
 
 	case ServerTypeSSE:
 		sseServer := server.NewSSEServer(s.mcpServer)
-		if err := sseServer.Start(":8080"); err != nil {
+		if err := sseServer.Start(s.serverAddr); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 			return errors.New("start MCP server: " + err.Error())
 		}
 
 	case ServerTypeHTTP:
 		httpServer := server.NewStreamableHTTPServer(s.mcpServer)
-		if err := httpServer.Start(":8080"); err != nil {
+		if err := httpServer.Start(s.serverAddr); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 			return errors.New("start MCP server: " + err.Error())
 		}
@@ -207,4 +233,40 @@ func (s *Server) waitGroup(wg *sync.WaitGroup, ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// Create a new Keep Alive Server
+func (s *Server) newKeepaliveServer() {
+	s.keepaliveServer = keepalive.NewServer(
+		keepalive.WithServiceKind(KindMCP),
+	)
+}
+
+func (s *Server) startKeepaliveServer(ctx context.Context) {
+	if s.keepaliveServer != nil {
+		go func() {
+			if err := s.keepaliveServer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				s.setErr(errors.New("keepalive server start failed: " + err.Error()))
+				LogErrorf("keepalive server start failed, err: %v", err)
+			}
+		}()
+	}
+}
+
+func (s *Server) stopKeepaliveServer(ctx context.Context) {
+	if s.keepaliveServer != nil {
+		if s.err = s.keepaliveServer.Stop(ctx); s.err != nil {
+			LogError("keepalive server stop failed", s.err)
+		}
+		s.keepaliveServer = nil
+	}
+}
+
+func (s *Server) setErr(err error) {
+	if err == nil {
+		return
+	}
+	s.mu.Lock()
+	s.err = errors.Join(s.err, err)
+	s.mu.Unlock()
 }
