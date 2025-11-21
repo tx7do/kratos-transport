@@ -8,8 +8,12 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServer(t *testing.T) {
@@ -25,6 +29,8 @@ func TestServer(t *testing.T) {
 			server.WithToolCapabilities(false),
 			server.WithRecovery(),
 		),
+		WithMCPServeType(ServerTypeHTTP),
+		WithMCPServeAddress(":8080"),
 	)
 
 	calculatorTool := mcp.NewTool("calculate",
@@ -45,6 +51,8 @@ func TestServer(t *testing.T) {
 	)
 
 	_ = srv.RegisterHandler(calculatorTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		t.Logf("Received calculation request: %#v", request)
+
 		// Using helper functions for type-safe argument access
 		op, err := request.RequireString("operation")
 		if err != nil {
@@ -90,4 +98,59 @@ func TestServer(t *testing.T) {
 	}()
 
 	<-interrupt
+}
+
+func TestClient(t *testing.T) {
+	httpTransport, err := transport.NewStreamableHTTP("http://localhost:8080/mcp")
+	c := client.NewClient(httpTransport)
+	assert.NoError(t, err)
+	defer c.Close()
+
+	mcpClient := client.NewClient(
+		httpTransport,
+	)
+	assert.NotNil(t, mcpClient)
+
+	ctx := context.Background()
+	err = mcpClient.Start(ctx)
+	assert.NoError(t, err)
+
+	// Initialize the MCP session
+	initRequest := mcp.InitializeRequest{
+		Params: mcp.InitializeParams{
+			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
+			Capabilities:    mcp.ClientCapabilities{},
+			ClientInfo: mcp.Implementation{
+				Name:    "sampling-http-client",
+				Version: "1.0.0",
+			},
+		},
+	}
+
+	_, err = mcpClient.Initialize(ctx, initRequest)
+	assert.NoError(t, err)
+
+	// 调用计算工具
+	result, err := mcpClient.CallTool(ctx, mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "calculate",
+			Arguments: map[string]interface{}{
+				"operation": "add",
+				"x":         7,
+				"y":         8,
+			},
+		},
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content)
+
+	if len(result.Content) > 0 {
+		textContent, ok := result.Content[0].(mcp.TextContent)
+		assert.True(t, ok, "expected TextContent type")
+		assert.Equal(t, "15.00", textContent.Text)
+		t.Logf("计算结果: %s", textContent.Text)
+	}
+
+	t.Logf("完整结果: %#v", result)
 }

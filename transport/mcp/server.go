@@ -34,12 +34,19 @@ type Server struct {
 	mcpServer       *server.MCPServer
 
 	mcpOpts []server.ServerOption
+
+	serverType ServerType
+	serverAddr string
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		baseCtx: context.Background(),
-		started: atomic.Bool{},
+		baseCtx:       context.Background(),
+		started:       atomic.Bool{},
+		serverType:    ServerTypeStdio,
+		serverVersion: "1.0.0",
+		serverName:    "MCP Server",
+		serverAddr:    ":8080",
 	}
 
 	srv.init(opts...)
@@ -157,9 +164,31 @@ func (s *Server) startMCPServer() error {
 		return errors.New("MCP server instance is nil")
 	}
 
-	if err := server.ServeStdio(s.mcpServer); err != nil {
-		log.Errorw("MCP server start failed", "err", err)
-		return errors.New("start MCP server: " + err.Error())
+	switch s.serverType {
+	case ServerTypeStdio:
+		if err := server.ServeStdio(s.mcpServer); err != nil {
+			log.Errorw("MCP server start failed", "err", err)
+			return errors.New("start MCP server: " + err.Error())
+		}
+
+	case ServerTypeSSE:
+		sseServer := server.NewSSEServer(s.mcpServer)
+		if err := sseServer.Start(":8080"); err != nil {
+			log.Fatalf("Server failed to start: %v", err)
+			return errors.New("start MCP server: " + err.Error())
+		}
+
+	case ServerTypeHTTP:
+		httpServer := server.NewStreamableHTTPServer(s.mcpServer)
+		if err := httpServer.Start(":8080"); err != nil {
+			log.Fatalf("Server failed to start: %v", err)
+			return errors.New("start MCP server: " + err.Error())
+		}
+
+	case ServerTypeInProcess:
+
+	default:
+		return errors.New("unsupported MCP server type: " + string(s.serverType))
 	}
 
 	return nil
