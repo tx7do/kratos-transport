@@ -185,6 +185,31 @@ func (s *Server) RegisterHandler(tool mcp.Tool, handler server.ToolHandlerFunc) 
 	return nil
 }
 
+func (s *Server) RegisterHandlerWithJsonString(jsonString string, handler server.ToolHandlerFunc) error {
+	if s.mcpServer == nil {
+		return errors.New("mcp server is nil")
+	}
+
+	tool, err := LoadToolFromJsonString(jsonString)
+	if err != nil {
+		return err
+	}
+
+	return s.RegisterHandler(tool, handler)
+}
+
+func (s *Server) RegisterHandlerWithJsonSchema(name, description string, jsonSchemaString string, handler server.ToolHandlerFunc) error {
+	if s.mcpServer == nil {
+		return errors.New("mcp server is nil")
+	}
+
+	raw := toRawMessage(jsonSchemaString)
+
+	tool := mcp.NewToolWithRawSchema(name, description, raw)
+
+	return s.RegisterHandler(tool, handler)
+}
+
 func (s *Server) startMCPServer() error {
 	if s.mcpServer == nil {
 		return errors.New("MCP server instance is nil")

@@ -155,3 +155,120 @@ func TestClient(t *testing.T) {
 
 	t.Logf("完整结果: %#v", result)
 }
+
+func TestServer_RegisterHandlerWithJsonString(t *testing.T) {
+	jsonStr := `{
+  "name": "echo",
+  "description": "Echoes the input string",
+  "inputSchema": {
+	"type": "object",
+	"properties": {
+	  "message": {
+		"type": "string",
+		"description": "The message to echo"
+	  }
+	},
+	"required": ["message"]
+  }
+}`
+
+	ctx := context.Background()
+
+	srv := NewServer(
+		WithServerName("Echo Demo"),
+		WithServerVersion("1.0.0"),
+		WithMCPServerOptions(
+			server.WithToolCapabilities(false),
+			server.WithRecovery(),
+		),
+		WithMCPServeType(ServerTypeHTTP),
+		WithMCPServeAddress(":8081"),
+	)
+
+	err := srv.RegisterHandlerWithJsonString(jsonStr, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		msg, err := request.RequireString("message")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		return mcp.NewToolResultText(msg), nil
+	})
+	assert.NoError(t, err)
+
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
+
+	// The server is now running with the echo tool registered.
+	// You can implement a client test similar to TestClient to call the echo tool.
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	<-interrupt
+}
+
+func TestServer_RegisterHandlerWithJsonSchema(t *testing.T) {
+	jsonSchemaStr := `{
+	"type": "object",
+	"properties": {
+	  "text": {
+		"type": "string",
+		"description": "The text to reverse"
+	  }
+	},
+	"required": ["text"]
+  }`
+
+	ctx := context.Background()
+
+	srv := NewServer(
+		WithServerName("Reverse Demo"),
+		WithServerVersion("1.0.0"),
+		WithMCPServerOptions(
+			server.WithToolCapabilities(false),
+			server.WithRecovery(),
+		),
+		WithMCPServeType(ServerTypeHTTP),
+		WithMCPServeAddress(":8082"),
+	)
+
+	err := srv.RegisterHandlerWithJsonSchema("reverse", "Reverses the input text", jsonSchemaStr, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		text, err := request.RequireString("text")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Reverse the text
+		runes := []rune(text)
+		for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+			runes[i], runes[j] = runes[j], runes[i]
+		}
+		reversed := string(runes)
+
+		return mcp.NewToolResultText(reversed), nil
+	})
+	assert.NoError(t, err)
+
+	if err := srv.Start(ctx); err != nil {
+		panic(err)
+	}
+
+	defer func() {
+		if err := srv.Stop(ctx); err != nil {
+			t.Errorf("expected nil got %v", err)
+		}
+	}()
+
+	// The server is now running with the reverse tool registered.
+	// You can implement a client test similar to TestClient to call the reverse tool.
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	<-interrupt
+}
