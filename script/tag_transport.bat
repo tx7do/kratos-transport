@@ -1,7 +1,7 @@
 git tag transport/keepalive/v1.0.7 --force
 
 git tag transport/activemq/v1.2.24 --force
-git tag transport/asynq/v1.2.36 --force
+git tag transport/asynq/v1.2.37 --force
 git tag transport/fasthttp/v1.2.24 --force
 git tag transport/gin/v1.2.24 --force
 git tag transport/gozero/v1.2.24 --force
