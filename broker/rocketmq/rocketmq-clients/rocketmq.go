@@ -430,9 +430,9 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (consu
 	cfg := r.makeConfig()
 
 	var opts []rmqClient.SimpleConsumerOption
-	opts = append(opts, rmqClient.WithAwaitDuration(r.awaitDuration))
+	opts = append(opts, rmqClient.WithSimpleAwaitDuration(r.awaitDuration))
 	if len(r.subscriptionExpressions) > 0 {
-		opts = append(opts, rmqClient.WithSubscriptionExpressions(r.subscriptionExpressions))
+		opts = append(opts, rmqClient.WithSimpleSubscriptionExpressions(r.subscriptionExpressions))
 	}
 
 	// create consumer
