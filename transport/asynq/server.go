@@ -712,6 +712,12 @@ func (s *Server) runAsynqServer() error {
 	}
 
 	go func() {
+		if s.server == nil {
+			s.err = errors.New("asynq server is nil")
+			LogErrorf("asynq server run failed: %s", s.err.Error())
+			return
+		}
+
 		if s.err = s.server.Run(s.mux); s.err != nil {
 			LogErrorf("asynq server run failed: %s", s.err.Error())
 			return

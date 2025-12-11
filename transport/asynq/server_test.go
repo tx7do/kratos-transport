@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	localRedisURI = "redis://:123456@127.0.0.1:6379"
+	localRedisURI = "redis://:*Abcd123456@127.0.0.1:6379"
 
 	testTask1        = "test_task_1"
 	testDelayTask    = "test_delay_task"
@@ -75,8 +75,8 @@ func TestNewTaskOnly(t *testing.T) {
 }
 
 func TestNewPeriodicTaskOnly(t *testing.T) {
-	//interrupt := make(chan os.Signal, 1)
-	//signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	ctx := context.Background()
 
@@ -107,7 +107,7 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 		}
 	}()
 
-	//<-interrupt
+	<-interrupt
 }
 
 func TestDelayTask(t *testing.T) {
