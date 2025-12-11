@@ -268,7 +268,9 @@ func (s *Server) createMachineryServer() {
 			}
 			break
 		case BrokerTypeSQS:
-			broker = sqsBroker.New(s.cfg)
+			if broker, err = sqsBroker.New(s.cfg); err != nil {
+				LogError("create SQS broker error:", err)
+			}
 			break
 		}
 	}
@@ -286,11 +288,13 @@ func (s *Server) createMachineryServer() {
 			break
 		case BackendTypeMongoDB:
 			if backend, err = mongoBackend.New(s.cfg); err != nil {
-				LogError("create mongo backend error:", err)
+				LogError("create MongoDB backend error:", err)
 			}
 			break
 		case BackendTypeDynamoDB:
-			backend = dynamoBackend.New(s.cfg)
+			if backend, err = dynamoBackend.New(s.cfg); err != nil {
+				LogError("create DynamoDB backend error:", err)
+			}
 			break
 		}
 	}

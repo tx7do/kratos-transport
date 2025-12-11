@@ -10,7 +10,7 @@ git tag transport/hertz/v1.2.25 --force
 git tag transport/http3/v1.2.25 --force
 git tag transport/iris/v1.2.25 --force
 git tag transport/kafka/v1.2.25 --force
-git tag transport/machinery/v1.2.25 --force
+git tag transport/machinery/v1.2.26 --force
 git tag transport/mqtt/v1.2.25 --force
 git tag transport/nats/v1.2.25 --force
 git tag transport/nsq/v1.2.25 --force

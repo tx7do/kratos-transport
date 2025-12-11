@@ -8,11 +8,12 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/tx7do/kratos-transport v1.1.18
 	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.22
-	github.com/tx7do/kratos-transport/transport/rabbitmq v1.2.24
+	github.com/tx7do/kratos-transport/transport/rabbitmq v1.2.25
 )
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.3.0 // indirect
