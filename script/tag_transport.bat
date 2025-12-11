@@ -1,3 +1,5 @@
+git tag transport/keepalive/v1.0.7 --force
+
 git tag transport/activemq/v1.2.24 --force
 git tag transport/asynq/v1.2.36 --force
 git tag transport/fasthttp/v1.2.24 --force
@@ -25,7 +27,5 @@ git tag transport/websocket/v1.2.24 --force
 git tag transport/webtransport/v1.2.24 --force
 git tag transport/trpc/v1.2.24 --force
 git tag transport/mcp/v1.0.2 --force
-
-git tag transport/keepalive/v1.0.6 --force
 
 git push origin --tags
