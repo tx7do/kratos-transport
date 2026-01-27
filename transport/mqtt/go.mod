@@ -9,7 +9,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport v1.1.18
 	github.com/tx7do/kratos-transport/broker/mqtt v1.2.23
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.7
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.8
 )
 
 require (
@@ -48,5 +48,7 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
+
+replace github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
 
 replace github.com/tx7do/kratos-transport/broker/mqtt => ../../broker/mqtt

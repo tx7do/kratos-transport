@@ -8,7 +8,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/mark3labs/mcp-go v0.43.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.7
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.8
 )
 
 require (
@@ -51,6 +51,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/tx7do/kratos-transport => ../../
-
-replace github.com/tx7do/kratos-transport/broker/mqtt => ../../broker/mqtt
+replace github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
