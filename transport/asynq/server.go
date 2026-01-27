@@ -487,7 +487,7 @@ func waitResult(intor *asynq.Inspector, info *asynq.TaskInfo) (*asynq.TaskInfo, 
 }
 
 // NewPeriodicTask enqueue a new crontab task
-func (s *Server) NewPeriodicTask(cronSpec, taskId, typeName string, msg broker.Any, opts ...asynq.Option) (string, error) {
+func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts ...asynq.Option) (string, error) {
 	//if !s.started.Load() {
 	//	return "", errors.New("cannot create periodic task, server already started")
 	//}
@@ -497,9 +497,6 @@ func (s *Server) NewPeriodicTask(cronSpec, taskId, typeName string, msg broker.A
 	}
 	if typeName == "" {
 		return "", errors.New("typeName cannot be empty")
-	}
-	if taskId == "" {
-		return "", errors.New("taskId cannot be empty")
 	}
 
 	if s.scheduler == nil {
@@ -522,7 +519,6 @@ func (s *Server) NewPeriodicTask(cronSpec, taskId, typeName string, msg broker.A
 	} else {
 		options = []asynq.Option{}
 	}
-	options = append(options, asynq.TaskID(taskId))
 
 	task := asynq.NewTask(typeName, payload, options...)
 	if task == nil {

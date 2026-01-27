@@ -91,7 +91,6 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
 		testPeriodicTask,
-		testPeriodicTask,
 		&TaskPayload{Message: "periodic task"},
 		asynq.Unique(time.Second*10),
 	)
@@ -174,7 +173,6 @@ func TestPeriodicTask(t *testing.T) {
 	// 每分钟执行一次
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
-		testPeriodicTask,
 		testPeriodicTask,
 		&TaskPayload{Message: "periodic task"},
 	)
@@ -268,7 +266,6 @@ func TestAllInOne(t *testing.T) {
 	// 周期性任务，每分钟执行一次
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
-		testPeriodicTask,
 		testPeriodicTask,
 		&TaskPayload{Message: "periodic task"},
 	)
