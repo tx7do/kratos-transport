@@ -25,28 +25,26 @@ kafka有以下一些基本概念：
 ## Docker部署开发环境
 
 ```shell
-docker pull bitnami/kafka:latest
-docker pull bitnami/zookeeper:latest
-docker pull bitnami/kafka-exporter:latest
+docker pull soldevelo/kafka:latest
 
-docker run -itd \
-    --name zookeeper-test \
-    -p 2181:2181 \
-    -e ALLOW_ANONYMOUS_LOGIN=yes \
-    bitnami/zookeeper:latest
+sudo chown -R 1001:1001 /root/app/kafka/
 
 docker run -itd \
     --name kafka-standalone \
-    --link zookeeper-test \
-    -p 9092:9092 \
-    -v /home/data/kafka:/bitnami/kafka \
-    -e KAFKA_BROKER_ID=1 \
-    -e KAFKA_LISTENERS=PLAINTEXT://:9092 \
-    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
-    -e KAFKA_ZOOKEEPER_CONNECT=zookeeper-test:2181 \
-    -e ALLOW_PLAINTEXT_LISTENER=yes \
     --user root \
-    bitnami/kafka:latest
+    -p 9092:9092 \
+    -p 9093:9093 \
+    -v /root/app/kafka:/kafka_data:/bitnami \
+    -e KAFKA_ENABLE_KRAFT=yes \
+    -e KAFKA_CFG_NODE_ID=1 \
+    -e KAFKA_CFG_PROCESS_ROLES=broker,controller \
+    -e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+    -e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@127.0.0.1:9093 \
+    -e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+    -e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+    -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092 \
+    -e ALLOW_PLAINTEXT_LISTENER=yes \
+    soldevelo/kafka:latest
 ```
 
 ## 管理工具
