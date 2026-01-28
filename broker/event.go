@@ -24,5 +24,19 @@ type Event interface {
 // Handler defines the handler invoked by subscribers
 type Handler func(ctx context.Context, evt Event) error
 
-// MiddlewareFunc defines the middleware for handlers
-type MiddlewareFunc func(Handler) Handler
+// SubscriberMiddleware is broker subscriber middleware.
+type SubscriberMiddleware func(Handler) Handler
+
+// ChainSubscriberMiddleware chains multiple SubscriberMiddleware into a single Handler.
+func ChainSubscriberMiddleware(h Handler, mws []SubscriberMiddleware) Handler {
+	if len(mws) == 0 {
+		return h
+	}
+	for i := len(mws) - 1; i >= 0; i-- {
+		if mws[i] == nil {
+			continue
+		}
+		h = mws[i](h)
+	}
+	return h
+}

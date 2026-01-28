@@ -19,6 +19,14 @@ import (
 
 const (
 	defaultAddr = "127.0.0.1:9092"
+
+	defaultMaxWaitTime = 500 * time.Millisecond
+
+	defaultBatchTimeout = 10 * time.Millisecond
+
+	defaultDialTimeout = 10 * time.Second
+
+	defaultRetriesCount = 1
 )
 
 type kafkaBroker struct {
@@ -46,7 +54,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	b := &kafkaBroker{
 		readerConfig: kafkaGo.ReaderConfig{
 			WatchPartitionChanges: true,
-			MaxWait:               500 * time.Millisecond,
+			MaxWait:               defaultMaxWaitTime,
 			Logger:                nil,
 			ErrorLogger:           ErrorLogger{},
 		},
@@ -54,11 +62,11 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 			Balancer:     &kafkaGo.LeastBytes{},
 			Logger:       nil,
 			ErrorLogger:  ErrorLogger{},
-			BatchTimeout: 10 * time.Millisecond, // 内部默认为1秒，那么会造成什么情况呢？同步发送的时候，发送一次要等待1秒的时间。
-			Async:        true,                  // 默认设置为异步发送，效率比较高。
+			BatchTimeout: defaultBatchTimeout, // 内部默认为1秒，那么会造成什么情况呢？同步发送的时候，发送一次要等待1秒的时间。
+			Async:        true,                // 默认设置为异步发送，效率比较高。
 		},
 		options:      options,
-		retriesCount: 1,
+		retriesCount: defaultRetriesCount,
 		subscribers:  broker.NewSubscriberSyncMap(),
 	}
 
@@ -126,7 +134,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	if b.saslMechanism != nil {
 		if b.readerConfig.Dialer == nil {
 			dialer := &kafkaGo.Dialer{
-				Timeout:       10 * time.Second,
+				Timeout:       defaultDialTimeout,
 				DualStack:     true,
 				SASLMechanism: b.saslMechanism,
 			}
@@ -139,7 +147,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	if b.options.Secure && b.options.TLSConfig != nil {
 		if b.readerConfig.Dialer == nil {
 			dialer := &kafkaGo.Dialer{
-				Timeout:   10 * time.Second,
+				Timeout:   defaultDialTimeout,
 				DualStack: true,
 			}
 			b.readerConfig.Dialer = dialer
@@ -243,6 +251,7 @@ func (b *kafkaBroker) Init(opts ...broker.Option) error {
 	return nil
 }
 
+// Connect connects to the broker
 func (b *kafkaBroker) Connect() error {
 	b.RLock()
 	if b.connected {
@@ -269,6 +278,7 @@ func (b *kafkaBroker) Connect() error {
 	return nil
 }
 
+// Disconnect disconnects from the broker
 func (b *kafkaBroker) Disconnect() error {
 	b.RLock()
 	if !b.connected {
@@ -280,13 +290,18 @@ func (b *kafkaBroker) Disconnect() error {
 	b.Lock()
 	defer b.Unlock()
 
-	b.writer.Close()
-	b.subscribers.Clear()
+	if b.writer != nil {
+		b.writer.Close()
+	}
+	if b.subscribers != nil {
+		b.subscribers.Clear()
+	}
 
 	b.connected = false
 	return nil
 }
 
+// initPublishOption initializes publish options for the Kafka writer
 func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.PublishOptions) {
 	//writer.BalancerName = b.writerConfig.BalancerName
 	if value, ok := options.Context.Value(balancerKey{}).(*balancerValue); ok {
@@ -322,11 +337,24 @@ func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.P
 	}
 }
 
-func (b *kafkaBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+// Request sends a request and waits for a response
+func (b *kafkaBroker) Request(_ context.Context, _ string, _ any, _ ...broker.RequestOption) (any, error) {
 	return nil, errors.New("not implemented")
 }
 
+// Publish publishes a message to a topic
 func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+	var finalTask = b.internalPublish
+
+	if len(b.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, b.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+// internalPublish handles the internal publishing logic
+func (b *kafkaBroker) internalPublish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
@@ -339,7 +367,15 @@ func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg any, opts .
 	}
 }
 
+// publishMultipleWriter publishes message with multiple writers (one topic one writer)
 func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
+	b.RLock()
+	if b.writer == nil {
+		b.RUnlock()
+		return errors.New("kafka writer not initialized")
+	}
+	b.RUnlock()
+
 	options := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -434,7 +470,15 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, b
 	return err
 }
 
+// publishOneWriter publishes message with a single writer
 func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
+	b.RLock()
+	if b.writer == nil {
+		b.RUnlock()
+		return errors.New("kafka writer not initialized")
+	}
+	b.RUnlock()
+
 	options := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -502,21 +546,22 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []
 					err = b.writer.Writer.WriteMessages(options.Context, kMsg)
 				}
 			}
+
 		case true:
 			b.Lock()
 			if err = b.writer.Writer.Close(); err != nil {
 				b.Unlock()
 				break
 			}
-			b.writer = nil
+			b.writer.Writer = nil
 			b.Unlock()
 
-			writer := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.options.TLSConfig)
-			b.initPublishOption(writer, options)
+			newWriter := b.writer.CreateProducer(b.writerConfig, b.saslMechanism, b.options.TLSConfig)
+			b.initPublishOption(newWriter, options)
 			for i := 0; i < b.retriesCount; i++ {
-				if err = writer.WriteMessages(options.Context, kMsg); err == nil {
+				if err = newWriter.WriteMessages(options.Context, kMsg); err == nil {
 					b.Lock()
-					b.writer.Writer = writer
+					b.writer.Writer = newWriter
 					b.Unlock()
 					break
 				}
@@ -620,6 +665,10 @@ func (b *kafkaBroker) Subscribe(
 	}
 	if value, ok := b.options.Context.Value(readBackoffMax{}).(time.Duration); ok {
 		readerConfig.ReadBackoffMax = value
+	}
+
+	if len(b.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
 	}
 
 	sub := newSubscriber(b, topic, options, readerConfig, handler, binder)

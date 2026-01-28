@@ -35,7 +35,7 @@ type Server struct {
 	baseCtx context.Context
 	err     error
 
-	mws []broker.MiddlewareFunc
+	mws []broker.SubscriberMiddleware
 
 	keepaliveServer *keepalive.Server
 }
@@ -169,7 +169,14 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, di
 	return nil
 }
 
-func RegisterSubscriber[T any](srv *Server, ctx context.Context, topic, queue string, disableAutoAck bool, handler func(context.Context, string, broker.Headers, *T) error, opts ...broker.SubscribeOption) error {
+func RegisterSubscriber[T any](
+	srv *Server,
+	ctx context.Context,
+	topic, queue string,
+	disableAutoAck bool,
+	handler broker.TypedHandler[T],
+	opts ...broker.SubscribeOption,
+) error {
 	return srv.RegisterSubscriber(ctx,
 		topic,
 		queue,
@@ -221,7 +228,7 @@ func (s *Server) Endpoint() (*url.URL, error) {
 }
 
 // AddMiddleware 运行时追加单个中间件（线程安全方法）
-func (s *Server) AddMiddleware(mw broker.MiddlewareFunc) {
+func (s *Server) AddMiddleware(mw broker.SubscriberMiddleware) {
 	s.Lock()
 	defer s.Unlock()
 	s.mws = append(s.mws, mw)

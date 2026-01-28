@@ -86,7 +86,7 @@ func WithPropagator(propagators propagation.TextMapPropagator) ServerOption {
 }
 
 // WithMiddleware 注入中间件
-func WithMiddleware(m ...broker.MiddlewareFunc) ServerOption {
+func WithMiddleware(m ...broker.SubscriberMiddleware) ServerOption {
 	return func(s *Server) {
 		s.Lock()
 		defer s.Unlock()

@@ -8,12 +8,15 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/go-kratos/kratos/v2/encoding"
+	_ "github.com/go-kratos/kratos/v2/encoding/json"
+	_ "github.com/go-kratos/kratos/v2/encoding/proto"
 
 	"github.com/tx7do/kratos-transport/tracing"
 )
 
 var (
-	DefaultCodec encoding.Codec
+	// DefaultCodec is the default codec for broker
+	DefaultCodec = encoding.GetCodec("json")
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -37,8 +40,14 @@ type Options struct {
 	// Context is broker option context
 	Context context.Context
 
-	// Tracings is tracing options
+	// Tracings are tracing options
 	Tracings []tracing.Option
+
+	// SubscriberMiddlewares applies to subscribe handlers
+	SubscriberMiddlewares []SubscriberMiddleware
+
+	// PublishMiddlewares applies to publish handlers
+	PublishMiddlewares []PublishMiddleware
 }
 
 // Option defines a function which sets some option.
@@ -54,6 +63,7 @@ func (o *Options) Apply(opts ...Option) {
 	}
 }
 
+// NewOptions creates default Options.
 func NewOptions() Options {
 	opt := Options{
 		Addrs: []string{},
@@ -72,12 +82,14 @@ func NewOptions() Options {
 	return opt
 }
 
+// NewOptionsAndApply creates Options and applies given Option functions.
 func NewOptionsAndApply(opts ...Option) Options {
 	opt := NewOptions()
 	opt.Apply(opts...)
 	return opt
 }
 
+// WithOptionContext sets the broker option context
 func WithOptionContext(ctx context.Context) Option {
 	return func(o *Options) {
 		if o == nil {
@@ -87,6 +99,7 @@ func WithOptionContext(ctx context.Context) Option {
 	}
 }
 
+// OptionContextWithValue sets a value in the broker option context
 func OptionContextWithValue(k, v any) Option {
 	return func(o *Options) {
 		if o == nil {
@@ -120,6 +133,7 @@ func WithCodec(name string) Option {
 	}
 }
 
+// WithErrorHandler sets error handler
 func WithErrorHandler(handler Handler) Option {
 	return func(o *Options) {
 		if o == nil {
@@ -129,6 +143,7 @@ func WithErrorHandler(handler Handler) Option {
 	}
 }
 
+// WithEnableSecure sets enable secure connection
 func WithEnableSecure(enable bool) Option {
 	return func(o *Options) {
 		if o == nil {
@@ -138,6 +153,7 @@ func WithEnableSecure(enable bool) Option {
 	}
 }
 
+// WithTLSConfig sets tls config for secure connection
 func WithTLSConfig(config *tls.Config) Option {
 	return func(o *Options) {
 		if o == nil {
@@ -151,6 +167,7 @@ func WithTLSConfig(config *tls.Config) Option {
 	}
 }
 
+// WithTracerProvider sets tracer provider
 func WithTracerProvider(provider trace.TracerProvider) Option {
 	return func(o *Options) {
 		if o == nil {
@@ -160,6 +177,7 @@ func WithTracerProvider(provider trace.TracerProvider) Option {
 	}
 }
 
+// WithPropagator sets propagator
 func WithPropagator(propagator propagation.TextMapPropagator) Option {
 	return func(o *Options) {
 		if o == nil {
@@ -169,6 +187,7 @@ func WithPropagator(propagator propagation.TextMapPropagator) Option {
 	}
 }
 
+// WithGlobalTracerProvider sets global tracer provider
 func WithGlobalTracerProvider() Option {
 	return func(o *Options) {
 		if o == nil {
@@ -178,6 +197,7 @@ func WithGlobalTracerProvider() Option {
 	}
 }
 
+// WithGlobalPropagator sets global propagator
 func WithGlobalPropagator() Option {
 	return func(o *Options) {
 		if o == nil {
@@ -187,11 +207,33 @@ func WithGlobalPropagator() Option {
 	}
 }
 
+// WithSubscriberMiddlewares sets subscriber middlewares
+func WithSubscriberMiddlewares(mws ...SubscriberMiddleware) Option {
+	m := append([]SubscriberMiddleware(nil), mws...)
+	return func(o *Options) {
+		if o == nil {
+			return
+		}
+		o.SubscriberMiddlewares = m
+	}
+}
+
+// WithPublishMiddlewares sets publish middlewares
+func WithPublishMiddlewares(mws ...PublishMiddleware) Option {
+	m := append([]PublishMiddleware(nil), mws...)
+	return func(o *Options) {
+		if o == nil {
+			return
+		}
+		o.PublishMiddlewares = m
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // PublishOptions publish options
 type PublishOptions struct {
-	// Context is publish option context
+	// Context is published option context
 	Context context.Context
 }
 
@@ -208,6 +250,7 @@ func (o *PublishOptions) Apply(opts ...PublishOption) {
 	}
 }
 
+// NewPublishOptions creates default PublishOptions.
 func NewPublishOptions(opts ...PublishOption) PublishOptions {
 	opt := PublishOptions{
 		Context: context.Background(),
@@ -218,6 +261,7 @@ func NewPublishOptions(opts ...PublishOption) PublishOptions {
 	return opt
 }
 
+// PublishContextWithValue sets a value in the publish option context
 func PublishContextWithValue(k, v any) PublishOption {
 	return func(o *PublishOptions) {
 		if o == nil {
@@ -230,6 +274,7 @@ func PublishContextWithValue(k, v any) PublishOption {
 	}
 }
 
+// WithPublishContext sets the context for publishing
 func WithPublishContext(ctx context.Context) PublishOption {
 	return func(o *PublishOptions) {
 		if o == nil {
@@ -249,7 +294,7 @@ type SubscribeOptions struct {
 	// Queue is the name of the queue to subscribe to
 	Queue string
 
-	// Context is subscribe option context
+	// Context is subscribed option context
 	Context context.Context
 }
 
@@ -266,6 +311,7 @@ func (o *SubscribeOptions) Apply(opts ...SubscribeOption) {
 	}
 }
 
+// NewSubscribeOptions creates default SubscribeOptions.
 func NewSubscribeOptions(opts ...SubscribeOption) SubscribeOptions {
 	opt := SubscribeOptions{
 		AutoAck: true,
@@ -278,6 +324,7 @@ func NewSubscribeOptions(opts ...SubscribeOption) SubscribeOptions {
 	return opt
 }
 
+// SubscribeContextWithValue sets a value in the subscribe option context
 func SubscribeContextWithValue(k, v any) SubscribeOption {
 	return func(o *SubscribeOptions) {
 		if o == nil {
@@ -341,6 +388,7 @@ func (o *RequestOptions) Apply(opts ...RequestOption) {
 	}
 }
 
+// NewRequestOptions creates default RequestOptions.
 func NewRequestOptions(opts ...RequestOption) RequestOptions {
 	opt := RequestOptions{
 		Context: context.Background(),
@@ -351,6 +399,7 @@ func NewRequestOptions(opts ...RequestOption) RequestOptions {
 	return opt
 }
 
+// RequestContextWithValue sets a value in the request option context
 func RequestContextWithValue(k, v any) RequestOption {
 	return func(o *RequestOptions) {
 		if o == nil {
@@ -363,6 +412,7 @@ func RequestContextWithValue(k, v any) RequestOption {
 	}
 }
 
+// WithRequestContext sets the context for the request
 func WithRequestContext(ctx context.Context) RequestOption {
 	return func(o *RequestOptions) {
 		if o == nil {
