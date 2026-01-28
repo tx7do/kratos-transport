@@ -18,7 +18,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/tracing v1.1.1
-	github.com/tx7do/kratos-transport/transport/keepalive v1.3.1
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.2
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 )

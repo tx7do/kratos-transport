@@ -35,8 +35,6 @@ type Server struct {
 	baseCtx context.Context
 	err     error
 
-	mws []broker.SubscriberMiddleware
-
 	keepaliveServer *keepalive.Server
 }
 
@@ -156,11 +154,6 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, di
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
 	opts = append([]broker.SubscribeOption{broker.WithSubscribeContext(ctx)}, opts...)
 
-	// handle middleware
-	for i := len(s.mws) - 1; i >= 0; i-- {
-		handler = s.mws[i](handler)
-	}
-
 	if s.started.Load() {
 		return s.doRegisterSubscriber(topic, handler, binder, opts...)
 	} else {
@@ -225,11 +218,4 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	}
 
 	return s.keepaliveServer.Endpoint()
-}
-
-// AddMiddleware 运行时追加单个中间件（线程安全方法）
-func (s *Server) AddMiddleware(mw broker.SubscriberMiddleware) {
-	s.Lock()
-	defer s.Unlock()
-	s.mws = append(s.mws, mw)
 }

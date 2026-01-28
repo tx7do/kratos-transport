@@ -17,7 +17,7 @@ require (
 	github.com/hibiken/asynq v0.25.1
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/broker v1.3.1
-	github.com/tx7do/kratos-transport/transport/keepalive v1.3.1
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.2
 )
 
 require (

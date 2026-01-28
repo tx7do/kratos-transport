@@ -20,7 +20,7 @@ require (
 	github.com/tx7do/kratos-transport/broker/stomp v1.3.1
 	github.com/tx7do/kratos-transport/testing v1.1.1
 	github.com/tx7do/kratos-transport/transport v1.3.2
-	github.com/tx7do/kratos-transport/transport/keepalive v1.3.1
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.2
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 )
