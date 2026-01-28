@@ -118,8 +118,8 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	}
 	defer b.Disconnect()
 
-	var headers map[string]interface{}
-	headers = make(map[string]interface{})
+	var headers map[string]any
+	headers = make(map[string]any)
 	headers["version"] = "1.0.0"
 
 	var msg api.Hygrothermograph
@@ -172,24 +172,24 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
 	case "otlp-grpc":
-		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"localhost:4317",
-			serviceName,
-			"",
-			"1.0.0",
-			1.0,
-		),
-			"kafka-tracer",
+		return broker.WithTracerProvider(
+			tracing.NewTracerProvider(exporterName,
+				"localhost:4317",
+				serviceName,
+				"",
+				"1.0.0",
+				1.0,
+			),
 		)
 	case "zipkin":
-		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:9411/api/v2/spans",
-			serviceName,
-			"test",
-			"1.0.0",
-			1.0,
-		),
-			"kafka-tracer",
+		return broker.WithTracerProvider(
+			tracing.NewTracerProvider(exporterName,
+				"http://localhost:9411/api/v2/spans",
+				serviceName,
+				"test",
+				"1.0.0",
+				1.0,
+			),
 		)
 	}
 

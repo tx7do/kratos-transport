@@ -17,9 +17,9 @@ type subscriber struct {
 	topic   string
 	ch      *rabbitChannel
 
-	queueArgs map[string]interface{}
+	queueArgs map[string]any
 	fn        func(msg amqp.Delivery)
-	headers   map[string]interface{}
+	headers   map[string]any
 
 	durableQueue bool
 	autoDelete   bool

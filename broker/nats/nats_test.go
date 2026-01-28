@@ -131,7 +131,7 @@ func RegisterHygrothermographResponseJsonHandler(fnc api.HygrothermographRespons
 	}
 }
 
-func responseHandleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) (broker.Any, error) {
+func responseHandleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) (any, error) {
 	LogInfof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return msg, nil
 }
@@ -259,24 +259,24 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
 	case "otlp-grpc":
-		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"localhost:4317",
-			serviceName,
-			"",
-			"1.0.0",
-			1.0,
-		),
-			"nats-tracer",
+		return broker.WithTracerProvider(
+			tracing.NewTracerProvider(exporterName,
+				"localhost:4317",
+				serviceName,
+				"",
+				"1.0.0",
+				1.0,
+			),
 		)
 	case "zipkin":
-		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:9411/api/v2/spans",
-			serviceName,
-			"test",
-			"1.0.0",
-			1.0,
-		),
-			"nats-tracer",
+		return broker.WithTracerProvider(
+			tracing.NewTracerProvider(exporterName,
+				"http://localhost:9411/api/v2/spans",
+				serviceName,
+				"test",
+				"1.0.0",
+				1.0,
+			),
 		)
 	}
 

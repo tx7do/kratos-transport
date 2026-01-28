@@ -13,23 +13,23 @@ const (
 /// logger
 ///
 
-func LogDebug(args ...interface{}) {
+func LogDebug(args ...any) {
 	log.Debugf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogInfo(args ...interface{}) {
+func LogInfo(args ...any) {
 	log.Infof("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogWarn(args ...interface{}) {
+func LogWarn(args ...any) {
 	log.Warnf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogError(args ...interface{}) {
+func LogError(args ...any) {
 	log.Errorf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogFatal(args ...interface{}) {
+func LogFatal(args ...any) {
 	log.Fatalf("%s %s", logKey, fmt.Sprint(args...))
 }
 
@@ -37,22 +37,22 @@ func LogFatal(args ...interface{}) {
 /// logger
 ///
 
-func LogDebugf(format string, args ...interface{}) {
+func LogDebugf(format string, args ...any) {
 	log.Debugf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogInfof(format string, args ...interface{}) {
+func LogInfof(format string, args ...any) {
 	log.Infof("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogWarnf(format string, args ...interface{}) {
+func LogWarnf(format string, args ...any) {
 	log.Warnf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogErrorf(format string, args ...interface{}) {
+func LogErrorf(format string, args ...any) {
 	log.Errorf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogFatalf(format string, args ...interface{}) {
+func LogFatalf(format string, args ...any) {
 	log.Fatalf("%s %s", logKey, fmt.Sprintf(format, args...))
 }

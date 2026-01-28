@@ -144,7 +144,7 @@ func WithMessageKey(key string) broker.PublishOption {
 }
 
 // WithMessageValue ProducerMessage.Value
-func WithMessageValue(value interface{}) broker.PublishOption {
+func WithMessageValue(value any) broker.PublishOption {
 	return broker.PublishContextWithValue(messageValueKey{}, value)
 }
 

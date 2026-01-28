@@ -185,7 +185,7 @@ func RegisterSubscriber[T any](srv *Server, ctx context.Context, topic, queue st
 			}
 			return nil
 		},
-		func() broker.Any {
+		func() any {
 			var t T
 			return &t
 		},
@@ -218,4 +218,11 @@ func (s *Server) Endpoint() (*url.URL, error) {
 	}
 
 	return s.keepaliveServer.Endpoint()
+}
+
+// AddMiddleware 运行时追加单个中间件（线程安全方法）
+func (s *Server) AddMiddleware(mw broker.MiddlewareFunc) {
+	s.Lock()
+	defer s.Unlock()
+	s.mws = append(s.mws, mw)
 }

@@ -14,9 +14,9 @@ type Hygrothermograph struct {
 	Temperature float64 `json:"temperature"`
 }
 
-func HygrothermographCreator() broker.Any { return &Hygrothermograph{} }
+func HygrothermographCreator() any { return &Hygrothermograph{} }
 
-type HygrothermographResponseHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) (broker.Any, error)
+type HygrothermographResponseHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) (any, error)
 
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error
 

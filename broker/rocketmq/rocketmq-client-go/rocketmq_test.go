@@ -34,24 +34,24 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
 	case "otlp-grpc":
-		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"localhost:4317",
-			serviceName,
-			"",
-			"1.0.0",
-			1.0,
-		),
-			"rocketmq-tracer",
+		return broker.WithTracerProvider(
+			tracing.NewTracerProvider(exporterName,
+				"localhost:4317",
+				serviceName,
+				"",
+				"1.0.0",
+				1.0,
+			),
 		)
 	case "zipkin":
-		return broker.WithTracerProvider(tracing.NewTracerProvider(exporterName,
-			"http://localhost:9411/api/v2/spans",
-			serviceName,
-			"test",
-			"1.0.0",
-			1.0,
-		),
-			"rocketmq-tracer",
+		return broker.WithTracerProvider(
+			tracing.NewTracerProvider(exporterName,
+				"http://localhost:9411/api/v2/spans",
+				serviceName,
+				"test",
+				"1.0.0",
+				1.0,
+			),
 		)
 	}
 

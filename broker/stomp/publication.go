@@ -37,6 +37,6 @@ func (p *publication) Message() *broker.Message {
 	return p.m
 }
 
-func (p *publication) RawMessage() interface{} {
+func (p *publication) RawMessage() any {
 	return p.broker
 }

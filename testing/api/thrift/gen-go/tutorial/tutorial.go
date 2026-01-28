@@ -29,8 +29,8 @@ var _ = regexp.MatchString
 
 var _ = shared.GoUnusedProtection__
 
-//You can define enums, which are just 32 bit integers. Values are optional
-//and start at 1 if not supplied, C style again.
+// You can define enums, which are just 32 bit integers. Values are optional
+// and start at 1 if not supplied, C style again.
 type Operation int64
 
 const (
@@ -83,7 +83,7 @@ func (p *Operation) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (p *Operation) Scan(value interface{}) error {
+func (p *Operation) Scan(value any) error {
 	v, ok := value.(int64)
 	if !ok {
 		return errors.New("Scan value is not int64")
@@ -99,8 +99,8 @@ func (p *Operation) Value() (driver.Value, error) {
 	return int64(*p), nil
 }
 
-//Thrift lets you do typedefs to get pretty names for your types. Standard
-//C style here.
+// Thrift lets you do typedefs to get pretty names for your types. Standard
+// C style here.
 type MyInteger int32
 
 func MyIntegerPtr(v MyInteger) *MyInteger { return &v }
@@ -114,10 +114,10 @@ func MyIntegerPtr(v MyInteger) *MyInteger { return &v }
 // manual management in some languages.
 //
 // Attributes:
-//  - Num1
-//  - Num2
-//  - Op
-//  - Comment
+//   - Num1
+//   - Num2
+//   - Op
+//   - Comment
 type Work struct {
 	Num1    int32     `thrift:"num1,1" db:"num1" json:"num1"`
 	Num2    int32     `thrift:"num2,2" db:"num2" json:"num2"`
@@ -380,8 +380,8 @@ func (p *Work) Validate() error {
 // Structs can also be exceptions, if they are nasty.
 //
 // Attributes:
-//  - WhatOp
-//  - Why
+//   - WhatOp
+//   - Why
 type InvalidOperation struct {
 	WhatOp int32  `thrift:"whatOp,1" db:"whatOp" json:"whatOp"`
 	Why    string `thrift:"why,2" db:"why" json:"why"`
@@ -572,8 +572,8 @@ type Calculator interface {
 	Zip(ctx context.Context) (_err error)
 }
 
-//Ahh, now onto the cool part, defining a service. Services just need a name
-//and can optionally inherit from another service using the extends keyword.
+// Ahh, now onto the cool part, defining a service. Services just need a name
+// and can optionally inherit from another service using the extends keyword.
 type CalculatorClient struct {
 	*shared.SharedServiceClient
 }
@@ -609,8 +609,8 @@ func (p *CalculatorClient) Ping(ctx context.Context) (_err error) {
 }
 
 // Parameters:
-//  - Num1
-//  - Num2
+//   - Num1
+//   - Num2
 func (p *CalculatorClient) Add(ctx context.Context, num1 int32, num2 int32) (_r int32, _err error) {
 	var _args3 CalculatorAddArgs
 	_args3.Num1 = num1
@@ -626,8 +626,8 @@ func (p *CalculatorClient) Add(ctx context.Context, num1 int32, num2 int32) (_r 
 }
 
 // Parameters:
-//  - Logid
-//  - W
+//   - Logid
+//   - W
 func (p *CalculatorClient) Calculate(ctx context.Context, logid int32, w *Work) (_r int32, _err error) {
 	var _args6 CalculatorCalculateArgs
 	_args6.Logid = logid
@@ -1096,8 +1096,8 @@ func (p *CalculatorPingResult) String() string {
 }
 
 // Attributes:
-//  - Num1
-//  - Num2
+//   - Num1
+//   - Num2
 type CalculatorAddArgs struct {
 	Num1 int32 `thrift:"num1,1" db:"num1" json:"num1"`
 	Num2 int32 `thrift:"num2,2" db:"num2" json:"num2"`
@@ -1236,7 +1236,7 @@ func (p *CalculatorAddArgs) String() string {
 }
 
 // Attributes:
-//  - Success
+//   - Success
 type CalculatorAddResult struct {
 	Success *int32 `thrift:"success,0" db:"success" json:"success,omitempty"`
 }
@@ -1346,8 +1346,8 @@ func (p *CalculatorAddResult) String() string {
 }
 
 // Attributes:
-//  - Logid
-//  - W
+//   - Logid
+//   - W
 type CalculatorCalculateArgs struct {
 	Logid int32 `thrift:"logid,1" db:"logid" json:"logid"`
 	W     *Work `thrift:"w,2" db:"w" json:"w"`
@@ -1494,8 +1494,8 @@ func (p *CalculatorCalculateArgs) String() string {
 }
 
 // Attributes:
-//  - Success
-//  - Ouch
+//   - Success
+//   - Ouch
 type CalculatorCalculateResult struct {
 	Success *int32            `thrift:"success,0" db:"success" json:"success,omitempty"`
 	Ouch    *InvalidOperation `thrift:"ouch,1" db:"ouch" json:"ouch,omitempty"`

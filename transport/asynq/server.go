@@ -380,7 +380,7 @@ func (s *Server) handleFunc(pattern string, handler func(context.Context, *asynq
 }
 
 // NewTask enqueue a new task
-func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
+func (s *Server) NewTask(typeName string, msg any, opts ...asynq.Option) error {
 	//if !s.started.Load() {
 	//	return errors.New("cannot create task, server already started")
 	//}
@@ -419,7 +419,7 @@ func (s *Server) NewTask(typeName string, msg broker.Any, opts ...asynq.Option) 
 }
 
 // NewWaitResultTask enqueue a new task and wait for the result
-func (s *Server) NewWaitResultTask(typeName string, msg broker.Any, opts ...asynq.Option) error {
+func (s *Server) NewWaitResultTask(typeName string, msg any, opts ...asynq.Option) error {
 	//if !s.started.Load() {
 	//	return errors.New("cannot create task, server already started")
 	//}
@@ -487,7 +487,7 @@ func waitResult(intor *asynq.Inspector, info *asynq.TaskInfo) (*asynq.TaskInfo, 
 }
 
 // NewPeriodicTask enqueue a new crontab task
-func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg broker.Any, opts ...asynq.Option) (string, error) {
+func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg any, opts ...asynq.Option) (string, error) {
 	//if !s.started.Load() {
 	//	return "", errors.New("cannot create periodic task, server already started")
 	//}

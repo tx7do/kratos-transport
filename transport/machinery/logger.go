@@ -15,23 +15,23 @@ const (
 /// logger
 ///
 
-func LogDebug(args ...interface{}) {
+func LogDebug(args ...any) {
 	log.Debugf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogInfo(args ...interface{}) {
+func LogInfo(args ...any) {
 	log.Infof("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogWarn(args ...interface{}) {
+func LogWarn(args ...any) {
 	log.Warnf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogError(args ...interface{}) {
+func LogError(args ...any) {
 	log.Errorf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogFatal(args ...interface{}) {
+func LogFatal(args ...any) {
 	log.Fatalf("%s %s", logKey, fmt.Sprint(args...))
 }
 
@@ -39,23 +39,23 @@ func LogFatal(args ...interface{}) {
 /// logger
 ///
 
-func LogDebugf(format string, args ...interface{}) {
+func LogDebugf(format string, args ...any) {
 	log.Debugf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogInfof(format string, args ...interface{}) {
+func LogInfof(format string, args ...any) {
 	log.Infof("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogWarnf(format string, args ...interface{}) {
+func LogWarnf(format string, args ...any) {
 	log.Warnf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogErrorf(format string, args ...interface{}) {
+func LogErrorf(format string, args ...any) {
 	log.Errorf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogFatalf(format string, args ...interface{}) {
+func LogFatalf(format string, args ...any) {
 	log.Fatalf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
@@ -73,32 +73,32 @@ func newLogger(level log.Level) logging.LoggerInterface {
 	}
 }
 
-func (l *logger) Print(args ...interface{}) {
+func (l *logger) Print(args ...any) {
 	LogInfo(args...)
 }
-func (l *logger) Printf(format string, args ...interface{}) {
+func (l *logger) Printf(format string, args ...any) {
 	LogInfof(format, args...)
 }
-func (l *logger) Println(args ...interface{}) {
+func (l *logger) Println(args ...any) {
 	LogInfo(args...)
 }
 
-func (l *logger) Fatal(args ...interface{}) {
+func (l *logger) Fatal(args ...any) {
 	LogFatal(args...)
 }
-func (l *logger) Fatalf(format string, args ...interface{}) {
+func (l *logger) Fatalf(format string, args ...any) {
 	LogFatalf(format, args...)
 }
-func (l *logger) Fatalln(args ...interface{}) {
+func (l *logger) Fatalln(args ...any) {
 	LogFatal(args...)
 }
 
-func (l *logger) Panic(args ...interface{}) {
+func (l *logger) Panic(args ...any) {
 	LogError(args...)
 }
-func (l *logger) Panicf(format string, args ...interface{}) {
+func (l *logger) Panicf(format string, args ...any) {
 	LogErrorf(format, args...)
 }
-func (l *logger) Panicln(args ...interface{}) {
+func (l *logger) Panicln(args ...any) {
 	LogError(args...)
 }

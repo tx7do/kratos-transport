@@ -148,11 +148,11 @@ func (r *aliyunmqBroker) Disconnect() error {
 	return nil
 }
 
-func (r *aliyunmqBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+func (r *aliyunmqBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *aliyunmqBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (r *aliyunmqBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(r.options.Codec, msg)
 	if err != nil {
 		return err

@@ -72,9 +72,9 @@ func WithGlobalPropagator() ServerOption {
 }
 
 // WithTracerProvider 注入链路追踪器的Provider
-func WithTracerProvider(provider trace.TracerProvider, tracerName string) ServerOption {
+func WithTracerProvider(provider trace.TracerProvider, _ string) ServerOption {
 	return func(s *Server) {
-		s.brokerOpts = append(s.brokerOpts, broker.WithTracerProvider(provider, tracerName))
+		s.brokerOpts = append(s.brokerOpts, broker.WithTracerProvider(provider))
 	}
 }
 

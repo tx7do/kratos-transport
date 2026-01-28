@@ -122,7 +122,7 @@ func (c *Client) DeregisterMessageHandler(messageType MessageType) {
 	delete(c.messageHandlers, messageType)
 }
 
-func (c *Client) SendMessage(messageType int, message interface{}) error {
+func (c *Client) SendMessage(messageType int, message any) error {
 	var msg Message
 	msg.Type = MessageType(messageType)
 	msg.Body, _ = broker.Marshal(c.codec, message)

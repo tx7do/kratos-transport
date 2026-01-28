@@ -171,11 +171,11 @@ func (b *stompBroker) Disconnect() error {
 	return err
 }
 
-func (b *stompBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+func (b *stompBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (b *stompBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *stompBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err

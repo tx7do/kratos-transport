@@ -128,7 +128,7 @@ func (c *Client) SendRawData(message []byte) error {
 	return nil
 }
 
-func (c *Client) SendMessage(messageType int, message interface{}) error {
+func (c *Client) SendMessage(messageType int, message any) error {
 	var msg NetPacket
 	msg.Type = NetMessageType(messageType)
 	msg.Payload, _ = broker.Marshal(c.codec, message)

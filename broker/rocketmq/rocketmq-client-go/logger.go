@@ -15,7 +15,7 @@ type logger struct {
 	level log.Level
 }
 
-func toKeyVals(fields map[string]interface{}) (keyVals []interface{}) {
+func toKeyVals(fields map[string]any) (keyVals []any) {
 	for k, v := range fields {
 		keyVals = append(keyVals, k)
 		keyVals = append(keyVals, v)
@@ -23,7 +23,7 @@ func toKeyVals(fields map[string]interface{}) (keyVals []interface{}) {
 	return
 }
 
-func (l *logger) Log(level log.Level, msg string, fields map[string]interface{}) {
+func (l *logger) Log(level log.Level, msg string, fields map[string]any) {
 	if l.level > level {
 		return
 	}
@@ -32,52 +32,52 @@ func (l *logger) Log(level log.Level, msg string, fields map[string]interface{})
 	log.Log(level, loggerKey+msg, keyVals)
 }
 
-func (l *logger) Logf(level log.Level, format string, a ...interface{}) {
+func (l *logger) Logf(level log.Level, format string, a ...any) {
 	if l.level > level {
 		return
 	}
-	var keyVals []interface{}
+	var keyVals []any
 	keyVals = append(keyVals, loggerKey)
 	log.Log(level, fmt.Sprintf(format, a...))
 }
 
-func (l *logger) Debug(msg string, fields map[string]interface{}) {
+func (l *logger) Debug(msg string, fields map[string]any) {
 	l.Log(log.LevelDebug, msg, fields)
 }
 
-func (l *logger) Debugf(format string, a ...interface{}) {
+func (l *logger) Debugf(format string, a ...any) {
 	l.Logf(log.LevelDebug, format, a...)
 }
 
-func (l *logger) Info(msg string, fields map[string]interface{}) {
+func (l *logger) Info(msg string, fields map[string]any) {
 	l.Log(log.LevelInfo, msg, fields)
 }
 
-func (l *logger) Infof(format string, a ...interface{}) {
+func (l *logger) Infof(format string, a ...any) {
 	l.Logf(log.LevelInfo, format, a...)
 }
 
-func (l *logger) Warning(msg string, fields map[string]interface{}) {
+func (l *logger) Warning(msg string, fields map[string]any) {
 	l.Log(log.LevelWarn, msg, fields)
 }
 
-func (l *logger) Warningf(format string, a ...interface{}) {
+func (l *logger) Warningf(format string, a ...any) {
 	l.Logf(log.LevelInfo, format, a...)
 }
 
-func (l *logger) Error(msg string, fields map[string]interface{}) {
+func (l *logger) Error(msg string, fields map[string]any) {
 	l.Log(log.LevelError, msg, fields)
 }
 
-func (l *logger) Errorf(format string, a ...interface{}) {
+func (l *logger) Errorf(format string, a ...any) {
 	l.Logf(log.LevelError, format, a...)
 }
 
-func (l *logger) Fatal(msg string, fields map[string]interface{}) {
+func (l *logger) Fatal(msg string, fields map[string]any) {
 	l.Log(log.LevelFatal, msg, fields)
 }
 
-func (l *logger) Fatalf(format string, a ...interface{}) {
+func (l *logger) Fatalf(format string, a ...any) {
 	l.Logf(log.LevelFatal, format, a...)
 }
 

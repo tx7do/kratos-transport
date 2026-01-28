@@ -24,7 +24,7 @@ func (p *publication) Message() *broker.Message {
 	return p.msg
 }
 
-func (p *publication) RawMessage() interface{} {
+func (p *publication) RawMessage() any {
 	return p.pulsarMsg
 }
 

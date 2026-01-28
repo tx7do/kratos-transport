@@ -208,7 +208,7 @@ func WithHeaders(headers tasks.Headers) TaskOption {
 	}
 }
 
-func WithHeader(key string, value interface{}) TaskOption {
+func WithHeader(key string, value any) TaskOption {
 	return func(o *tasks.Signature) {
 		if o.Headers == nil {
 			o.Headers = tasks.Headers{}
@@ -229,7 +229,7 @@ func WithPriority(priority uint8) TaskOption {
 	}
 }
 
-func WithArgument(typeName string, value interface{}) TaskOption {
+func WithArgument(typeName string, value any) TaskOption {
 	return func(o *tasks.Signature) {
 		o.Args = append(o.Args, tasks.Arg{Type: typeName, Value: value})
 	}

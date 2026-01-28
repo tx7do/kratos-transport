@@ -13,23 +13,23 @@ const (
 /// logger
 ///
 
-func LogDebug(args ...interface{}) {
+func LogDebug(args ...any) {
 	log.Debugf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogInfo(args ...interface{}) {
+func LogInfo(args ...any) {
 	log.Infof("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogWarn(args ...interface{}) {
+func LogWarn(args ...any) {
 	log.Warnf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogError(args ...interface{}) {
+func LogError(args ...any) {
 	log.Errorf("%s %s", logKey, fmt.Sprint(args...))
 }
 
-func LogFatal(args ...interface{}) {
+func LogFatal(args ...any) {
 	log.Fatalf("%s %s", logKey, fmt.Sprint(args...))
 }
 
@@ -37,23 +37,23 @@ func LogFatal(args ...interface{}) {
 /// logger
 ///
 
-func LogDebugf(format string, args ...interface{}) {
+func LogDebugf(format string, args ...any) {
 	log.Debugf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogInfof(format string, args ...interface{}) {
+func LogInfof(format string, args ...any) {
 	log.Infof("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogWarnf(format string, args ...interface{}) {
+func LogWarnf(format string, args ...any) {
 	log.Warnf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogErrorf(format string, args ...interface{}) {
+func LogErrorf(format string, args ...any) {
 	log.Errorf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
-func LogFatalf(format string, args ...interface{}) {
+func LogFatalf(format string, args ...any) {
 	log.Fatalf("%s %s", logKey, fmt.Sprintf(format, args...))
 }
 
@@ -63,11 +63,11 @@ func LogFatalf(format string, args ...interface{}) {
 
 type ErrorLogger struct{}
 
-func (ErrorLogger) Println(v ...interface{}) {
+func (ErrorLogger) Println(v ...any) {
 	log.Error(v...)
 }
 
-func (ErrorLogger) Printf(format string, v ...interface{}) {
+func (ErrorLogger) Printf(format string, v ...any) {
 	log.Errorf(format, v...)
 }
 
@@ -77,11 +77,11 @@ func (ErrorLogger) Printf(format string, v ...interface{}) {
 
 type CriticalLogger struct{}
 
-func (CriticalLogger) Println(v ...interface{}) {
+func (CriticalLogger) Println(v ...any) {
 	log.Fatal(v...)
 }
 
-func (CriticalLogger) Printf(format string, v ...interface{}) {
+func (CriticalLogger) Printf(format string, v ...any) {
 	log.Fatalf(format, v...)
 }
 
@@ -91,11 +91,11 @@ func (CriticalLogger) Printf(format string, v ...interface{}) {
 
 type WarnLogger struct{}
 
-func (WarnLogger) Println(v ...interface{}) {
+func (WarnLogger) Println(v ...any) {
 	log.Warn(v...)
 }
 
-func (WarnLogger) Printf(format string, v ...interface{}) {
+func (WarnLogger) Printf(format string, v ...any) {
 	log.Warnf(format, v...)
 }
 
@@ -105,10 +105,10 @@ func (WarnLogger) Printf(format string, v ...interface{}) {
 
 type DebugLogger struct{}
 
-func (DebugLogger) Println(v ...interface{}) {
+func (DebugLogger) Println(v ...any) {
 	log.Debug(v...)
 }
 
-func (DebugLogger) Printf(format string, v ...interface{}) {
+func (DebugLogger) Printf(format string, v ...any) {
 	log.Debugf(format, v...)
 }

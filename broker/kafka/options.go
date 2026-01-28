@@ -185,7 +185,7 @@ type balancerValue struct {
 }
 
 // WithHeaders 消息头
-func WithHeaders(headers map[string]interface{}) broker.PublishOption {
+func WithHeaders(headers map[string]any) broker.PublishOption {
 	return broker.PublishContextWithValue(messageHeadersKey{}, headers)
 }
 

@@ -109,11 +109,11 @@ func (b *rabbitBroker) Disconnect() error {
 	return ret
 }
 
-func (b *rabbitBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+func (b *rabbitBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
@@ -187,7 +187,7 @@ func (b *rabbitBroker) publish(ctx context.Context, routingKey string, buf []byt
 		msg.AppId = value
 	}
 
-	if headers, ok := options.Context.Value(publishHeadersKey{}).(map[string]interface{}); ok {
+	if headers, ok := options.Context.Value(publishHeadersKey{}).(map[string]any); ok {
 		for k, v := range headers {
 			msg.Headers[k] = v
 		}
@@ -286,11 +286,11 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 		sub.durableQueue = false
 	}
 
-	if val, ok := options.Context.Value(subscribeBindArgsKey{}).(map[string]interface{}); ok {
+	if val, ok := options.Context.Value(subscribeBindArgsKey{}).(map[string]any); ok {
 		sub.headers = val
 	}
 
-	if val, ok := options.Context.Value(subscribeQueueArgsKey{}).(map[string]interface{}); ok {
+	if val, ok := options.Context.Value(subscribeQueueArgsKey{}).(map[string]any); ok {
 		sub.queueArgs = val
 	}
 

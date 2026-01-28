@@ -76,7 +76,7 @@ func RegisterHygrothermographServiceServer(s grpc.ServiceRegistrar, srv Hygrothe
 	s.RegisterService(&HygrothermographService_ServiceDesc, srv)
 }
 
-func _HygrothermographService_GetHygrothermograph_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _HygrothermographService_GetHygrothermograph_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func _HygrothermographService_GetHygrothermograph_Handler(srv interface{}, ctx c
 		Server:     srv,
 		FullMethod: HygrothermographService_GetHygrothermograph_FullMethodName,
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(HygrothermographServiceServer).GetHygrothermograph(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)

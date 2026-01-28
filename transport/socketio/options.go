@@ -57,7 +57,7 @@ func WithErrorHandler(namespace string, f func(socketIo.Conn, error)) ServerOpti
 	}
 }
 
-func WithEventHandler(namespace, event string, f interface{}) ServerOption {
+func WithEventHandler(namespace, event string, f any) ServerOption {
 	return func(s *Server) {
 		s.Server.OnEvent(namespace, event, f)
 	}

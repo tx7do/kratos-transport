@@ -188,7 +188,7 @@ func (m *mqttBroker) Disconnect() error {
 	return nil
 }
 
-func (m *mqttBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (m *mqttBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(m.options.Codec, msg)
 	if err != nil {
 		return err
@@ -197,7 +197,7 @@ func (m *mqttBroker) Publish(ctx context.Context, topic string, msg broker.Any, 
 	return m.publish(ctx, topic, buf, opts...)
 }
 
-func (m *mqttBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+func (m *mqttBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
 	return nil, errors.New("not implemented")
 }
 

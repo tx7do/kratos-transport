@@ -74,11 +74,11 @@ func WithAutoDeleteQueue() broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(autoDeleteQueueKey{}, true)
 }
 
-func WithBindArguments(args map[string]interface{}) broker.SubscribeOption {
+func WithBindArguments(args map[string]any) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(subscribeBindArgsKey{}, args)
 }
 
-func WithQueueArguments(args map[string]interface{}) broker.SubscribeOption {
+func WithQueueArguments(args map[string]any) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(subscribeQueueArgsKey{}, args)
 }
 
@@ -99,8 +99,8 @@ func WithAckOnSuccess() broker.SubscribeOption {
 ///
 
 type DeclarePublishQueueInfo struct {
-	QueueArguments map[string]interface{}
-	BindArguments  map[string]interface{}
+	QueueArguments map[string]any
+	BindArguments  map[string]any
 	Durable        bool
 	AutoDelete     bool
 	Queue          string
@@ -182,12 +182,12 @@ func WithAppID(value string) broker.PublishOption {
 }
 
 // WithPublishHeaders amqp.Publishing.Headers
-func WithPublishHeaders(h map[string]interface{}) broker.PublishOption {
+func WithPublishHeaders(h map[string]any) broker.PublishOption {
 	return broker.PublishContextWithValue(publishHeadersKey{}, h)
 }
 
 // WithPublishDeclareQueue publish declare queue info
-func WithPublishDeclareQueue(queueName string, durableQueue, autoDelete bool, queueArgs map[string]interface{}, bindArgs map[string]interface{}) broker.PublishOption {
+func WithPublishDeclareQueue(queueName string, durableQueue, autoDelete bool, queueArgs map[string]any, bindArgs map[string]any) broker.PublishOption {
 	val := &DeclarePublishQueueInfo{
 		Queue:          queueName,
 		Durable:        durableQueue,

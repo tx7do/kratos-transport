@@ -151,7 +151,7 @@ func RegisterSubscriber[T any](srv *Server, topic string, handler func(context.C
 			}
 			return nil
 		},
-		func() broker.Any {
+		func() any {
 			var t T
 			return &t
 		},

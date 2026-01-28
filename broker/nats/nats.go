@@ -198,7 +198,7 @@ func (b *natsBroker) Disconnect() error {
 	return nil
 }
 
-func (b *natsBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *natsBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
@@ -341,7 +341,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	return subs, nil
 }
 
-func (b *natsBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+func (b *natsBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return nil, err
@@ -350,7 +350,7 @@ func (b *natsBroker) Request(ctx context.Context, topic string, msg broker.Any, 
 	return b.request(ctx, topic, buf, opts...)
 }
 
-func (b *natsBroker) request(ctx context.Context, topic string, buf []byte, opts ...broker.RequestOption) (broker.Any, error) {
+func (b *natsBroker) request(ctx context.Context, topic string, buf []byte, opts ...broker.RequestOption) (any, error) {
 	b.RLock()
 	defer b.RUnlock()
 

@@ -154,7 +154,7 @@ func (c *Client) marshalMessage(messageType NetMessageType, message MessagePaylo
 	return buff, nil
 }
 
-func (c *Client) SendMessage(messageType NetMessageType, message interface{}) error {
+func (c *Client) SendMessage(messageType NetMessageType, message any) error {
 	buff, err := c.marshalMessage(messageType, message)
 	if err != nil {
 		LogError("marshal message exception:", err)

@@ -141,7 +141,7 @@ func (s *Server) Name() string {
 	return KindMachinery
 }
 
-func (s *Server) HandleFunc(name string, handler interface{}) error {
+func (s *Server) HandleFunc(name string, handler any) error {
 	if err := s.registerTask(name, handler); err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func (s *Server) createMachineryServer() {
 	s.machineryServer = machinery.NewServer(s.cfg, broker, backend, lock)
 }
 
-func (s *Server) registerTask(name string, handler interface{}) error {
+func (s *Server) registerTask(name string, handler any) error {
 	if err := s.machineryServer.RegisterTask(name, handler); err != nil {
 		return err
 	}

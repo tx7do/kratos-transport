@@ -6,7 +6,7 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
-func HygrothermographCreator() broker.Any { return &Hygrothermograph{} }
+func HygrothermographCreator() any { return &Hygrothermograph{} }
 
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *Hygrothermograph) error
 

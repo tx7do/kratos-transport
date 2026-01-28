@@ -135,7 +135,7 @@ func TestClient(t *testing.T) {
 	result, err := mcpClient.CallTool(ctx, mcp.CallToolRequest{
 		Params: mcp.CallToolParams{
 			Name: "calculate",
-			Arguments: map[string]interface{}{
+			Arguments: map[string]any{
 				"operation": "add",
 				"x":         7,
 				"y":         8,

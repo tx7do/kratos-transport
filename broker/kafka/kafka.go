@@ -322,11 +322,11 @@ func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.P
 	}
 }
 
-func (b *kafkaBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+func (b *kafkaBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg)
 	if err != nil {
 		return err
@@ -352,7 +352,7 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, b
 		Value: buf,
 	}
 
-	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]interface{}); ok {
+	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]any); ok {
 		for k, v := range headers {
 			header := kafkaGo.Header{Key: k}
 			switch t := v.(type) {
@@ -447,7 +447,7 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []
 		Value: buf,
 	}
 
-	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]interface{}); ok {
+	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]any); ok {
 		for k, v := range headers {
 			header := kafkaGo.Header{Key: k}
 			switch t := v.(type) {

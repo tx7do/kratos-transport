@@ -25,7 +25,7 @@ func newRouter(prefix string, srv *Server, filters ...kHttp.FilterFunc) *Router 
 		srv:     srv,
 		filters: filters,
 	}
-	r.pool.New = func() interface{} {
+	r.pool.New = func() any {
 		return &wrapper{router: r}
 	}
 	return r

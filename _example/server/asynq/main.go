@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/hibiken/asynq"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/hibiken/asynq"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -93,21 +94,18 @@ func main() {
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
 		testPeriodicTask+"1",
-		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 1"},
 	)
 
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
 		testPeriodicTask+"2",
-		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 2"},
 	)
 
 	_, err = srv.NewPeriodicTask(
 		"*/1 * * * ?",
 		testPeriodicTask+"3",
-		testPeriodicTask,
 		&TaskPayload{Message: "periodic task 3"},
 	)
 

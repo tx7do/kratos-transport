@@ -41,7 +41,7 @@ func (p *publication) Message() *broker.Message {
 	return p.bm
 }
 
-func (p *publication) RawMessage() interface{} {
+func (p *publication) RawMessage() any {
 	return p.km
 }
 

@@ -147,7 +147,7 @@ func (s *Server) RegisterErrorHandler(namespace string, f func(socketIo.Conn, er
 	s.Server.OnError(namespace, f)
 }
 
-func (s *Server) RegisterEventHandler(namespace, event string, f interface{}) {
+func (s *Server) RegisterEventHandler(namespace, event string, f any) {
 	s.Server.OnEvent(namespace, event, f)
 }
 

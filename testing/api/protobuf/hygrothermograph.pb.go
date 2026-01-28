@@ -113,7 +113,7 @@ func file_hygrothermograph_proto_rawDescGZIP() []byte {
 }
 
 var file_hygrothermograph_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_hygrothermograph_proto_goTypes = []interface{}{
+var file_hygrothermograph_proto_goTypes = []any{
 	(*Hygrothermograph)(nil), // 0: protobuf.api.Hygrothermograph
 	(*emptypb.Empty)(nil),    // 1: google.protobuf.Empty
 }
@@ -133,7 +133,7 @@ func file_hygrothermograph_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_hygrothermograph_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_hygrothermograph_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Hygrothermograph); i {
 			case 0:
 				return &v.state

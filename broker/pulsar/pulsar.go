@@ -168,11 +168,11 @@ func (pb *pulsarBroker) Disconnect() error {
 	return nil
 }
 
-func (pb *pulsarBroker) Request(ctx context.Context, topic string, msg broker.Any, opts ...broker.RequestOption) (broker.Any, error) {
+func (pb *pulsarBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg broker.Any, opts ...broker.PublishOption) error {
+func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(pb.options.Codec, msg)
 	if err != nil {
 		return err
@@ -250,7 +250,7 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg []byte, o
 	if v, ok := options.Context.Value(messageKeyKey{}).(string); ok {
 		pulsarMsg.Key = v
 	}
-	if v, ok := options.Context.Value(messageValueKey{}).(interface{}); ok {
+	if v, ok := options.Context.Value(messageValueKey{}).(any); ok {
 		pulsarMsg.Value = v
 	}
 	if v, ok := options.Context.Value(messageOrderingKeyKey{}).(string); ok {
