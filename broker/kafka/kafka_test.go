@@ -35,6 +35,36 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 	return nil
 }
 
+type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
+
+func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		var msg api.Hygrothermograph
+
+		switch t := event.Message().Body.(type) {
+		case []byte:
+			if err := json.Unmarshal(t, &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		case string:
+			if err := json.Unmarshal([]byte(t), &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		default:
+			log.Error("unknown type Unmarshal failed: ", t)
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+
+		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
+			return err
+		}
+
+		return nil
+	}
+}
+
 func Test_Publish_WithRawData(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -370,32 +400,84 @@ func Test_Subscribe_Batch(t *testing.T) {
 	<-interrupt
 }
 
-type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
+// 测试 middleware 链的执行顺序
+func Test_ChainPublishMiddleware_Order(t *testing.T) {
+	var order []string
 
-func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
-	return func(ctx context.Context, event broker.Event) error {
-		var msg api.Hygrothermograph
-
-		switch t := event.Message().Body.(type) {
-		case []byte:
-			if err := json.Unmarshal(t, &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
-			}
-		case string:
-			if err := json.Unmarshal([]byte(t), &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
-			}
-		default:
-			log.Error("unknown type Unmarshal failed: ", t)
-			return fmt.Errorf("unsupported type: %T", t)
-		}
-
-		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
-			return err
-		}
-
+	// final task
+	final := func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+		order = append(order, "final")
 		return nil
 	}
+
+	// middleware 构造器
+	makeMw := func(name string) broker.PublishMiddleware {
+		return func(next broker.PublishHandler) broker.PublishHandler {
+			return func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+				order = append(order, name+"-before")
+				if err := next(ctx, topic, msg, opts...); err != nil {
+					return err
+				}
+				order = append(order, name+"-after")
+				return nil
+			}
+		}
+	}
+
+	// 假设 m1 在前（最外层），m2 在后（内层）
+	m1 := makeMw("m1")
+	m2 := makeMw("m2")
+
+	chained := broker.ChainPublishMiddleware(final, []broker.PublishMiddleware{m1, m2})
+
+	err := chained(context.Background(), "topic", "msg")
+	assert.Nil(t, err)
+
+	// 期望顺序： m1-before, m2-before, final, m2-after, m1-after
+	expected := []string{"m1-before", "m2-before", "final", "m2-after", "m1-after"}
+	assert.Equal(t, expected, order)
+}
+
+// 测试 per-call 中间件与 broker 级别中间件合并执行顺序（per-call 优先）
+func Test_Merge_PerCall_And_Broker_Middlewares_Order(t *testing.T) {
+	var order []string
+
+	final := func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+		order = append(order, "final")
+		return nil
+	}
+
+	makeMw := func(name string) broker.PublishMiddleware {
+		return func(next broker.PublishHandler) broker.PublishHandler {
+			return func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+				order = append(order, name+"-before")
+				if err := next(ctx, topic, msg, opts...); err != nil {
+					return err
+				}
+				order = append(order, name+"-after")
+				return nil
+			}
+		}
+	}
+
+	// 模拟 per-call 与 broker-level 中间件合并（per-call 在前）
+	perCall := []broker.PublishMiddleware{makeMw("pc1"), makeMw("pc2")}
+	brokerLevel := []broker.PublishMiddleware{makeMw("b1")}
+
+	// 按实现中的合并逻辑：先 append per-call，再 append broker-level
+	combined := append([]broker.PublishMiddleware{}, perCall...)
+	combined = append(combined, brokerLevel...)
+
+	chained := broker.ChainPublishMiddleware(final, combined)
+
+	err := chained(context.Background(), "topic", "msg")
+	assert.Nil(t, err)
+
+	// 期望顺序： pc1-before, pc2-before, b1-before, final, b1-after, pc2-after, pc1-after
+	expected := []string{
+		"pc1-before", "pc2-before", "b1-before",
+		"final",
+		"b1-after", "pc2-after", "pc1-after",
+	}
+	assert.Equal(t, expected, order)
 }
