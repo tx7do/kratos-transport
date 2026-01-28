@@ -59,3 +59,5 @@ replace github.com/tx7do/kratos-transport/tracing => ../../tracing
 replace github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
 
 replace github.com/tx7do/kratos-transport/broker/mqtt => ../../broker/mqtt
+
+replace github.com/tx7do/kratos-transport/transport => ../

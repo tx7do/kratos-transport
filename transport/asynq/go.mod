@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.3
 
 replace (
-	github.com/tx7do/kratos-transport => ../../
+	github.com/tx7do/kratos-transport/broker => ../../broker
 	github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
 )
 

@@ -9,7 +9,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/broker v1.3.1
-	github.com/tx7do/kratos-transport/broker/kafka v1.2.24
+	github.com/tx7do/kratos-transport/broker/kafka v1.3.1
 	github.com/tx7do/kratos-transport/testing v1.1.1
 	github.com/tx7do/kratos-transport/tracing v1.1.1
 	github.com/tx7do/kratos-transport/transport v1.3.1

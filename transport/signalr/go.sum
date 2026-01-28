@@ -75,8 +75,6 @@ github.com/tx7do/kratos-transport/broker v1.3.1 h1:0l9D+cy8svk/xLOXeAm4Yw6jTNApE
 github.com/tx7do/kratos-transport/broker v1.3.1/go.mod h1:F5D/wlfrOalDFpKHy9MzTDECSNUUO2iQeYLwFioYim0=
 github.com/tx7do/kratos-transport/tracing v1.1.1 h1:KlqURDvzKX62krbfAUgot3laMuakvaHi4vQp0XzOwl4=
 github.com/tx7do/kratos-transport/tracing v1.1.1/go.mod h1:a2eozcWrX0Xfgq121tCw2s3vGiu05QARUKkZ48wRadI=
-github.com/tx7do/kratos-transport/transport v1.3.1 h1:4oNl5INp1fqB9soMrkeVTlAIIQmWoELQa5d17wSkWiM=
-github.com/tx7do/kratos-transport/transport v1.3.1/go.mod h1:8Hcov+Npn7gYhnz623eo6O+1549xkGj4aKwIU3BqGE0=
 github.com/vmihailenco/msgpack/v5 v5.4.1 h1:cQriyiUvjTwOHg8QZaPihLWeRAAVoCpE00IUPn0Bjt8=
 github.com/vmihailenco/msgpack/v5 v5.4.1/go.mod h1:GaZTsDaehaPpQVyxrf5mtQlH+pc21PIudVV/E3rRQok=
 github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=
