@@ -8,7 +8,9 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/nats-io/nats.go v1.48.0
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.18
+	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/testing v1.1.1
+	github.com/tx7do/kratos-transport/tracing v1.1.1
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 	google.golang.org/protobuf v1.36.11
@@ -47,3 +49,7 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
+
+replace github.com/tx7do/kratos-transport/testing => ../../testing
+
+replace github.com/tx7do/kratos-transport/tracing => ../../tracing

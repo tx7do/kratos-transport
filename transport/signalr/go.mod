@@ -7,7 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/philippseith/signalr v0.8.0
-	github.com/tx7do/kratos-transport v1.1.18
+	github.com/tx7do/kratos-transport v1.1.20
 )
 
 require (

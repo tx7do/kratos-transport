@@ -7,7 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.18
+	github.com/tx7do/kratos-transport v1.1.20
 	github.com/tx7do/kratos-transport/broker/rocketmq v1.2.24
 	github.com/tx7do/kratos-transport/transport/keepalive v1.0.8
 	go.opentelemetry.io/otel v1.39.0

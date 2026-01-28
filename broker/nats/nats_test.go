@@ -87,19 +87,19 @@ func TestInitAddrs(t *testing.T) {
 				_ = br.Init()
 			}
 
-			natsBroker, ok := br.(*natsBroker)
+			b, ok := br.(*natsBroker)
 			if !ok {
-				t.Fatal("Expected common to be of types *natsBroker")
+				t.Fatal("Expected common to be of types *b")
 			}
 			// check if the same amount of addrs we set has actually been set, default
 			// have only 1 address nats://127.0.0.1:4222 (current nats code) or
 			// nats://localhost:4222 (older code version)
-			if len(natsBroker.options.Addrs) != len(tc.addrs) && tc.name != "default" {
+			if len(b.options.Addrs) != len(tc.addrs) && tc.name != "default" {
 				t.Errorf("Expected Addr count = %d, Actual Addr count = %d",
-					len(natsBroker.options.Addrs), len(tc.addrs))
+					len(b.options.Addrs), len(tc.addrs))
 			}
 
-			for _, addr := range natsBroker.options.Addrs {
+			for _, addr := range b.options.Addrs {
 				_, ok := tc.addrs[addr]
 				if !ok {
 					t.Errorf("Expected '%s' has not been set", addr)
@@ -114,7 +114,9 @@ const (
 	testTopic   = "test_topic"
 )
 
-func RegisterHygrothermographResponseJsonHandler(fnc api.HygrothermographResponseHandler) broker.Handler {
+// RegisterHygrothermographResponseJsonHandler 将一个返回 (any, error) 的处理函数适配为 broker.Handler，
+// 并在收到消息后将函数返回序列化并通过 NATS Respond 回应。
+func RegisterHygrothermographResponseJsonHandler(fnc func(ctx context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) (any, error)) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		switch t := event.Message().Body.(type) {
 		case *api.Hygrothermograph:
@@ -123,11 +125,25 @@ func RegisterHygrothermographResponseJsonHandler(fnc api.HygrothermographRespons
 				return err
 			}
 			rawMsg, _ := json.Marshal(res)
-			_ = event.Message().Msg.(*natsGo.Msg).Respond(rawMsg)
+			if m, ok := event.Message().Msg.(*natsGo.Msg); ok {
+				_ = m.Respond(rawMsg)
+			}
 		default:
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 		return nil
+	}
+}
+
+// RegisterHygrothermographHandler 将一个不返回响应的业务函数适配为 broker.Handler。
+func RegisterHygrothermographHandler(f func(ctx context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		switch t := event.Message().Body.(type) {
+		case *api.Hygrothermograph:
+			return f(ctx, event.Topic(), event.Message().Headers, t)
+		default:
+			return fmt.Errorf("unsupported type: %T", t)
+		}
 	}
 }
 
@@ -190,7 +206,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_ = b.Connect()
 
 	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		nil,
 	)
 	assert.Nil(t, err)
@@ -248,7 +264,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	_ = b.Connect()
 
 	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 	)
 	assert.Nil(t, err)
@@ -335,7 +351,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	_ = b.Connect()
 
 	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 	)
 	assert.Nil(t, err)
