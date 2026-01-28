@@ -6,6 +6,12 @@ toolchain go1.24.3
 
 replace github.com/tx7do/kratos-transport/transport => ../
 
+replace github.com/tx7do/kratos-transport/broker => ../../broker
+
+replace github.com/tx7do/kratos-transport/testing => ../../testing
+
+replace github.com/tx7do/kratos-transport/tracing => ../../tracing
+
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
