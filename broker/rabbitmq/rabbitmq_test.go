@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -91,7 +92,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testRouting,
-		api.RegisterHygrothermographRawHandler(handleHygrothermograph),
+		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
 		broker.WithQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
@@ -161,7 +162,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testRouting,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
@@ -263,7 +264,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testRouting,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
@@ -272,4 +273,34 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	assert.Nil(t, err)
 
 	<-interrupt
+}
+
+type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
+
+func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		var msg api.Hygrothermograph
+
+		switch t := event.Message().Body.(type) {
+		case []byte:
+			if err := json.Unmarshal(t, &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		case string:
+			if err := json.Unmarshal([]byte(t), &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		default:
+			log.Error("unknown type Unmarshal failed: ", t)
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+
+		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
+			return err
+		}
+
+		return nil
+	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -24,6 +25,36 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 	return nil
 }
 
+type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
+
+func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		var msg api.Hygrothermograph
+
+		switch t := event.Message().Body.(type) {
+		case []byte:
+			if err := json.Unmarshal(t, &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		case string:
+			if err := json.Unmarshal([]byte(t), &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		default:
+			log.Error("unknown type Unmarshal failed: ", t)
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+
+		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
+			return err
+		}
+
+		return nil
+	}
+}
+
 func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -36,7 +67,7 @@ func main() {
 	_ = b.Init()
 
 	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographHandler(handleHygrothermograph),
+		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testGroupId),
 	)

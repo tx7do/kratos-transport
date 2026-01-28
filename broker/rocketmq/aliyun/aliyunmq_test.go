@@ -30,6 +30,18 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 	return nil
 }
 
+// RegisterHygrothermographHandler 将一个不返回响应的业务函数适配为 broker.Handler。
+func RegisterHygrothermographHandler(f func(ctx context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		switch t := event.Message().Body.(type) {
+		case *api.Hygrothermograph:
+			return f(ctx, event.Topic(), event.Message().Headers, t)
+		default:
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+	}
+}
+
 func createTracerProvider(exporterName, serviceName string) broker.Option {
 	switch exporterName {
 	case "otlp-grpc":
@@ -135,7 +147,7 @@ func Test_Aliyun_Subscribe(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(topicName,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(groupName),
 	)

@@ -2,6 +2,7 @@ package rocketmqClientGo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -29,6 +30,36 @@ const (
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
 	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
+}
+
+type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
+
+func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
+	return func(ctx context.Context, event broker.Event) error {
+		var msg api.Hygrothermograph
+
+		switch t := event.Message().Body.(type) {
+		case []byte:
+			if err := json.Unmarshal(t, &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		case string:
+			if err := json.Unmarshal([]byte(t), &msg); err != nil {
+				log.Error("json Unmarshal failed: ", err.Error())
+				return err
+			}
+		default:
+			log.Error("unknown type Unmarshal failed: ", t)
+			return fmt.Errorf("unsupported type: %T", t)
+		}
+
+		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
+			return err
+		}
+
+		return nil
+	}
 }
 
 func createTracerProvider(exporterName, serviceName string) broker.Option {
@@ -77,7 +108,7 @@ func TestSubscribe(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testGroupName),
 	)
@@ -150,7 +181,7 @@ func TestSubscribe_WithTracer(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testTopic,
-		api.RegisterHygrothermographJsonHandler(handleHygrothermograph),
+		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithQueueName(testGroupName),
 	)
