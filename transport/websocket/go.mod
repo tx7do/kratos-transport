@@ -18,7 +18,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/broker v1.3.1
-	github.com/tx7do/kratos-transport/transport v1.3.1
+	github.com/tx7do/kratos-transport/transport v1.3.2
 )
 
 require (

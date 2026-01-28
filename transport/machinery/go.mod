@@ -79,7 +79,7 @@ require (
 	github.com/redis/go-redis/v9 v9.17.3 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/tx7do/kratos-transport/broker v1.3.1 // indirect
-	github.com/tx7do/kratos-transport/transport v1.3.1 // indirect
+	github.com/tx7do/kratos-transport/transport v1.3.2 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.2.0 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect

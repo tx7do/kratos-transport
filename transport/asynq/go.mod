@@ -36,7 +36,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
-	github.com/tx7do/kratos-transport/transport v1.3.1 // indirect
+	github.com/tx7do/kratos-transport/transport v1.3.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.39.0 // indirect

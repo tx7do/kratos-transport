@@ -17,7 +17,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/broker v1.3.1
-	github.com/tx7do/kratos-transport/transport v1.3.1
+	github.com/tx7do/kratos-transport/transport v1.3.2
 	gopkg.in/cenkalti/backoff.v1 v1.1.0
 )
 

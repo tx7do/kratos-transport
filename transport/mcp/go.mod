@@ -37,7 +37,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tx7do/kratos-transport/broker v1.3.1 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
-	github.com/tx7do/kratos-transport/transport v1.3.1 // indirect
+	github.com/tx7do/kratos-transport/transport v1.3.2 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
