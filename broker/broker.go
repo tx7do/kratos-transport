@@ -5,41 +5,66 @@ import (
 	"fmt"
 )
 
+// Broker defines the message broker interface
 type Broker interface {
+	// Name returns the broker name
 	Name() string
 
+	// Options returns the broker options
 	Options() Options
 
+	// Address returns the broker address
 	Address() string
 
+	// Init initializes the broker with options
 	Init(...Option) error
 
+	// Connect connects to the broker
 	Connect() error
 
+	// Disconnect disconnects from the broker
 	Disconnect() error
 
-	Publish(ctx context.Context, topic string, msg Any, opts ...PublishOption) error
+	// Publish publishes a message to a topic
+	Publish(ctx context.Context, topic string, msg any, opts ...PublishOption) error
 
+	// Subscribe subscribes to a topic with a handler and binder
 	Subscribe(topic string, handler Handler, binder Binder, opts ...SubscribeOption) (Subscriber, error)
 
-	Request(ctx context.Context, topic string, msg Any, opts ...RequestOption) (Any, error)
+	// Request sends a request message and waits for a response
+	Request(ctx context.Context, topic string, msg any, opts ...RequestOption) (any, error)
 }
 
-func Subscribe[T any](broker Broker, topic string, handler func(context.Context, string, Headers, *T) error, opts ...SubscribeOption) (Subscriber, error) {
+// Subscribe is a helper function to subscribe to a topic with a typed handler
+func Subscribe[T any](broker Broker, topic string, handler TypedHandler[T], opts ...SubscribeOption) (Subscriber, error) {
 	return broker.Subscribe(
 		topic,
 		func(ctx context.Context, event Event) error {
-			switch t := event.Message().Body.(type) {
+			if event == nil || event.Message() == nil || event.Message().Body == nil {
+				return fmt.Errorf("event or message body is nil")
+			}
+
+			// construct expected type string (pointer to T is expected by handler)
+			var zero T
+			expectedType := fmt.Sprintf("%T", &zero)
+
+			switch v := event.Message().Body.(type) {
 			case *T:
-				if err := handler(ctx, event.Topic(), event.Message().Headers, t); err != nil {
+				// already the expected pointer type
+				if err := handler(ctx, event.Topic(), event.Message().Headers, v); err != nil {
+					return err
+				}
+			case T:
+				// value type: take address of the copy
+				if err := handler(ctx, event.Topic(), event.Message().Headers, &v); err != nil {
 					return err
 				}
 			default:
-				return fmt.Errorf("unsupported type: %T", t)
+				return fmt.Errorf("unsupported type: expected %s, got %T", expectedType, event.Message().Body)
 			}
 			return nil
 		},
-		func() Any {
+		func() any {
 			var t T
 			return &t
 		},
