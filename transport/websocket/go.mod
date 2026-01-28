@@ -9,7 +9,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/broker v1.3.1
+	github.com/tx7do/kratos-transport/transport v1.3.1
 )
 
 require (

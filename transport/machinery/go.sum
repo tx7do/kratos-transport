@@ -199,8 +199,12 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203 h1:QVqDTf3h2WHt08YuiTGPZLls0Wq99X9bWd0Q5ZSBesM=
 github.com/stvp/tempredis v0.0.0-20181119212430-b82af8480203/go.mod h1:oqN97ltKNihBbwlX8dLpwxCl3+HnXKV/R0e+sRLd9C8=
+github.com/tx7do/kratos-transport/broker v1.3.1 h1:0l9D+cy8svk/xLOXeAm4Yw6jTNApEzwPkCniMZDrfkU=
+github.com/tx7do/kratos-transport/broker v1.3.1/go.mod h1:F5D/wlfrOalDFpKHy9MzTDECSNUUO2iQeYLwFioYim0=
 github.com/tx7do/kratos-transport/tracing v1.1.1 h1:KlqURDvzKX62krbfAUgot3laMuakvaHi4vQp0XzOwl4=
 github.com/tx7do/kratos-transport/tracing v1.1.1/go.mod h1:a2eozcWrX0Xfgq121tCw2s3vGiu05QARUKkZ48wRadI=
+github.com/tx7do/kratos-transport/transport v1.3.1 h1:4oNl5INp1fqB9soMrkeVTlAIIQmWoELQa5d17wSkWiM=
+github.com/tx7do/kratos-transport/transport v1.3.1/go.mod h1:8Hcov+Npn7gYhnz623eo6O+1549xkGj4aKwIU3BqGE0=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
 github.com/xdg-go/pbkdf2 v1.0.0/go.mod h1:jrpuAogTd400dnrH08LKmI/xc1MbPOebTwRqcT5RDeI=
 github.com/xdg-go/scram v1.2.0 h1:bYKF2AEwG5rqd1BumT4gAnvwU/M9nBp2pTSxeZw7Wvs=

@@ -7,8 +7,9 @@ toolchain go1.24.3
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/quic-go/quic-go v0.59.0
-	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/broker v1.3.1
 	github.com/tx7do/kratos-transport/testing v1.1.1
+	github.com/tx7do/kratos-transport/transport v1.3.1
 )
 
 require (
@@ -43,8 +44,6 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/tx7do/kratos-transport => ../../
 
 replace github.com/tx7do/kratos-transport/testing => ../../testing
 

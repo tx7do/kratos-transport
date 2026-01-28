@@ -6,8 +6,8 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/kataras/iris/v12 v12.2.11
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.20
 	github.com/tx7do/kratos-transport/testing v1.1.1
+	github.com/tx7do/kratos-transport/transport v1.3.1
 )
 
 require (
@@ -52,6 +52,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tdewolff/minify/v2 v2.24.8 // indirect
 	github.com/tdewolff/parse/v2 v2.8.5 // indirect
+	github.com/tx7do/kratos-transport/broker v1.3.1 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
@@ -82,7 +83,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/tx7do/kratos-transport => ../../
+replace github.com/tx7do/kratos-transport/transport => ../
 
 replace github.com/tx7do/kratos-transport/testing => ../../testing
 

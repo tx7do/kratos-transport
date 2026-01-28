@@ -7,7 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/philippseith/signalr v0.8.0
-	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/transport v1.3.1
 )
 
 require (
@@ -28,6 +28,7 @@ require (
 	github.com/quic-go/quic-go v0.59.0 // indirect
 	github.com/quic-go/webtransport-go v0.10.0 // indirect
 	github.com/teivah/onecontext v1.3.0 // indirect
+	github.com/tx7do/kratos-transport/broker v1.3.1 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

@@ -86,8 +86,6 @@ require (
 	stathat.com/c/consistent v1.0.0 // indirect
 )
 
-replace github.com/tx7do/kratos-transport => ../../
-
 replace github.com/tx7do/kratos-transport/testing => ../../testing
 
 replace github.com/tx7do/kratos-transport/tracing => ../../tracing

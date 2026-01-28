@@ -8,10 +8,11 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/broker v1.3.1
 	github.com/tx7do/kratos-transport/broker/kafka v1.2.24
 	github.com/tx7do/kratos-transport/testing v1.1.1
 	github.com/tx7do/kratos-transport/tracing v1.1.1
+	github.com/tx7do/kratos-transport/transport v1.3.1
 	github.com/tx7do/kratos-transport/transport/keepalive v1.0.9
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
@@ -52,7 +53,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/tx7do/kratos-transport => ../../
+replace github.com/tx7do/kratos-transport/broker => ../../broker
 
 replace github.com/tx7do/kratos-transport/testing => ../../testing
 

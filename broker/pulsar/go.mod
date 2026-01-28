@@ -2,8 +2,6 @@ module github.com/tx7do/kratos-transport/broker/pulsar
 
 go 1.25.0
 
-replace github.com/tx7do/kratos-transport => ../../
-
 replace github.com/tx7do/kratos-transport/testing => ../../testing
 
 replace github.com/tx7do/kratos-transport/tracing => ../../tracing

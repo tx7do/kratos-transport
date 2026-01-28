@@ -9,7 +9,7 @@ replace github.com/tx7do/kratos-transport => ../../
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/transport v1.3.1
 	google.golang.org/grpc v1.78.0
 )
 
@@ -24,6 +24,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/tx7do/kratos-transport/broker v1.3.1 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect

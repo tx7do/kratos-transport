@@ -7,9 +7,10 @@ toolchain go1.24.3
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.20
-	github.com/tx7do/kratos-transport/broker/mqtt v1.2.24
+	github.com/tx7do/kratos-transport/broker v1.3.1
+	github.com/tx7do/kratos-transport/broker/mqtt v1.3.1
 	github.com/tx7do/kratos-transport/testing v1.1.1
+	github.com/tx7do/kratos-transport/transport v1.3.1
 	github.com/tx7do/kratos-transport/transport/keepalive v1.0.9
 )
 
@@ -49,7 +50,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/tx7do/kratos-transport => ../../
+replace github.com/tx7do/kratos-transport/broker => ../../broker
 
 replace github.com/tx7do/kratos-transport/testing => ../../testing
 
