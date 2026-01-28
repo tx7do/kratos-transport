@@ -2,6 +2,14 @@ module github.com/tx7do/kratos-transport/transport/iris
 
 go 1.25
 
+replace (
+	github.com/tx7do/kratos-transport/broker => ../../broker
+	github.com/tx7do/kratos-transport/testing => ../../testing
+	github.com/tx7do/kratos-transport/tracing => ../../tracing
+	github.com/tx7do/kratos-transport/transport => ../
+	github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
+)
+
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/kataras/iris/v12 v12.2.11
@@ -82,9 +90,3 @@ require (
 	gopkg.in/ini.v1 v1.67.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/tx7do/kratos-transport/transport => ../
-
-replace github.com/tx7do/kratos-transport/testing => ../../testing
-
-replace github.com/tx7do/kratos-transport/tracing => ../../tracing

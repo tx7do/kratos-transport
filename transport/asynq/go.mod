@@ -6,6 +6,9 @@ toolchain go1.24.3
 
 replace (
 	github.com/tx7do/kratos-transport/broker => ../../broker
+	github.com/tx7do/kratos-transport/testing => ../../testing
+	github.com/tx7do/kratos-transport/tracing => ../../tracing
+	github.com/tx7do/kratos-transport/transport => ../
 	github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
 )
 
@@ -14,7 +17,7 @@ require (
 	github.com/hibiken/asynq v0.25.1
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/broker v1.3.1
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.9
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.1
 )
 
 require (

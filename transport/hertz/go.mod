@@ -4,11 +4,13 @@ go 1.24.0
 
 toolchain go1.24.3
 
-replace github.com/tx7do/kratos-transport/broker => ../../broker
-
-replace github.com/tx7do/kratos-transport/testing => ../../testing
-
-replace github.com/tx7do/kratos-transport/tracing => ../../tracing
+replace (
+	github.com/tx7do/kratos-transport/broker => ../../broker
+	github.com/tx7do/kratos-transport/testing => ../../testing
+	github.com/tx7do/kratos-transport/tracing => ../../tracing
+	github.com/tx7do/kratos-transport/transport => ../
+	github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
+)
 
 require (
 	github.com/cloudwego/hertz v0.10.4

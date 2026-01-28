@@ -4,6 +4,12 @@ go 1.24.0
 
 toolchain go1.24.3
 
+replace (
+	github.com/tx7do/kratos-transport/broker => ../broker
+	github.com/tx7do/kratos-transport/testing => ../testing
+	github.com/tx7do/kratos-transport/tracing => ../tracing
+)
+
 require github.com/tx7do/kratos-transport/broker v1.3.1
 
 require (
@@ -35,5 +41,3 @@ require (
 	google.golang.org/grpc v1.78.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
-
-replace github.com/tx7do/kratos-transport/tracing => ../tracing

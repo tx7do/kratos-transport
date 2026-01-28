@@ -4,6 +4,14 @@ go 1.24.0
 
 toolchain go1.24.3
 
+replace (
+	github.com/tx7do/kratos-transport/broker => ../../broker
+	github.com/tx7do/kratos-transport/testing => ../../testing
+	github.com/tx7do/kratos-transport/tracing => ../../tracing
+	github.com/tx7do/kratos-transport/transport => ../
+	github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
+)
+
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/tx7do/kratos-transport/transport v1.3.1
@@ -65,5 +73,3 @@ require (
 	trpc.group/trpc-go/tnet v1.0.1 // indirect
 	trpc.group/trpc/trpc-protocol/pb/go/trpc v1.0.1 // indirect
 )
-
-replace github.com/tx7do/kratos-transport/transport => ../
