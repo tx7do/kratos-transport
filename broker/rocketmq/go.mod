@@ -11,7 +11,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/gogap/errors v0.0.0-20210818113853-edfbba0ddea9
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/broker v1.3.1
 	github.com/tx7do/kratos-transport/testing v1.1.1
 	github.com/tx7do/kratos-transport/tracing v1.1.1
 	go.opentelemetry.io/otel v1.39.0

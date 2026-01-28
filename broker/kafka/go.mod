@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/broker v1.3.1
 	github.com/tx7do/kratos-transport/testing v1.1.1
 	github.com/tx7do/kratos-transport/tracing v1.1.1
 	go.opentelemetry.io/otel v1.39.0
@@ -49,7 +49,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/tx7do/kratos-transport => ../../
+replace github.com/tx7do/kratos-transport/broker => ../
 
 replace github.com/tx7do/kratos-transport/testing => ../../testing
 
