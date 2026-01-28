@@ -7,6 +7,7 @@ require (
 	github.com/kataras/iris/v12 v12.2.11
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport v1.1.20
+	github.com/tx7do/kratos-transport/testing v1.1.1
 )
 
 require (
@@ -51,6 +52,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tdewolff/minify/v2 v2.24.8 // indirect
 	github.com/tdewolff/parse/v2 v2.8.5 // indirect
+	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
@@ -81,3 +83,7 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
+
+replace github.com/tx7do/kratos-transport/testing => ../../testing
+
+replace github.com/tx7do/kratos-transport/tracing => ../../tracing

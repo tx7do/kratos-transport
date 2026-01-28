@@ -8,8 +8,9 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport v1.1.20
-	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.23
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.8
+	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.24
+	github.com/tx7do/kratos-transport/testing v1.1.1
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.9
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 )
@@ -26,6 +27,7 @@ require (
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
+	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.39.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.39.0 // indirect
@@ -46,6 +48,10 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
+
+replace github.com/tx7do/kratos-transport/testing => ../../testing
+
+replace github.com/tx7do/kratos-transport/tracing => ../../tracing
 
 replace github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
 

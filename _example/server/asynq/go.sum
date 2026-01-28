@@ -57,6 +57,7 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tx7do/kratos-transport/transport/keepalive v1.0.8 h1:Z48ZfEDIKu6dagvKNyUJ2z/+ar4Ew3qkW5DF7H0OahQ=
 github.com/tx7do/kratos-transport/transport/keepalive v1.0.8/go.mod h1:qZKMPbDHDS1MZqT5+VcgfPlHkO+Q6BqqkWD0niCVtDQ=
+github.com/tx7do/kratos-transport/transport/keepalive v1.0.9/go.mod h1:wLbGPRa2n73tvcVGPiyruFkSd1tIkb0qEUUn9zc5D3g=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/otel v1.39.0 h1:8yPrr/S0ND9QEfTfdP9V+SiwT4E0G7Y5MO7p85nis48=

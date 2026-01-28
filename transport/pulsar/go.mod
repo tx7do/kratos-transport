@@ -6,8 +6,9 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport v1.1.20
-	github.com/tx7do/kratos-transport/broker/pulsar v1.2.23
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.8
+	github.com/tx7do/kratos-transport/broker/pulsar v1.2.24
+	github.com/tx7do/kratos-transport/testing v1.1.1
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.9
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 )
@@ -53,6 +54,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/theparanoids/crypki v1.21.0 // indirect
+	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0 // indirect
@@ -83,7 +85,7 @@ require (
 	k8s.io/apimachinery v0.35.0 // indirect
 	k8s.io/client-go v0.35.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e // indirect
+	k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4 // indirect
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
@@ -91,6 +93,10 @@ require (
 )
 
 replace github.com/tx7do/kratos-transport => ../../
+
+replace github.com/tx7do/kratos-transport/testing => ../../testing
+
+replace github.com/tx7do/kratos-transport/tracing => ../../tracing
 
 replace github.com/tx7do/kratos-transport/transport/keepalive => ../keepalive
 

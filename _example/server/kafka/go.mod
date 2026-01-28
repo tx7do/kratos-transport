@@ -22,8 +22,8 @@ require (
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
 	github.com/segmentio/kafka-go v0.4.50 // indirect
-	github.com/tx7do/kratos-transport/broker/kafka v1.2.23 // indirect
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.8 // indirect
+	github.com/tx7do/kratos-transport/broker/kafka v1.2.24 // indirect
+	github.com/tx7do/kratos-transport/transport/keepalive v1.0.9 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.2.0 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
