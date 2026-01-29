@@ -47,7 +47,7 @@ func TestServer(t *testing.T) {
 	_ = RegisterSubscriber(srv, ctx,
 		testRouting,
 		handleHygrothermograph,
-		broker.WithQueueName(testQueue),
+		broker.WithSubscribeQueueName(testQueue),
 		rabbitmq.WithDurableQueue())
 
 	if err := srv.Start(ctx); err != nil {
@@ -88,7 +88,7 @@ func TestClient(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testRouting, msg)
+		err := b.Publish(ctx, testRouting, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

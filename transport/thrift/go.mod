@@ -16,7 +16,7 @@ require (
 	github.com/apache/thrift v0.22.0
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/tx7do/kratos-transport/testing v1.1.1
-	github.com/tx7do/kratos-transport/transport v1.3.2
+	github.com/tx7do/kratos-transport/transport v1.3.3
 )
 
 require (
@@ -26,9 +26,9 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
-	github.com/tx7do/kratos-transport/broker v1.3.1 // indirect
+	github.com/tx7do/kratos-transport/broker v1.3.2 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect

@@ -15,7 +15,7 @@ require (
 	github.com/kataras/iris/v12 v12.2.11
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/testing v1.1.1
-	github.com/tx7do/kratos-transport/transport v1.3.2
+	github.com/tx7do/kratos-transport/transport v1.3.3
 )
 
 require (
@@ -40,7 +40,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/iris-contrib/schema v0.0.6 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kataras/blocks v0.0.12 // indirect
@@ -60,7 +60,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/tdewolff/minify/v2 v2.24.8 // indirect
 	github.com/tdewolff/parse/v2 v2.8.5 // indirect
-	github.com/tx7do/kratos-transport/broker v1.3.1 // indirect
+	github.com/tx7do/kratos-transport/broker v1.3.2 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect

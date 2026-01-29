@@ -16,11 +16,11 @@ replace (
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport/broker v1.3.1
-	github.com/tx7do/kratos-transport/broker/rocketmq v1.3.1
+	github.com/tx7do/kratos-transport/broker v1.3.2
+	github.com/tx7do/kratos-transport/broker/rocketmq v1.3.2
 	github.com/tx7do/kratos-transport/testing v1.1.1
-	github.com/tx7do/kratos-transport/transport v1.3.2
-	github.com/tx7do/kratos-transport/transport/keepalive v1.3.2
+	github.com/tx7do/kratos-transport/transport v1.3.3
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.3
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
 )
@@ -50,7 +50,7 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

@@ -60,9 +60,11 @@ func TestServer(t *testing.T) {
 	srv := NewServer(
 		WithAddress([]string{testBrokers}),
 		WithCodec("json"),
-		WithMiddleware(
-			loggingMiddlerware,
-			recoveryMiddlerware,
+		WithBrokerOptions(
+			broker.WithSubscriberMiddlewares(
+				loggingMiddlerware,
+				recoveryMiddlerware,
+			),
 		),
 	)
 
@@ -104,7 +106,7 @@ func TestClient(t *testing.T) {
 	_, err := broker.Subscribe(b,
 		testTopic,
 		handleHygrothermograph,
-		broker.WithQueueName(testGroupId),
+		broker.WithSubscribeQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
 

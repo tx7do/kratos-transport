@@ -141,7 +141,7 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, groupName string
 		ctx = s.baseCtx
 	}
 
-	opts = append(opts, broker.WithQueueName(groupName))
+	opts = append(opts, broker.WithSubscribeQueueName(groupName))
 
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
 	opts = append([]broker.SubscribeOption{broker.WithSubscribeContext(ctx)}, opts...)
