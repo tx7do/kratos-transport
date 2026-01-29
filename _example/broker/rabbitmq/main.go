@@ -78,7 +78,7 @@ func main() {
 	_, _ = b.Subscribe(testRouting,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testQueue),
+		broker.WithSubscribeQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
 		rabbitmq.WithDurableQueue(),
 	)

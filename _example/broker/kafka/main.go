@@ -69,7 +69,7 @@ func main() {
 	_, err := b.Subscribe(testTopic,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupId),
+		broker.WithSubscribeQueueName(testGroupId),
 	)
 	if err != nil {
 		fmt.Println(err)

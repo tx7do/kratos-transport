@@ -36,7 +36,7 @@ func main() {
 
 	_ = rabbitmq.RegisterSubscriber(rabbitmqSrv, ctx, testRouting,
 		handleHygrothermograph,
-		broker.WithQueueName(testQueue),
+		broker.WithSubscribeQueueName(testQueue),
 		rabbitmqBroker.WithDurableQueue())
 
 	app := kratos.New(

@@ -4,11 +4,20 @@ go 1.24.0
 
 toolchain go1.24.3
 
+replace (
+	github.com/tx7do/kratos-transport/broker => ../../../broker
+	github.com/tx7do/kratos-transport/broker/rabbitmq => ../../../broker/rabbitmq
+	github.com/tx7do/kratos-transport/testing => ../../../testing
+	github.com/tx7do/kratos-transport/tracing => ../../../tracing
+	github.com/tx7do/kratos-transport/transport/rabbitmq => ../../../transport/rabbitmq
+)
+
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
-	github.com/tx7do/kratos-transport v1.1.20
-	github.com/tx7do/kratos-transport/broker/rabbitmq v1.2.24
-	github.com/tx7do/kratos-transport/transport/rabbitmq v1.2.26
+	github.com/tx7do/kratos-transport/broker v1.3.2
+	github.com/tx7do/kratos-transport/broker/rabbitmq v1.3.2
+	github.com/tx7do/kratos-transport/testing v1.1.1
+	github.com/tx7do/kratos-transport/transport/rabbitmq v1.3.2
 )
 
 require (
@@ -18,10 +27,12 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
-	github.com/tx7do/kratos-transport/transport/keepalive v1.0.9 // indirect
+	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
+	github.com/tx7do/kratos-transport/transport v1.3.3 // indirect
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.39.0 // indirect
@@ -43,9 +54,3 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/tx7do/kratos-transport => ../../../
-
-replace github.com/tx7do/kratos-transport/broker/rabbitmq => ../../../broker/rabbitmq
-
-replace github.com/tx7do/kratos-transport/transport/rabbitmq => ../../../transport/rabbitmq
