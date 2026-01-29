@@ -10,7 +10,7 @@ replace (
 	github.com/tx7do/kratos-transport/tracing => ../tracing
 )
 
-require github.com/tx7do/kratos-transport/broker v1.3.1
+require github.com/tx7do/kratos-transport/broker v1.3.2
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -19,7 +19,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
