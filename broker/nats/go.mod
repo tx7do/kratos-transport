@@ -4,6 +4,8 @@ go 1.24.0
 
 toolchain go1.24.3
 
+replace github.com/tx7do/kratos-transport/broker => ../
+
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/nats-io/nats.go v1.48.0
@@ -23,7 +25,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/nats-io/nkeys v0.4.14 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
@@ -47,7 +49,3 @@ require (
 	google.golang.org/grpc v1.78.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/tx7do/kratos-transport/testing => ../../testing
-
-replace github.com/tx7do/kratos-transport/tracing => ../../tracing

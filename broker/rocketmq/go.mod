@@ -4,6 +4,12 @@ go 1.24.0
 
 toolchain go1.24.3
 
+replace (
+	github.com/tx7do/kratos-transport/broker => ../
+	github.com/tx7do/kratos-transport/testing => ../../testing
+	github.com/tx7do/kratos-transport/tracing => ../../tracing
+)
+
 require (
 	github.com/aliyunmq/mq-http-go-sdk v1.0.3
 	github.com/apache/rocketmq-client-go/v2 v2.1.2
@@ -39,7 +45,7 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -85,7 +91,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	stathat.com/c/consistent v1.0.0 // indirect
 )
-
-replace github.com/tx7do/kratos-transport/testing => ../../testing
-
-replace github.com/tx7do/kratos-transport/tracing => ../../tracing

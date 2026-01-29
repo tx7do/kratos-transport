@@ -188,20 +188,23 @@ func (m *mqttBroker) Disconnect() error {
 	return nil
 }
 
-func (m *mqttBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(m.options.Codec, msg)
+func (m *mqttBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *mqttBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(m.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return m.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return m.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (m *mqttBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (m *mqttBroker) publish(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
+func (m *mqttBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	if !m.client.IsConnected() {
 		return errors.New("not connected")
 	}
@@ -223,7 +226,7 @@ func (m *mqttBroker) publish(ctx context.Context, topic string, buf []byte, opts
 		retained = value
 	}
 
-	ret := m.client.Publish(topic, qos, retained, buf)
+	ret := m.client.Publish(topic, qos, retained, msg.Body)
 	return ret.Error()
 }
 

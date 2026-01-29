@@ -109,20 +109,23 @@ func (b *rabbitBroker) Disconnect() error {
 	return ret
 }
 
-func (b *rabbitBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (b *rabbitBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.options.Codec, msg)
+func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(ctx, routingKey, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return b.publish(ctx, routingKey, sendMsg, opts...)
 }
 
-func (b *rabbitBroker) publish(ctx context.Context, routingKey string, buf []byte, opts ...broker.PublishOption) error {
+func (b *rabbitBroker) publish(ctx context.Context, routingKey string, msg *broker.Message, opts ...broker.PublishOption) error {
 	if b.conn == nil {
 		return errors.New("connection is nil")
 	}
@@ -134,62 +137,66 @@ func (b *rabbitBroker) publish(ctx context.Context, routingKey string, buf []byt
 		o(&options)
 	}
 
-	msg := amqp.Publishing{
-		Body:    buf,
+	rMsg := amqp.Publishing{
+		Body:    msg.BodyBytes(),
 		Headers: amqp.Table{},
 	}
 
+	for k, v := range msg.Headers {
+		rMsg.Headers[k] = v
+	}
+
 	if value, ok := options.Context.Value(deliveryModeKey{}).(uint8); ok {
-		msg.DeliveryMode = value
+		rMsg.DeliveryMode = value
 	}
 
 	if value, ok := options.Context.Value(priorityKey{}).(uint8); ok {
-		msg.Priority = value
+		rMsg.Priority = value
 	}
 
 	if value, ok := options.Context.Value(contentTypeKey{}).(string); ok {
-		msg.ContentType = value
+		rMsg.ContentType = value
 	}
 
 	if value, ok := options.Context.Value(contentEncodingKey{}).(string); ok {
-		msg.ContentEncoding = value
+		rMsg.ContentEncoding = value
 	}
 
 	if value, ok := options.Context.Value(correlationIDKey{}).(string); ok {
-		msg.CorrelationId = value
+		rMsg.CorrelationId = value
 	}
 
 	if value, ok := options.Context.Value(replyToKey{}).(string); ok {
-		msg.ReplyTo = value
+		rMsg.ReplyTo = value
 	}
 
 	if value, ok := options.Context.Value(expirationKey{}).(string); ok {
-		msg.Expiration = value
+		rMsg.Expiration = value
 	}
 
 	if value, ok := options.Context.Value(messageIDKey{}).(string); ok {
-		msg.MessageId = value
+		rMsg.MessageId = value
 	}
 
 	if value, ok := options.Context.Value(timestampKey{}).(time.Time); ok {
-		msg.Timestamp = value
+		rMsg.Timestamp = value
 	}
 
 	if value, ok := options.Context.Value(messageTypeKey{}).(string); ok {
-		msg.Type = value
+		rMsg.Type = value
 	}
 
 	if value, ok := options.Context.Value(userIDKey{}).(string); ok {
-		msg.UserId = value
+		rMsg.UserId = value
 	}
 
 	if value, ok := options.Context.Value(appIDKey{}).(string); ok {
-		msg.AppId = value
+		rMsg.AppId = value
 	}
 
 	if headers, ok := options.Context.Value(publishHeadersKey{}).(map[string]any); ok {
 		for k, v := range headers {
-			msg.Headers[k] = v
+			rMsg.Headers[k] = v
 		}
 	}
 
@@ -202,9 +209,9 @@ func (b *rabbitBroker) publish(ctx context.Context, routingKey string, buf []byt
 		}
 	}
 
-	span := b.startProducerSpan(options.Context, routingKey, &msg)
+	span := b.startProducerSpan(options.Context, routingKey, &rMsg)
 
-	err := b.conn.Publish(ctx, b.conn.exchange.Name, routingKey, msg)
+	err := b.conn.Publish(ctx, b.conn.exchange.Name, routingKey, rMsg)
 
 	b.finishProducerSpan(span, routingKey, err)
 

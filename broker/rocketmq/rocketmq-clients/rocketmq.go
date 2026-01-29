@@ -217,20 +217,23 @@ func (r *rocketmqBroker) Disconnect() error {
 	return nil
 }
 
-func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(r.options.Codec, msg)
+func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(r.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return r.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return r.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
+func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	rocketmqOptions := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -254,8 +257,12 @@ func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg []byte, 
 
 	rMsg := &rmqClient.Message{
 		Topic: topic,
-		Body:  msg,
+		Body:  msg.BodyBytes(),
 	}
+	for k, v := range msg.Headers {
+		rMsg.AddProperty(k, v)
+	}
+
 	if v, ok := rocketmqOptions.Context.Value(rocketmqOption.PropertiesKey{}).(map[string]string); ok {
 		for pk, pv := range v {
 			rMsg.AddProperty(pk, pv)

@@ -54,7 +54,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
 		buf, _ := json.Marshal(&msg)
-		err := b.Publish(ctx, testTopic, buf)
+		err := b.Publish(ctx, testTopic, broker.NewMessage(buf))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -114,7 +114,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testTopic, msg)
+		err := b.Publish(ctx, testTopic, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

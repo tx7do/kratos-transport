@@ -193,28 +193,23 @@ func (b *nsqBroker) Disconnect() error {
 	return nil
 }
 
-func (b *nsqBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (b *nsqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (b *nsqBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.options.Codec, msg)
+func (b *nsqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return b.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (b *nsqBroker) getProducer() *NSQ.Producer {
-	producerLen := len(b.producers)
-	if producerLen == 0 {
-		return nil
-	}
-	return b.producers[rand.Intn(producerLen)]
-}
-
-func (b *nsqBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
+func (b *nsqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -242,15 +237,23 @@ func (b *nsqBroker) publish(ctx context.Context, topic string, msg []byte, opts 
 
 	if doneChan != nil {
 		if delay > 0 {
-			return p.DeferredPublishAsync(topic, delay, msg, doneChan)
+			return p.DeferredPublishAsync(topic, delay, msg.BodyBytes(), doneChan)
 		}
-		return p.PublishAsync(topic, msg, doneChan)
+		return p.PublishAsync(topic, msg.BodyBytes(), doneChan)
 	} else {
 		if delay > 0 {
-			return p.DeferredPublish(topic, delay, msg)
+			return p.DeferredPublish(topic, delay, msg.BodyBytes())
 		}
-		return p.Publish(topic, msg)
+		return p.Publish(topic, msg.BodyBytes())
 	}
+}
+
+func (b *nsqBroker) getProducer() *NSQ.Producer {
+	producerLen := len(b.producers)
+	if producerLen == 0 {
+		return nil
+	}
+	return b.producers[rand.Intn(producerLen)]
 }
 
 func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {

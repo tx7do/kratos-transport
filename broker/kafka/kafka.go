@@ -1,9 +1,7 @@
 package kafka
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"errors"
 	"sync"
 	"time"
@@ -338,12 +336,12 @@ func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.P
 }
 
 // Request sends a request and waits for a response
-func (b *kafkaBroker) Request(_ context.Context, _ string, _ any, _ ...broker.RequestOption) (any, error) {
+func (b *kafkaBroker) Request(_ context.Context, _ string, _ *broker.Message, _ ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
 // Publish publishes a message to a topic
-func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	var finalTask = b.internalPublish
 
 	if len(b.options.PublishMiddlewares) > 0 {
@@ -354,21 +352,24 @@ func (b *kafkaBroker) Publish(ctx context.Context, topic string, msg any, opts .
 }
 
 // internalPublish handles the internal publishing logic
-func (b *kafkaBroker) internalPublish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.options.Codec, msg)
+func (b *kafkaBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
 	if b.writer.EnableOneTopicOneWriter {
-		return b.publishMultipleWriter(ctx, topic, buf, opts...)
+		return b.publishMultipleWriter(ctx, topic, sendMsg, opts...)
 	} else {
-		return b.publishOneWriter(ctx, topic, buf, opts...)
+		return b.publishOneWriter(ctx, topic, sendMsg, opts...)
 	}
 }
 
 // publishMultipleWriter publishes message with multiple writers (one topic one writer)
-func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	b.RLock()
 	if b.writer == nil {
 		b.RUnlock()
@@ -384,36 +385,19 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, b
 	}
 
 	kMsg := kafkaGo.Message{
-		Topic: topic,
-		Value: buf,
+		Topic:     topic,
+		Value:     msg.BodyBytes(),
+		Key:       []byte(msg.Key),
+		Offset:    msg.Offset,
+		Partition: msg.Partition,
 	}
 
-	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]any); ok {
-		for k, v := range headers {
-			header := kafkaGo.Header{Key: k}
-			switch t := v.(type) {
-			case string:
-				header.Value = []byte(t)
-			case []byte:
-				header.Value = t
-			default:
-				var bBuf bytes.Buffer
-				enc := gob.NewEncoder(&bBuf)
-				if err := enc.Encode(v); err != nil {
-					continue
-				}
-				header.Value = bBuf.Bytes()
-			}
-			kMsg.Headers = append(kMsg.Headers, header)
+	for k, v := range msg.Headers {
+		header := kafkaGo.Header{
+			Key:   k,
+			Value: []byte(v),
 		}
-	}
-
-	if value, ok := options.Context.Value(messageKeyKey{}).([]byte); ok {
-		kMsg.Key = value
-	}
-
-	if value, ok := options.Context.Value(messageOffsetKey{}).(int64); ok {
-		kMsg.Offset = value
+		kMsg.Headers = append(kMsg.Headers, header)
 	}
 
 	var cached bool
@@ -471,7 +455,7 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, b
 }
 
 // publishOneWriter publishes message with a single writer
-func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
+func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	b.RLock()
 	if b.writer == nil {
 		b.RUnlock()
@@ -487,36 +471,19 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, buf []
 	}
 
 	kMsg := kafkaGo.Message{
-		Topic: topic,
-		Value: buf,
+		Topic:     topic,
+		Value:     msg.BodyBytes(),
+		Key:       []byte(msg.Key),
+		Offset:    msg.Offset,
+		Partition: msg.Partition,
 	}
 
-	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]any); ok {
-		for k, v := range headers {
-			header := kafkaGo.Header{Key: k}
-			switch t := v.(type) {
-			case string:
-				header.Value = []byte(t)
-			case []byte:
-				header.Value = t
-			default:
-				var bBuf bytes.Buffer
-				enc := gob.NewEncoder(&bBuf)
-				if err := enc.Encode(v); err != nil {
-					continue
-				}
-				header.Value = bBuf.Bytes()
-			}
-			kMsg.Headers = append(kMsg.Headers, header)
+	for k, v := range msg.Headers {
+		header := kafkaGo.Header{
+			Key:   k,
+			Value: []byte(v),
 		}
-	}
-
-	if value, ok := options.Context.Value(messageKeyKey{}).([]byte); ok {
-		kMsg.Key = value
-	}
-
-	if value, ok := options.Context.Value(messageOffsetKey{}).(int64); ok {
-		kMsg.Offset = value
+		kMsg.Headers = append(kMsg.Headers, header)
 	}
 
 	var cached bool

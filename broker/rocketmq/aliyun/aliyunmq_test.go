@@ -106,7 +106,7 @@ func Test_Aliyun_Publish(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, topicName, msg)
+		err := b.Publish(ctx, topicName, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -149,7 +149,7 @@ func Test_Aliyun_Subscribe(t *testing.T) {
 	_, err := b.Subscribe(topicName,
 		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(groupName),
+		broker.WithSubscribeQueueName(groupName),
 	)
 	assert.Nil(t, err)
 

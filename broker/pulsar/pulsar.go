@@ -168,20 +168,23 @@ func (pb *pulsarBroker) Disconnect() error {
 	return nil
 }
 
-func (pb *pulsarBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (pb *pulsarBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(pb.options.Codec, msg)
+func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(pb.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return pb.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return pb.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
+func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -233,7 +236,11 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg []byte, o
 	}
 	pb.Unlock()
 
-	pulsarMsg := pulsar.ProducerMessage{Payload: msg}
+	pulsarMsg := pulsar.ProducerMessage{
+		Payload:    msg.BodyBytes(),
+		Key:        msg.Key,
+		Properties: msg.Headers,
+	}
 
 	if headers, ok := options.Context.Value(messageHeadersKey{}).(map[string]string); ok {
 		pulsarMsg.Properties = headers

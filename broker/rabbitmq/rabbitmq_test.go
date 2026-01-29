@@ -61,7 +61,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 		msg.Humidity = float64(i)
 		msg.Temperature = float64(rand.Intn(100))
 		buf, _ := json.Marshal(&msg)
-		err := b.Publish(ctx, testRouting, buf)
+		err := b.Publish(ctx, testRouting, broker.NewMessage(buf))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -94,7 +94,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_, err := b.Subscribe(testRouting,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
-		broker.WithQueueName(testQueue),
+		broker.WithSubscribeQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
 		WithDurableQueue(),
 	)
@@ -130,7 +130,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(i)
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testRouting, msg)
+		err := b.Publish(ctx, testRouting, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -164,7 +164,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	_, err := b.Subscribe(testRouting,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testQueue),
+		broker.WithSubscribeQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
 		WithDurableQueue(),
 	)
@@ -230,7 +230,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testRouting, msg, WithMessageId(strconv.Itoa(i)))
+		err := b.Publish(ctx, testRouting, broker.NewMessage(msg), WithMessageId(strconv.Itoa(i)))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -266,7 +266,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	_, err := b.Subscribe(testRouting,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testQueue),
+		broker.WithSubscribeQueueName(testQueue),
 		// broker.WithDisableAutoAck(),
 		WithDurableQueue(),
 	)

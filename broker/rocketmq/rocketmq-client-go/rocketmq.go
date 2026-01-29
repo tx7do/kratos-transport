@@ -297,20 +297,23 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocke
 	return c, nil
 }
 
-func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(r.options.Codec, msg)
+func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(r.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return r.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return r.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
+func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -336,7 +339,11 @@ func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg []byte, 
 	}
 	r.Unlock()
 
-	rMsg := primitive.NewMessage(topic, msg)
+	rMsg := primitive.NewMessage(topic, msg.BodyBytes())
+
+	if len(msg.Headers) > 0 {
+		rMsg.WithProperties(msg.Headers)
+	}
 
 	if v, ok := options.Context.Value(rocketmqOption.CompressKey{}).(bool); ok {
 		rMsg.Compress = v

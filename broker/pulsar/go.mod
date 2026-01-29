@@ -2,9 +2,11 @@ module github.com/tx7do/kratos-transport/broker/pulsar
 
 go 1.25.0
 
-replace github.com/tx7do/kratos-transport/testing => ../../testing
-
-replace github.com/tx7do/kratos-transport/tracing => ../../tracing
+replace (
+	github.com/tx7do/kratos-transport/broker => ../
+	github.com/tx7do/kratos-transport/testing => ../../testing
+	github.com/tx7do/kratos-transport/tracing => ../../tracing
+)
 
 require (
 	github.com/apache/pulsar-client-go v0.18.0
@@ -35,9 +37,9 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.5 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
 	github.com/hamba/avro/v2 v2.31.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect

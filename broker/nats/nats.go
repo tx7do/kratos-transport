@@ -198,16 +198,19 @@ func (b *natsBroker) Disconnect() error {
 	return nil
 }
 
-func (b *natsBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.options.Codec, msg)
+func (b *natsBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return b.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (b *natsBroker) publish(ctx context.Context, topic string, buf []byte, opts ...broker.PublishOption) error {
+func (b *natsBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	b.RLock()
 	defer b.RUnlock()
 
@@ -223,7 +226,7 @@ func (b *natsBroker) publish(ctx context.Context, topic string, buf []byte, opts
 	}
 
 	m := natsGo.NewMsg(topic)
-	m.Data = buf
+	m.Data = msg.BodyBytes()
 
 	if headers, ok := options.Context.Value(headersKey{}).(map[string][]string); ok {
 		for k, v := range headers {
@@ -341,16 +344,19 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	return subs, nil
 }
 
-func (b *natsBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
-	buf, err := broker.Marshal(b.options.Codec, msg)
+func (b *natsBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	return b.request(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return b.request(ctx, topic, sendMsg, opts...)
 }
 
-func (b *natsBroker) request(ctx context.Context, topic string, buf []byte, opts ...broker.RequestOption) (any, error) {
+func (b *natsBroker) request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	b.RLock()
 	defer b.RUnlock()
 
@@ -366,7 +372,7 @@ func (b *natsBroker) request(ctx context.Context, topic string, buf []byte, opts
 	}
 
 	m := natsGo.NewMsg(topic)
-	m.Data = buf
+	m.Data = msg.BodyBytes()
 
 	var timeout = time.Second * 2
 	timeout, _ = options.Context.Value(requestTimeoutKey{}).(time.Duration)
@@ -384,7 +390,7 @@ func (b *natsBroker) request(ctx context.Context, topic string, buf []byte, opts
 
 	b.finishProducerSpan(span, err)
 
-	return res, err
+	return broker.NewMessage(res, broker.WithMsg(res)), err
 }
 
 func (b *natsBroker) onClose(_ *natsGo.Conn) {

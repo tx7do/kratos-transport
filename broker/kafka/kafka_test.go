@@ -90,7 +90,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
 		buf, _ := json.Marshal(&msg)
-		err := b.Publish(ctx, testTopic, buf)
+		err := b.Publish(ctx, testTopic, broker.NewMessage(buf))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -121,7 +121,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_, err := b.Subscribe(testTopic,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
-		broker.WithQueueName(testGroupId),
+		broker.WithSubscribeQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
 	assert.Nil(t, err)
@@ -149,18 +149,18 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	}
 	defer b.Disconnect()
 
-	var headers map[string]any
-	headers = make(map[string]any)
+	var headers broker.Headers
+	headers = make(broker.Headers)
 	headers["version"] = "1.0.0"
 
 	var msg api.Hygrothermograph
 	const count = 10
 	for i := 0; i < count; i++ {
 		startTime := time.Now()
-		headers["trace_id"] = i
+		headers["trace_id"] = fmt.Sprintf("%d", i)
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testTopic, msg, WithHeaders(headers))
+		err := b.Publish(ctx, testTopic, broker.NewMessage(msg, broker.WithHeaders(headers)))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		t.Logf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -193,7 +193,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 		testTopic,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupId),
+		broker.WithSubscribeQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
 
@@ -253,7 +253,7 @@ func Test_Publish_WithTracer(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testTopic, msg)
+		err := b.Publish(ctx, testTopic, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		t.Logf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -286,7 +286,7 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	_, err := b.Subscribe(testTopic,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupId),
+		broker.WithSubscribeQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
 
@@ -323,7 +323,7 @@ func Test_Publish_WithCompletion(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testTopic, msg)
+		err := b.Publish(ctx, testTopic, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		t.Logf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -356,7 +356,7 @@ func Test_Subscribe_WithWildcardTopic(t *testing.T) {
 	_, err := b.Subscribe(testWildCardTopic,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupId),
+		broker.WithSubscribeQueueName(testGroupId),
 	)
 	assert.Nil(t, err)
 
@@ -387,7 +387,7 @@ func Test_Subscribe_Batch(t *testing.T) {
 	_, err := b.Subscribe(testTopic,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupId),
+		broker.WithSubscribeQueueName(testGroupId),
 		WithMinBytes(10e3),         // 10MB
 		WithMaxBytes(10e3),         // 10MB
 		WithMaxWait(3*time.Second), // 等待消息的最大时间
@@ -405,7 +405,7 @@ func Test_ChainPublishMiddleware_Order(t *testing.T) {
 	var order []string
 
 	// final task
-	final := func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+	final := func(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 		order = append(order, "final")
 		return nil
 	}
@@ -413,7 +413,7 @@ func Test_ChainPublishMiddleware_Order(t *testing.T) {
 	// middleware 构造器
 	makeMw := func(name string) broker.PublishMiddleware {
 		return func(next broker.PublishHandler) broker.PublishHandler {
-			return func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+			return func(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 				order = append(order, name+"-before")
 				if err := next(ctx, topic, msg, opts...); err != nil {
 					return err
@@ -430,7 +430,7 @@ func Test_ChainPublishMiddleware_Order(t *testing.T) {
 
 	chained := broker.ChainPublishMiddleware(final, []broker.PublishMiddleware{m1, m2})
 
-	err := chained(context.Background(), "topic", "msg")
+	err := chained(context.Background(), "topic", broker.NewMessage("msg"))
 	assert.Nil(t, err)
 
 	// 期望顺序： m1-before, m2-before, final, m2-after, m1-after
@@ -442,14 +442,14 @@ func Test_ChainPublishMiddleware_Order(t *testing.T) {
 func Test_Merge_PerCall_And_Broker_Middlewares_Order(t *testing.T) {
 	var order []string
 
-	final := func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+	final := func(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 		order = append(order, "final")
 		return nil
 	}
 
 	makeMw := func(name string) broker.PublishMiddleware {
 		return func(next broker.PublishHandler) broker.PublishHandler {
-			return func(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
+			return func(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 				order = append(order, name+"-before")
 				if err := next(ctx, topic, msg, opts...); err != nil {
 					return err
@@ -470,7 +470,7 @@ func Test_Merge_PerCall_And_Broker_Middlewares_Order(t *testing.T) {
 
 	chained := broker.ChainPublishMiddleware(final, combined)
 
-	err := chained(context.Background(), "topic", "msg")
+	err := chained(context.Background(), "topic", broker.NewMessage("msg"))
 	assert.Nil(t, err)
 
 	// 期望顺序： pc1-before, pc2-before, b1-before, final, b1-after, pc2-after, pc1-after

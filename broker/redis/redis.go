@@ -124,22 +124,25 @@ func (b *redisBroker) Disconnect() error {
 	return err
 }
 
-func (b *redisBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (b *redisBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (b *redisBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.options.Codec, msg)
+func (b *redisBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return b.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (b *redisBroker) publish(_ context.Context, topic string, msg []byte, _ ...broker.PublishOption) error {
+func (b *redisBroker) publish(_ context.Context, topic string, msg *broker.Message, _ ...broker.PublishOption) error {
 	conn := b.pool.Get()
-	_, err := redis.Int(conn.Do("PUBLISH", topic, msg))
+	_, err := redis.Int(conn.Do("PUBLISH", topic, msg.BodyBytes()))
 	_ = conn.Close()
 	return err
 }

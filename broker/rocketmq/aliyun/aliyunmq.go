@@ -148,20 +148,23 @@ func (r *aliyunmqBroker) Disconnect() error {
 	return nil
 }
 
-func (r *aliyunmqBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (r *aliyunmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *aliyunmqBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(r.options.Codec, msg)
+func (r *aliyunmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(r.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return r.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return r.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (r *aliyunmqBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
+func (r *aliyunmqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -188,7 +191,8 @@ func (r *aliyunmqBroker) publish(ctx context.Context, topic string, msg []byte, 
 	r.Unlock()
 
 	aMsg := aliyun.PublishMessageRequest{
-		MessageBody: string(msg),
+		MessageBody: string(msg.BodyBytes()),
+		Properties:  msg.Headers,
 	}
 
 	if v, ok := options.Context.Value(rocketmqOption.PropertiesKey{}).(map[string]string); ok {

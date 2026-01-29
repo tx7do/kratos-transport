@@ -9,20 +9,20 @@ import (
 func TestChainPublishMiddleware_Order(t *testing.T) {
 	var seq []int
 
-	base := PublishHandler(func(ctx context.Context, topic string, msg any, opts ...PublishOption) error {
+	base := PublishHandler(func(ctx context.Context, topic string, msg *Message, opts ...PublishOption) error {
 		seq = append(seq, 2)
 		return nil
 	})
 
 	mw1 := func(next PublishHandler) PublishHandler {
-		return func(ctx context.Context, topic string, msg any, opts ...PublishOption) error {
+		return func(ctx context.Context, topic string, msg *Message, opts ...PublishOption) error {
 			seq = append(seq, 1)
 			return next(ctx, topic, msg, opts...)
 		}
 	}
 
 	mw2 := func(next PublishHandler) PublishHandler {
-		return func(ctx context.Context, topic string, msg any, opts ...PublishOption) error {
+		return func(ctx context.Context, topic string, msg *Message, opts ...PublishOption) error {
 			seq = append(seq, 3)
 			return next(ctx, topic, msg, opts...)
 		}

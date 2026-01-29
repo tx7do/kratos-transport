@@ -26,13 +26,13 @@ type Broker interface {
 	Disconnect() error
 
 	// Publish publishes a message to a topic
-	Publish(ctx context.Context, topic string, msg any, opts ...PublishOption) error
+	Publish(ctx context.Context, topic string, msg *Message, opts ...PublishOption) error
 
 	// Subscribe subscribes to a topic with a handler and binder
 	Subscribe(topic string, handler Handler, binder Binder, opts ...SubscribeOption) (Subscriber, error)
 
 	// Request sends a request message and waits for a response
-	Request(ctx context.Context, topic string, msg any, opts ...RequestOption) (any, error)
+	Request(ctx context.Context, topic string, msg *Message, opts ...RequestOption) (*Message, error)
 }
 
 // Subscribe is a helper function to subscribe to a topic with a typed handler

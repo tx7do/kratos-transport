@@ -171,20 +171,23 @@ func (b *stompBroker) Disconnect() error {
 	return err
 }
 
-func (b *stompBroker) Request(ctx context.Context, topic string, msg any, opts ...broker.RequestOption) (any, error) {
+func (b *stompBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (b *stompBroker) Publish(ctx context.Context, topic string, msg any, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(b.options.Codec, msg)
+func (b *stompBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
 
-	return b.publish(ctx, topic, buf, opts...)
+	sendMsg := msg.Clone()
+	sendMsg.Body = buf
+
+	return b.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (b *stompBroker) publish(ctx context.Context, topic string, msg []byte, opts ...broker.PublishOption) error {
+func (b *stompBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	if b.stompConn == nil {
 		return errors.New("not connected")
 	}
@@ -200,6 +203,10 @@ func (b *stompBroker) publish(ctx context.Context, topic string, msg []byte, opt
 
 	span := b.startProducerSpan(options.Context, topic, &stompOpt)
 
+	for k, v := range msg.Headers {
+		stompOpt = append(stompOpt, stompV3.SendOpt.Header(k, v))
+	}
+
 	if headers, ok := options.Context.Value(headerKey{}).(map[string]string); ok {
 		for k, v := range headers {
 			stompOpt = append(stompOpt, stompV3.SendOpt.Header(k, v))
@@ -212,7 +219,7 @@ func (b *stompBroker) publish(ctx context.Context, topic string, msg []byte, opt
 		stompOpt = append(stompOpt, stompV3.SendOpt.NoContentLength)
 	}
 
-	err := b.stompConn.Send(topic, "", msg, stompOpt...)
+	err := b.stompConn.Send(topic, "", msg.BodyBytes(), stompOpt...)
 
 	b.finishProducerSpan(span, err)
 

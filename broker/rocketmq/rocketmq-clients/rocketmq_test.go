@@ -121,7 +121,7 @@ func TestPublish(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testTopic, msg)
+		err := b.Publish(ctx, testTopic, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -158,7 +158,7 @@ func TestSubscribe_WithTracer(t *testing.T) {
 	_, err := b.Subscribe(testTopic,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithQueueName(testGroupName),
+		broker.WithSubscribeQueueName(testGroupName),
 	)
 	assert.Nil(t, err)
 
@@ -194,7 +194,7 @@ func TestPublish_WithTracer(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err := b.Publish(ctx, testTopic, msg)
+		err := b.Publish(ctx, testTopic, broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

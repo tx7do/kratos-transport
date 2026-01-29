@@ -173,30 +173,11 @@ func WithCompletion(completion func(messages []kafkaGo.Message, err error)) brok
 /// PublishOption
 ///
 
-type messageHeadersKey struct{}
-type messageKeyKey struct{}
-type messageOffsetKey struct{}
-
 type balancerKey struct{}
 type balancerValue struct {
 	Name       BalancerName
 	Consistent bool
 	Hasher     hash.Hash32
-}
-
-// WithHeaders 消息头
-func WithHeaders(headers map[string]any) broker.PublishOption {
-	return broker.PublishContextWithValue(messageHeadersKey{}, headers)
-}
-
-// WithMessageKey 消息键
-func WithMessageKey(key []byte) broker.PublishOption {
-	return broker.PublishContextWithValue(messageKeyKey{}, key)
-}
-
-// WithMessageOffset 消息偏移
-func WithMessageOffset(offset int64) broker.PublishOption {
-	return broker.PublishContextWithValue(messageOffsetKey{}, offset)
 }
 
 // WithLeastBytesBalancer LeastBytes负载均衡器
