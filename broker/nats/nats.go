@@ -8,7 +8,6 @@ import (
 	"time"
 
 	kProto "github.com/go-kratos/kratos/v2/encoding/proto"
-	"go.opentelemetry.io/otel"
 	"google.golang.org/protobuf/proto"
 
 	natsGo "github.com/nats-io/nats.go"
@@ -16,6 +15,7 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
@@ -206,6 +206,16 @@ func (b *natsBroker) Disconnect() error {
 }
 
 func (b *natsBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = b.internalPublish
+
+	if len(b.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, b.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+func (b *natsBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
@@ -267,6 +277,10 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	}
 	for _, o := range opts {
 		o(&options)
+	}
+
+	if len(b.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
 	}
 
 	subs := &subscriber{

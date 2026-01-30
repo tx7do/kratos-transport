@@ -7,10 +7,11 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
-	"go.opentelemetry.io/otel"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
@@ -124,6 +125,16 @@ func (b *rabbitBroker) Request(ctx context.Context, topic string, msg *broker.Me
 }
 
 func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = b.internalPublish
+
+	if len(b.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, b.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, routingKey, msg, opts...)
+}
+
+func (b *rabbitBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
@@ -132,7 +143,7 @@ func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg *brok
 	sendMsg := msg.Clone()
 	sendMsg.Body = buf
 
-	return b.publish(ctx, routingKey, sendMsg, opts...)
+	return b.publish(ctx, topic, sendMsg, opts...)
 }
 
 func (b *rabbitBroker) publish(ctx context.Context, routingKey string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -240,6 +251,10 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	}
 	for _, o := range opts {
 		o(&options)
+	}
+
+	if len(b.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
 	}
 
 	var requeueOnError = false

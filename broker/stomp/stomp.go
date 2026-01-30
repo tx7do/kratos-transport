@@ -183,6 +183,16 @@ func (b *stompBroker) Request(ctx context.Context, topic string, msg *broker.Mes
 }
 
 func (b *stompBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = b.internalPublish
+
+	if len(b.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, b.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+func (b *stompBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
@@ -245,6 +255,10 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 	}
 	for _, o := range opts {
 		o(&options)
+	}
+
+	if len(b.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
 	}
 
 	stompOpt := make([]func(*frameV3.Frame) error, 0, len(opts))

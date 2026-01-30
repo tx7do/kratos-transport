@@ -11,8 +11,8 @@ import (
 
 	rmqClient "github.com/apache/rocketmq-clients/golang/v5"
 	"github.com/apache/rocketmq-clients/golang/v5/credentials"
-	"go.opentelemetry.io/otel"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
@@ -79,82 +79,82 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	}
 }
 
-func (r *rocketmqBroker) Name() string {
+func (b *rocketmqBroker) Name() string {
 	return "rocketmqV5"
 }
 
-func (r *rocketmqBroker) Address() string {
-	if len(r.nameServers) > 0 {
-		return r.nameServers[0]
-	} else if r.nameServerUrl != "" {
-		return r.nameServerUrl
+func (b *rocketmqBroker) Address() string {
+	if len(b.nameServers) > 0 {
+		return b.nameServers[0]
+	} else if b.nameServerUrl != "" {
+		return b.nameServerUrl
 	}
 	return rocketmqOption.DefaultAddr
 }
 
-func (r *rocketmqBroker) Options() broker.Options {
-	return r.options
+func (b *rocketmqBroker) Options() broker.Options {
+	return b.options
 }
 
-func (r *rocketmqBroker) Init(opts ...broker.Option) error {
-	r.options.Apply(opts...)
+func (b *rocketmqBroker) Init(opts ...broker.Option) error {
+	b.options.Apply(opts...)
 
 	// init logger
 	rmqClient.ResetLogger()
 	_ = os.Setenv(rmqClient.ENABLE_CONSOLE_APPENDER, "true")
 	_ = os.Setenv(rmqClient.CLIENT_LOG_LEVEL, "info")
 
-	if v, ok := r.options.Context.Value(rocketmqOption.NameServersKey{}).([]string); ok {
-		r.nameServers = v
+	if v, ok := b.options.Context.Value(rocketmqOption.NameServersKey{}).([]string); ok {
+		b.nameServers = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.NameServerUrlKey{}).(string); ok {
-		r.nameServerUrl = v
+	if v, ok := b.options.Context.Value(rocketmqOption.NameServerUrlKey{}).(string); ok {
+		b.nameServerUrl = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.AccessKey{}).(string); ok {
-		r.credentials.AccessKey = v
+	if v, ok := b.options.Context.Value(rocketmqOption.AccessKey{}).(string); ok {
+		b.credentials.AccessKey = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.SecretKey{}).(string); ok {
-		r.credentials.AccessSecret = v
+	if v, ok := b.options.Context.Value(rocketmqOption.SecretKey{}).(string); ok {
+		b.credentials.AccessSecret = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.SecurityTokenKey{}).(string); ok {
-		r.credentials.SecurityToken = v
+	if v, ok := b.options.Context.Value(rocketmqOption.SecurityTokenKey{}).(string); ok {
+		b.credentials.SecurityToken = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.CredentialsKey{}).(*rocketmqOption.Credentials); ok {
-		r.credentials = *v
+	if v, ok := b.options.Context.Value(rocketmqOption.CredentialsKey{}).(*rocketmqOption.Credentials); ok {
+		b.credentials = *v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.RetryCountKey{}).(int); ok {
-		r.retryCount = v
+	if v, ok := b.options.Context.Value(rocketmqOption.RetryCountKey{}).(int); ok {
+		b.retryCount = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.NamespaceKey{}).(string); ok {
-		r.namespace = v
+	if v, ok := b.options.Context.Value(rocketmqOption.NamespaceKey{}).(string); ok {
+		b.namespace = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.InstanceNameKey{}).(string); ok {
-		r.instanceName = v
+	if v, ok := b.options.Context.Value(rocketmqOption.InstanceNameKey{}).(string); ok {
+		b.instanceName = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.GroupNameKey{}).(string); ok {
-		r.groupName = v
+	if v, ok := b.options.Context.Value(rocketmqOption.GroupNameKey{}).(string); ok {
+		b.groupName = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.EnableTraceKey{}).(bool); ok {
-		r.enableTrace = v
-	}
-
-	if v, ok := r.options.Context.Value(rocketmqOption.SubscriptionExpressionsKey{}).(map[string]*rmqClient.FilterExpression); ok {
-		r.subscriptionExpressions = v
-	}
-	if v, ok := r.options.Context.Value(rocketmqOption.AwaitDurationKey{}).(time.Duration); ok {
-		r.awaitDuration = v
-	}
-	if v, ok := r.options.Context.Value(rocketmqOption.MaxMessageNumKey{}).(int32); ok {
-		r.maxMessageNum = v
-	}
-	if v, ok := r.options.Context.Value(rocketmqOption.InvisibleDurationKey{}).(time.Duration); ok {
-		r.invisibleDuration = v
-	}
-	if v, ok := r.options.Context.Value(rocketmqOption.ReceiveIntervalKey{}).(time.Duration); ok {
-		r.receiveInterval = v
+	if v, ok := b.options.Context.Value(rocketmqOption.EnableTraceKey{}).(bool); ok {
+		b.enableTrace = v
 	}
 
-	if v, ok := r.options.Context.Value(rocketmqOption.LoggerLevelKey{}).(log.Level); ok {
+	if v, ok := b.options.Context.Value(rocketmqOption.SubscriptionExpressionsKey{}).(map[string]*rmqClient.FilterExpression); ok {
+		b.subscriptionExpressions = v
+	}
+	if v, ok := b.options.Context.Value(rocketmqOption.AwaitDurationKey{}).(time.Duration); ok {
+		b.awaitDuration = v
+	}
+	if v, ok := b.options.Context.Value(rocketmqOption.MaxMessageNumKey{}).(int32); ok {
+		b.maxMessageNum = v
+	}
+	if v, ok := b.options.Context.Value(rocketmqOption.InvisibleDurationKey{}).(time.Duration); ok {
+		b.invisibleDuration = v
+	}
+	if v, ok := b.options.Context.Value(rocketmqOption.ReceiveIntervalKey{}).(time.Duration); ok {
+		b.receiveInterval = v
+	}
+
+	if v, ok := b.options.Context.Value(rocketmqOption.LoggerLevelKey{}).(log.Level); ok {
 		var strLevel string
 		switch v {
 		case log.LevelDebug:
@@ -171,23 +171,23 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 		_ = os.Setenv(rmqClient.CLIENT_LOG_LEVEL, strLevel)
 	}
 
-	if len(r.options.Tracings) > 0 {
-		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, r.options.Tracings...)
-		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, r.options.Tracings...)
+	if len(b.options.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
 	}
 
 	return nil
 }
 
-func (r *rocketmqBroker) Connect() error {
-	r.RLock()
-	if r.connected {
-		r.RUnlock()
+func (b *rocketmqBroker) Connect() error {
+	b.RLock()
+	if b.connected {
+		b.RUnlock()
 		return nil
 	}
-	r.RUnlock()
+	b.RUnlock()
 
-	p, err := r.createProducer()
+	p, err := b.createProducer()
 	if err != nil {
 		return err
 	}
@@ -196,40 +196,50 @@ func (r *rocketmqBroker) Connect() error {
 		_ = p.GracefulStop()
 	}
 
-	r.Lock()
-	r.connected = true
-	r.Unlock()
+	b.Lock()
+	b.connected = true
+	b.Unlock()
 
 	return err
 }
 
-func (r *rocketmqBroker) Disconnect() error {
-	r.RLock()
-	if !r.connected {
-		r.RUnlock()
+func (b *rocketmqBroker) Disconnect() error {
+	b.RLock()
+	if !b.connected {
+		b.RUnlock()
 		return nil
 	}
-	r.RUnlock()
+	b.RUnlock()
 
-	r.Lock()
-	defer r.Unlock()
-	for _, p := range r.producers {
+	b.Lock()
+	defer b.Unlock()
+	for _, p := range b.producers {
 		if err := p.GracefulStop(); err != nil {
 			return err
 		}
 	}
-	r.producers = make(map[string]rmqClient.Producer)
+	b.producers = make(map[string]rmqClient.Producer)
 
-	r.connected = false
+	b.connected = false
 	return nil
 }
 
-func (r *rocketmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
+func (b *rocketmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(r.options.Codec, msg.Body)
+func (b *rocketmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = b.internalPublish
+
+	if len(b.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, b.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+func (b *rocketmqBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
@@ -237,10 +247,10 @@ func (r *rocketmqBroker) Publish(ctx context.Context, topic string, msg *broker.
 	sendMsg := msg.Clone()
 	sendMsg.Body = buf
 
-	return r.publish(ctx, topic, sendMsg, opts...)
+	return b.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (b *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	rocketmqOptions := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -248,19 +258,19 @@ func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.
 		o(&rocketmqOptions)
 	}
 
-	r.Lock()
-	producer, ok := r.producers[topic]
+	b.Lock()
+	producer, ok := b.producers[topic]
 	if !ok {
 		var err error
-		producer, err = r.createProducer()
+		producer, err = b.createProducer()
 		if err != nil {
-			r.Unlock()
+			b.Unlock()
 			return err
 		}
 
-		r.producers[topic] = producer
+		b.producers[topic] = producer
 	}
-	r.Unlock()
+	b.Unlock()
 
 	rMsg := &rmqClient.Message{
 		Topic: topic,
@@ -300,51 +310,51 @@ func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.
 
 	var err error
 	if sendWithTransaction {
-		err = r.doSendTransaction(rocketmqOptions.Context, producer, rMsg)
+		err = b.doSendTransaction(rocketmqOptions.Context, producer, rMsg)
 	} else if sendAsync {
-		err = r.doSendAsync(rocketmqOptions.Context, producer, rMsg)
+		err = b.doSendAsync(rocketmqOptions.Context, producer, rMsg)
 	} else {
-		err = r.doSend(rocketmqOptions.Context, producer, rMsg)
+		err = b.doSend(rocketmqOptions.Context, producer, rMsg)
 	}
 
 	return err
 }
 
-func (r *rocketmqBroker) doSend(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
+func (b *rocketmqBroker) doSend(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
 	var span trace.Span
-	ctx, span = r.startProducerSpan(ctx, rMsg, false)
+	ctx, span = b.startProducerSpan(ctx, rMsg, false)
 
 	var err error
 	var receipts []*rmqClient.SendReceipt
-	receipts, err = producer.Send(r.options.Context, rMsg)
+	receipts, err = producer.Send(b.options.Context, rMsg)
 	if err != nil {
 		LogErrorf("send message error: %s\n", err)
-		r.finishProducerSpan(ctx, span, nil, err)
+		b.finishProducerSpan(ctx, span, nil, err)
 	} else {
-		r.finishProducerSpan(ctx, span, receipts[0], nil)
+		b.finishProducerSpan(ctx, span, receipts[0], nil)
 	}
 	return err
 }
 
-func (r *rocketmqBroker) doSendAsync(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
+func (b *rocketmqBroker) doSendAsync(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
 	var span trace.Span
-	ctx, span = r.startProducerSpan(ctx, rMsg, false)
+	ctx, span = b.startProducerSpan(ctx, rMsg, false)
 
 	producer.SendAsync(ctx, rMsg, func(ctx context.Context, receipts []*rmqClient.SendReceipt, err error) {
 		if err != nil {
 			LogErrorf("send async message error: %s\n", err)
-			r.finishProducerSpan(ctx, span, nil, err)
+			b.finishProducerSpan(ctx, span, nil, err)
 		} else {
-			r.finishProducerSpan(ctx, span, receipts[0], nil)
+			b.finishProducerSpan(ctx, span, receipts[0], nil)
 		}
 	})
 
 	return nil
 }
 
-func (r *rocketmqBroker) doSendTransaction(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
+func (b *rocketmqBroker) doSendTransaction(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
 	var span trace.Span
-	ctx, span = r.startProducerSpan(ctx, rMsg, true)
+	ctx, span = b.startProducerSpan(ctx, rMsg, true)
 
 	transaction := producer.BeginTransaction()
 
@@ -356,40 +366,44 @@ func (r *rocketmqBroker) doSendTransaction(ctx context.Context, producer rmqClie
 
 	if err = transaction.Commit(); err != nil {
 		LogErrorf("send transaction message error: %s\n", err)
-		r.finishProducerSpan(ctx, span, nil, err)
+		b.finishProducerSpan(ctx, span, nil, err)
 		return err
 	}
 
-	r.finishProducerSpan(ctx, span, receipts[0], nil)
+	b.finishProducerSpan(ctx, span, receipts[0], nil)
 
 	return nil
 }
 
-func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+func (b *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
 	rocketmqOptions := &broker.SubscribeOptions{
 		Context: context.Background(),
 		AutoAck: true,
-		Queue:   r.groupName,
+		Queue:   b.groupName,
 	}
 	for _, o := range opts {
 		o(rocketmqOptions)
 	}
 
-	if r.consumer == nil {
-		c, err := r.createConsumer(rocketmqOptions)
+	if len(b.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
+	}
+
+	if b.consumer == nil {
+		c, err := b.createConsumer(rocketmqOptions)
 		if err != nil {
 			return nil, err
 		}
-		r.consumer = c
+		b.consumer = c
 	}
 
 	sub := &subscriber{
-		r:       r,
+		r:       b,
 		options: *rocketmqOptions,
 		topic:   topic,
 		handler: handler,
 		binder:  binder,
-		reader:  r.consumer,
+		reader:  b.consumer,
 		done:    make(chan error),
 	}
 
@@ -400,30 +414,30 @@ func (r *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 		filterExpression = rmqClient.SUB_ALL
 	}
 
-	if err := r.consumer.Subscribe(topic, filterExpression); err != nil {
+	if err := b.consumer.Subscribe(topic, filterExpression); err != nil {
 		return nil, err
 	}
 
-	r.subscribers.Add(topic, sub)
+	b.subscribers.Add(topic, sub)
 
 	return sub, nil
 }
 
-func (r *rocketmqBroker) makeConfig() *rmqClient.Config {
+func (b *rocketmqBroker) makeConfig() *rmqClient.Config {
 	return &rmqClient.Config{
-		Endpoint:      r.nameServers[0],
-		NameSpace:     r.namespace,
-		ConsumerGroup: r.groupName,
+		Endpoint:      b.nameServers[0],
+		NameSpace:     b.namespace,
+		ConsumerGroup: b.groupName,
 		Credentials: &credentials.SessionCredentials{
-			AccessKey:     r.credentials.AccessKey,
-			AccessSecret:  r.credentials.AccessSecret,
-			SecurityToken: r.credentials.SecurityToken,
+			AccessKey:     b.credentials.AccessKey,
+			AccessSecret:  b.credentials.AccessSecret,
+			SecurityToken: b.credentials.SecurityToken,
 		},
 	}
 }
 
-func (r *rocketmqBroker) createProducer(topic ...string) (producer rmqClient.Producer, err error) {
-	cfg := r.makeConfig()
+func (b *rocketmqBroker) createProducer(topic ...string) (producer rmqClient.Producer, err error) {
+	cfg := b.makeConfig()
 
 	var opts []rmqClient.ProducerOption
 	if len(topic) > 0 {
@@ -443,13 +457,13 @@ func (r *rocketmqBroker) createProducer(topic ...string) (producer rmqClient.Pro
 	return
 }
 
-func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (consumer rmqClient.SimpleConsumer, err error) {
-	cfg := r.makeConfig()
+func (b *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (consumer rmqClient.SimpleConsumer, err error) {
+	cfg := b.makeConfig()
 
 	var opts []rmqClient.SimpleConsumerOption
-	opts = append(opts, rmqClient.WithSimpleAwaitDuration(r.awaitDuration))
-	if len(r.subscriptionExpressions) > 0 {
-		opts = append(opts, rmqClient.WithSimpleSubscriptionExpressions(r.subscriptionExpressions))
+	opts = append(opts, rmqClient.WithSimpleAwaitDuration(b.awaitDuration))
+	if len(b.subscriptionExpressions) > 0 {
+		opts = append(opts, rmqClient.WithSimpleSubscriptionExpressions(b.subscriptionExpressions))
 	}
 
 	// create consumer
@@ -462,17 +476,17 @@ func (r *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (consu
 		return nil, err
 	}
 
-	go r.run()
+	go b.run()
 
 	return
 }
 
-func (r *rocketmqBroker) run() {
-	ctx := r.options.Context
+func (b *rocketmqBroker) run() {
+	ctx := b.options.Context
 	for {
 		//fmt.Println("start receive message")
 
-		if r.consumer == nil {
+		if b.consumer == nil {
 			return
 		}
 
@@ -480,7 +494,7 @@ func (r *rocketmqBroker) run() {
 
 		// receive the message
 		var messages []*rmqClient.MessageView
-		if messages, err = r.consumer.Receive(ctx, r.maxMessageNum, r.invisibleDuration); err != nil {
+		if messages, err = b.consumer.Receive(ctx, b.maxMessageNum, b.invisibleDuration); err != nil {
 			continue
 		}
 
@@ -491,13 +505,13 @@ func (r *rocketmqBroker) run() {
 				continue
 			}
 
-			newCtx, span := r.startConsumerSpan(ctx, mv)
+			newCtx, span := b.startConsumerSpan(ctx, mv)
 
-			sub := r.subscribers.Get(mv.GetTopic())
+			sub := b.subscribers.Get(mv.GetTopic())
 			if sub == nil {
 				err = errors.New(fmt.Sprintf("[%s] subscriber not found", mv.GetTopic()))
 				LogErrorf(err.Error())
-				r.finishConsumerSpan(newCtx, span, err)
+				b.finishConsumerSpan(newCtx, span, err)
 				continue
 			}
 
@@ -505,19 +519,19 @@ func (r *rocketmqBroker) run() {
 
 			if err = aSub.onMessage(newCtx, mv); err != nil {
 				LogErrorf("[%s] subscriber not found", mv.GetTopic())
-				r.finishConsumerSpan(newCtx, span, err)
+				b.finishConsumerSpan(newCtx, span, err)
 				continue
 			}
 
-			r.finishConsumerSpan(newCtx, span, nil)
+			b.finishConsumerSpan(newCtx, span, nil)
 		}
 
-		time.Sleep(r.receiveInterval)
+		time.Sleep(b.receiveInterval)
 	}
 }
 
-func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.Message, transaction bool) (context.Context, trace.Span) {
-	if r.producerTracer == nil {
+func (b *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.Message, transaction bool) (context.Context, trace.Span) {
+	if b.producerTracer == nil {
 		return ctx, nil
 	}
 
@@ -531,9 +545,9 @@ func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.M
 		semConv.MessagingSystemKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingProtocolKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_MESSAGING_PROTOCOL),
 		semConv.MessagingProtocolVersionKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_MESSAGING_PROTOCOL_VERSION),
-		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
-		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
-		semConv.MessagingRocketmqClientIDKey.String(r.instanceName),
+		semConv.MessagingRocketmqNamespaceKey.String(b.namespace),
+		semConv.MessagingRocketmqClientGroupKey.String(b.groupName),
+		semConv.MessagingRocketmqClientIDKey.String(b.instanceName),
 		semConv.MessagingDestinationKindTopic,
 
 		semConv.MessagingOperationKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_SEND_OPERATION),
@@ -558,7 +572,7 @@ func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.M
 	}
 
 	var span trace.Span
-	ctx, span = r.producerTracer.Start(ctx, carrier, attrs...)
+	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
 	if span != nil {
 		otel.GetTextMapPropagator().Inject(ctx, carrier)
@@ -567,8 +581,8 @@ func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.M
 	return ctx, span
 }
 
-func (r *rocketmqBroker) finishProducerSpan(ctx context.Context, span trace.Span, receipt *rmqClient.SendReceipt, err error) {
-	if r.producerTracer == nil {
+func (b *rocketmqBroker) finishProducerSpan(ctx context.Context, span trace.Span, receipt *rmqClient.SendReceipt, err error) {
+	if b.producerTracer == nil {
 		return
 	}
 
@@ -579,15 +593,15 @@ func (r *rocketmqBroker) finishProducerSpan(ctx context.Context, span trace.Span
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingMessageIDKey.String(messageId),
-		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
-		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
+		semConv.MessagingRocketmqNamespaceKey.String(b.namespace),
+		semConv.MessagingRocketmqClientGroupKey.String(b.groupName),
 	}
 
-	r.producerTracer.End(ctx, span, err, attrs...)
+	b.producerTracer.End(ctx, span, err, attrs...)
 }
 
-func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *rmqClient.MessageView) (context.Context, trace.Span) {
-	if r.consumerTracer == nil {
+func (b *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *rmqClient.MessageView) (context.Context, trace.Span) {
+	if b.consumerTracer == nil {
 		return ctx, nil
 	}
 
@@ -599,9 +613,9 @@ func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *rmqClient.M
 		semConv.MessagingSystemKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingProtocolKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_MESSAGING_PROTOCOL),
 		semConv.MessagingProtocolVersionKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_MESSAGING_PROTOCOL_VERSION),
-		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
-		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
-		semConv.MessagingRocketmqClientIDKey.String(r.instanceName),
+		semConv.MessagingRocketmqNamespaceKey.String(b.namespace),
+		semConv.MessagingRocketmqClientGroupKey.String(b.groupName),
+		semConv.MessagingRocketmqClientIDKey.String(b.instanceName),
 		semConv.MessagingDestinationKindTopic,
 
 		semConv.MessagingOperationKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_RECEIVE_OPERATION),
@@ -617,15 +631,15 @@ func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *rmqClient.M
 	}
 
 	var span trace.Span
-	ctx, span = r.consumerTracer.Start(ctx, carrier, attrs...)
+	ctx, span = b.consumerTracer.Start(ctx, carrier, attrs...)
 
 	return ctx, span
 }
 
-func (r *rocketmqBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
-	if r.consumerTracer == nil {
+func (b *rocketmqBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
+	if b.consumerTracer == nil {
 		return
 	}
 
-	r.consumerTracer.End(ctx, span, err)
+	b.consumerTracer.End(ctx, span, err)
 }

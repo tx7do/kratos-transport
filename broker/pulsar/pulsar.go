@@ -9,11 +9,11 @@ import (
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
@@ -180,6 +180,16 @@ func (pb *pulsarBroker) Request(ctx context.Context, topic string, msg *broker.M
 }
 
 func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = pb.internalPublish
+
+	if len(pb.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, pb.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+func (pb *pulsarBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(pb.options.Codec, msg.Body)
 	if err != nil {
 		return err
@@ -324,6 +334,10 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 	}
 	for _, o := range opts {
 		o(&options)
+	}
+
+	if len(pb.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, pb.options.SubscriberMiddlewares)
 	}
 
 	pulsarOptions := pulsar.ConsumerOptions{

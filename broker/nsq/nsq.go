@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	NSQ "github.com/nsqio/go-nsq"
+
 	"github.com/tx7do/kratos-transport/broker"
 )
 
@@ -198,6 +200,16 @@ func (b *nsqBroker) Request(ctx context.Context, topic string, msg *broker.Messa
 }
 
 func (b *nsqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = b.internalPublish
+
+	if len(b.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, b.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+func (b *nsqBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
@@ -263,6 +275,10 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 	}
 	for _, o := range opts {
 		o(&options)
+	}
+
+	if len(b.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
 	}
 
 	concurrency, maxInFlight := DefaultConcurrentHandlers, DefaultConcurrentHandlers

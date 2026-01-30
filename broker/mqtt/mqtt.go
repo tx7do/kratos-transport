@@ -193,6 +193,16 @@ func (m *mqttBroker) Request(ctx context.Context, topic string, msg *broker.Mess
 }
 
 func (m *mqttBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = m.internalPublish
+
+	if len(m.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, m.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+func (m *mqttBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	buf, err := broker.Marshal(m.options.Codec, msg.Body)
 	if err != nil {
 		return err
@@ -238,6 +248,10 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 	var options broker.SubscribeOptions
 	for _, o := range opts {
 		o(&options)
+	}
+
+	if len(m.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, m.options.SubscriberMiddlewares)
 	}
 
 	var qos byte = 1

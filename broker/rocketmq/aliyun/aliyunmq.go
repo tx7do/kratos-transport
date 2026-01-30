@@ -60,107 +60,117 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 	}
 }
 
-func (r *aliyunmqBroker) Name() string {
+func (b *aliyunmqBroker) Name() string {
 	return "rocketmq-http"
 }
 
-func (r *aliyunmqBroker) Address() string {
-	if len(r.nameServers) > 0 {
-		return r.nameServers[0]
-	} else if r.nameServerUrl != "" {
-		return r.nameServerUrl
+func (b *aliyunmqBroker) Address() string {
+	if len(b.nameServers) > 0 {
+		return b.nameServers[0]
+	} else if b.nameServerUrl != "" {
+		return b.nameServerUrl
 	}
 	return rocketmqOption.DefaultAddr
 }
 
-func (r *aliyunmqBroker) Options() broker.Options {
-	return r.options
+func (b *aliyunmqBroker) Options() broker.Options {
+	return b.options
 }
 
-func (r *aliyunmqBroker) Init(opts ...broker.Option) error {
-	r.options.Apply(opts...)
+func (b *aliyunmqBroker) Init(opts ...broker.Option) error {
+	b.options.Apply(opts...)
 
-	if v, ok := r.options.Context.Value(rocketmqOption.NameServersKey{}).([]string); ok {
-		r.nameServers = v
+	if v, ok := b.options.Context.Value(rocketmqOption.NameServersKey{}).([]string); ok {
+		b.nameServers = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.NameServerUrlKey{}).(string); ok {
-		r.nameServerUrl = v
+	if v, ok := b.options.Context.Value(rocketmqOption.NameServerUrlKey{}).(string); ok {
+		b.nameServerUrl = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.AccessKey{}).(string); ok {
-		r.credentials.AccessKey = v
+	if v, ok := b.options.Context.Value(rocketmqOption.AccessKey{}).(string); ok {
+		b.credentials.AccessKey = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.SecretKey{}).(string); ok {
-		r.credentials.AccessSecret = v
+	if v, ok := b.options.Context.Value(rocketmqOption.SecretKey{}).(string); ok {
+		b.credentials.AccessSecret = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.SecurityTokenKey{}).(string); ok {
-		r.credentials.SecurityToken = v
+	if v, ok := b.options.Context.Value(rocketmqOption.SecurityTokenKey{}).(string); ok {
+		b.credentials.SecurityToken = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.CredentialsKey{}).(*rocketmqOption.Credentials); ok {
-		r.credentials = *v
+	if v, ok := b.options.Context.Value(rocketmqOption.CredentialsKey{}).(*rocketmqOption.Credentials); ok {
+		b.credentials = *v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.RetryCountKey{}).(int); ok {
-		r.retryCount = v
+	if v, ok := b.options.Context.Value(rocketmqOption.RetryCountKey{}).(int); ok {
+		b.retryCount = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.NamespaceKey{}).(string); ok {
-		r.namespace = v
+	if v, ok := b.options.Context.Value(rocketmqOption.NamespaceKey{}).(string); ok {
+		b.namespace = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.InstanceNameKey{}).(string); ok {
-		r.instanceName = v
+	if v, ok := b.options.Context.Value(rocketmqOption.InstanceNameKey{}).(string); ok {
+		b.instanceName = v
 	}
-	if v, ok := r.options.Context.Value(rocketmqOption.GroupNameKey{}).(string); ok {
-		r.groupName = v
+	if v, ok := b.options.Context.Value(rocketmqOption.GroupNameKey{}).(string); ok {
+		b.groupName = v
 	}
 
-	if len(r.options.Tracings) > 0 {
-		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, r.options.Tracings...)
-		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, r.options.Tracings...)
+	if len(b.options.Tracings) > 0 {
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
 	}
 
 	return nil
 }
 
-func (r *aliyunmqBroker) Connect() error {
-	r.RLock()
-	if r.connected {
-		r.RUnlock()
+func (b *aliyunmqBroker) Connect() error {
+	b.RLock()
+	if b.connected {
+		b.RUnlock()
 		return nil
 	}
-	r.RUnlock()
+	b.RUnlock()
 
-	endpoint := r.Address()
-	client := aliyun.NewAliyunMQClient(endpoint, r.credentials.AccessKey, r.credentials.AccessSecret, r.credentials.SecurityToken)
-	r.client = client
+	endpoint := b.Address()
+	client := aliyun.NewAliyunMQClient(endpoint, b.credentials.AccessKey, b.credentials.AccessSecret, b.credentials.SecurityToken)
+	b.client = client
 
-	r.Lock()
-	r.connected = true
-	r.Unlock()
+	b.Lock()
+	b.connected = true
+	b.Unlock()
 
 	return nil
 }
 
-func (r *aliyunmqBroker) Disconnect() error {
-	r.RLock()
-	if !r.connected {
-		r.RUnlock()
+func (b *aliyunmqBroker) Disconnect() error {
+	b.RLock()
+	if !b.connected {
+		b.RUnlock()
 		return nil
 	}
-	r.RUnlock()
+	b.RUnlock()
 
-	r.Lock()
-	defer r.Unlock()
+	b.Lock()
+	defer b.Unlock()
 
-	r.client = nil
+	b.client = nil
 
-	r.connected = false
+	b.connected = false
 	return nil
 }
 
-func (r *aliyunmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
+func (b *aliyunmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (r *aliyunmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
-	buf, err := broker.Marshal(r.options.Codec, msg.Body)
+func (b *aliyunmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	var finalTask = b.internalPublish
+
+	if len(b.options.PublishMiddlewares) > 0 {
+		finalTask = broker.ChainPublishMiddleware(finalTask, b.options.PublishMiddlewares)
+	}
+
+	return finalTask(ctx, topic, msg, opts...)
+}
+
+func (b *aliyunmqBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err
 	}
@@ -168,10 +178,10 @@ func (r *aliyunmqBroker) Publish(ctx context.Context, topic string, msg *broker.
 	sendMsg := msg.Clone()
 	sendMsg.Body = buf
 
-	return r.publish(ctx, topic, sendMsg, opts...)
+	return b.publish(ctx, topic, sendMsg, opts...)
 }
 
-func (r *aliyunmqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+func (b *aliyunmqBroker) publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
 	options := broker.PublishOptions{
 		Context: ctx,
 	}
@@ -179,23 +189,23 @@ func (r *aliyunmqBroker) publish(ctx context.Context, topic string, msg *broker.
 		o(&options)
 	}
 
-	if r.client == nil {
+	if b.client == nil {
 		return errors.New("client is nil")
 	}
 
-	r.Lock()
-	p, ok := r.producers[topic]
+	b.Lock()
+	p, ok := b.producers[topic]
 	if !ok {
-		p = r.client.GetProducer(r.instanceName, topic)
+		p = b.client.GetProducer(b.instanceName, topic)
 		if p == nil {
-			r.Unlock()
+			b.Unlock()
 			return errors.New("create producer failed")
 		}
 
-		r.producers[topic] = p
+		b.producers[topic] = p
 	} else {
 	}
-	r.Unlock()
+	b.Unlock()
 
 	aMsg := aliyun.PublishMessageRequest{
 		MessageBody: string(msg.BodyBytes()),
@@ -224,33 +234,37 @@ func (r *aliyunmqBroker) publish(ctx context.Context, topic string, msg *broker.
 	}
 
 	var span trace.Span
-	ctx, span = r.startProducerSpan(options.Context, topic, &aMsg)
+	ctx, span = b.startProducerSpan(options.Context, topic, &aMsg)
 
 	ret, err := p.PublishMessage(aMsg)
 	if err != nil {
 		LogErrorf("send message error: %s\n", err)
 	}
 
-	r.finishProducerSpan(ctx, span, ret.MessageId, err)
+	b.finishProducerSpan(ctx, span, ret.MessageId, err)
 
 	return nil
 }
 
-func (r *aliyunmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
-	if r.client == nil {
+func (b *aliyunmqBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	if b.client == nil {
 		return nil, errors.New("client is nil")
 	}
 
 	options := broker.SubscribeOptions{
 		Context: context.Background(),
 		AutoAck: true,
-		Queue:   r.groupName,
+		Queue:   b.groupName,
 	}
 	for _, o := range opts {
 		o(&options)
 	}
 
-	mqConsumer := r.client.GetConsumer(r.instanceName, topic, options.Queue, "")
+	if len(b.options.SubscriberMiddlewares) > 0 {
+		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
+	}
+
+	mqConsumer := b.client.GetConsumer(b.instanceName, topic, options.Queue, "")
 
 	sub := &Subscriber{
 		options: options,
@@ -261,12 +275,12 @@ func (r *aliyunmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 		done:    make(chan struct{}),
 	}
 
-	go r.doConsume(sub)
+	go b.doConsume(sub)
 
 	return sub, nil
 }
 
-func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
+func (b *aliyunmqBroker) doConsume(sub *Subscriber) {
 	for {
 		endChan := make(chan int)
 		respChan := make(chan aliyun.ConsumeMessageResponse)
@@ -279,14 +293,14 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 					var m broker.Message
 					for _, msg := range resp.Messages {
 
-						ctx, span := r.startConsumerSpan(sub.options.Context, &msg)
+						ctx, span := b.startConsumerSpan(sub.options.Context, &msg)
 
 						p := &Publication{
 							topic:  msg.Message,
 							reader: sub.reader,
 							m:      &m,
 							rm:     []string{msg.ReceiptHandle},
-							ctx:    r.options.Context,
+							ctx:    b.options.Context,
 						}
 
 						m.Headers = msg.Properties
@@ -294,9 +308,9 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 						if sub.binder != nil {
 							m.Body = sub.binder()
 
-							if err = broker.Unmarshal(r.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
+							if err = broker.Unmarshal(b.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
 								LogError(err)
-								r.finishConsumerSpan(ctx, span, err)
+								b.finishConsumerSpan(ctx, span, err)
 								continue
 							}
 						} else {
@@ -305,7 +319,7 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 
 						if err = sub.handler(ctx, p); err != nil {
 							LogErrorf("process message failed: %v", err)
-							r.finishConsumerSpan(ctx, span, err)
+							b.finishConsumerSpan(ctx, span, err)
 							continue
 						}
 
@@ -324,7 +338,7 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 							}
 						}
 
-						r.finishConsumerSpan(ctx, span, err)
+						b.finishConsumerSpan(ctx, span, err)
 					}
 
 					endChan <- 1
@@ -361,12 +375,12 @@ func (r *aliyunmqBroker) doConsume(sub *Subscriber) {
 	}
 }
 
-func (r *aliyunmqBroker) startProducerSpan(
+func (b *aliyunmqBroker) startProducerSpan(
 	ctx context.Context,
 	topicName string,
 	msg *aliyun.PublishMessageRequest,
 ) (context.Context, trace.Span) {
-	if r.producerTracer == nil {
+	if b.producerTracer == nil {
 		return ctx, nil
 	}
 
@@ -379,9 +393,9 @@ func (r *aliyunmqBroker) startProducerSpan(
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String(rocketmqOption.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingDestinationKindTopic,
-		semConv.MessagingRocketmqNamespaceKey.String(r.namespace),
-		semConv.MessagingRocketmqClientGroupKey.String(r.groupName),
-		semConv.MessagingRocketmqClientIDKey.String(r.instanceName),
+		semConv.MessagingRocketmqNamespaceKey.String(b.namespace),
+		semConv.MessagingRocketmqClientGroupKey.String(b.groupName),
+		semConv.MessagingRocketmqClientIDKey.String(b.instanceName),
 
 		semConv.MessagingDestinationKey.String(topicName),
 	}
@@ -394,7 +408,7 @@ func (r *aliyunmqBroker) startProducerSpan(
 	}
 
 	var span trace.Span
-	ctx, span = r.producerTracer.Start(ctx, carrier, attrs...)
+	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
 	if span != nil {
 		otel.GetTextMapPropagator().Inject(ctx, carrier)
@@ -403,8 +417,8 @@ func (r *aliyunmqBroker) startProducerSpan(
 	return ctx, span
 }
 
-func (r *aliyunmqBroker) finishProducerSpan(ctx context.Context, span trace.Span, messageId string, err error) {
-	if r.producerTracer == nil {
+func (b *aliyunmqBroker) finishProducerSpan(ctx context.Context, span trace.Span, messageId string, err error) {
+	if b.producerTracer == nil {
 		return
 	}
 
@@ -412,11 +426,11 @@ func (r *aliyunmqBroker) finishProducerSpan(ctx context.Context, span trace.Span
 		semConv.MessagingMessageIDKey.String(messageId),
 	}
 
-	r.producerTracer.End(ctx, span, err, attrs...)
+	b.producerTracer.End(ctx, span, err, attrs...)
 }
 
-func (r *aliyunmqBroker) startConsumerSpan(ctx context.Context, msg *aliyun.ConsumeMessageEntry) (context.Context, trace.Span) {
-	if r.consumerTracer == nil {
+func (b *aliyunmqBroker) startConsumerSpan(ctx context.Context, msg *aliyun.ConsumeMessageEntry) (context.Context, trace.Span) {
+	if b.consumerTracer == nil {
 		return ctx, nil
 	}
 
@@ -440,15 +454,15 @@ func (r *aliyunmqBroker) startConsumerSpan(ctx context.Context, msg *aliyun.Cons
 	}
 
 	var span trace.Span
-	ctx, span = r.consumerTracer.Start(ctx, carrier, attrs...)
+	ctx, span = b.consumerTracer.Start(ctx, carrier, attrs...)
 
 	return ctx, span
 }
 
-func (r *aliyunmqBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
-	if r.consumerTracer == nil {
+func (b *aliyunmqBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
+	if b.consumerTracer == nil {
 		return
 	}
 
-	r.consumerTracer.End(ctx, span, err)
+	b.consumerTracer.End(ctx, span, err)
 }
