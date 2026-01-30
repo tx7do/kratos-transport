@@ -30,6 +30,7 @@ func (b *kafkaBroker) newConsumerTracer() {
 
 func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) (context.Context, trace.Span) {
 	if b.producerTracer == nil {
+		LogDebugf("Kafka Producer Tracer is nil")
 		return ctx, nil
 	}
 
@@ -51,6 +52,8 @@ func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Messag
 	if span != nil {
 		otel.GetTextMapPropagator().Inject(ctx, carrier)
 	}
+
+	LogDebugf("Kafka Producer Inject Header: %s", carrier.Keys())
 
 	return ctx, span
 }

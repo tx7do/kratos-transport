@@ -294,7 +294,7 @@ func (s *subscriber) handleMessage(km kafkaGo.Message) bool {
 		bm.Body = km.Value
 	}
 
-	pub := newPublication(s.options.Context, s.reader, km, bm)
+	pub := newPublication(ctx, s.reader, km, bm)
 
 	if err = s.handler(ctx, pub); err != nil {
 		LogErrorf("handle message failed: %v", err)

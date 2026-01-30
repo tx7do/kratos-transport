@@ -14,9 +14,10 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 	kafkaGo "github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
-
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	api "github.com/tx7do/kratos-transport/testing/api/manual"
 )
@@ -37,7 +38,7 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
 
-func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
+func RegisterHygrothermographHandler(fnc HygrothermographHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		var msg api.Hygrothermograph
 
@@ -52,6 +53,10 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 				log.Error("json Unmarshal failed: ", err.Error())
 				return err
 			}
+
+		case *api.Hygrothermograph:
+			msg = *t
+
 		default:
 			log.Error("unknown type Unmarshal failed: ", t)
 			return fmt.Errorf("unsupported type: %T", t)
@@ -119,7 +124,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testTopic,
-		RegisterHygrothermographRawHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		nil,
 		broker.WithSubscribeQueueName(testGroupId),
 	)
@@ -191,7 +196,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 
 	_, err := b.Subscribe(
 		testTopic,
-		RegisterHygrothermographRawHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithSubscribeQueueName(testGroupId),
 	)
@@ -284,7 +289,89 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testTopic,
-		RegisterHygrothermographRawHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
+		api.HygrothermographCreator,
+		broker.WithSubscribeQueueName(testGroupId),
+	)
+	assert.Nil(t, err)
+
+	<-interrupt
+}
+
+func Test_Publish_WithGlobalTracer(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	ctx := context.Background()
+
+	tp := tracing.NewTracerProvider(
+		"otlp-grpc",
+		"localhost:4317",
+		"global_tracer_tester",
+		"",
+		"1.0.0",
+		1.0,
+	)
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	defer func() {
+		_ = tp.Shutdown(ctx)
+	}()
+
+	b := NewBroker(
+		broker.WithAddress(testBrokers),
+		broker.WithCodec("json"),
+		broker.WithGlobalTracerProvider(),
+		broker.WithGlobalPropagator(),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+	defer b.Disconnect()
+
+	var msg api.Hygrothermograph
+	const count = 1
+	for i := 0; i < count; i++ {
+		startTime := time.Now()
+		msg.Humidity = float64(rand.Intn(100))
+		msg.Temperature = float64(rand.Intn(100))
+		err := b.Publish(ctx, testTopic, broker.NewMessage(msg))
+		assert.Nil(t, err)
+		elapsedTime := time.Since(startTime) / time.Millisecond
+		t.Logf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
+			i, elapsedTime, msg.Humidity, msg.Temperature)
+	}
+
+	t.Logf("total send %d messages\n", count)
+
+	<-interrupt
+}
+
+func Test_Subscribe_WithGlobalTracer(t *testing.T) {
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
+	b := NewBroker(
+		broker.WithAddress(testBrokers),
+		broker.WithCodec("json"),
+		broker.WithGlobalTracerProvider(),
+		broker.WithGlobalPropagator(),
+	)
+
+	_ = b.Init()
+
+	if err := b.Connect(); err != nil {
+		t.Logf("cant connect to broker, skip: %v", err)
+		t.Skip()
+	}
+	defer b.Disconnect()
+
+	_, err := b.Subscribe(testTopic,
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithSubscribeQueueName(testGroupId),
 	)
@@ -354,7 +441,7 @@ func Test_Subscribe_WithWildcardTopic(t *testing.T) {
 	defer b.Disconnect()
 
 	_, err := b.Subscribe(testWildCardTopic,
-		RegisterHygrothermographRawHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithSubscribeQueueName(testGroupId),
 	)
@@ -385,7 +472,7 @@ func Test_Subscribe_Batch(t *testing.T) {
 	// 2. 数量驱动：若消息堆积速度快，当消息数量达到batchSize时，立即触发批处理（不等待batchInterval）。
 
 	_, err := b.Subscribe(testTopic,
-		RegisterHygrothermographRawHandler(handleHygrothermograph),
+		RegisterHygrothermographHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 		broker.WithSubscribeQueueName(testGroupId),
 		WithMinBytes(10e3),         // 10MB
