@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 
 	kafkaGo "github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
@@ -414,7 +415,8 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, m
 
 	var err error
 
-	span := b.startProducerSpan(options.Context, &kMsg)
+	var span trace.Span
+	options.Context, span = b.startProducerSpan(options.Context, &kMsg)
 	defer b.finishProducerSpan(span, int32(kMsg.Partition), kMsg.Offset, err)
 
 	err = writer.WriteMessages(options.Context, kMsg)
@@ -498,7 +500,8 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, msg *b
 
 	var err error
 
-	span := b.startProducerSpan(options.Context, &kMsg)
+	var span trace.Span
+	options.Context, span = b.startProducerSpan(options.Context, &kMsg)
 	defer b.finishProducerSpan(span, int32(kMsg.Partition), kMsg.Offset, err)
 
 	err = b.writer.Writer.WriteMessages(options.Context, kMsg)

@@ -27,9 +27,9 @@ func (b *kafkaBroker) newConsumerTracer() {
 	b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
 }
 
-func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) trace.Span {
+func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) (context.Context, trace.Span) {
 	if b.producerTracer == nil {
-		return nil
+		return ctx, nil
 	}
 
 	carrier := NewMessageCarrier(msg)
@@ -43,7 +43,7 @@ func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Messag
 	var span trace.Span
 	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
-	return span
+	return ctx, span
 }
 
 func (b *kafkaBroker) finishProducerSpan(span trace.Span, partition int32, offset int64, err error) {
