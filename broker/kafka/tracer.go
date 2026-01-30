@@ -46,7 +46,7 @@ func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Messag
 	return ctx, span
 }
 
-func (b *kafkaBroker) finishProducerSpan(span trace.Span, partition int32, offset int64, err error) {
+func (b *kafkaBroker) finishProducerSpan(ctx context.Context, span trace.Span, partition int32, offset int64, err error) {
 	if b.producerTracer == nil {
 		return
 	}
@@ -56,7 +56,7 @@ func (b *kafkaBroker) finishProducerSpan(span trace.Span, partition int32, offse
 		semConv.MessagingKafkaPartitionKey.Int64(int64(partition)),
 	}
 
-	b.producerTracer.End(context.Background(), span, err, attrs...)
+	b.producerTracer.End(ctx, span, err, attrs...)
 }
 
 func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Message) (context.Context, trace.Span) {
@@ -81,10 +81,10 @@ func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Messag
 	return ctx, span
 }
 
-func (b *kafkaBroker) finishConsumerSpan(span trace.Span, err error) {
+func (b *kafkaBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
 	if b.consumerTracer == nil {
 		return
 	}
 
-	b.consumerTracer.End(context.Background(), span, err)
+	b.consumerTracer.End(ctx, span, err)
 }
