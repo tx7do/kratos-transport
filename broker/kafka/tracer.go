@@ -53,7 +53,7 @@ func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Messag
 		otel.GetTextMapPropagator().Inject(ctx, carrier)
 	}
 
-	LogDebugf("Kafka Producer Inject Header: %s", carrier.Keys())
+	//LogDebugf("Kafka Producer Inject Header: %s", carrier.Keys())
 
 	return ctx, span
 }

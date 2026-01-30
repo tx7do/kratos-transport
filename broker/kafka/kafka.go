@@ -417,7 +417,14 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, m
 
 	var span trace.Span
 	options.Context, span = b.startProducerSpan(options.Context, &kMsg)
-	defer b.finishProducerSpan(options.Context, span, int32(kMsg.Partition), kMsg.Offset, err)
+
+	finish := func() {
+		b.finishProducerSpan(options.Context, span, int32(kMsg.Partition), kMsg.Offset, err)
+	}
+
+	if !b.writerConfig.Async {
+		defer finish()
+	}
 
 	err = writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
@@ -451,6 +458,10 @@ func (b *kafkaBroker) publishMultipleWriter(ctx context.Context, topic string, m
 				}
 			}
 		}
+	}
+
+	if !b.writerConfig.Async {
+		finish()
 	}
 
 	return err
@@ -502,7 +513,14 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, msg *b
 
 	var span trace.Span
 	options.Context, span = b.startProducerSpan(options.Context, &kMsg)
-	defer b.finishProducerSpan(options.Context, span, int32(kMsg.Partition), kMsg.Offset, err)
+
+	finish := func() {
+		b.finishProducerSpan(options.Context, span, int32(kMsg.Partition), kMsg.Offset, err)
+	}
+
+	if !b.writerConfig.Async {
+		defer finish()
+	}
 
 	err = b.writer.Writer.WriteMessages(options.Context, kMsg)
 	if err != nil {
@@ -537,6 +555,10 @@ func (b *kafkaBroker) publishOneWriter(ctx context.Context, topic string, msg *b
 				}
 			}
 		}
+	}
+
+	if !b.writerConfig.Async {
+		finish()
 	}
 
 	return err

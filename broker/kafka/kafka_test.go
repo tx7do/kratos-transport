@@ -355,6 +355,22 @@ func Test_Subscribe_WithGlobalTracer(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	ctx := context.Background()
+
+	tp := tracing.NewTracerProvider(
+		"otlp-grpc",
+		"localhost:4317",
+		"global_tracer_tester",
+		"",
+		"1.0.0",
+		1.0,
+	)
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	defer func() {
+		_ = tp.Shutdown(ctx)
+	}()
+
 	b := NewBroker(
 		broker.WithAddress(testBrokers),
 		broker.WithCodec("json"),
