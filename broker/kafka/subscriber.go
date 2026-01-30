@@ -10,6 +10,7 @@ import (
 	"time"
 
 	kafkaGo "github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/tx7do/kratos-transport/broker"
 )
@@ -270,7 +271,9 @@ func (s *subscriber) handleBatchMessage(messages []kafkaGo.Message) {
 func (s *subscriber) handleMessage(km kafkaGo.Message) bool {
 	var err error
 
-	ctx, span := s.b.startConsumerSpan(s.options.Context, &km)
+	var span trace.Span
+	var ctx context.Context
+	ctx, span = s.b.startConsumerSpan(s.options.Context, &km)
 
 	bm := &broker.Message{
 		Headers:   kafkaHeaderToMap(km.Headers),
@@ -284,7 +287,7 @@ func (s *subscriber) handleMessage(km kafkaGo.Message) bool {
 
 		if err = broker.Unmarshal(s.b.options.Codec, km.Value, &bm.Body); err != nil {
 			LogErrorf("unmarshal message failed: %v", err)
-			s.b.finishConsumerSpan(span, err)
+			s.b.finishConsumerSpan(ctx, span, err)
 			return true
 		}
 	} else {
@@ -295,19 +298,19 @@ func (s *subscriber) handleMessage(km kafkaGo.Message) bool {
 
 	if err = s.handler(ctx, pub); err != nil {
 		LogErrorf("handle message failed: %v", err)
-		s.b.finishConsumerSpan(span, err)
+		s.b.finishConsumerSpan(ctx, span, err)
 		return true
 	}
 
 	if s.options.AutoAck {
 		if err = pub.Ack(); err != nil {
 			LogErrorf("unable to commit km: %v", err)
-			s.b.finishConsumerSpan(span, err)
+			s.b.finishConsumerSpan(ctx, span, err)
 			return true
 		}
 	}
 
-	s.b.finishConsumerSpan(span, err)
+	s.b.finishConsumerSpan(ctx, span, err)
 
 	return false
 }
