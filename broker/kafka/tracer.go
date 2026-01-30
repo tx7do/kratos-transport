@@ -6,6 +6,7 @@ import (
 
 	kafkaGo "github.com/segmentio/kafka-go"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
@@ -32,16 +33,24 @@ func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Messag
 		return ctx, nil
 	}
 
+	if msg == nil {
+		return ctx, nil
+	}
+
 	carrier := NewMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("kafka"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Topic),
 	}
 
 	var span trace.Span
 	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
+
+	if span != nil {
+		otel.GetTextMapPropagator().Inject(ctx, carrier)
+	}
 
 	return ctx, span
 }
@@ -64,7 +73,13 @@ func (b *kafkaBroker) startConsumerSpan(ctx context.Context, msg *kafkaGo.Messag
 		return ctx, nil
 	}
 
+	if msg == nil {
+		return ctx, nil
+	}
+
 	carrier := NewMessageCarrier(msg)
+
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
