@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
@@ -21,6 +22,12 @@ import (
 
 const (
 	defaultAddr = "stomp://127.0.0.1:61613"
+)
+
+const (
+	TracerMessageSystemKey = "stomp"
+	SpanNameProducer       = "stomp-producer"
+	SpanNameConsumer       = "stomp-consumer"
 )
 
 type stompBroker struct {
@@ -88,8 +95,8 @@ func (b *stompBroker) Init(opts ...broker.Option) error {
 	b.options.Addrs = cAddrs
 
 	if len(b.options.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "stomp-producer", b.options.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "stomp-consumer", b.options.Tracings...)
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
 	}
 
 	return nil
@@ -201,7 +208,8 @@ func (b *stompBroker) publish(ctx context.Context, topic string, msg *broker.Mes
 
 	stompOpt := make([]func(*frameV3.Frame) error, 0)
 
-	span := b.startProducerSpan(options.Context, topic, &stompOpt)
+	var span trace.Span
+	ctx, span = b.startProducerSpan(options.Context, topic, &stompOpt)
 
 	for k, v := range msg.Headers {
 		stompOpt = append(stompOpt, stompV3.SendOpt.Header(k, v))
@@ -221,7 +229,7 @@ func (b *stompBroker) publish(ctx context.Context, topic string, msg *broker.Mes
 
 	err := b.stompConn.Send(topic, "", msg.BodyBytes(), stompOpt...)
 
-	b.finishProducerSpan(span, err)
+	b.finishProducerSpan(ctx, span, err)
 
 	return err
 }
@@ -286,7 +294,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					if err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
 						p.err = err
 						LogError(err)
-						b.finishConsumerSpan(span, p.err)
+						b.finishConsumerSpan(ctx, span, p.err)
 						return
 					}
 				} else {
@@ -295,7 +303,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				if err = handler(ctx, p); p.err != nil {
 					p.err = err
-					b.finishConsumerSpan(span, p.err)
+					b.finishConsumerSpan(ctx, span, p.err)
 					return
 				}
 
@@ -304,7 +312,7 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					p.err = err
 				}
 
-				b.finishConsumerSpan(span, err)
+				b.finishConsumerSpan(ctx, span, err)
 			}(msg)
 		}
 	}()
@@ -321,15 +329,19 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 	return subs, nil
 }
 
-func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *[]func(*frameV3.Frame) error) trace.Span {
+func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *[]func(*frameV3.Frame) error) (context.Context, trace.Span) {
 	if b.producerTracer == nil {
-		return nil
+		return ctx, nil
+	}
+
+	if msg == nil {
+		return ctx, nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("stomp"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(topic),
 	}
@@ -337,15 +349,19 @@ func (b *stompBroker) startProducerSpan(ctx context.Context, topic string, msg *
 	var span trace.Span
 	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
-	return span
+	if span != nil {
+		otel.GetTextMapPropagator().Inject(ctx, carrier)
+	}
+
+	return ctx, span
 }
 
-func (b *stompBroker) finishProducerSpan(span trace.Span, err error) {
+func (b *stompBroker) finishProducerSpan(ctx context.Context, span trace.Span, err error) {
 	if b.producerTracer == nil {
 		return
 	}
 
-	b.producerTracer.End(context.Background(), span, err)
+	b.producerTracer.End(ctx, span, err)
 }
 
 func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stompV3.Message) (context.Context, trace.Span) {
@@ -355,8 +371,10 @@ func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stompV3.Messag
 
 	carrier := NewConsumerMessageCarrier(msg)
 
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("stomp"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Destination),
 		semConv.MessagingOperationReceive,
@@ -369,10 +387,10 @@ func (b *stompBroker) startConsumerSpan(ctx context.Context, msg *stompV3.Messag
 	return ctx, span
 }
 
-func (b *stompBroker) finishConsumerSpan(span trace.Span, err error) {
+func (b *stompBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
 	if b.consumerTracer == nil {
 		return
 	}
 
-	b.consumerTracer.End(context.Background(), span, err)
+	b.consumerTracer.End(ctx, span, err)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/apache/pulsar-client-go/pulsar"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
@@ -20,6 +21,12 @@ import (
 
 const (
 	defaultAddr = "pulsar://127.0.0.1:6650"
+)
+
+const (
+	TracerMessageSystemKey = "pulsar"
+	SpanNameProducer       = "pulsar-producer"
+	SpanNameConsumer       = "pulsar-consumer"
 )
 
 type pulsarBroker struct {
@@ -123,8 +130,8 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	}
 
 	if len(pb.options.Tracings) > 0 {
-		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "pulsar-producer", pb.options.Tracings...)
-		pb.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "pulsar-consumer", pb.options.Tracings...)
+		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, pb.options.Tracings...)
+		pb.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, pb.options.Tracings...)
 	}
 
 	return nil
@@ -270,7 +277,8 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg *broker.M
 		pulsarMsg.DisableReplication = v
 	}
 
-	span := pb.startProducerSpan(options.Context, topic, &pulsarMsg)
+	var span trace.Span
+	ctx, span = pb.startProducerSpan(options.Context, topic, &pulsarMsg)
 
 	var err error
 	var messageId pulsar.MessageID
@@ -303,7 +311,7 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg *broker.M
 		msgId = strconv.FormatInt(messageId.EntryID(), 10)
 	}
 
-	pb.finishProducerSpan(span, msgId, err)
+	pb.finishProducerSpan(ctx, span, msgId, err)
 
 	return err
 }
@@ -380,7 +388,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 
 				if err = broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
 					LogErrorf("unmarshal message failed: %v", err)
-					pb.finishConsumerSpan(span, err)
+					pb.finishConsumerSpan(ctx, span, err)
 					continue
 				}
 			} else {
@@ -390,7 +398,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			if err = sub.handler(ctx, p); err != nil {
 				p.err = err
 				LogErrorf("handle message failed: %v", err)
-				pb.finishConsumerSpan(span, err)
+				pb.finishConsumerSpan(ctx, span, err)
 				continue
 			}
 
@@ -401,7 +409,7 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 				}
 			}
 
-			pb.finishConsumerSpan(span, err)
+			pb.finishConsumerSpan(ctx, span, err)
 		}
 	}()
 
@@ -410,15 +418,19 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 	return sub, nil
 }
 
-func (pb *pulsarBroker) startProducerSpan(ctx context.Context, topic string, msg *pulsar.ProducerMessage) trace.Span {
+func (pb *pulsarBroker) startProducerSpan(ctx context.Context, topic string, msg *pulsar.ProducerMessage) (context.Context, trace.Span) {
 	if pb.producerTracer == nil {
-		return nil
+		return ctx, nil
+	}
+
+	if msg == nil {
+		return ctx, nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("pulsar"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(topic),
 	}
@@ -426,10 +438,14 @@ func (pb *pulsarBroker) startProducerSpan(ctx context.Context, topic string, msg
 	var span trace.Span
 	ctx, span = pb.producerTracer.Start(ctx, carrier, attrs...)
 
-	return span
+	if span != nil {
+		otel.GetTextMapPropagator().Inject(ctx, carrier)
+	}
+
+	return ctx, span
 }
 
-func (pb *pulsarBroker) finishProducerSpan(span trace.Span, messageId string, err error) {
+func (pb *pulsarBroker) finishProducerSpan(ctx context.Context, span trace.Span, messageId string, err error) {
 	if pb.producerTracer == nil {
 		return
 	}
@@ -438,7 +454,7 @@ func (pb *pulsarBroker) finishProducerSpan(span trace.Span, messageId string, er
 		semConv.MessagingMessageIDKey.String(messageId),
 	}
 
-	pb.producerTracer.End(context.Background(), span, err, attrs...)
+	pb.producerTracer.End(ctx, span, err, attrs...)
 }
 
 func (pb *pulsarBroker) startConsumerSpan(ctx context.Context, msg *pulsar.ConsumerMessage) (context.Context, trace.Span) {
@@ -448,8 +464,10 @@ func (pb *pulsarBroker) startConsumerSpan(ctx context.Context, msg *pulsar.Consu
 
 	carrier := NewConsumerMessageCarrier(msg)
 
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String(pb.Name()),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Topic()),
 		semConv.MessagingOperationReceive,
@@ -462,10 +480,10 @@ func (pb *pulsarBroker) startConsumerSpan(ctx context.Context, msg *pulsar.Consu
 	return ctx, span
 }
 
-func (pb *pulsarBroker) finishConsumerSpan(span trace.Span, err error) {
+func (pb *pulsarBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
 	if pb.consumerTracer == nil {
 		return
 	}
 
-	pb.consumerTracer.End(context.Background(), span, err)
+	pb.consumerTracer.End(ctx, span, err)
 }

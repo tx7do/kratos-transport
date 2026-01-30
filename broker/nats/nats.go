@@ -8,6 +8,7 @@ import (
 	"time"
 
 	kProto "github.com/go-kratos/kratos/v2/encoding/proto"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/protobuf/proto"
 
 	natsGo "github.com/nats-io/nats.go"
@@ -22,6 +23,12 @@ import (
 
 const (
 	defaultAddr = "nats://127.0.0.1:4222"
+)
+
+const (
+	TracerMessageSystemKey = "nats"
+	SpanNameProducer       = "nats-producer"
+	SpanNameConsumer       = "nats-consumer"
 )
 
 type natsBroker struct {
@@ -79,8 +86,8 @@ func (b *natsBroker) Init(opts ...broker.Option) error {
 	b.setOption(opts...)
 
 	if len(b.options.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "nats-producer", b.options.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "nats-consumer", b.options.Tracings...)
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
 	}
 
 	return nil
@@ -236,11 +243,12 @@ func (b *natsBroker) publish(ctx context.Context, topic string, msg *broker.Mess
 		}
 	}
 
-	span := b.startProducerSpan(options.Context, m)
+	var span trace.Span
+	ctx, span = b.startProducerSpan(options.Context, m)
 
 	err := b.conn.PublishMsg(m)
 
-	b.finishProducerSpan(span, err)
+	b.finishProducerSpan(ctx, span, err)
 
 	return err
 }
@@ -296,7 +304,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 					_ = eh(b.options.Context, pub)
 				}
 
-				b.finishConsumerSpan(span, errSub)
+				b.finishConsumerSpan(ctx, span, errSub)
 				return
 			}
 		} else {
@@ -310,7 +318,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 				_ = eh(b.options.Context, pub)
 			}
 
-			b.finishConsumerSpan(span, errSub)
+			b.finishConsumerSpan(ctx, span, errSub)
 			return
 		}
 
@@ -320,7 +328,7 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			}
 		}
 
-		b.finishConsumerSpan(span, errSub)
+		b.finishConsumerSpan(ctx, span, errSub)
 	}
 
 	var sub *natsGo.Subscription
@@ -384,11 +392,12 @@ func (b *natsBroker) request(ctx context.Context, topic string, msg *broker.Mess
 			}
 		}
 	}
-	span := b.startProducerSpan(options.Context, m)
+	var span trace.Span
+	ctx, span = b.startProducerSpan(options.Context, m)
 
 	res, err := b.conn.RequestMsg(m, timeout)
 
-	b.finishProducerSpan(span, err)
+	b.finishProducerSpan(ctx, span, err)
 
 	return broker.NewMessage(res, broker.WithMsg(res)), err
 }
@@ -407,15 +416,19 @@ func (b *natsBroker) onDisconnectedError(_ *natsGo.Conn, err error) {
 	b.closeCh <- err
 }
 
-func (b *natsBroker) startProducerSpan(ctx context.Context, msg *natsGo.Msg) trace.Span {
+func (b *natsBroker) startProducerSpan(ctx context.Context, msg *natsGo.Msg) (context.Context, trace.Span) {
 	if b.producerTracer == nil {
-		return nil
+		return ctx, nil
+	}
+
+	if msg == nil {
+		return ctx, nil
 	}
 
 	carrier := NewMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("nats"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Subject),
 	}
@@ -423,15 +436,19 @@ func (b *natsBroker) startProducerSpan(ctx context.Context, msg *natsGo.Msg) tra
 	var span trace.Span
 	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
-	return span
+	if span != nil {
+		otel.GetTextMapPropagator().Inject(ctx, carrier)
+	}
+
+	return ctx, span
 }
 
-func (b *natsBroker) finishProducerSpan(span trace.Span, err error) {
+func (b *natsBroker) finishProducerSpan(ctx context.Context, span trace.Span, err error) {
 	if b.producerTracer == nil {
 		return
 	}
 
-	b.producerTracer.End(context.Background(), span, err)
+	b.producerTracer.End(ctx, span, err)
 }
 
 func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *natsGo.Msg) (context.Context, trace.Span) {
@@ -441,8 +458,10 @@ func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *natsGo.Msg) (co
 
 	carrier := NewMessageCarrier(msg)
 
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("nats"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(msg.Subject),
 		semConv.MessagingOperationReceive,
@@ -454,10 +473,10 @@ func (b *natsBroker) startConsumerSpan(ctx context.Context, msg *natsGo.Msg) (co
 	return ctx, span
 }
 
-func (b *natsBroker) finishConsumerSpan(span trace.Span, err error) {
+func (b *natsBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
 	if b.consumerTracer == nil {
 		return
 	}
 
-	b.consumerTracer.End(context.Background(), span, err)
+	b.consumerTracer.End(ctx, span, err)
 }

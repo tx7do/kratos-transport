@@ -11,6 +11,7 @@ import (
 
 	rmqClient "github.com/apache/rocketmq-clients/golang/v5"
 	"github.com/apache/rocketmq-clients/golang/v5/credentials"
+	"go.opentelemetry.io/otel"
 
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
@@ -21,6 +22,12 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 	rocketmqOption "github.com/tx7do/kratos-transport/broker/rocketmq/option"
 	"github.com/tx7do/kratos-transport/tracing"
+)
+
+const (
+	TracerMessageSystemKey = "rocketmq"
+	SpanNameProducer       = "rocketmq-producer"
+	SpanNameConsumer       = "rocketmq-consumer"
 )
 
 type rocketmqBroker struct {
@@ -165,8 +172,8 @@ func (r *rocketmqBroker) Init(opts ...broker.Option) error {
 	}
 
 	if len(r.options.Tracings) > 0 {
-		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rocketmq-producer", r.options.Tracings...)
-		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rocketmq-consumer", r.options.Tracings...)
+		r.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, r.options.Tracings...)
+		r.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, r.options.Tracings...)
 	}
 
 	return nil
@@ -304,7 +311,8 @@ func (r *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.
 }
 
 func (r *rocketmqBroker) doSend(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
-	span := r.startProducerSpan(ctx, rMsg, false)
+	var span trace.Span
+	ctx, span = r.startProducerSpan(ctx, rMsg, false)
 
 	var err error
 	var receipts []*rmqClient.SendReceipt
@@ -319,7 +327,8 @@ func (r *rocketmqBroker) doSend(ctx context.Context, producer rmqClient.Producer
 }
 
 func (r *rocketmqBroker) doSendAsync(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
-	span := r.startProducerSpan(ctx, rMsg, false)
+	var span trace.Span
+	ctx, span = r.startProducerSpan(ctx, rMsg, false)
 
 	producer.SendAsync(ctx, rMsg, func(ctx context.Context, receipts []*rmqClient.SendReceipt, err error) {
 		if err != nil {
@@ -334,7 +343,8 @@ func (r *rocketmqBroker) doSendAsync(ctx context.Context, producer rmqClient.Pro
 }
 
 func (r *rocketmqBroker) doSendTransaction(ctx context.Context, producer rmqClient.Producer, rMsg *rmqClient.Message) error {
-	span := r.startProducerSpan(ctx, rMsg, true)
+	var span trace.Span
+	ctx, span = r.startProducerSpan(ctx, rMsg, true)
 
 	transaction := producer.BeginTransaction()
 
@@ -487,7 +497,7 @@ func (r *rocketmqBroker) run() {
 			if sub == nil {
 				err = errors.New(fmt.Sprintf("[%s] subscriber not found", mv.GetTopic()))
 				LogErrorf(err.Error())
-				r.finishConsumerSpan(span, err)
+				r.finishConsumerSpan(newCtx, span, err)
 				continue
 			}
 
@@ -495,20 +505,24 @@ func (r *rocketmqBroker) run() {
 
 			if err = aSub.onMessage(newCtx, mv); err != nil {
 				LogErrorf("[%s] subscriber not found", mv.GetTopic())
-				r.finishConsumerSpan(span, err)
+				r.finishConsumerSpan(newCtx, span, err)
 				continue
 			}
 
-			r.finishConsumerSpan(span, nil)
+			r.finishConsumerSpan(newCtx, span, nil)
 		}
 
 		time.Sleep(r.receiveInterval)
 	}
 }
 
-func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.Message, transaction bool) trace.Span {
+func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.Message, transaction bool) (context.Context, trace.Span) {
 	if r.producerTracer == nil {
-		return nil
+		return ctx, nil
+	}
+
+	if msg == nil {
+		return ctx, nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
@@ -546,7 +560,11 @@ func (r *rocketmqBroker) startProducerSpan(ctx context.Context, msg *rmqClient.M
 	var span trace.Span
 	ctx, span = r.producerTracer.Start(ctx, carrier, attrs...)
 
-	return span
+	if span != nil {
+		otel.GetTextMapPropagator().Inject(ctx, carrier)
+	}
+
+	return ctx, span
 }
 
 func (r *rocketmqBroker) finishProducerSpan(ctx context.Context, span trace.Span, receipt *rmqClient.SendReceipt, err error) {
@@ -575,6 +593,8 @@ func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *rmqClient.M
 
 	carrier := NewConsumerMessageCarrier(msg)
 
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
 	attrs := []attribute.KeyValue{
 		semConv.MessagingSystemKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_ROCKETMQ_MESSAGING_SYSTEM),
 		semConv.MessagingProtocolKey.String(rmqClient.SPAN_ATTRIBUTE_VALUE_MESSAGING_PROTOCOL),
@@ -602,10 +622,10 @@ func (r *rocketmqBroker) startConsumerSpan(ctx context.Context, msg *rmqClient.M
 	return ctx, span
 }
 
-func (r *rocketmqBroker) finishConsumerSpan(span trace.Span, err error) {
+func (r *rocketmqBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
 	if r.consumerTracer == nil {
 		return
 	}
 
-	r.consumerTracer.End(context.Background(), span, err)
+	r.consumerTracer.End(ctx, span, err)
 }

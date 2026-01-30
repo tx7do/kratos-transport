@@ -156,7 +156,7 @@ func TestNewTask(t *testing.T) {
 	err = srv.HandleFunc(addTask, handleAdd)
 	assert.Nil(t, err)
 
-	err = srv.NewTask(testTask1)
+	err = srv.NewTask(ctx, testTask1)
 	assert.Nil(t, err)
 
 	if err = srv.Start(ctx); err != nil {
@@ -164,7 +164,7 @@ func TestNewTask(t *testing.T) {
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -194,12 +194,12 @@ func TestTaskProcess(t *testing.T) {
 	err = srv.HandleFunc(addTask, handleAdd)
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -229,23 +229,23 @@ func TestAllInOne(t *testing.T) {
 	err = srv.HandleFunc(addTask, handleAdd)
 	assert.Nil(t, err)
 
-	err = srv.NewTask(addTask, WithArgument("int64", 1))
+	err = srv.NewTask(ctx, addTask, WithArgument("int64", 1))
 	assert.Nil(t, err)
 
 	// 每分钟执行一次
-	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask)
+	err = srv.NewPeriodicTask(ctx, "*/1 * * * ?", testPeriodicTask)
 	assert.Nil(t, err)
 
 	// 延迟5秒执行任务
-	err = srv.NewTask(testDelayTask, WithDelayTime(time.Now().UTC().Add(time.Second*5)))
+	err = srv.NewTask(ctx, testDelayTask, WithDelayTime(time.Now().UTC().Add(time.Second*5)))
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -270,15 +270,15 @@ func TestDelayTask(t *testing.T) {
 	assert.Nil(t, err)
 
 	// 延迟5秒执行任务
-	err = srv.NewTask(testDelayTask, WithDelayTime(time.Now().UTC().Add(time.Second*5)))
+	err = srv.NewTask(ctx, testDelayTask, WithDelayTime(time.Now().UTC().Add(time.Second*5)))
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -303,15 +303,15 @@ func TestPeriodicTask(t *testing.T) {
 	assert.Nil(t, err)
 
 	// 每分钟执行一次
-	err = srv.NewPeriodicTask("*/1 * * * ?", testPeriodicTask)
+	err = srv.NewPeriodicTask(ctx, "*/1 * * * ?", testPeriodicTask)
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -345,12 +345,12 @@ func TestWorkflows_Groups(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -383,12 +383,12 @@ func TestWorkflows_Chords(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -424,12 +424,12 @@ func TestWorkflows_Chains(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err := srv.Start(ctx); err != nil {
+	if err = srv.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err := srv.Stop(ctx); err != nil {
+		if err = srv.Stop(ctx); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()

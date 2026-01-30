@@ -7,8 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	eagerBackend "github.com/RichardKnop/machinery/v2/backends/eager"
-
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
@@ -20,10 +19,12 @@ import (
 
 	amqpBackend "github.com/RichardKnop/machinery/v2/backends/amqp"
 	dynamoBackend "github.com/RichardKnop/machinery/v2/backends/dynamodb"
+	eagerBackend "github.com/RichardKnop/machinery/v2/backends/eager"
 	ifaceBackend "github.com/RichardKnop/machinery/v2/backends/iface"
 	memcacheBackend "github.com/RichardKnop/machinery/v2/backends/memcache"
 	mongoBackend "github.com/RichardKnop/machinery/v2/backends/mongo"
 	redisBackend "github.com/RichardKnop/machinery/v2/backends/redis"
+
 	amqpBroker "github.com/RichardKnop/machinery/v2/brokers/amqp"
 	eagerBroker "github.com/RichardKnop/machinery/v2/brokers/eager"
 	gcppubsubBroker "github.com/RichardKnop/machinery/v2/brokers/gcppubsub"
@@ -45,6 +46,12 @@ import (
 var (
 	_ kratosTransport.Server     = (*Server)(nil)
 	_ kratosTransport.Endpointer = (*Server)(nil)
+)
+
+const (
+	TracerMessageSystemKey = "machinery"
+	SpanNameProducer       = "machinery-producer"
+	SpanNameConsumer       = "machinery-consumer"
 )
 
 type Server struct {
@@ -124,8 +131,8 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	if len(s.tracingOpts) > 0 {
-		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "machinery-producer", s.tracingOpts...)
-		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "machinery-consumer", s.tracingOpts...)
+		s.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, s.tracingOpts...)
+		s.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, s.tracingOpts...)
 	}
 
 	s.keepaliveServer = keepalive.NewServer(
@@ -149,13 +156,13 @@ func (s *Server) HandleFunc(name string, handler any) error {
 }
 
 // NewTask enqueue a new task
-func (s *Server) NewTask(typeName string, opts ...TaskOption) error {
-	return s.newTask("", "", typeName, opts...)
+func (s *Server) NewTask(ctx context.Context, typeName string, opts ...TaskOption) error {
+	return s.newTask(ctx, "", "", typeName, opts...)
 }
 
 // NewPeriodicTask 周期性定时任务，不支持秒级任务，最大精度只到分钟。
-func (s *Server) NewPeriodicTask(cronSpec, typeName string, opts ...TaskOption) error {
-	return s.newTask(cronSpec, typeName, typeName, opts...)
+func (s *Server) NewPeriodicTask(ctx context.Context, cronSpec, typeName string, opts ...TaskOption) error {
+	return s.newTask(ctx, cronSpec, typeName, typeName, opts...)
 }
 
 // NewGroup 执行一组异步任务，任务之间互不影响。
@@ -340,7 +347,7 @@ func (s *Server) newWorker(consumerTag string, concurrency int, queue string) er
 	return worker.Launch()
 }
 
-func (s *Server) newTask(cronSpec, lockName, typeName string, opts ...TaskOption) error {
+func (s *Server) newTask(ctx context.Context, cronSpec, lockName, typeName string, opts ...TaskOption) error {
 	signature := &tasks.Signature{
 		Name: typeName,
 	}
@@ -351,8 +358,9 @@ func (s *Server) newTask(cronSpec, lockName, typeName string, opts ...TaskOption
 
 	var err error
 
-	span := s.startProducerSpan(context.Background(), signature)
-	defer s.finishProducerSpan(span, err)
+	var span trace.Span
+	ctx, span = s.startProducerSpan(context.Background(), signature)
+	defer s.finishProducerSpan(ctx, span, err)
 
 	if len(cronSpec) > 0 {
 		err = s.machineryServer.RegisterPeriodicTask(cronSpec, lockName, signature)
@@ -424,7 +432,7 @@ func (s *Server) newChord(cronSpec, lockName string, concurrency int, groupTasks
 	var err error
 
 	if len(cronSpec) > 0 {
-		if err := s.machineryServer.RegisterPeriodicChord(cronSpec, lockName, concurrency, finalSignature, signatures...); err != nil {
+		if err = s.machineryServer.RegisterPeriodicChord(cronSpec, lockName, concurrency, finalSignature, signatures...); err != nil {
 			return err
 		}
 	} else {
@@ -486,30 +494,38 @@ func (s *Server) newChain(cronSpec, lockName string, chainTasks ...TasksOption) 
 	return nil
 }
 
-func (s *Server) startProducerSpan(ctx context.Context, msg *tasks.Signature) trace.Span {
+func (s *Server) startProducerSpan(ctx context.Context, msg *tasks.Signature) (context.Context, trace.Span) {
 	if s.producerTracer == nil {
-		return nil
+		return ctx, nil
+	}
+
+	if msg == nil {
+		return ctx, nil
 	}
 
 	carrier := NewMessageCarrier(&msg.Headers)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("machinery"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKey.String(msg.Name),
 	}
 
 	var span trace.Span
 	ctx, span = s.producerTracer.Start(ctx, carrier, attrs...)
 
-	return span
+	if span != nil {
+		otel.GetTextMapPropagator().Inject(ctx, carrier)
+	}
+
+	return ctx, span
 }
 
-func (s *Server) finishProducerSpan(span trace.Span, err error) {
+func (s *Server) finishProducerSpan(ctx context.Context, span trace.Span, err error) {
 	if s.producerTracer == nil {
 		return
 	}
 
-	s.producerTracer.End(context.Background(), span, err)
+	s.producerTracer.End(ctx, span, err)
 }
 
 func (s *Server) startConsumerSpan(ctx context.Context, msg *tasks.Signature) (context.Context, trace.Span) {
@@ -519,8 +535,10 @@ func (s *Server) startConsumerSpan(ctx context.Context, msg *tasks.Signature) (c
 
 	carrier := NewMessageCarrier(&msg.Headers)
 
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("machinery"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingOperationReceive,
 	}
@@ -531,12 +549,12 @@ func (s *Server) startConsumerSpan(ctx context.Context, msg *tasks.Signature) (c
 	return ctx, span
 }
 
-func (s *Server) finishConsumerSpan(span trace.Span, err error) {
+func (s *Server) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
 	if s.consumerTracer == nil {
 		return
 	}
 
-	s.consumerTracer.End(context.Background(), span, err)
+	s.consumerTracer.End(ctx, span, err)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

@@ -30,7 +30,7 @@ func (b *kafkaBroker) newConsumerTracer() {
 
 func (b *kafkaBroker) startProducerSpan(ctx context.Context, msg *kafkaGo.Message) (context.Context, trace.Span) {
 	if b.producerTracer == nil {
-		LogDebugf("Kafka Producer Tracer is nil")
+		//LogDebugf("Kafka Producer Tracer is nil")
 		return ctx, nil
 	}
 

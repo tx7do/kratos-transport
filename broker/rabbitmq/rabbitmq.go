@@ -9,10 +9,20 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/tracing"
+	"go.opentelemetry.io/otel"
 
 	"go.opentelemetry.io/otel/attribute"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
+)
+
+const (
+	TracerMessageSystemKey = "rabbitmq"
+	SpanNameProducer       = "rabbitmq-producer"
+	SpanNameConsumer       = "rabbitmq-consumer"
+
+	ProtocolVersion = "0.9.1"
+	Protocol        = "AMQP"
 )
 
 type rabbitBroker struct {
@@ -73,8 +83,8 @@ func (b *rabbitBroker) Init(opts ...broker.Option) error {
 	b.options.Addrs = addrs
 
 	if len(b.options.Tracings) > 0 {
-		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, "rabbitmq-producer", b.options.Tracings...)
-		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, "rabbitmq-consumer", b.options.Tracings...)
+		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
+		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
 	}
 
 	return nil
@@ -209,11 +219,12 @@ func (b *rabbitBroker) publish(ctx context.Context, routingKey string, msg *brok
 		}
 	}
 
-	span := b.startProducerSpan(options.Context, routingKey, &rMsg)
+	var span trace.Span
+	ctx, span = b.startProducerSpan(options.Context, routingKey, &rMsg)
 
 	err := b.conn.Publish(ctx, b.conn.exchange.Name, routingKey, rMsg)
 
-	b.finishProducerSpan(span, routingKey, err)
+	b.finishProducerSpan(ctx, span, routingKey, err)
 
 	return nil
 }
@@ -269,7 +280,7 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			_ = msg.Nack(false, requeueOnError)
 		}
 
-		b.finishConsumerSpan(span, p.err)
+		b.finishConsumerSpan(ctx, span, p.err)
 	}
 
 	sub := &subscriber{
@@ -308,29 +319,37 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	return sub, nil
 }
 
-func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string, msg *amqp.Publishing) trace.Span {
+func (b *rabbitBroker) startProducerSpan(ctx context.Context, routingKey string, msg *amqp.Publishing) (context.Context, trace.Span) {
 	if b.producerTracer == nil {
-		return nil
+		return ctx, nil
+	}
+
+	if msg == nil {
+		return ctx, nil
 	}
 
 	carrier := NewProducerMessageCarrier(msg)
 
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("rabbitmq"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindTopic,
 		semConv.MessagingDestinationKey.String(routingKey),
 		semConv.MessagingMessageIDKey.String(msg.MessageId),
-		semConv.MessagingProtocolKey.String("AMQP"),
-		semConv.MessagingProtocolVersionKey.String("0.9.1"),
+		semConv.MessagingProtocolKey.String(Protocol),
+		semConv.MessagingProtocolVersionKey.String(ProtocolVersion),
 	}
 
 	var span trace.Span
 	ctx, span = b.producerTracer.Start(ctx, carrier, attrs...)
 
-	return span
+	if span != nil {
+		otel.GetTextMapPropagator().Inject(ctx, carrier)
+	}
+
+	return ctx, span
 }
 
-func (b *rabbitBroker) finishProducerSpan(span trace.Span, routingKey string, err error) {
+func (b *rabbitBroker) finishProducerSpan(ctx context.Context, span trace.Span, routingKey string, err error) {
 	if b.producerTracer == nil {
 		return
 	}
@@ -339,7 +358,7 @@ func (b *rabbitBroker) finishProducerSpan(span trace.Span, routingKey string, er
 		semConv.MessagingRabbitmqRoutingKeyKey.String(routingKey),
 	}
 
-	b.producerTracer.End(context.Background(), span, err, attrs...)
+	b.producerTracer.End(ctx, span, err, attrs...)
 }
 
 func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, msg *amqp.Delivery) (context.Context, trace.Span) {
@@ -349,15 +368,17 @@ func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, 
 
 	carrier := NewConsumerMessageCarrier(msg)
 
+	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
+
 	attrs := []attribute.KeyValue{
-		semConv.MessagingSystemKey.String("rabbitmq"),
+		semConv.MessagingSystemKey.String(TracerMessageSystemKey),
 		semConv.MessagingDestinationKindQueue,
 		semConv.MessagingDestinationKey.String(queueName),
 		semConv.MessagingOperationReceive,
 		semConv.MessagingMessageIDKey.String(msg.MessageId),
 		semConv.MessagingRabbitmqRoutingKeyKey.String(msg.RoutingKey),
-		semConv.MessagingProtocolKey.String("AMQP"),
-		semConv.MessagingProtocolVersionKey.String("0.9.1"),
+		semConv.MessagingProtocolKey.String(Protocol),
+		semConv.MessagingProtocolVersionKey.String(ProtocolVersion),
 	}
 
 	var span trace.Span
@@ -366,10 +387,10 @@ func (b *rabbitBroker) startConsumerSpan(ctx context.Context, queueName string, 
 	return ctx, span
 }
 
-func (b *rabbitBroker) finishConsumerSpan(span trace.Span, err error) {
+func (b *rabbitBroker) finishConsumerSpan(ctx context.Context, span trace.Span, err error) {
 	if b.consumerTracer == nil {
 		return
 	}
 
-	b.consumerTracer.End(context.Background(), span, err)
+	b.consumerTracer.End(ctx, span, err)
 }
