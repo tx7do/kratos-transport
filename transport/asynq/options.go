@@ -338,3 +338,21 @@ func WithGracefullyShutdown(enable bool) ServerOption {
 		s.gracefullyShutdown = enable
 	}
 }
+
+func WithTaskCheckInterval(t time.Duration) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.TaskCheckInterval = t
+	}
+}
+
+func WithJanitorInterval(t time.Duration) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.JanitorInterval = t
+	}
+}
+
+func WithJanitorBatchSize(sz int32) ServerOption {
+	return func(s *Server) {
+		s.asynqConfig.JanitorBatchSize = int(sz)
+	}
+}
