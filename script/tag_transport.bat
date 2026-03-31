@@ -3,7 +3,7 @@ git tag transport/v1.3.3 --force
 git tag transport/keepalive/v1.3.3 --force
 
 git tag transport/activemq/v1.3.2 --force
-git tag transport/asynq/v1.3.2 --force
+git tag transport/asynq/v1.3.3 --force
 git tag transport/fasthttp/v1.3.2 --force
 git tag transport/gin/v1.3.2 --force
 git tag transport/gozero/v1.3.2 --force

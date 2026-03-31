@@ -46,13 +46,13 @@ type Server struct {
 	addresses        []string
 	username         *string
 	password         *string
-	db               *int
-	poolSize         *int
+	db               *int32
+	poolSize         *int32
 	dialTimeout      *time.Duration
 	readTimeout      *time.Duration
 	writeTimeout     *time.Duration
 	tlsConfig        *tls.Config
-	maxRedirects     *int
+	maxRedirects     *int32
 	masterName       *string
 	sentinelUsername *string
 	sentinelPassword *string
@@ -105,13 +105,13 @@ func (s *Server) updateRedisClientOpt(opt *asynq.RedisClientOpt) {
 		opt.Password = *s.password
 	}
 	if s.db != nil {
-		opt.DB = *s.db
+		opt.DB = int(*s.db)
 	}
 	if len(s.addresses) > 0 {
 		opt.Addr = s.addresses[0]
 	}
 	if s.poolSize != nil {
-		opt.PoolSize = *s.poolSize
+		opt.PoolSize = int(*s.poolSize)
 	}
 	if s.dialTimeout != nil {
 		opt.DialTimeout = *s.dialTimeout
@@ -153,7 +153,7 @@ func (s *Server) updateRedisClusterClientOpt(opt *asynq.RedisClusterClientOpt) {
 		opt.TLSConfig = s.tlsConfig
 	}
 	if s.maxRedirects != nil {
-		opt.MaxRedirects = *s.maxRedirects
+		opt.MaxRedirects = int(*s.maxRedirects)
 	}
 }
 
@@ -165,13 +165,13 @@ func (s *Server) updateRedisFailoverClientOpt(opt *asynq.RedisFailoverClientOpt)
 		opt.Password = *s.password
 	}
 	if s.db != nil {
-		opt.DB = *s.db
+		opt.DB = int(*s.db)
 	}
 	if len(s.addresses) > 0 {
 		opt.SentinelAddrs = s.addresses
 	}
 	if s.poolSize != nil {
-		opt.PoolSize = *s.poolSize
+		opt.PoolSize = int(*s.poolSize)
 	}
 	if s.dialTimeout != nil {
 		opt.DialTimeout = *s.dialTimeout

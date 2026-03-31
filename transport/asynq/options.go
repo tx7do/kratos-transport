@@ -114,13 +114,13 @@ func WithRedisAuth(username, password string) ServerOption {
 	}
 }
 
-func WithRedisDB(db int) ServerOption {
+func WithRedisDB(db int32) ServerOption {
 	return func(s *Server) {
 		s.db = &db
 	}
 }
 
-func WithRedisPoolSize(size int) ServerOption {
+func WithRedisPoolSize(size int32) ServerOption {
 	return func(s *Server) {
 		s.poolSize = &size
 	}
@@ -150,7 +150,7 @@ func WithTLSConfig(tlsConfig *tls.Config) ServerOption {
 	}
 }
 
-func WithMaxRedirects(maxRedirects *int) ServerOption {
+func WithMaxRedirects(maxRedirects *int32) ServerOption {
 	return func(s *Server) {
 		s.maxRedirects = maxRedirects
 	}
@@ -187,9 +187,9 @@ func WithNetwork(network *string) ServerOption {
 	}
 }
 
-func WithConcurrency(concurrency int) ServerOption {
+func WithConcurrency(concurrency int32) ServerOption {
 	return func(s *Server) {
-		s.asynqConfig.Concurrency = concurrency
+		s.asynqConfig.Concurrency = int(concurrency)
 	}
 }
 
@@ -199,9 +199,28 @@ func WithConfig(cfg asynq.Config) ServerOption {
 	}
 }
 
-func WithQueues(queues map[string]int) ServerOption {
+func WithQueues(queues map[string]int32) ServerOption {
 	return func(s *Server) {
-		s.asynqConfig.Queues = queues
+		if s.asynqConfig.Queues == nil {
+			s.asynqConfig.Queues = make(map[string]int)
+		}
+
+		if len(queues) == 0 {
+			if len(s.asynqConfig.Queues) == 0 {
+				weight := 1
+				if s.asynqConfig.Concurrency > 0 {
+					weight = s.asynqConfig.Concurrency
+				}
+				s.asynqConfig.Queues["default"] = weight
+			}
+			return
+		}
+
+		if len(queues) > 0 {
+			for k, v := range queues {
+				s.asynqConfig.Queues[k] = int(v)
+			}
+		}
 	}
 }
 
@@ -253,9 +272,9 @@ func WithGroupMaxDelay(tm time.Duration) ServerOption {
 	}
 }
 
-func WithGroupMaxSize(sz int) ServerOption {
+func WithGroupMaxSize(sz int32) ServerOption {
 	return func(s *Server) {
-		s.asynqConfig.GroupMaxSize = sz
+		s.asynqConfig.GroupMaxSize = int(sz)
 	}
 }
 
