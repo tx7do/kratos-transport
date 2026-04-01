@@ -1,8 +1,9 @@
 package mqtt
 
 import (
-	"github.com/tx7do/kratos-transport/broker"
 	"time"
+
+	"github.com/tx7do/kratos-transport/broker"
 )
 
 ///
