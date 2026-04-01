@@ -36,15 +36,17 @@ type Server struct {
 	err     error
 
 	keepaliveServer *keepalive.Server
+	enableKeepalive bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
-		baseCtx:        context.Background(),
-		subscribers:    make(broker.SubscriberMap),
-		subscriberOpts: make(transport.SubscribeOptionMap),
-		brokerOpts:     []broker.Option{},
-		started:        atomic.Bool{},
+		baseCtx:         context.Background(),
+		subscribers:     make(broker.SubscriberMap),
+		subscriberOpts:  make(transport.SubscribeOptionMap),
+		brokerOpts:      []broker.Option{},
+		started:         atomic.Bool{},
+		enableKeepalive: true,
 	}
 
 	srv.init(opts...)
@@ -77,7 +79,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	if s.keepaliveServer != nil {
+	if s.keepaliveServer != nil && s.enableKeepalive {
 		go func() {
 			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
 				LogErrorf("keepalive server start failed: %s", s.err.Error())

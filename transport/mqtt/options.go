@@ -54,3 +54,9 @@ func WithCodec(c string) ServerOption {
 		s.brokerOpts = append(s.brokerOpts, broker.WithCodec(c))
 	}
 }
+
+func WithEnableKeepAlive(enable bool) ServerOption {
+	return func(s *Server) {
+		s.enableKeepalive = enable
+	}
+}
