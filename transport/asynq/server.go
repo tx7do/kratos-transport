@@ -38,6 +38,10 @@ type Server struct {
 	scheduler *asynq.Scheduler
 	inspector *asynq.Inspector
 
+	serverEnabled    bool
+	clientEnabled    bool
+	schedulerEnabled bool
+
 	mux           *asynq.ServeMux
 	asynqConfig   asynq.Config
 	redisConnOpt  asynq.RedisConnOpt
@@ -90,6 +94,10 @@ func NewServer(opts ...ServerOption) *Server {
 		typeNameMap: sync.Map{},
 
 		gracefullyShutdown: false,
+
+		serverEnabled:    true,
+		clientEnabled:    true,
+		schedulerEnabled: true,
 	}
 
 	srv.init(opts...)
@@ -688,6 +696,9 @@ func (s *Server) Stop(ctx context.Context) error {
 
 // createAsynqServer create asynq server
 func (s *Server) createAsynqServer() error {
+	if !s.serverEnabled {
+		return nil
+	}
 	if s.server != nil {
 		return nil
 	}
@@ -727,6 +738,9 @@ func (s *Server) runAsynqServer() error {
 
 // createAsynqClient create asynq client
 func (s *Server) createAsynqClient() error {
+	if !s.clientEnabled {
+		return nil
+	}
 	if s.client != nil {
 		return nil
 	}
@@ -742,6 +756,9 @@ func (s *Server) createAsynqClient() error {
 
 // createAsynqScheduler create asynq scheduler
 func (s *Server) createAsynqScheduler() error {
+	if !s.schedulerEnabled {
+		return nil
+	}
 	if s.scheduler != nil {
 		return nil
 	}

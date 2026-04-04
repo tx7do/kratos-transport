@@ -356,3 +356,21 @@ func WithJanitorBatchSize(sz int32) ServerOption {
 		s.asynqConfig.JanitorBatchSize = int(sz)
 	}
 }
+
+func WithServerEnabled(enabled bool) ServerOption {
+	return func(s *Server) {
+		s.serverEnabled = enabled
+	}
+}
+
+func WithClientEnabled(enabled bool) ServerOption {
+	return func(s *Server) {
+		s.clientEnabled = enabled
+	}
+}
+
+func WithSchedulerEnabled(enabled bool) ServerOption {
+	return func(s *Server) {
+		s.schedulerEnabled = enabled
+	}
+}
