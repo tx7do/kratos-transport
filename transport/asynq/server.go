@@ -24,10 +24,20 @@ var (
 	_ kratosTransport.Endpointer = (*Server)(nil)
 )
 
+type lifecycleState uint8
+
+const (
+	stateStopped lifecycleState = iota
+	stateStarting
+	stateRunning
+	stateStopping
+)
+
 type Server struct {
 	sync.RWMutex
 
 	started atomic.Bool
+	state   lifecycleState
 
 	baseCtx context.Context
 	err     error
@@ -78,6 +88,7 @@ func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		baseCtx:      context.Background(),
 		started:      atomic.Bool{},
+		state:        stateStopped,
 		redisConnOpt: newRedisClientOpt(),
 		asynqConfig: asynq.Config{
 			Concurrency: defaultConcurrency,
@@ -614,33 +625,64 @@ func (s *Server) QueryPeriodicTaskEntryID(taskId string) string {
 
 // Start the server
 func (s *Server) Start(ctx context.Context) error {
+	s.Lock()
+	defer s.Unlock()
+
 	if s.err != nil {
 		return s.err
 	}
 
-	if s.started.Load() {
+	if s.state == stateRunning || s.state == stateStarting {
 		return nil
 	}
+	if s.state == stateStopping {
+		return errors.New("server is stopping")
+	}
 
-	if s.keepaliveServer != nil {
-		go func() {
-			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
-				LogErrorf("keepalive server start failed: %s", s.err.Error())
+	s.state = stateStarting
+
+	if s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(
+			keepalive.WithServiceKind(KindAsynq),
+		)
+	}
+
+	if err := s.createAsynqServer(); err != nil {
+		s.err = err
+		s.state = stateStopped
+		return err
+	}
+
+	if err := s.createAsynqScheduler(); err != nil {
+		s.err = err
+		s.state = stateStopped
+		return err
+	}
+
+	keepaliveSrv := s.keepaliveServer
+
+	if keepaliveSrv != nil {
+		go func(srv *keepalive.Server) {
+			if err := srv.Start(ctx); err != nil {
+				LogErrorf("keepalive server start failed: %s", err.Error())
 			}
-		}()
+		}(keepaliveSrv)
 	}
 
 	if s.err = s.runAsynqScheduler(); s.err != nil {
 		LogError("run asynq scheduler failed", s.err)
+		s.state = stateStopped
 		return s.err
 	}
 
 	if s.err = s.runAsynqServer(); s.err != nil {
 		LogError("run asynq server failed", s.err)
+		s.state = stateStopped
 		return s.err
 	}
 
 	s.baseCtx = ctx
+	s.state = stateRunning
 	s.started.Store(true)
 
 	return nil
@@ -648,50 +690,78 @@ func (s *Server) Start(ctx context.Context) error {
 
 // Stop the server
 func (s *Server) Stop(ctx context.Context) error {
-	//if !s.started.Load() {
-	//	return nil
-	//}
+	s.Lock()
+	if s.state == stateStopped {
+		s.Unlock()
+		return nil
+	}
+	if s.state == stateStopping {
+		s.Unlock()
+		return nil
+	}
+
+	s.state = stateStopping
+
+	client := s.client
+	server := s.server
+	scheduler := s.scheduler
+	inspector := s.inspector
+	keepaliveSrv := s.keepaliveServer
+
+	s.client = nil
+	s.server = nil
+	s.scheduler = nil
+	s.inspector = nil
+	s.keepaliveServer = nil
+	s.err = nil
+	s.started.Store(false)
+	s.Unlock()
 
 	LogInfo("server stopping...")
 
-	s.started.Store(false)
+	var stopErr error
 
-	if s.client != nil {
-		_ = s.client.Close()
-		s.client = nil
+	if client != nil {
+		if err := client.Close(); err != nil {
+			stopErr = err
+		}
 	}
 
-	if s.server != nil {
+	if server != nil {
 		if s.gracefullyShutdown {
 			LogInfo("server gracefully shutdown")
-			s.server.Shutdown()
+			server.Shutdown()
 		} else {
-			s.server.Stop()
+			server.Stop()
 		}
-		s.server = nil
 	}
 
-	if s.scheduler != nil {
-		s.scheduler.Shutdown()
-		s.scheduler = nil
+	if scheduler != nil {
+		scheduler.Shutdown()
 	}
 
-	if s.inspector != nil {
-		_ = s.inspector.Close()
-		s.inspector = nil
-	}
-	s.err = nil
-
-	if s.keepaliveServer != nil {
-		if err := s.keepaliveServer.Stop(ctx); err != nil {
-			LogError("keepalive server stop failed", s.err)
+	if inspector != nil {
+		if err := inspector.Close(); err != nil && stopErr == nil {
+			stopErr = err
 		}
-		s.keepaliveServer = nil
 	}
+
+	if keepaliveSrv != nil {
+		if err := keepaliveSrv.Stop(ctx); err != nil {
+			LogError("keepalive server stop failed", err)
+			if stopErr == nil {
+				stopErr = err
+			}
+		}
+	}
+
+	s.Lock()
+	s.state = stateStopped
+	s.Unlock()
 
 	LogInfo("server stopped.")
 
-	return nil
+	return stopErr
 }
 
 // createAsynqServer create asynq server
@@ -713,23 +783,27 @@ func (s *Server) createAsynqServer() error {
 
 // runAsynqServer run asynq server
 func (s *Server) runAsynqServer() error {
-	if s.server == nil {
+	if s.state != stateStarting && s.state != stateRunning {
+		return errors.New("server is not in startable state")
+	}
+
+	server := s.server
+	mux := s.mux
+	if server == nil {
 		LogErrorf("asynq server is nil")
 		return errors.New("asynq server is nil")
 	}
 
-	go func() {
-		if s.server == nil {
-			s.err = errors.New("asynq server is nil")
-			LogErrorf("asynq server run failed: %s", s.err.Error())
-			return
+	go func(srv *asynq.Server, m *asynq.ServeMux) {
+		if err := srv.Run(m); err != nil {
+			s.RLock()
+			st := s.state
+			s.RUnlock()
+			if st != stateStopping && st != stateStopped {
+				LogErrorf("asynq server run failed: %s", err.Error())
+			}
 		}
-
-		if s.err = s.server.Run(s.mux); s.err != nil {
-			LogErrorf("asynq server run failed: %s", s.err.Error())
-			return
-		}
-	}()
+	}(server, mux)
 
 	LogInfo("asynq server started")
 
