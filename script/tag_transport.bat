@@ -1,6 +1,6 @@
 git tag transport/v1.3.3 --force
 
-git tag transport/keepalive/v1.3.3 --force
+git tag transport/keepalive/v1.3.4 --force
 
 git tag transport/activemq/v1.3.2 --force
 git tag transport/asynq/v1.3.6 --force

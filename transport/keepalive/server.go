@@ -39,6 +39,7 @@ type Server struct {
 	serviceKind string
 
 	started atomic.Bool
+	stopReq atomic.Bool
 	err     error
 }
 
@@ -79,28 +80,44 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if s.stopReq.Load() {
+		return nil
+	}
+
 	if s.started.Load() {
 		return nil
 	}
 
+	// Mark started early so a concurrent Stop does not get skipped.
+	s.started.Store(true)
+
 	if s.err = s.listenAndEndpoint(); s.err != nil {
+		s.started.Store(false)
 		return s.err
 	}
 
-	s.started.Store(true)
+	if s.stopReq.Load() {
+		s.started.Store(false)
+		return nil
+	}
 
 	s.health.Resume()
 
 	log.Infof("[%s] server listening on: %s", s.serviceKind, s.lis.Addr().String())
 
 	if s.err = s.Serve(s.lis); !errors.Is(s.err, http.ErrServerClosed) {
+		s.started.Store(false)
 		return s.err
 	}
+
+	s.started.Store(false)
 
 	return nil
 }
 
 func (s *Server) Stop(_ context.Context) error {
+	s.stopReq.Store(true)
+
 	if !s.started.Load() {
 		return nil
 	}
