@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"github.com/go-kratos/kratos/v2/encoding"
-	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
+
+	"github.com/go-kratos/kratos/v2/encoding"
+	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	ws "github.com/gorilla/websocket"
 
@@ -40,7 +42,7 @@ type Server struct {
 	err   error
 	codec encoding.Codec
 
-	sessionMgr *SessionManager
+	sessionManager *SessionManager
 
 	register   chan *Session
 	unregister chan *Session
@@ -52,7 +54,12 @@ type Server struct {
 	netPacketMarshaler   NetPacketMarshaler
 	netPacketUnmarshaler NetPacketUnmarshaler
 
+	socketConnectHandler SocketConnectHandler
 	socketRawDataHandler SocketRawDataHandler
+
+	running   bool
+	stateMu   sync.RWMutex
+	handlerMu sync.RWMutex
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -66,7 +73,8 @@ func NewServer(opts ...ServerOption) *Server {
 
 		messageHandlers: make(NetMessageHandlerMap),
 
-		sessionMgr: NewSessionManager(),
+		sessionManager: NewSessionManager(nil),
+
 		upgrader: &ws.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -78,6 +86,8 @@ func NewServer(opts ...ServerOption) *Server {
 
 		payloadType: PayloadTypeBinary,
 	}
+
+	srv.sessionManager.RegisterObserver(srv)
 
 	if err := srv.init(opts...); err != nil {
 		LogError("websocket server init error:", err)
@@ -123,11 +133,10 @@ func (s *Server) Name() string {
 	return KindWebsocket
 }
 
-func (s *Server) SessionCount() int {
-	return s.sessionMgr.Count()
-}
-
 func (s *Server) RegisterMessageHandler(messageType NetMessageType, handler NetMessageHandler, binder Creator) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+
 	if _, ok := s.messageHandlers[messageType]; ok {
 		return
 	}
@@ -156,10 +165,16 @@ func RegisterServerMessageHandler[T any](srv *Server, messageType NetMessageType
 }
 
 func (s *Server) DeregisterMessageHandler(messageType NetMessageType) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+
 	delete(s.messageHandlers, messageType)
 }
 
 func (s *Server) GetMessageHandler(messageType NetMessageType) *MessageHandlerData {
+	s.handlerMu.RLock()
+	defer s.handlerMu.RUnlock()
+
 	return s.messageHandlers[messageType]
 }
 
@@ -211,13 +226,13 @@ func (s *Server) defaultMarshalNetPacket(messageType NetMessageType, message Mes
 }
 
 func (s *Server) SendRawMessage(sessionId SessionID, message []byte) error {
-	c, ok := s.sessionMgr.Get(sessionId)
-	if !ok {
+	session := s.sessionManager.getSession(sessionId)
+	if session == nil {
 		LogError("session not found:", sessionId)
 		return errors.New("session not found")
 	}
 
-	c.SendMessage(message)
+	session.SendMessage(message)
 
 	return nil
 }
@@ -256,8 +271,9 @@ func (s *Server) Broadcast(messageType NetMessageType, message MessagePayload) {
 		return
 	}
 
-	s.sessionMgr.Range(func(session *Session) {
+	s.sessionManager.rangeSessions(func(_ SessionID, session *Session) bool {
 		session.SendMessage(buf)
+		return true
 	})
 }
 
@@ -365,8 +381,6 @@ func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	session := NewSession(s, conn, vars)
-	session.server.register <- session
-
 	session.Listen()
 }
 
@@ -394,24 +408,20 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+
 	if err := s.listenAndEndpoint(); err != nil {
 		return nil, err
 	}
 	return s.endpoint, nil
 }
 
-func (s *Server) run() {
-	for {
-		select {
-		case client := <-s.register:
-			s.sessionMgr.Add(client)
-		case client := <-s.unregister:
-			s.sessionMgr.Remove(client)
-		}
-	}
-}
-
 func (s *Server) Start(ctx context.Context) error {
+	if s.running {
+		return nil
+	}
+
 	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}
@@ -420,12 +430,12 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
+	s.running = true
+
 	s.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
 	LogInfof("server listening on: %s", s.lis.Addr().String())
-
-	go s.run()
 
 	var err error
 	if s.tlsConf != nil {
@@ -440,12 +450,42 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
+	if !s.running {
+		return nil
+	}
+
 	LogInfo("server stopping...")
 
 	err := s.Shutdown(ctx)
 	s.err = nil
 
+	s.running = false
+
 	LogInfo("server stopped.")
 
 	return err
+}
+
+// removeSession removes a session from the manager, used by SessionHooks.
+func (s *Server) removeSession(session *Session) {
+	if s.sessionManager == nil {
+		return
+	}
+	s.sessionManager.removeSession(session)
+}
+
+func (s *Server) getPayloadType() PayloadType {
+	return s.payloadType
+}
+
+func (s *Server) OnSessionAdded(session *Session) {
+	if s.socketConnectHandler != nil && session != nil {
+		s.socketConnectHandler(session.SessionID(), session.queries, true)
+	}
+}
+
+func (s *Server) OnSessionRemoved(session *Session) {
+	if s.socketConnectHandler != nil && session != nil {
+		s.socketConnectHandler(session.SessionID(), session.queries, false)
+	}
 }

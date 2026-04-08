@@ -2,10 +2,11 @@ package websocket
 
 import (
 	"net/url"
+	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
+	"github.com/tx7do/go-utils/id"
 )
 
 var channelBufSize = 256
@@ -13,35 +14,55 @@ var channelBufSize = 256
 type SessionID string
 
 type Session struct {
-	id      SessionID
+	id SessionID
+
 	conn    *ws.Conn
 	queries url.Values
-	send    chan []byte
-	server  *Server
+
+	send chan []byte
+
+	hooks SessionHooks
 
 	lastReadMessageTime  time.Time // 最后一次读取消息的时间
 	lastWriteMessageTime time.Time // 最后一次发送消息的时间
+
+	connMu     sync.RWMutex
+	done       chan struct{}
+	listenOnce sync.Once
+	closeOnce  sync.Once
+	wg         sync.WaitGroup
 }
 
-func NewSession(server *Server, conn *ws.Conn, vars url.Values) *Session {
+// SessionHooks defines callbacks used by Session to interact with upper-layer server logic.
+type SessionHooks interface {
+	removeSession(*Session)
+
+	handleSocketRawData(SessionID, []byte) error
+
+	getPayloadType() PayloadType
+}
+
+func NewSession(hooks SessionHooks, conn *ws.Conn, vars url.Values) *Session {
 	if conn == nil {
 		panic("conn cannot be nil")
 	}
 
-	u1, _ := uuid.NewUUID()
-
 	c := &Session{
-		id:      SessionID(u1.String()),
+		id:      SessionID(id.NewGUIDv4(false)),
 		conn:    conn,
 		queries: vars,
 		send:    make(chan []byte, channelBufSize),
-		server:  server,
+		hooks:   hooks,
+		done:    make(chan struct{}),
 	}
 
 	return c
 }
 
 func (s *Session) Conn() *ws.Conn {
+	s.connMu.RLock()
+	defer s.connMu.RUnlock()
+
 	return s.conn
 }
 
@@ -55,27 +76,47 @@ func (s *Session) SessionID() SessionID {
 
 func (s *Session) SendMessage(message []byte) {
 	select {
+	case <-s.done:
+		return
 	case s.send <- message:
 	}
 }
 
 func (s *Session) Close() {
-	s.server.unregister <- s
-	s.closeConnect()
+	s.closeOnce.Do(func() {
+		close(s.done)
+		s.closeConnect()
+
+		if s.hooks != nil {
+			s.hooks.removeSession(s)
+		}
+	})
 }
 
 func (s *Session) Listen() {
-	go s.writePump()
-	go s.readPump()
+	s.listenOnce.Do(func() {
+		s.wg.Add(2)
+
+		go s.writePump()
+		go s.readPump()
+	})
+}
+
+func (s *Session) Wait() {
+	s.wg.Wait()
 }
 
 func (s *Session) closeConnect() {
-	//LogInfo(s.SessionID(), " connection closed")
-	if s.conn != nil {
-		if err := s.conn.Close(); err != nil {
+	//LogInfo(c.SessionID(), " connection closed")
+	s.connMu.Lock()
+	conn := s.conn
+	s.conn = nil
+	s.connMu.Unlock()
+
+	if conn != nil {
+		if err := conn.Close(); err != nil {
 			LogErrorf("disconnect error: %s", err.Error())
 		}
-		s.conn = nil
 	}
 }
 
@@ -108,16 +149,20 @@ func (s *Session) sendBinaryMessage(message []byte) error {
 }
 
 func (s *Session) writePump() {
+	defer s.wg.Done()
 	defer s.Close()
 
 	for {
 		select {
+		case <-s.done:
+			return
+
 		case msg := <-s.send:
 
 			s.lastWriteMessageTime = time.Now()
 
 			var err error
-			switch s.server.payloadType {
+			switch s.hooks.getPayloadType() {
 			case PayloadTypeBinary:
 				if err = s.sendBinaryMessage(msg); err != nil {
 					LogError("write binary message error: ", err)
@@ -138,14 +183,22 @@ func (s *Session) writePump() {
 }
 
 func (s *Session) readPump() {
+	defer s.wg.Done()
 	defer s.Close()
 
 	for {
-		if s.conn == nil {
-			break
+		select {
+		case <-s.done:
+			return
+		default:
 		}
 
-		messageType, data, err := s.conn.ReadMessage()
+		conn := s.Conn()
+		if conn == nil {
+			return
+		}
+
+		messageType, data, err := conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
 				LogErrorf("read message error: %v", err)
@@ -160,11 +213,11 @@ func (s *Session) readPump() {
 			return
 
 		case ws.BinaryMessage:
-			_ = s.server.handleSocketRawData(s.SessionID(), data)
+			_ = s.hooks.handleSocketRawData(s.SessionID(), data)
 			break
 
 		case ws.TextMessage:
-			_ = s.server.handleSocketRawData(s.SessionID(), data)
+			_ = s.hooks.handleSocketRawData(s.SessionID(), data)
 			break
 
 		case ws.PingMessage:

@@ -134,7 +134,7 @@ func WithMessageUnmarshaler(m NetPacketUnmarshaler) ServerOption {
 
 func WithSocketConnectHandler(h SocketConnectHandler) ServerOption {
 	return func(s *Server) {
-		s.sessionMgr.RegisterConnectHandler(h)
+		s.socketConnectHandler = h
 	}
 }
 

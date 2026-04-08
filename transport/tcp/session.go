@@ -49,55 +49,55 @@ func NewSession(conn net.Conn, hooks SessionHooks) *Session {
 	return c
 }
 
-func (c *Session) Conn() net.Conn {
-	c.connMu.RLock()
-	defer c.connMu.RUnlock()
+func (s *Session) Conn() net.Conn {
+	s.connMu.RLock()
+	defer s.connMu.RUnlock()
 
-	return c.conn
+	return s.conn
 }
 
-func (c *Session) SessionID() SessionID {
-	return c.id
+func (s *Session) SessionID() SessionID {
+	return s.id
 }
 
-func (c *Session) SendMessage(message []byte) {
+func (s *Session) SendMessage(message []byte) {
 	select {
-	case <-c.done:
+	case <-s.done:
 		return
-	case c.send <- message:
+	case s.send <- message:
 	}
 }
 
-func (c *Session) Close() {
-	c.closeOnce.Do(func() {
-		close(c.done)
-		c.closeConnect()
+func (s *Session) Close() {
+	s.closeOnce.Do(func() {
+		close(s.done)
+		s.closeConnect()
 
-		if c.hooks != nil {
-			c.hooks.removeSession(c)
+		if s.hooks != nil {
+			s.hooks.removeSession(s)
 		}
 	})
 }
 
-func (c *Session) Listen() {
-	c.listenOnce.Do(func() {
-		c.wg.Add(2)
+func (s *Session) Listen() {
+	s.listenOnce.Do(func() {
+		s.wg.Add(2)
 
-		go c.writePump()
-		go c.readPump()
+		go s.writePump()
+		go s.readPump()
 	})
 }
 
-func (c *Session) Wait() {
-	c.wg.Wait()
+func (s *Session) Wait() {
+	s.wg.Wait()
 }
 
-func (c *Session) closeConnect() {
+func (s *Session) closeConnect() {
 	//LogInfo(c.SessionID(), " connection closed")
-	c.connMu.Lock()
-	conn := c.conn
-	c.conn = nil
-	c.connMu.Unlock()
+	s.connMu.Lock()
+	conn := s.conn
+	s.conn = nil
+	s.connMu.Unlock()
 
 	if conn != nil {
 		if err := conn.Close(); err != nil {
@@ -106,24 +106,24 @@ func (c *Session) closeConnect() {
 	}
 }
 
-func (c *Session) writePump() {
-	defer c.wg.Done()
-	defer c.Close()
+func (s *Session) writePump() {
+	defer s.wg.Done()
+	defer s.Close()
 
 	for {
 		select {
-		case <-c.done:
+		case <-s.done:
 			return
 
-		case msg := <-c.send:
-			conn := c.Conn()
+		case msg := <-s.send:
+			conn := s.Conn()
 			if conn == nil {
 				return
 			}
 			var err error
 			if _, err = conn.Write(msg); err != nil {
 				select {
-				case <-c.done:
+				case <-s.done:
 					return
 				default:
 				}
@@ -134,9 +134,9 @@ func (c *Session) writePump() {
 	}
 }
 
-func (c *Session) readPump() {
-	defer c.wg.Done()
-	defer c.Close()
+func (s *Session) readPump() {
+	defer s.wg.Done()
+	defer s.Close()
 
 	buf := make([]byte, recvBufferSize)
 	var err error
@@ -144,19 +144,19 @@ func (c *Session) readPump() {
 
 	for {
 		select {
-		case <-c.done:
+		case <-s.done:
 			return
 		default:
 		}
 
-		conn := c.Conn()
+		conn := s.Conn()
 		if conn == nil {
 			return
 		}
 
 		if readLen, err = conn.Read(buf); err != nil {
 			select {
-			case <-c.done:
+			case <-s.done:
 				return
 			default:
 			}
@@ -164,11 +164,11 @@ func (c *Session) readPump() {
 			return
 		}
 
-		if c.hooks == nil {
+		if s.hooks == nil {
 			continue
 		}
 
-		if err = c.hooks.handleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
+		if err = s.hooks.handleSocketRawData(s.SessionID(), buf[:readLen]); err != nil {
 			LogErrorf("process message error: %v", err)
 		}
 	}

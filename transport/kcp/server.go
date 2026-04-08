@@ -65,9 +65,11 @@ func NewServer(opts ...ServerOption) *Server {
 		dataShards:      10,
 		parityShards:    3,
 		running:         false,
-		sessionManager:  NewSessionManager(),
+		sessionManager:  NewSessionManager(nil),
 		messageHandlers: make(NetMessageHandlerMap),
 	}
+
+	srv.sessionManager.RegisterObserver(srv)
 
 	srv.init(opts...)
 
@@ -432,7 +434,7 @@ func (s *Server) doAccept() {
 		}
 
 		session := NewSession(conn, s)
-		s.sessionManager.addSession(session, nil)
+		s.sessionManager.addSession(session)
 		session.Listen()
 	}
 }
@@ -442,7 +444,7 @@ func (s *Server) removeSession(session *Session) {
 	if s.sessionManager == nil {
 		return
 	}
-	s.sessionManager.removeSession(session, nil)
+	s.sessionManager.removeSession(session)
 }
 
 // handleSocketRawData dispatches raw message bytes, used by SessionHooks.
@@ -451,5 +453,17 @@ func (s *Server) handleSocketRawData(sessionId SessionID, buf []byte) error {
 		return s.socketRawDataHandler(sessionId, buf)
 	} else {
 		return s.defaultHandleSocketRawData(sessionId, buf)
+	}
+}
+
+func (s *Server) OnSessionAdded(session *Session) {
+	if s.socketConnectHandler != nil && session != nil {
+		s.socketConnectHandler(session.SessionID(), true)
+	}
+}
+
+func (s *Server) OnSessionRemoved(session *Session) {
+	if s.socketConnectHandler != nil && session != nil {
+		s.socketConnectHandler(session.SessionID(), false)
 	}
 }

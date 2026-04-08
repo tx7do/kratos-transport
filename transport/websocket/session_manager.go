@@ -2,79 +2,88 @@ package websocket
 
 import "sync"
 
-type SessionMap map[SessionID]*Session
+// SessionObserver defines the interface for observing session events such as addition and removal of sessions.
+type SessionObserver interface {
+	// OnSessionAdded is called when a new session is added to the SessionManager. It receives the newly added session as an argument.
+	OnSessionAdded(session *Session)
+
+	// OnSessionRemoved is called when a session is removed from the SessionManager. It receives the removed session as an argument.
+	OnSessionRemoved(session *Session)
+}
 
 type SessionManager struct {
-	sessions       SessionMap
-	mtx            sync.RWMutex
-	connectHandler SocketConnectHandler
+	sessions sync.Map
+	observer SessionObserver
 }
 
-func NewSessionManager() *SessionManager {
+func NewSessionManager(observer SessionObserver) *SessionManager {
 	return &SessionManager{
-		sessions: make(SessionMap),
+		sessions: sync.Map{},
+		observer: observer,
 	}
 }
 
-func (s *SessionManager) RegisterConnectHandler(handler SocketConnectHandler) {
-	s.connectHandler = handler
+func (sm *SessionManager) RegisterObserver(observer SessionObserver) {
+	sm.observer = observer
 }
 
-func (s *SessionManager) Clean() {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.sessions = SessionMap{}
+func (sm *SessionManager) Clean() {
+	sm.sessions.Clear()
 }
 
-func (s *SessionManager) Count() int {
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-	return len(s.sessions)
+// count returns the number of active sessions.
+func (sm *SessionManager) count() int {
+	count := 0
+	sm.sessions.Range(func(_, _ any) bool {
+		count++
+		return true
+	})
+	return count
 }
 
-func (s *SessionManager) Get(sessionId SessionID) (*Session, bool) {
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-	c, ok := s.sessions[sessionId]
-	return c, ok
+// getSession retrieves a session by its session ID.
+func (sm *SessionManager) getSession(sessionId SessionID) *Session {
+	if val, ok := sm.sessions.Load(sessionId); ok {
+		return val.(*Session)
+	}
+	return nil
 }
 
-func (s *SessionManager) Range(fn func(*Session)) {
-	s.mtx.RLock()
-	defer s.mtx.RUnlock()
+// rangeSessions iterates over all sessions and applies the provided function to each session. If the function returns true, the iteration is stopped.
+func (sm *SessionManager) rangeSessions(fn func(SessionID, *Session) bool) {
+	var sessions []*Session
+	sm.sessions.Range(func(key, val any) bool {
+		sessions = append(sessions, val.(*Session))
+		return true
+	})
 
-	for _, v := range s.sessions {
-		fn(v)
+	for _, session := range sessions {
+		fn(session.SessionID(), session)
 	}
 }
 
-func (s *SessionManager) Add(session *Session) {
-	s.mtx.Lock()
-	s.sessions[session.SessionID()] = session
-	s.mtx.Unlock()
+// addSession adds a new session to the manager and invokes the callback with the session ID and a boolean indicating whether the session was added successfully.
+func (sm *SessionManager) addSession(session *Session) {
+	if session == nil {
+		return
+	}
 
-	//LogInfo("add session: ", session.SessionID())
+	sm.sessions.Store(session.SessionID(), session)
 
-	if s.connectHandler != nil {
-		s.connectHandler(session.SessionID(), session.queries, true)
+	if sm.observer != nil {
+		sm.observer.OnSessionAdded(session)
 	}
 }
 
-func (s *SessionManager) Remove(session *Session) {
-	s.mtx.Lock()
-
-	for k, v := range s.sessions {
-		if session == v {
-			//LogInfo("remove session: ", session.SessionID())
-			delete(s.sessions, k)
-			s.mtx.Unlock()
-
-			if s.connectHandler != nil {
-				s.connectHandler(session.SessionID(), session.queries, false)
-			}
-			return
-		}
+// removeSession removes a session from the manager and invokes the callback with the session ID and a boolean indicating whether the session was removed successfully.
+func (sm *SessionManager) removeSession(session *Session) {
+	if session == nil {
+		return
 	}
 
-	s.mtx.Unlock()
+	sm.sessions.Delete(session.SessionID())
+
+	if sm.observer != nil {
+		sm.observer.OnSessionRemoved(session)
+	}
 }

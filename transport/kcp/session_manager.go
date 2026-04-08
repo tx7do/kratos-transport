@@ -4,14 +4,33 @@ import (
 	"sync"
 )
 
-type SessionManager struct {
-	sessions sync.Map
+// SessionObserver defines the interface for observing session events such as addition and removal of sessions.
+type SessionObserver interface {
+	// OnSessionAdded is called when a new session is added to the SessionManager. It receives the newly added session as an argument.
+	OnSessionAdded(session *Session)
+
+	// OnSessionRemoved is called when a session is removed from the SessionManager. It receives the removed session as an argument.
+	OnSessionRemoved(session *Session)
 }
 
-func NewSessionManager() *SessionManager {
+type SessionManager struct {
+	sessions sync.Map
+	observer SessionObserver
+}
+
+func NewSessionManager(observer SessionObserver) *SessionManager {
 	return &SessionManager{
 		sessions: sync.Map{},
+		observer: observer,
 	}
+}
+
+func (sm *SessionManager) RegisterObserver(observer SessionObserver) {
+	sm.observer = observer
+}
+
+func (sm *SessionManager) Clean() {
+	sm.sessions.Clear()
 }
 
 // count returns the number of active sessions.
@@ -25,24 +44,28 @@ func (sm *SessionManager) count() int {
 }
 
 // addSession adds a new session to the manager and invokes the callback with the session ID and a boolean indicating whether the session was added successfully.
-func (sm *SessionManager) addSession(c *Session, callback func(SessionID, bool)) {
-	if c == nil {
+func (sm *SessionManager) addSession(session *Session) {
+	if session == nil {
 		return
 	}
-	sm.sessions.Store(c.SessionID(), c)
-	if callback != nil {
-		callback(c.SessionID(), true)
+
+	sm.sessions.Store(session.SessionID(), session)
+
+	if sm.observer != nil {
+		sm.observer.OnSessionAdded(session)
 	}
 }
 
 // removeSession removes a session from the manager and invokes the callback with the session ID and a boolean indicating whether the session was removed successfully.
-func (sm *SessionManager) removeSession(c *Session, callback func(SessionID, bool)) {
-	if c == nil {
+func (sm *SessionManager) removeSession(session *Session) {
+	if session == nil {
 		return
 	}
-	sm.sessions.Delete(c.SessionID())
-	if callback != nil {
-		callback(c.SessionID(), true)
+
+	sm.sessions.Delete(session.SessionID())
+
+	if sm.observer != nil {
+		sm.observer.OnSessionRemoved(session)
 	}
 }
 

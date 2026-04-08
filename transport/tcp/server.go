@@ -58,8 +58,10 @@ func NewServer(opts ...ServerOption) *Server {
 
 		messageHandlers: make(NetMessageHandlerMap),
 
-		sessionManager: NewSessionManager(),
+		sessionManager: NewSessionManager(nil),
 	}
+
+	srv.sessionManager.RegisterObserver(srv)
 
 	srv.init(opts...)
 
@@ -227,8 +229,6 @@ func (s *Server) Start(_ context.Context) error {
 		return nil
 	}
 
-	s.running = true
-
 	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}
@@ -237,6 +237,8 @@ func (s *Server) Start(_ context.Context) error {
 
 	go s.doAccept()
 
+	s.running = true
+
 	return nil
 }
 
@@ -244,8 +246,6 @@ func (s *Server) Stop(_ context.Context) error {
 	if !s.running {
 		return nil
 	}
-
-	s.running = false
 
 	LogInfo("server stopping ...")
 
@@ -256,6 +256,8 @@ func (s *Server) Stop(_ context.Context) error {
 		s.lis = nil
 	}
 	s.err = nil
+
+	s.running = false
 
 	LogInfo("server stopped")
 
@@ -365,7 +367,7 @@ func (s *Server) doAccept() {
 		}
 
 		session := NewSession(conn, s)
-		s.sessionManager.addSession(session, nil)
+		s.sessionManager.addSession(session)
 		session.Listen()
 	}
 }
@@ -375,7 +377,7 @@ func (s *Server) removeSession(session *Session) {
 	if s.sessionManager == nil {
 		return
 	}
-	s.sessionManager.removeSession(session, nil)
+	s.sessionManager.removeSession(session)
 }
 
 // handleSocketRawData dispatches raw message bytes, used by SessionHooks.
@@ -384,5 +386,17 @@ func (s *Server) handleSocketRawData(sessionId SessionID, buf []byte) error {
 		return s.socketRawDataHandler(sessionId, buf)
 	} else {
 		return s.defaultHandleSocketRawData(sessionId, buf)
+	}
+}
+
+func (s *Server) OnSessionAdded(session *Session) {
+	if s.socketConnectHandler != nil && session != nil {
+		s.socketConnectHandler(session.SessionID(), true)
+	}
+}
+
+func (s *Server) OnSessionRemoved(session *Session) {
+	if s.socketConnectHandler != nil && session != nil {
+		s.socketConnectHandler(session.SessionID(), false)
 	}
 }
