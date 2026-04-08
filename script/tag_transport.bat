@@ -23,11 +23,12 @@ git tag transport/rocketmq/v1.3.2 --force
 git tag transport/signalr/v1.3.2 --force
 git tag transport/socketio/v1.3.2 --force
 git tag transport/sse/v1.3.2 --force
-git tag transport/tcp/v1.3.2 --force
+git tag transport/tcp/v1.3.3 --force
 git tag transport/thrift/v1.3.2 --force
 git tag transport/websocket/v1.3.2 --force
 git tag transport/webtransport/v1.3.2 --force
 git tag transport/trpc/v1.3.2 --force
 git tag transport/mcp/v1.3.2 --force
+git tag transport/kcp/v1.3.1 --force
 
 git push origin --tags
