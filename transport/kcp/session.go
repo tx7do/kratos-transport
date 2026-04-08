@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/google/uuid"
+	"github.com/tx7do/go-utils/id"
 	"github.com/xtaci/kcp-go/v5"
 )
 
@@ -36,10 +36,8 @@ func NewSession(conn *kcp.UDPSession, hooks SessionHooks) *Session {
 		panic("conn cannot be nil")
 	}
 
-	u1, _ := uuid.NewUUID()
-
 	c := &Session{
-		id:    SessionID(u1.String()),
+		id:    SessionID(id.NewGUIDv4(false)),
 		conn:  conn,
 		send:  make(chan []byte, channelBufSize),
 		done:  make(chan struct{}),
