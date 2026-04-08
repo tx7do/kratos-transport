@@ -31,7 +31,7 @@ require (
 	github.com/tx7do/kratos-transport/broker v1.3.2 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
 	github.com/tx7do/kratos-transport/transport v1.3.3 // indirect
-	github.com/tx7do/kratos-transport/transport/keepalive v1.3.3 // indirect
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0 // indirect

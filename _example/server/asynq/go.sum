@@ -62,6 +62,7 @@ github.com/tx7do/kratos-transport/transport v1.3.3 h1:MUkd6H6PwdJLjXDPbdzAHdGHYu
 github.com/tx7do/kratos-transport/transport v1.3.3/go.mod h1:tB8IyCI1+Dc6gOLfT2g8GJFsXRG+24bm4Vky3y4Ao9M=
 github.com/tx7do/kratos-transport/transport/keepalive v1.3.3 h1:XrVwlDoESJsecM1elw5X74lcxN6wY9QXYrpXZrZzs8U=
 github.com/tx7do/kratos-transport/transport/keepalive v1.3.3/go.mod h1:qHv9LLJTvon40EpDWbbMhkRUqPuc0QcAHLy1LdPUeuE=
+github.com/tx7do/kratos-transport/transport/keepalive v1.3.4/go.mod h1:qHv9LLJTvon40EpDWbbMhkRUqPuc0QcAHLy1LdPUeuE=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/otel v1.39.0 h1:8yPrr/S0ND9QEfTfdP9V+SiwT4E0G7Y5MO7p85nis48=
