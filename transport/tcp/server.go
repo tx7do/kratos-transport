@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -42,9 +43,11 @@ type Server struct {
 	netPacketMarshaler   NetPacketMarshaler
 	netPacketUnmarshaler NetPacketUnmarshaler
 
-	sessions   SessionMap
-	register   chan *Session
-	unregister chan *Session
+	sessionManager *SessionManager
+
+	running   bool
+	stateMu   sync.RWMutex
+	handlerMu sync.RWMutex
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -55,10 +58,7 @@ func NewServer(opts ...ServerOption) *Server {
 
 		messageHandlers: make(NetMessageHandlerMap),
 
-		sessions: SessionMap{},
-
-		register:   make(chan *Session),
-		unregister: make(chan *Session),
+		sessionManager: NewSessionManager(),
 	}
 
 	srv.init(opts...)
@@ -95,6 +95,9 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+
 	if err := s.listenAndEndpoint(); err != nil {
 		return nil, err
 	}
@@ -124,11 +127,10 @@ func (s *Server) listenAndEndpoint() error {
 	return nil
 }
 
-func (s *Server) SessionCount() int {
-	return len(s.sessions)
-}
-
 func (s *Server) RegisterMessageHandler(messageType NetMessageType, handler NetMessageHandler, binder Creator) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+
 	if _, ok := s.messageHandlers[messageType]; ok {
 		return
 	}
@@ -157,11 +159,17 @@ func RegisterServerMessageHandler[T any](srv *Server, messageType NetMessageType
 }
 
 func (s *Server) DeregisterMessageHandler(messageType NetMessageType) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+
 	delete(s.messageHandlers, messageType)
 }
 
 // GetMessageHandler find message handler
 func (s *Server) GetMessageHandler(msgType NetMessageType) (error, *MessageHandlerData) {
+	s.handlerMu.RLock()
+	defer s.handlerMu.RUnlock()
+
 	handlerData, ok := s.messageHandlers[msgType]
 	if !ok {
 		errMsg := fmt.Sprintf("[%d] message handler not found", msgType)
@@ -174,7 +182,7 @@ func (s *Server) GetMessageHandler(msgType NetMessageType) (error, *MessageHandl
 
 // SendRawData send raw data to client
 func (s *Server) SendRawData(sessionId SessionID, message []byte) error {
-	session := s.getSession(sessionId)
+	session := s.sessionManager.getSession(sessionId)
 	if session == nil {
 		LogError("session not found:", sessionId)
 		return errors.New(fmt.Sprintf("session not found: %s", sessionId))
@@ -186,7 +194,7 @@ func (s *Server) SendRawData(sessionId SessionID, message []byte) error {
 }
 
 func (s *Server) BroadcastRawData(message []byte) {
-	s.rangeSessions(
+	s.sessionManager.rangeSessions(
 		func(id SessionID, session *Session) bool {
 			session.SendMessage(message)
 			return false
@@ -215,13 +223,17 @@ func (s *Server) Broadcast(messageType NetMessageType, message NetMessagePayload
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if s.running {
+		return nil
+	}
+
+	s.running = true
+
 	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}
 
 	LogInfof("server listening on: %s", s.lis.Addr().String())
-
-	go s.run()
 
 	go s.doAccept()
 
@@ -229,6 +241,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
+	if !s.running {
+		return nil
+	}
+
+	s.running = false
+
 	LogInfo("server stopping ...")
 
 	var err error
@@ -300,15 +318,6 @@ func (s *Server) defaultUnmarshalNetPacket(buf []byte) (handler *MessageHandlerD
 	return
 }
 
-// handleSocketRawData process raw data received from socket
-func (s *Server) handleSocketRawData(sessionId SessionID, buf []byte) error {
-	if s.socketRawDataHandler != nil {
-		return s.socketRawDataHandler(sessionId, buf)
-	} else {
-		return s.defaultHandleSocketRawData(sessionId, buf)
-	}
-}
-
 func (s *Server) defaultHandleSocketRawData(sessionId SessionID, buf []byte) error {
 	var err error
 	var handler *MessageHandlerData
@@ -328,78 +337,52 @@ func (s *Server) defaultHandleSocketRawData(sessionId SessionID, buf []byte) err
 	return nil
 }
 
-func (s *Server) run() {
-	for {
-		select {
-		case client := <-s.register:
-			s.addSession(client)
-		case client := <-s.unregister:
-			s.removeSession(client)
-		}
-	}
-}
-
 // doAccept accept connection handler
 func (s *Server) doAccept() {
 	for {
-		if s.lis == nil {
+		s.stateMu.RLock()
+		listener := s.lis
+		running := s.running
+		s.stateMu.RUnlock()
+
+		if !running || listener == nil {
 			return
 		}
 
 		conn, err := s.lis.Accept()
 		if err != nil {
-			LogError("accept exception:", err)
+			s.stateMu.RLock()
+			running = s.running
+			s.stateMu.RUnlock()
+
+			if !running || errors.Is(err, net.ErrClosed) {
+				LogInfof("accept loop stopped: %s", err.Error())
+				return
+			}
+
+			LogErrorf("accept connection failed: %s", err.Error())
 			continue
 		}
 
 		session := NewSession(conn, s)
-		session.server.register <- session
-
+		s.sessionManager.addSession(session, nil)
 		session.Listen()
 	}
 }
 
-func (s *Server) addSession(c *Session) {
-	if c == nil {
+// removeSession removes a session from the manager, used by SessionHooks.
+func (s *Server) removeSession(session *Session) {
+	if s.sessionManager == nil {
 		return
 	}
-
-	//LogInfo("add session: ", c.SessionID())
-	s.sessions[c.SessionID()] = c
-
-	if s.socketConnectHandler != nil {
-		s.socketConnectHandler(c.SessionID(), true)
-	}
+	s.sessionManager.removeSession(session, nil)
 }
 
-func (s *Server) removeSession(c *Session) {
-	if c == nil {
-		return
-	}
-
-	s.rangeSessions(
-		func(id SessionID, session *Session) bool {
-			if c.SessionID() == session.SessionID() {
-				//LogInfo("remove session: ", c.SessionID())
-				if s.socketConnectHandler != nil {
-					s.socketConnectHandler(c.SessionID(), false)
-				}
-				delete(s.sessions, id)
-				return true
-			}
-			return false
-		},
-	)
-}
-
-func (s *Server) getSession(sessionId SessionID) *Session {
-	return s.sessions[sessionId]
-}
-
-func (s *Server) rangeSessions(fn func(SessionID, *Session) bool) {
-	for sessionId, session := range s.sessions {
-		if fn(sessionId, session) {
-			return
-		}
+// handleSocketRawData dispatches raw message bytes, used by SessionHooks.
+func (s *Server) handleSocketRawData(sessionId SessionID, buf []byte) error {
+	if s.socketRawDataHandler != nil {
+		return s.socketRawDataHandler(sessionId, buf)
+	} else {
+		return s.defaultHandleSocketRawData(sessionId, buf)
 	}
 }

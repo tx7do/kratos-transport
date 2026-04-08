@@ -2,8 +2,9 @@ package tcp
 
 import (
 	"net"
+	"sync"
 
-	"github.com/google/uuid"
+	"github.com/tx7do/go-utils/id"
 )
 
 var channelBufSize = 256
@@ -12,32 +13,46 @@ var recvBufferSize = 256000
 type SessionID string
 
 type Session struct {
-	id     SessionID
-	conn   net.Conn
-	send   chan []byte
-	server *Server
+	id SessionID
+
+	conn  net.Conn
+	hooks SessionHooks
+
+	send chan []byte
+
+	connMu     sync.RWMutex
+	done       chan struct{}
+	listenOnce sync.Once
+	closeOnce  sync.Once
+	wg         sync.WaitGroup
 }
 
-type SessionMap map[SessionID]*Session
+// SessionHooks defines callbacks used by Session to interact with upper-layer server logic.
+type SessionHooks interface {
+	removeSession(*Session)
+	handleSocketRawData(SessionID, []byte) error
+}
 
-func NewSession(conn net.Conn, server *Server) *Session {
+func NewSession(conn net.Conn, hooks SessionHooks) *Session {
 	if conn == nil {
 		panic("conn cannot be nil")
 	}
 
-	u1, _ := uuid.NewUUID()
-
 	c := &Session{
-		id:     SessionID(u1.String()),
-		conn:   conn,
-		send:   make(chan []byte, channelBufSize),
-		server: server,
+		id:    SessionID(id.NewGUIDv4(false)),
+		conn:  conn,
+		done:  make(chan struct{}),
+		send:  make(chan []byte, channelBufSize),
+		hooks: hooks,
 	}
 
 	return c
 }
 
 func (c *Session) Conn() net.Conn {
+	c.connMu.RLock()
+	defer c.connMu.RUnlock()
+
 	return c.conn
 }
 
@@ -47,42 +62,71 @@ func (c *Session) SessionID() SessionID {
 
 func (c *Session) SendMessage(message []byte) {
 	select {
+	case <-c.done:
+		return
 	case c.send <- message:
 	}
 }
 
 func (c *Session) Close() {
-	c.server.unregister <- c
-	c.closeConnect()
+	c.closeOnce.Do(func() {
+		close(c.done)
+		c.closeConnect()
+
+		if c.hooks != nil {
+			c.hooks.removeSession(c)
+		}
+	})
 }
 
 func (c *Session) Listen() {
-	go c.writePump()
-	go c.readPump()
+	c.listenOnce.Do(func() {
+		c.wg.Add(2)
+
+		go c.writePump()
+		go c.readPump()
+	})
+}
+
+func (c *Session) Wait() {
+	c.wg.Wait()
 }
 
 func (c *Session) closeConnect() {
 	//LogInfo(c.SessionID(), " connection closed")
-	if c.conn != nil {
-		if err := c.conn.Close(); err != nil {
+	c.connMu.Lock()
+	conn := c.conn
+	c.conn = nil
+	c.connMu.Unlock()
+
+	if conn != nil {
+		if err := conn.Close(); err != nil {
 			LogErrorf("disconnect error: %s", err.Error())
 		}
-		c.conn = nil
 	}
 }
 
 func (c *Session) writePump() {
+	defer c.wg.Done()
 	defer c.Close()
 
 	for {
 		select {
+		case <-c.done:
+			return
 
 		case msg := <-c.send:
-			if c.conn == nil {
+			conn := c.Conn()
+			if conn == nil {
 				return
 			}
 			var err error
-			if _, err = c.conn.Write(msg); err != nil {
+			if _, err = conn.Write(msg); err != nil {
+				select {
+				case <-c.done:
+					return
+				default:
+				}
 				LogError("write message error: ", err)
 				return
 			}
@@ -91,6 +135,7 @@ func (c *Session) writePump() {
 }
 
 func (c *Session) readPump() {
+	defer c.wg.Done()
 	defer c.Close()
 
 	buf := make([]byte, recvBufferSize)
@@ -98,16 +143,32 @@ func (c *Session) readPump() {
 	var readLen int
 
 	for {
-		if c.conn == nil {
-			break
+		select {
+		case <-c.done:
+			return
+		default:
 		}
 
-		if readLen, err = c.conn.Read(buf); err != nil {
+		conn := c.Conn()
+		if conn == nil {
+			return
+		}
+
+		if readLen, err = conn.Read(buf); err != nil {
+			select {
+			case <-c.done:
+				return
+			default:
+			}
 			LogErrorf("read message error: %v", err)
 			return
 		}
 
-		if err = c.server.handleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
+		if c.hooks == nil {
+			continue
+		}
+
+		if err = c.hooks.handleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
 			LogErrorf("process message error: %v", err)
 		}
 	}

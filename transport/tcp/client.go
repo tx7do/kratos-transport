@@ -53,12 +53,6 @@ func (c *Client) init(opts ...ClientOption) {
 
 	addr := c.url
 
-	//prefix := "tcp://"
-	//if !strings.HasPrefix(addr, "tcp://") {
-	//	prefix = "tcp://"
-	//}
-	//addr = prefix + addr
-
 	c.endpoint, _ = url.Parse(addr)
 }
 
@@ -122,6 +116,10 @@ func (c *Client) DeregisterMessageHandler(messageType NetMessageType) {
 }
 
 func (c *Client) SendRawData(message []byte) error {
+	if c.conn == nil {
+		return errors.New("client is not connected")
+	}
+
 	if _, err := c.conn.Write(message); err != nil {
 		return err
 	}

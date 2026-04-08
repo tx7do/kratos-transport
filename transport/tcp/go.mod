@@ -20,14 +20,22 @@ require (
 )
 
 require (
+	github.com/bwmarrin/snowflake v0.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/form/v4 v4.3.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.6 // indirect
+	github.com/lithammer/shortuuid/v4 v4.2.0 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
+	github.com/rs/xid v1.6.0 // indirect
+	github.com/segmentio/ksuid v1.0.4 // indirect
+	github.com/sony/sonyflake v1.3.0 // indirect
+	github.com/tx7do/go-utils v1.1.34 // indirect
+	github.com/tx7do/go-utils/id v0.0.4 // indirect
 	github.com/tx7do/kratos-transport/tracing v1.1.1 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.39.0 // indirect
