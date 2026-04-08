@@ -3,7 +3,6 @@ package kcp
 import (
 	"sync"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/go-utils/id"
 	"github.com/xtaci/kcp-go/v5"
 )
@@ -15,8 +14,8 @@ type SessionID string
 
 // SessionHooks defines callbacks used by Session to interact with upper-layer server logic.
 type SessionHooks interface {
-	RemoveSession(*Session)
-	HandleSocketRawData(SessionID, []byte) error
+	removeSession(*Session)
+	handleSocketRawData(SessionID, []byte) error
 }
 
 type Session struct {
@@ -72,7 +71,7 @@ func (c *Session) Close() {
 		c.closeConnect()
 
 		if c.hooks != nil {
-			c.hooks.RemoveSession(c)
+			c.hooks.removeSession(c)
 		}
 	})
 }
@@ -105,8 +104,6 @@ func (c *Session) closeConnect() {
 }
 
 func (c *Session) writePump() {
-	log.Info("writePump")
-
 	defer c.wg.Done()
 	defer c.Close()
 
@@ -135,8 +132,6 @@ func (c *Session) writePump() {
 }
 
 func (c *Session) readPump() {
-	log.Info("readPump")
-
 	defer c.wg.Done()
 	defer c.Close()
 
@@ -170,7 +165,7 @@ func (c *Session) readPump() {
 			continue
 		}
 
-		if err = c.hooks.HandleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
+		if err = c.hooks.handleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
 			LogErrorf("process message error: %v", err)
 		}
 	}

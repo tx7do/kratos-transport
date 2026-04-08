@@ -25,7 +25,9 @@ var (
 )
 
 type Server struct {
-	lis      net.Listener
+	stateMu   sync.RWMutex
+	handlerMu sync.RWMutex
+
 	tlsConf  *tls.Config
 	endpoint *url.URL
 
@@ -101,59 +103,67 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
-	if err := s.listenAndEndpoint(); err != nil {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+
+	if err := s.listenAndEndpointLocked(); err != nil {
 		return nil, err
 	}
 	return s.endpoint, nil
 }
 
-func (s *Server) listenAndEndpoint() error {
-	if s.lis == nil {
-		lis, err := net.Listen(s.network, s.address)
-		if err != nil {
-			return err
-		}
-		s.lis = lis
-	}
-
+func (s *Server) listenAndEndpointLocked() error {
 	if s.endpoint == nil {
-		// 如果传入的是完整的ip地址，则不需要调整。
-		// 如果传入的只有端口号，则会调整为完整的地址，但，IP地址或许会不正确。
-		addr, err := transport.AdjustAddress(s.address, s.lis)
-		if err != nil {
-			return err
+		if s.listener != nil {
+			endpoint, err := AddrToURL(s.listener.Addr())
+			if err != nil {
+				return err
+			}
+			s.endpoint = endpoint
+		} else {
+			s.endpoint = transport.NewRegistryEndpoint(KindKcp, s.address)
 		}
-
-		s.endpoint = transport.NewRegistryEndpoint(KindKcp, addr)
 	}
 
 	return nil
 }
 
 func (s *Server) Start(_ context.Context) error {
+	s.stateMu.RLock()
 	if s.running {
+		s.stateMu.RUnlock()
 		return nil
 	}
-
-	s.running = true
-
-	if s.err = s.listenAndEndpoint(); s.err != nil {
-		return s.err
-	}
+	s.stateMu.RUnlock()
 
 	block := NewBlockCryptFromPassword(s.blockCryptPassword, s.blockCryptSalt)
 
 	listener, err := kcp.ListenWithOptions(s.address, block, s.dataShards, s.parityShards)
 	if err != nil {
-		LogFatal(err)
 		return err
 	}
 
+	s.stateMu.Lock()
+	if s.running {
+		s.stateMu.Unlock()
+		_ = listener.Close()
+		return nil
+	}
+
 	s.listener = listener
+	s.endpoint = nil
+	if s.err = s.listenAndEndpointLocked(); s.err != nil {
+		s.listener = nil
+		s.stateMu.Unlock()
+		_ = listener.Close()
+		return s.err
+	}
+	s.running = true
+	s.stateMu.Unlock()
 
 	go s.doAccept()
 
-	LogInfof("server listening on: %s", s.lis.Addr().String())
+	LogInfof("server listening on: %s", listener.Addr().String())
 
 	return nil
 }
@@ -161,25 +171,22 @@ func (s *Server) Start(_ context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping ...")
 
+	s.stateMu.Lock()
 	if !s.running {
+		s.stateMu.Unlock()
 		return nil
 	}
-
 	s.running = false
+
+	listener := s.listener
+	s.listener = nil
+	s.err = nil
+	s.stateMu.Unlock()
 
 	var err error
 
-	if s.lis != nil {
-		err = s.lis.Close()
-		s.lis = nil
-	}
-	s.err = nil
-
-	if s.listener != nil {
-		if err = s.listener.Close(); err != nil {
-			LogErrorf("kcp listener close failed: %s", err.Error())
-		}
-		s.listener = nil
+	if listener != nil {
+		err = listener.Close()
 	}
 
 	if s.sessionManager != nil {
@@ -228,6 +235,9 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) RegisterMessageHandler(messageType NetMessageType, handler NetMessageHandler, binder Creator) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+
 	if _, ok := s.messageHandlers[messageType]; ok {
 		return
 	}
@@ -256,6 +266,9 @@ func RegisterServerMessageHandler[T any](srv *Server, messageType NetMessageType
 }
 
 func (s *Server) DeregisterMessageHandler(messageType NetMessageType) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+
 	delete(s.messageHandlers, messageType)
 }
 
@@ -303,6 +316,9 @@ func (s *Server) Broadcast(messageType NetMessageType, message NetMessagePayload
 
 // GetMessageHandler find message handler
 func (s *Server) GetMessageHandler(msgType NetMessageType) (error, *MessageHandlerData) {
+	s.handlerMu.RLock()
+	defer s.handlerMu.RUnlock()
+
 	handlerData, ok := s.messageHandlers[msgType]
 	if !ok {
 		errMsg := fmt.Sprintf("[%d] message handler not found", msgType)
@@ -391,10 +407,28 @@ func (s *Server) defaultHandleSocketRawData(sessionId SessionID, buf []byte) err
 // doAccept accept connection handler
 func (s *Server) doAccept() {
 	for {
-		conn, err := s.listener.AcceptKCP()
-		if err != nil {
-			LogErrorf("accept connection failed: %s", err.Error())
+		s.stateMu.RLock()
+		listener := s.listener
+		running := s.running
+		s.stateMu.RUnlock()
+
+		if !running || listener == nil {
 			return
+		}
+
+		conn, err := listener.AcceptKCP()
+		if err != nil {
+			s.stateMu.RLock()
+			running = s.running
+			s.stateMu.RUnlock()
+
+			if !running || errors.Is(err, net.ErrClosed) {
+				LogInfof("accept loop stopped: %s", err.Error())
+				return
+			}
+
+			LogErrorf("accept connection failed: %s", err.Error())
+			continue
 		}
 
 		session := NewSession(conn, s)
@@ -403,16 +437,16 @@ func (s *Server) doAccept() {
 	}
 }
 
-// RemoveSession removes a session from the manager, used by SessionHooks.
-func (s *Server) RemoveSession(session *Session) {
+// removeSession removes a session from the manager, used by SessionHooks.
+func (s *Server) removeSession(session *Session) {
 	if s.sessionManager == nil {
 		return
 	}
 	s.sessionManager.removeSession(session, nil)
 }
 
-// HandleSocketRawData dispatches raw message bytes, used by SessionHooks.
-func (s *Server) HandleSocketRawData(sessionId SessionID, buf []byte) error {
+// handleSocketRawData dispatches raw message bytes, used by SessionHooks.
+func (s *Server) handleSocketRawData(sessionId SessionID, buf []byte) error {
 	if s.socketRawDataHandler != nil {
 		return s.socketRawDataHandler(sessionId, buf)
 	} else {
