@@ -374,3 +374,9 @@ func WithSchedulerEnabled(enabled bool) ServerOption {
 		s.schedulerEnabled = enabled
 	}
 }
+
+func WithEnableKeepAlive(enable bool) ServerOption {
+	return func(s *Server) {
+		s.enableKeepalive = enable
+	}
+}

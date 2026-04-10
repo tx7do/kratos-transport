@@ -82,6 +82,7 @@ type Server struct {
 	typeNameMap sync.Map
 
 	keepaliveServer *keepalive.Server
+	enableKeepalive bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -109,6 +110,7 @@ func NewServer(opts ...ServerOption) *Server {
 		serverEnabled:    true,
 		clientEnabled:    true,
 		schedulerEnabled: true,
+		enableKeepalive:  true,
 	}
 
 	srv.init(opts...)
