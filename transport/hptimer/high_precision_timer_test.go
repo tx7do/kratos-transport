@@ -567,3 +567,98 @@ func BenchmarkHighPrecisionTimer_BatchTasks(b *testing.B) {
 		}
 	}
 }
+
+// TestHighPrecisionTimer_ConcurrentSafety 测试高并发下的线程安全
+func TestHighPrecisionTimer_ConcurrentSafety(t *testing.T) {
+	observer := newMockTimerObserver()
+	// 这里不提前 Stop，避免 Stop 影响 Add/Remove 的并发安全测试
+	ht := NewHighPrecisionTimer(observer)
+	ht.Start()
+
+	taskCount := 1000
+	var wg sync.WaitGroup
+	wg.Add(taskCount * 2)
+
+	// 并发添加任务
+	for i := 0; i < taskCount; i++ {
+		go func(idx int) {
+			defer wg.Done()
+			taskID := TimerTaskID(fmt.Sprintf("concurrent_safe_%d", idx))
+			ht.AddTask(&TimerTask{
+				ID:       taskID,
+				At:       time.Now().Add(10 * time.Millisecond),
+				Callback: func(ctx context.Context) error { return nil },
+			})
+		}(i)
+	}
+
+	// 并发删除任务
+	for i := 0; i < taskCount; i++ {
+		go func(idx int) {
+			defer wg.Done()
+			taskID := TimerTaskID(fmt.Sprintf("concurrent_safe_%d", idx))
+			ht.RemoveTask(taskID)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Stop 放在所有 Add/Remove 完成后，保证所有操作都已完成
+	ht.Stop()
+
+	// 验证不会 panic，且所有任务都被安全处理
+	ht.mu.Lock()
+	if len(ht.tasks) != 0 {
+		t.Errorf("期望所有任务都被安全移除，实际剩余: %d", len(ht.tasks))
+	}
+	if ht.heap.Len() != 0 {
+		t.Errorf("期望堆为空，实际: %d", ht.heap.Len())
+	}
+	ht.mu.Unlock()
+}
+
+// Test: 在Callback中移除自身任务，验证不会panic且行为安全
+func TestHighPrecisionTimer_CallbackRemoveSelf(t *testing.T) {
+	observer := newMockTimerObserver()
+	ht := NewHighPrecisionTimer(observer)
+	ht.Start()
+	defer ht.Stop()
+
+	triggered := make(chan struct{}, 1)
+	taskID := TimerTaskID("callback_remove_self")
+	task := &TimerTask{
+		ID: taskID,
+		At: time.Now().Add(10 * time.Millisecond),
+		Callback: func(ctx context.Context) error {
+			// 在回调中移除自身
+			removed := ht.RemoveTask(taskID)
+			// 允许移除失败（因为任务已被调度出堆），但不应panic
+			select {
+			case triggered <- struct{}{}:
+			default:
+			}
+			if !removed {
+				t.Logf("回调中移除自身任务未成功（可能已被调度出堆），允许此情况")
+			}
+			return nil
+		},
+	}
+	ht.AddTask(task)
+
+	select {
+	case <-triggered:
+		// success
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("回调中移除自身任务未被安全执行")
+	}
+
+	ht.mu.Lock()
+	_, exists := ht.tasks[taskID]
+	if exists {
+		t.Errorf("任务应已被移除，实际仍存在")
+	}
+	if ht.heap.Len() != 0 {
+		t.Errorf("堆应为空，实际: %d", ht.heap.Len())
+	}
+	ht.mu.Unlock()
+}
