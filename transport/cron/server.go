@@ -165,7 +165,7 @@ func (s *Server) Stop(ctx context.Context) error {
 
 func (s *Server) Endpoint() (*url.URL, error) {
 	if !s.enableKeepalive {
-		return nil, errors.New("cron server keepalive is disabled")
+		return &url.URL{}, nil
 	}
 	if s.keepaliveServer == nil {
 		return nil, errors.New("cron server keepalive instance is nil")

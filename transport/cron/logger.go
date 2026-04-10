@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/hibiken/asynq"
 )
 
 const (
@@ -57,35 +56,4 @@ func LogErrorf(format string, args ...any) {
 
 func LogFatalf(format string, args ...any) {
 	log.Fatalf("%s %s", logKey, fmt.Sprintf(format, args...))
-}
-
-///
-/// logger
-///
-
-type logger struct {
-}
-
-func newLogger() asynq.Logger {
-	return &logger{}
-}
-
-func (l logger) Debug(args ...any) {
-	LogDebug(args...)
-}
-
-func (l logger) Info(args ...any) {
-	LogInfo(args...)
-}
-
-func (l logger) Warn(args ...any) {
-	LogWarn(args...)
-}
-
-func (l logger) Error(args ...any) {
-	LogError(args...)
-}
-
-func (l logger) Fatal(args ...any) {
-	LogFatal(args...)
 }
