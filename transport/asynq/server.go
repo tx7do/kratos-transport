@@ -239,12 +239,6 @@ func (s *Server) init(opts ...ServerOption) {
 		s.updateRedisFailoverClientOpt(&v)
 	}
 
-	if s.enableKeepalive {
-		s.keepaliveServer = keepalive.NewServer(
-			keepalive.WithServiceKind(KindAsynq),
-		)
-	}
-
 	var err error
 	if err = s.createAsynqServer(); err != nil {
 		s.err = err
@@ -645,7 +639,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.state = stateStarting
 
-	if s.keepaliveServer == nil {
+	if s.enableKeepalive && s.keepaliveServer == nil {
 		s.keepaliveServer = keepalive.NewServer(
 			keepalive.WithServiceKind(KindAsynq),
 		)
