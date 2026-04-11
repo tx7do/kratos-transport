@@ -256,6 +256,12 @@ func (s *Server) init(opts ...ServerOption) {
 		s.err = err
 		LogError("create asynq inspector failed:", err)
 	}
+
+	if s.enableKeepalive && s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(
+			keepalive.WithServiceKind(KindAsynq),
+		)
+	}
 }
 
 // Name returns the name of server
@@ -638,12 +644,6 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	s.state = stateStarting
-
-	if s.enableKeepalive && s.keepaliveServer == nil {
-		s.keepaliveServer = keepalive.NewServer(
-			keepalive.WithServiceKind(KindAsynq),
-		)
-	}
 
 	if err := s.createAsynqServer(); err != nil {
 		s.err = err
