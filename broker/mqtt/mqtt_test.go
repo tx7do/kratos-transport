@@ -37,11 +37,10 @@ func Test_Publish_WithRawData(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
 	var err error
 
 	b := NewBroker(
-		broker.WithOptionContext(ctx),
+		broker.WithOptionContext(t.Context()),
 		broker.WithAddress(EmqxBroker),
 	)
 
@@ -63,7 +62,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
 		buf, _ := json.Marshal(&msg)
-		err = b.Publish(ctx, "topic/bobo/1", broker.NewMessage(buf))
+		err = b.Publish(t.Context(), "topic/bobo/1", broker.NewMessage(buf))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -80,7 +79,6 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	var err error
-	ctx := context.Background()
 
 	b := NewBroker(
 		broker.WithAddress(EmqxBroker),
@@ -104,7 +102,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 	_, err = b.Subscribe("topic/bobo/#",
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		nil,
-		broker.WithSubscribeContext(ctx),
+		broker.WithSubscribeContext(t.Context()),
 	)
 	assert.Nil(t, err)
 
@@ -115,11 +113,10 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
 	var err error
 
 	b := NewBroker(
-		broker.WithOptionContext(ctx),
+		broker.WithOptionContext(t.Context()),
 		broker.WithAddress(LocalRabbitBroker),
 		broker.WithCodec("json"),
 	)
@@ -141,7 +138,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err = b.Publish(ctx, "topic/bobo/1", broker.NewMessage(msg))
+		err = b.Publish(t.Context(), "topic/bobo/1", broker.NewMessage(msg))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",
@@ -157,7 +154,6 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
 	var err error
 
 	b := NewBroker(
@@ -179,7 +175,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	_, err = b.Subscribe("topic/bobo/#",
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeContext(ctx),
+		broker.WithSubscribeContext(t.Context()),
 	)
 	assert.Nil(t, err)
 

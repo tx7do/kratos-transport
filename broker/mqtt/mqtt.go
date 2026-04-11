@@ -17,6 +17,9 @@ type mqttBroker struct {
 	client  paho.Client
 
 	subscribers *broker.SubscriberSyncMap
+
+	OnConnectCallback    func()
+	OnDisconnectCallback func(error)
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -312,6 +315,10 @@ func (m *mqttBroker) doSubscribe(topic string, qos byte, callback paho.MessageHa
 func (m *mqttBroker) onConnect(_ paho.Client) {
 	LogDebug("on connect")
 
+	if m.OnConnectCallback != nil {
+		m.OnConnectCallback()
+	}
+
 	m.subscribers.Foreach(func(topic string, sub broker.Subscriber) {
 		aSub := sub.(*subscriber)
 		if err := m.doSubscribe(aSub.topic, aSub.qos, aSub.callback); err != nil {
@@ -320,8 +327,11 @@ func (m *mqttBroker) onConnect(_ paho.Client) {
 	})
 }
 
-func (m *mqttBroker) onConnectionLost(client paho.Client, _ error) {
+func (m *mqttBroker) onConnectionLost(client paho.Client, err error) {
 	LogDebug("on connect lost, try to reconnect")
+	if m.OnDisconnectCallback != nil {
+		m.OnDisconnectCallback(err)
+	}
 	m.loopConnect(client)
 }
 
@@ -335,4 +345,14 @@ func (m *mqttBroker) loopConnect(client paho.Client) {
 		}
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// SetOnConnectCallback sets the callback to be called when connected.
+func (m *mqttBroker) SetOnConnectCallback(cb func()) {
+	m.OnConnectCallback = cb
+}
+
+// SetOnDisconnectCallback sets the callback to be called when disconnected.
+func (m *mqttBroker) SetOnDisconnectCallback(cb func(error)) {
+	m.OnDisconnectCallback = cb
 }

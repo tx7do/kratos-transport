@@ -1,7 +1,7 @@
 git tag broker/v1.3.2 --force
 
 git tag broker/kafka/v1.3.7 --force
-git tag broker/mqtt/v1.3.3 --force
+git tag broker/mqtt/v1.3.4 --force
 git tag broker/nats/v1.3.2 --force
 git tag broker/nsq/v1.3.2 --force
 git tag broker/pulsar/v1.3.2 --force
