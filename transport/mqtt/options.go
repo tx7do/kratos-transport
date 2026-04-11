@@ -60,3 +60,15 @@ func WithEnableKeepAlive(enable bool) ServerOption {
 		s.enableKeepalive = enable
 	}
 }
+
+func WithOnConnect(cb func()) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, mqtt.WithOnConnect(cb))
+	}
+}
+
+func WithOnDisconnect(cb func(error)) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, mqtt.WithOnDisconnect(cb))
+	}
+}
