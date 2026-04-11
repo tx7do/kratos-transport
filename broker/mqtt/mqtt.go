@@ -123,6 +123,13 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) paho.Client {
 		}
 	}
 
+	if cb, ok := opts.Context.Value(onConnectedKey{}).(func()); ok {
+		b.SetOnConnectCallback(cb)
+	}
+	if cb, ok := opts.Context.Value(onDisconnectKey{}).(func(error)); ok {
+		b.SetOnDisconnectCallback(cb)
+	}
+
 	return paho.NewClient(cOpts)
 }
 

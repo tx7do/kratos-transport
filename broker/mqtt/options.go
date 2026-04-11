@@ -28,6 +28,8 @@ type criticalLoggerKey struct{}
 type warnLoggerKey struct{}
 type debugLoggerKey struct{}
 type loggerKey struct{}
+type onConnectedKey struct{}
+type onDisconnectKey struct{}
 
 type AuthRecord struct {
 	Username string
@@ -127,6 +129,14 @@ func WithDebugLogger() broker.Option {
 
 func WithLogger(opt LoggerOptions) broker.Option {
 	return broker.OptionContextWithValue(loggerKey{}, opt)
+}
+
+func WithOnConnect(cb func()) broker.Option {
+	return broker.OptionContextWithValue(onConnectedKey{}, cb)
+}
+
+func WithOnDisconnect(cb func(error)) broker.Option {
+	return broker.OptionContextWithValue(onDisconnectKey{}, cb)
 }
 
 ///
