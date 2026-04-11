@@ -93,6 +93,7 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	if s.err = s.Connect(); s.err != nil {
+		LogErrorf("connect broker failed: [%s]", s.err.Error())
 		return s.err
 	}
 
@@ -184,6 +185,9 @@ func (s *Server) doRegisterSubscriberMap() error {
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
+	if !s.enableKeepalive {
+		return &url.URL{}, nil
+	}
 	if s.keepaliveServer == nil {
 		return nil, errors.New("keepalive server is nil")
 	}

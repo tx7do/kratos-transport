@@ -29,7 +29,7 @@ const (
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	LogInfof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	LogInfof("Topic %s, Headers: %+v, Payload: %+v", topic, headers, msg)
 	return nil
 }
 
@@ -117,8 +117,9 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 
 	b := NewBroker(
 		broker.WithOptionContext(t.Context()),
-		broker.WithAddress(LocalRabbitBroker),
+		broker.WithAddress(LocalEmxqBroker),
 		broker.WithCodec("json"),
+		WithAuth("user", "user"),
 	)
 
 	if err = b.Init(); err != nil {
@@ -157,8 +158,9 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	var err error
 
 	b := NewBroker(
-		broker.WithAddress(EmqxBroker),
+		broker.WithAddress(LocalEmxqBroker),
 		broker.WithCodec("json"),
+		WithAuth("user", "user"),
 	)
 
 	if err = b.Init(); err != nil {
@@ -199,6 +201,10 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 				log.Error("json Unmarshal failed: ", err.Error())
 				return err
 			}
+
+		case *api.Hygrothermograph:
+			msg = *t
+
 		default:
 			log.Error("unknown type Unmarshal failed: ", t)
 			return fmt.Errorf("unsupported type: %T", t)
