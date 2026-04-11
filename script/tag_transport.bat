@@ -13,7 +13,7 @@ git tag transport/http3/v1.3.2 --force
 git tag transport/iris/v1.3.2 --force
 git tag transport/kafka/v1.3.6 --force
 git tag transport/machinery/v1.3.2 --force
-git tag transport/mqtt/v1.3.4 --force
+git tag transport/mqtt/v1.3.5 --force
 git tag transport/nats/v1.3.2 --force
 git tag transport/nsq/v1.3.2 --force
 git tag transport/pulsar/v1.3.2 --force

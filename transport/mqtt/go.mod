@@ -15,10 +15,10 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tx7do/kratos-transport/broker v1.3.2
-	github.com/tx7do/kratos-transport/broker/mqtt v1.3.4
+	github.com/tx7do/kratos-transport/broker/mqtt v1.3.5
 	github.com/tx7do/kratos-transport/testing v1.1.1
 	github.com/tx7do/kratos-transport/transport v1.3.3
-	github.com/tx7do/kratos-transport/transport/keepalive v1.3.5
+	github.com/tx7do/kratos-transport/transport/keepalive v1.3.4
 )
 
 require (
