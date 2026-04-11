@@ -689,61 +689,26 @@ func (s *Server) Start(ctx context.Context) error {
 // Stop the server
 func (s *Server) Stop(ctx context.Context) error {
 	s.Lock()
-	if s.state == stateStopped {
-		s.Unlock()
-		return nil
-	}
-	if s.state == stateStopping {
-		s.Unlock()
+	defer s.Unlock()
+
+	// 1. 防止重复 Stop
+	if s.state == stateStopped || s.state == stateStopping {
 		return nil
 	}
 
 	s.state = stateStopping
+	LogInfo("asynq server stopping...")
 
+	// 2. 安全快照资源（持有指针，不提前置 nil）
 	client := s.client
 	server := s.server
 	scheduler := s.scheduler
 	inspector := s.inspector
 	keepaliveSrv := s.keepaliveServer
 
-	s.client = nil
-	s.server = nil
-	s.scheduler = nil
-	s.inspector = nil
-	s.keepaliveServer = nil
-	s.err = nil
-	s.started.Store(false)
-	s.Unlock()
-
-	LogInfo("server stopping...")
-
 	var stopErr error
 
-	if client != nil {
-		if err := client.Close(); err != nil {
-			stopErr = err
-		}
-	}
-
-	if server != nil {
-		if s.gracefullyShutdown {
-			LogInfo("server gracefully shutdown")
-			server.Shutdown()
-		} else {
-			server.Stop()
-		}
-	}
-
-	if scheduler != nil {
-		scheduler.Shutdown()
-	}
-
-	if inspector != nil {
-		if err := inspector.Close(); err != nil && stopErr == nil {
-			stopErr = err
-		}
-	}
-
+	// 3. 关闭 keepalive
 	if keepaliveSrv != nil {
 		if err := keepaliveSrv.Stop(ctx); err != nil {
 			LogError("keepalive server stop failed", err)
@@ -751,13 +716,69 @@ func (s *Server) Stop(ctx context.Context) error {
 				stopErr = err
 			}
 		}
+		s.keepaliveServer = nil
 	}
 
-	s.Lock()
-	s.state = stateStopped
-	s.Unlock()
+	// 4. 关闭定时调度器
+	if scheduler != nil {
+		scheduler.Shutdown()
+		LogInfo("asynq scheduler stopped")
+		s.scheduler = nil
+	}
 
-	LogInfo("server stopped.")
+	// 5. 关闭任务消费者（安全优雅关闭）
+	if server != nil {
+		if s.gracefullyShutdown {
+			LogInfo("asynq server gracefully shutting down...")
+			// 用 ctx 控制超时，避免卡死
+			done := make(chan struct{})
+			go func() {
+				server.Shutdown()
+				close(done)
+			}()
+			select {
+			case <-done:
+				LogInfo("asynq server gracefully stopped")
+			case <-ctx.Done():
+				LogWarn("asynq server graceful shutdown timeout, force stop")
+				server.Stop()
+			}
+		} else {
+			server.Stop()
+			LogInfo("asynq server force stopped")
+		}
+		s.server = nil
+	}
+
+	// 6. 关闭客户端
+	if client != nil {
+		if err := client.Close(); err != nil {
+			LogError("asynq client close failed", err)
+			if stopErr == nil {
+				stopErr = err
+			}
+		}
+		s.client = nil
+	}
+
+	// 7. 关闭巡检器
+	if inspector != nil {
+		if err := inspector.Close(); err != nil {
+			LogError("asynq inspector close failed", err)
+			if stopErr == nil {
+				stopErr = err
+			}
+		}
+		s.inspector = nil
+	}
+
+	// 8. 清理任务注册表
+	s.RemoveAllPeriodicTask()
+
+	// 9. 最终状态
+	s.started.Store(false)
+	s.state = stateStopped
+	LogInfo("asynq server stopped successfully")
 
 	return stopErr
 }
