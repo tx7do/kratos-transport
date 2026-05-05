@@ -61,3 +61,9 @@ Pop-Location
 - `-mode`：`binary` 或 `text`
 - `-type`：消息类型（`NetMessageType`）
 - `-payload`：消息体（JSON 或普通字符串）
+
+## 安装
+
+```bash
+go get github.com/tx7do/kratos-transport/transport/webrtc
+```
