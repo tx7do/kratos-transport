@@ -71,7 +71,7 @@
 - [kratos-chatroom](https://github.com/tx7do/kratos-chatroom) 一个简单的Websocket聊天室的示例
 - [kratos-cqrs](https://github.com/tx7do/kratos-cqrs) 一个CQRS架构模式的示例
 - [kratos-realtimemap](https://github.com/tx7do/kratos-realtimemap) 一个物联网的公共交通实时显示地图的示例
-- [kratos-uba](https://github.com/tx7do/kratos-uba) 一个UBA系统
-- [go-kratos-admin](https://github.com/tx7do/go-kratos-admin) 一个Admin系统
+- [go-wind-uba](https://github.com/tx7do/go-wind-uba) 一个UBA系统
+- [go-wind-admin](https://github.com/tx7do/go-wind-admin) 一个中后台管理系统脚手架
 
 以上示例在[Kratos官方示例代码库](https://github.com/go-kratos/examples)中也可以找到。
