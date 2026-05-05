@@ -2,6 +2,7 @@ package webrtc
 
 import (
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -112,11 +113,21 @@ func (s *Session) BindDataChannel(dc *webrtc.DataChannel, onOpen func()) {
 	})
 
 	dc.OnError(func(err error) {
-		if err != nil {
+		if err != nil && !isExpectedDataChannelCloseError(err) {
 			LogError("data channel error:", err)
 		}
 		s.Close()
 	})
+}
+
+func isExpectedDataChannelCloseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "user initiated abort") ||
+		strings.Contains(msg, "closing") ||
+		strings.Contains(msg, "closed")
 }
 
 func (s *Session) SendMessage(message []byte) {
