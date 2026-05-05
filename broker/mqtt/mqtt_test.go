@@ -120,6 +120,8 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		broker.WithAddress(LocalEmxqBroker),
 		broker.WithCodec("json"),
 		WithAuth("user", "user"),
+		WithCleanSession(false),
+		WithClientId("kratos-transport-test-client"),
 	)
 
 	if err = b.Init(); err != nil {
@@ -139,7 +141,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		startTime := time.Now()
 		msg.Humidity = float64(rand.Intn(100))
 		msg.Temperature = float64(rand.Intn(100))
-		err = b.Publish(t.Context(), "topic/bobo/1", broker.NewMessage(msg))
+		err = b.Publish(t.Context(), "topic/bobo/1", broker.NewMessage(msg), WithPublishQos(2))
 		assert.Nil(t, err)
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		fmt.Printf("Publish %d, elapsed time: %dms, Humidity: %.2f Temperature: %.2f\n",

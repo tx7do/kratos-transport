@@ -1,7 +1,6 @@
 package asynq
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -44,8 +43,6 @@ func TestNewTaskOnly(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
-
 	var err error
 
 	srv := NewServer(
@@ -61,12 +58,12 @@ func TestNewTaskOnly(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err = srv.Start(ctx); err != nil {
+	if err = srv.Start(t.Context()); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err = srv.Stop(ctx); err != nil {
+		if err = srv.Stop(t.Context()); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -77,8 +74,6 @@ func TestNewTaskOnly(t *testing.T) {
 func TestNewPeriodicTaskOnly(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	ctx := context.Background()
 
 	var err error
 
@@ -96,12 +91,12 @@ func TestNewPeriodicTaskOnly(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err = srv.Start(ctx); err != nil {
+	if err = srv.Start(t.Context()); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err = srv.Stop(ctx); err != nil {
+		if err = srv.Stop(t.Context()); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -113,7 +108,6 @@ func TestDelayTask(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
 	var err error
 
 	srv := NewServer(
@@ -142,12 +136,12 @@ func TestDelayTask(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err = srv.Start(ctx); err != nil {
+	if err = srv.Start(t.Context()); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err = srv.Stop(ctx); err != nil {
+		if err = srv.Stop(t.Context()); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -159,7 +153,6 @@ func TestPeriodicTask(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
 	var err error
 
 	srv := NewServer(
@@ -178,12 +171,12 @@ func TestPeriodicTask(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err = srv.Start(ctx); err != nil {
+	if err = srv.Start(t.Context()); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err = srv.Stop(ctx); err != nil {
+		if err = srv.Stop(t.Context()); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -195,7 +188,6 @@ func TestTaskSubscribe(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	ctx := context.Background()
 	var err error
 
 	srv := NewServer(
@@ -212,12 +204,12 @@ func TestTaskSubscribe(t *testing.T) {
 	err = RegisterSubscriber(srv, testPeriodicTask, handlePeriodicTask)
 	assert.Nil(t, err)
 
-	if err = srv.Start(ctx); err != nil {
+	if err = srv.Start(t.Context()); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err = srv.Stop(ctx); err != nil {
+		if err = srv.Stop(t.Context()); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -228,8 +220,6 @@ func TestTaskSubscribe(t *testing.T) {
 func TestAllInOne(t *testing.T) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	ctx := context.Background()
 
 	var err error
 
@@ -271,12 +261,12 @@ func TestAllInOne(t *testing.T) {
 	)
 	assert.Nil(t, err)
 
-	if err = srv.Start(ctx); err != nil {
+	if err = srv.Start(t.Context()); err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err = srv.Stop(ctx); err != nil {
+		if err = srv.Stop(t.Context()); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
@@ -285,8 +275,6 @@ func TestAllInOne(t *testing.T) {
 }
 
 func TestWaitResultTask(t *testing.T) {
-
-	ctx := context.Background()
 
 	var err error
 
@@ -298,13 +286,13 @@ func TestWaitResultTask(t *testing.T) {
 	err = RegisterSubscriber(srv, testTask1, handleTask1)
 
 	defer func() {
-		if err = srv.Stop(ctx); err != nil {
+		if err = srv.Stop(t.Context()); err != nil {
 			t.Errorf("expected nil got %v", err)
 		}
 	}()
 
 	go func() {
-		if err = srv.Start(ctx); err != nil {
+		if err = srv.Start(t.Context()); err != nil {
 			panic(err)
 		}
 	}()

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebRTC Test Client</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; line-height: 1.4; }
+    .row { margin-bottom: 10px; }
+    label { display: inline-block; width: 170px; }
+    input, select, textarea, button { font-size: 14px; }
+    input, select, textarea { width: 420px; max-width: 100%; }
+    textarea { height: 100px; }
+    #log { width: 100%; height: 260px; white-space: pre-wrap; }
+    .buttons button { margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Kratos WebRTC Test Client</h2>
+
+  <div class="row">
+    <label for="signalUrl">Signal URL</label>
+    <input id="signalUrl" type="text" value="http://127.0.0.1:9999/signal" />
+  </div>
+
+  <div class="row">
+    <label for="authToken">Authorization</label>
+    <input id="authToken" type="text" placeholder="Bearer xxx (optional)" />
+  </div>
+
+  <div class="row">
+    <label for="dcLabel">DataChannel Label</label>
+    <input id="dcLabel" type="text" value="kratos" />
+  </div>
+
+  <div class="row">
+    <label for="packetMode">Packet Mode</label>
+    <select id="packetMode">
+      <option value="binary" selected>binary (type[4 bytes LE] + payload)</option>
+      <option value="text">text ({"type":n,"payload":"..."})</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <label for="messageType">Message Type</label>
+    <input id="messageType" type="number" value="1" />
+  </div>
+
+  <div class="row">
+    <label for="payload">Payload (JSON/Text)</label>
+    <textarea id="payload">{"type":1,"sender":"browser","message":"hello"}</textarea>
+  </div>
+
+  <div class="row buttons">
+    <button id="connectBtn">Connect</button>
+    <button id="disconnectBtn">Disconnect</button>
+    <button id="sendBtn">Send</button>
+  </div>
+
+  <div class="row">
+    <label for="log">Log</label>
+    <textarea id="log" readonly></textarea>
+  </div>
+
+  <script>
+    let pc = null;
+    let dc = null;
+
+    const signalUrlEl = document.getElementById("signalUrl");
+    const authTokenEl = document.getElementById("authToken");
+    const dcLabelEl = document.getElementById("dcLabel");
+    const packetModeEl = document.getElementById("packetMode");
+    const messageTypeEl = document.getElementById("messageType");
+    const payloadEl = document.getElementById("payload");
+    const logEl = document.getElementById("log");
+
+    document.getElementById("connectBtn").addEventListener("click", connect);
+    document.getElementById("disconnectBtn").addEventListener("click", disconnect);
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+
+    function log(msg) {
+      const time = new Date().toISOString();
+      logEl.value += `[${time}] ${msg}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(msg);
+    }
+
+    function toUint8(text) {
+      return new TextEncoder().encode(text);
+    }
+
+    function fromUint8(data) {
+      return new TextDecoder().decode(data);
+    }
+
+    function buildBinaryPacket(type, payloadText) {
+      const payload = toUint8(payloadText);
+      const out = new Uint8Array(4 + payload.length);
+      const view = new DataView(out.buffer);
+      view.setUint32(0, Number(type), true);
+      out.set(payload, 4);
+      return out;
+    }
+
+    function parseBinaryPacket(buf) {
+      if (buf.byteLength < 4) {
+        return { type: 0, payload: "<invalid packet>" };
+      }
+      const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+      const type = view.getUint32(0, true);
+      const payload = fromUint8(buf.subarray(4));
+      return { type, payload };
+    }
+
+    async function connect() {
+      if (pc) {
+        log("already connected or connecting");
+        return;
+      }
+
+      try {
+        pc = new RTCPeerConnection({ iceServers: [] });
+        dc = pc.createDataChannel(dcLabelEl.value || "kratos");
+
+        dc.onopen = () => log("data channel open");
+        dc.onclose = () => log("data channel closed");
+        dc.onerror = (e) => log(`data channel error: ${e.message || e.type}`);
+        dc.onmessage = (event) => {
+          const mode = packetModeEl.value;
+          if (typeof event.data === "string") {
+            if (mode === "text") {
+              try {
+                const obj = JSON.parse(event.data);
+                log(`recv text packet type=${obj.type} payload=${obj.payload}`);
+              } catch (_) {
+                log(`recv text raw: ${event.data}`);
+              }
+              return;
+            }
+            log(`recv string: ${event.data}`);
+            return;
+          }
+
+          const bytes = new Uint8Array(event.data);
+          const parsed = parseBinaryPacket(bytes);
+          log(`recv binary packet type=${parsed.type} payload=${parsed.payload}`);
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          log(`ice state: ${pc.iceConnectionState}`);
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await waitIceGatheringComplete(pc);
+
+        const body = JSON.stringify({ offer: pc.localDescription });
+        const headers = { "Content-Type": "application/json" };
+        if (authTokenEl.value.trim() !== "") {
+          headers["Authorization"] = authTokenEl.value.trim();
+        }
+
+        const resp = await fetch(signalUrlEl.value.trim(), {
+          method: "POST",
+          headers,
+          body,
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(`signal failed: ${resp.status} ${text}`);
+        }
+
+        const ansBody = await resp.json();
+        const answer = ansBody.answer ? ansBody.answer : ansBody;
+        await pc.setRemoteDescription(answer);
+        log("remote description set, signaling complete");
+      } catch (err) {
+        log(`connect failed: ${err.message || err}`);
+        disconnect();
+      }
+    }
+
+    async function disconnect() {
+      try {
+        if (dc) {
+          dc.close();
+        }
+        if (pc) {
+          pc.close();
+        }
+      } finally {
+        dc = null;
+        pc = null;
+        log("disconnected");
+      }
+    }
+
+    function sendMessage() {
+      if (!dc || dc.readyState !== "open") {
+        log("data channel not open");
+        return;
+      }
+
+      const mode = packetModeEl.value;
+      const type = Number(messageTypeEl.value);
+      const payloadText = payloadEl.value;
+
+      try {
+        if (mode === "text") {
+          const packet = JSON.stringify({ type, payload: payloadText });
+          dc.send(packet);
+          log(`send text packet type=${type} payload=${payloadText}`);
+        } else {
+          const packet = buildBinaryPacket(type, payloadText);
+          dc.send(packet);
+          log(`send binary packet type=${type} payload=${payloadText}`);
+        }
+      } catch (err) {
+        log(`send failed: ${err.message || err}`);
+      }
+    }
+
+    function waitIceGatheringComplete(pcRef) {
+      if (pcRef.iceGatheringState === "complete") {
+        return Promise.resolve();
+      }
+      return new Promise((resolve) => {
+        function onStateChange() {
+          if (pcRef.iceGatheringState === "complete") {
+            pcRef.removeEventListener("icegatheringstatechange", onStateChange);
+            resolve();
+          }
+        }
+        pcRef.addEventListener("icegatheringstatechange", onStateChange);
+      });
+    }
+  </script>
+</body>
+</html>
+

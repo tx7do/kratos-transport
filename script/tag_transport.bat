@@ -32,5 +32,6 @@ git tag transport/mcp/v1.3.2 --force
 git tag transport/kcp/v1.3.2 --force
 git tag transport/cron/v1.3.2 --force
 git tag transport/hptimer/v1.3.1 --force
+git tag transport/webrtc/v1.3.1 --force
 
 git push origin --tags
