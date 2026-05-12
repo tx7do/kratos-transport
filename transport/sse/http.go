@@ -13,7 +13,7 @@ func (s *Server) prepareHeaderForSSE(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", s.corsAllowOrigin)
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 	for k, v := range s.headers {
@@ -22,6 +22,16 @@ func (s *Server) prepareHeaderForSSE(w http.ResponseWriter) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// OPTIONS preflight：先写 CORS 头再直接放行，不走鉴权
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", s.corsAllowOrigin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Token, Last-Event-ID")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	if s.authorizeFunc != nil {
 		token := ""
 		if s.tokenExtractor != nil {

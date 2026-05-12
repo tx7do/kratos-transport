@@ -133,13 +133,20 @@ func WithTokenHeader(headerKey string) ServerOption {
 			if r == nil {
 				return ""
 			}
-			if headerKey == "" {
-				return DefaultTokenExtractor(r)
+
+			if headerKey != "" {
+				if token := r.Header.Get(headerKey); token != "" {
+					return token
+				}
 			}
-			if token := r.Header.Get(headerKey); token != "" {
-				return token
-			}
+
 			return DefaultTokenExtractor(r)
 		}
+	}
+}
+
+func WithCORSAllowOrigin(origin string) ServerOption {
+	return func(s *Server) {
+		s.corsAllowOrigin = origin
 	}
 }

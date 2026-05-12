@@ -55,6 +55,8 @@ type Server struct {
 	autoStream   bool
 	autoReplay   bool
 
+	corsAllowOrigin string
+
 	subscribeFunc   SubscriberFunction
 	unsubscribeFunc SubscriberFunction
 	authorizeFunc   AuthorizeFunc
@@ -75,6 +77,8 @@ func NewServer(opts ...ServerOption) *Server {
 
 		bufferSize:   DefaultBufferSize,
 		encodeBase64: false,
+
+		corsAllowOrigin: "*",
 
 		autoStream: false,
 		autoReplay: true,
