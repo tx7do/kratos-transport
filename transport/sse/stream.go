@@ -1,6 +1,7 @@
 package sse
 
 import (
+	"net/http"
 	"net/url"
 	"sync"
 	"sync/atomic"
@@ -102,14 +103,25 @@ func (s *Stream) getSubIndex(sub *Subscriber) int {
 	return -1
 }
 
-func (s *Stream) addSubscriber(eventId int, url *url.URL) *Subscriber {
+func (s *Stream) addSubscriber(eventId int, req *http.Request) *Subscriber {
 	atomic.AddInt32(&s.subscriberCount, 1)
+
+	var requestURL *url.URL
+	var header http.Header
+	if req != nil {
+		if req.URL != nil {
+			urlCopy := *req.URL
+			requestURL = &urlCopy
+		}
+		header = req.Header.Clone()
+	}
 
 	sub := &Subscriber{
 		eventId:    eventId,
 		quit:       s.deregister,
 		connection: make(chan *Event, 64),
-		URL:        url,
+		URL:        requestURL,
+		Header:     header,
 	}
 
 	if s.autoStream {

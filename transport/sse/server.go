@@ -57,6 +57,8 @@ type Server struct {
 
 	subscribeFunc   SubscriberFunction
 	unsubscribeFunc SubscriberFunction
+	authorizeFunc   AuthorizeFunc
+	tokenExtractor  TokenExtractor
 
 	streamMgr *StreamManager
 }
@@ -77,6 +79,8 @@ func NewServer(opts ...ServerOption) *Server {
 		autoStream: false,
 		autoReplay: true,
 		headers:    map[string]string{},
+
+		tokenExtractor: DefaultTokenExtractor,
 
 		streamMgr: NewStreamManager(),
 	}

@@ -22,7 +22,7 @@ git tag transport/redis/v1.3.2 --force
 git tag transport/rocketmq/v1.3.2 --force
 git tag transport/signalr/v1.3.2 --force
 git tag transport/socketio/v1.3.2 --force
-git tag transport/sse/v1.3.2 --force
+git tag transport/sse/v1.3.3 --force
 git tag transport/tcp/v1.3.4 --force
 git tag transport/thrift/v1.3.2 --force
 git tag transport/websocket/v1.3.3 --force

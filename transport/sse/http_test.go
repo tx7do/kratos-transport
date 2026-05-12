@@ -2,6 +2,7 @@ package sse
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -200,6 +201,125 @@ func TestHTTPStreamHandlerHeaderFlushIfNoEvents(t *testing.T) {
 	case <-time.After(1000 * time.Millisecond):
 		assert.Fail(t, "Subscribe should returned in 100 milliseconds")
 	}
+}
+
+func TestHTTPStreamHandlerSubscriberCanReadAuthorizationToken(t *testing.T) {
+	tokenCh := make(chan string, 1)
+
+	s := NewServer(
+		WithAddress(":8800"),
+		WithSubscriberFunction(func(streamID StreamID, sub *Subscriber) {
+			if streamID == "test" {
+				tokenCh <- sub.Token("")
+			}
+		}),
+	)
+	defer s.Stop(nil)
+
+	s.CreateStream("test")
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/events", s.ServeHTTP)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/events?stream=test", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer header-token")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	select {
+	case token := <-tokenCh:
+		assert.Equal(t, "header-token", token)
+	case <-time.After(time.Second):
+		t.Fatal("subscriber callback did not receive token in time")
+	}
+}
+
+func TestHTTPStreamHandlerAuthorizeUnauthorized(t *testing.T) {
+	s := NewServer(
+		WithAutoStream(true),
+		WithAuthorizeFunc(func(_ *http.Request, token string) error {
+			if token == "" {
+				return ErrUnauthorized
+			}
+			return nil
+		}),
+	)
+	defer s.Stop(nil)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/events", s.ServeHTTP)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/events?stream=test", nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestHTTPStreamHandlerAuthorizeForbidden(t *testing.T) {
+	s := NewServer(
+		WithAutoStream(true),
+		WithAuthorizeFunc(func(_ *http.Request, token string) error {
+			if token != "ok-token" {
+				return errors.Join(ErrForbidden, errors.New("invalid token"))
+			}
+			return nil
+		}),
+	)
+	defer s.Stop(nil)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/events", s.ServeHTTP)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/events?stream=test", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer bad-token")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+}
+
+func TestHTTPStreamHandlerAuthorizeSuccessWithAuthorizationHeader(t *testing.T) {
+	s := NewServer(
+		WithAutoStream(true),
+		WithAuthorizeFunc(func(_ *http.Request, token string) error {
+			if token != "ok-token" {
+				return ErrUnauthorized
+			}
+			return nil
+		}),
+	)
+	defer s.Stop(nil)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/events", s.ServeHTTP)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/events?stream=test", nil)
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer ok-token")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestHTTPStreamHandlerAutoStream(t *testing.T) {

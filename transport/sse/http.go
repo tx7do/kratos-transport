@@ -22,6 +22,22 @@ func (s *Server) prepareHeaderForSSE(w http.ResponseWriter) {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if s.authorizeFunc != nil {
+		token := ""
+		if s.tokenExtractor != nil {
+			token = s.tokenExtractor(r)
+		}
+
+		if err := s.authorizeFunc(r, token); err != nil {
+			statusCode := http.StatusUnauthorized
+			if isForbidden(err) {
+				statusCode = http.StatusForbidden
+			}
+			writeError(w, err.Error(), statusCode)
+			return
+		}
+	}
+
 	flusher, exist := w.(http.Flusher)
 	if !exist {
 		writeError(w, "Streaming unsupported!", http.StatusInternalServerError)
@@ -56,7 +72,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sub := stream.addSubscriber(eventId, r.URL)
+	sub := stream.addSubscriber(eventId, r)
 
 	go func() {
 		<-r.Context().Done()

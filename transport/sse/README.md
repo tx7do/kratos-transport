@@ -153,6 +153,79 @@ const source = new EventSource("http://localhost:3000/sse")
       }
 ```
 
+## 鉴权与 Token 处理
+
+`SSE Server` 现已支持在建立流连接前进行 token 提取和鉴权拦截。
+
+### 默认 Token 提取规则
+
+如果未自定义提取器，默认按以下顺序提取 token：
+
+1. `Authorization`（支持 `Bearer <token>`）
+2. `X-Token`
+3. Query 参数 `token`
+
+### 关键选项
+
+- `WithAuthorizeFunc(authorizeFn)`：注册鉴权回调
+- `WithTokenExtractor(extractor)`：自定义 token 提取逻辑
+- `WithTokenHeader("X-Auth-Token")`：指定优先 token header
+
+### 鉴权示例
+
+```go
+package main
+
+import (
+  "net/http"
+
+  "github.com/tx7do/kratos-transport/transport/sse"
+)
+
+func newSSEServer() *sse.Server {
+  return sse.NewServer(
+    sse.WithPath("/events"),
+    sse.WithAutoStream(true),
+    sse.WithAuthorizeFunc(func(r *http.Request, token string) error {
+      if token == "" {
+        return sse.ErrUnauthorized // 401
+      }
+      if token != "ok-token" {
+        return sse.ErrForbidden // 403
+      }
+      return nil
+    }),
+  )
+}
+```
+
+### 自定义 Token Header 示例
+
+```go
+sse.NewServer(
+  sse.WithTokenHeader("X-Auth-Token"),
+  sse.WithAuthorizeFunc(func(r *http.Request, token string) error {
+    if token == "" {
+      return sse.ErrUnauthorized
+    }
+    return nil
+  }),
+)
+```
+
+### 回调中读取 Header / Token
+
+在 `WithSubscriberFunction` 回调中，可以从 `sub` 读取请求 header：
+
+```go
+sse.WithSubscriberFunction(func(streamID sse.StreamID, sub *sse.Subscriber) {
+  auth := sub.Authorization()  // 原始 Authorization
+  token := sub.Token("")       // Bearer / X-Token / query token 回退
+  _ = auth
+  _ = token
+})
+```
+
 ## 参考资料 (Reference)
 
 - [Server-sent events - Wikipedia](https://en.wikipedia.org/wiki/Server-sent_events)

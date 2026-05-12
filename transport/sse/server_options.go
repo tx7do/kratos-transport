@@ -3,6 +3,7 @@ package sse
 import (
 	"crypto/tls"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -111,5 +112,34 @@ func WithEventTTL(timeout time.Duration) ServerOption {
 func WithStreamIdKey(key string) ServerOption {
 	return func(s *Server) {
 		s.streamIdKey = key
+	}
+}
+
+func WithTokenExtractor(extractor TokenExtractor) ServerOption {
+	return func(s *Server) {
+		s.tokenExtractor = extractor
+	}
+}
+
+func WithAuthorizeFunc(authorizeFn AuthorizeFunc) ServerOption {
+	return func(s *Server) {
+		s.authorizeFunc = authorizeFn
+	}
+}
+
+func WithTokenHeader(headerKey string) ServerOption {
+	return func(s *Server) {
+		s.tokenExtractor = func(r *http.Request) string {
+			if r == nil {
+				return ""
+			}
+			if headerKey == "" {
+				return DefaultTokenExtractor(r)
+			}
+			if token := r.Header.Get(headerKey); token != "" {
+				return token
+			}
+			return DefaultTokenExtractor(r)
+		}
 	}
 }
