@@ -13,6 +13,24 @@
     textarea { height: 100px; }
     #log { width: 100%; height: 260px; white-space: pre-wrap; }
     .buttons button { margin-right: 8px; }
+    .buttons button:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .status-disconnected { background-color: #ccc; }
+    .status-connecting { background-color: #ffa500; animation: pulse 1s infinite; }
+    .status-connected { background-color: #4caf50; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
     video { width: 320px; height: 240px; border: 1px solid #ccc; margin: 5px; background: #000; }
     .video-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
     .section { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 4px; }
@@ -85,8 +103,12 @@
 
     <div class="row buttons">
       <button id="connectBtn">🔗 Connect</button>
-      <button id="disconnectBtn">❌ Disconnect</button>
-      <button id="sendBtn">📤 Send Message</button>
+      <button id="disconnectBtn" disabled>❌ Disconnect</button>
+      <button id="sendBtn" disabled>📤 Send Message</button>
+      <span id="connectionStatus" style="margin-left: 10px; font-weight: bold;">
+        <span class="status-indicator status-disconnected"></span>
+        <span id="statusText">Disconnected</span>
+      </span>
     </div>
   </div>
 
@@ -125,9 +147,44 @@
     const localVideoEl = document.getElementById("localVideo");
     const remoteVideosEl = document.getElementById("remoteVideos");
 
-    document.getElementById("connectBtn").addEventListener("click", connect);
-    document.getElementById("disconnectBtn").addEventListener("click", disconnect);
-    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    const connectBtn = document.getElementById("connectBtn");
+    const disconnectBtn = document.getElementById("disconnectBtn");
+    const sendBtn = document.getElementById("sendBtn");
+    const statusIndicator = document.querySelector("#connectionStatus .status-indicator");
+    const statusText = document.getElementById("statusText");
+
+    connectBtn.addEventListener("click", connect);
+    disconnectBtn.addEventListener("click", disconnect);
+    sendBtn.addEventListener("click", sendMessage);
+
+    function setConnectionState(state) {
+      switch (state) {
+        case 'connecting':
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = true;
+          sendBtn.disabled = true;
+          statusIndicator.className = 'status-indicator status-connecting';
+          statusText.textContent = 'Connecting...';
+          break;
+        case 'connected':
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          sendBtn.disabled = false;
+          statusIndicator.className = 'status-indicator status-connected';
+          statusText.textContent = 'Connected';
+          break;
+        case 'disconnected':
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          sendBtn.disabled = true;
+          statusIndicator.className = 'status-indicator status-disconnected';
+          statusText.textContent = 'Disconnected';
+          break;
+      }
+    }
+
+    // Initialize state
+    setConnectionState('disconnected');
 
     // Enumerate media devices
     async function enumerateDevices() {
@@ -194,9 +251,14 @@
 
     async function connect() {
       if (pc) {
-        log("already connected or connecting");
-        return;
+        log("Already connected or connecting. Disconnecting first...");
+        // 先关闭现有连接
+        await disconnect();
+        // 等待一小段时间确保资源释放
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
+
+      setConnectionState('connecting');
 
       try {
         pc = new RTCPeerConnection({ 
@@ -393,6 +455,7 @@
             )
           ]);
           log("✓ Connection established successfully!");
+          setConnectionState('connected');
         } catch (err) {
           // If timed out but DC eventually opens, that's okay
           if (dc && dc.readyState === 'open') {
@@ -405,38 +468,63 @@
       } catch (err) {
         log(`✗ Connect failed: ${err.message || err}`);
         // 确保清理所有资源
-        if (pc) {
-          try {
-            pc.close();
-          } catch (e) {
-            // 忽略关闭错误
-          }
-        }
-        pc = null;
-        dc = null;
-        localStream = null;
+        await cleanupConnection();
+        setConnectionState('disconnected');
       }
     }
 
     async function disconnect() {
+      log("Disconnecting...");
+      setConnectionState('disconnected');
+      await cleanupConnection();
+      log("✓ Disconnected successfully");
+    }
+
+    async function cleanupConnection() {
+      const dcToClose = dc;
+      const pcToClose = pc;
+      const streamToStop = localStream;
+      
+      // 先清空引用，防止重复操作
+      dc = null;
+      pc = null;
+      localStream = null;
+      
       try {
-        if (dc) {
-          dc.close();
+        // 关闭 DataChannel
+        if (dcToClose) {
+          log("Closing DataChannel...");
+          dcToClose.close();
+          // 等待 DataChannel 状态更新
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
-        if (pc) {
-          pc.close();
+        
+        // 关闭 PeerConnection
+        if (pcToClose) {
+          log("Closing PeerConnection...");
+          log(`  Before close - connectionState: ${pcToClose.connectionState}`);
+          pcToClose.close();
+          // 等待状态更新
+          await new Promise(resolve => setTimeout(resolve, 300));
+          log(`  After close - connectionState: ${pcToClose.connectionState}`);
         }
-        if (localStream) {
-          localStream.getTracks().forEach(track => track.stop());
-          localStream = null;
+        
+        // 停止媒体流
+        if (streamToStop) {
+          log("Stopping media tracks...");
+          streamToStop.getTracks().forEach(track => {
+            track.stop();
+            log(`  Stopped track: ${track.kind}`);
+          });
         }
-        // Clear video elements
+        
+        // 清空视频元素
         localVideoEl.srcObject = null;
         remoteVideosEl.innerHTML = '';
-      } finally {
-        dc = null;
-        pc = null;
-        log("disconnected");
+        
+        log("✓ Connection resources cleaned up");
+      } catch (e) {
+        log(`⚠ Cleanup warning: ${e.message}`);
       }
     }
 

@@ -409,19 +409,24 @@ func (s *Server) signalHandler(res http.ResponseWriter, req *http.Request) {
 	})
 
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		LogInfof("session %s connection state changed: %s", session.SessionID(), state.String())
 		switch state {
 		case webrtc.PeerConnectionStateClosed, webrtc.PeerConnectionStateFailed, webrtc.PeerConnectionStateDisconnected:
+			LogInfof("session %s closing due to state: %s", session.SessionID(), state.String())
 			session.Close()
 		}
 	})
 
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		LogInfof("session %s data channel opened: %s", session.SessionID(), dc.Label())
 		if !s.allowAnyDataLabel && s.dataChannelLabel != "" && dc.Label() != s.dataChannelLabel {
+			LogWarnf("session %s rejecting data channel with label: %s", session.SessionID(), dc.Label())
 			_ = dc.Close()
 			return
 		}
 
 		session.BindDataChannel(dc, func() {
+			LogInfof("session %s added to session manager", session.SessionID())
 			s.sessionManager.addSession(session)
 			session.Listen()
 		})
@@ -429,7 +434,7 @@ func (s *Server) signalHandler(res http.ResponseWriter, req *http.Request) {
 
 	// 处理 incoming 媒体轨道
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-		LogInfof("received track: session=%s, kind=%s, codec=%s",
+		LogInfof("session %s received track: kind=%s, codec=%s",
 			session.SessionID(), remote.Kind(), remote.Codec().MimeType)
 
 		// 添加到 SFU 路由器
@@ -637,6 +642,9 @@ func (s *Server) OnSessionRemoved(session *Session) {
 	if s.sfuRouter != nil {
 		s.sfuRouter.RemoveSessionTracks(session.SessionID())
 	}
+
+	LogInfof("✓ session %s removed from session manager. Active sessions: %d",
+		session.SessionID(), s.sessionManager.count())
 }
 
 // SubscribeToPublisher 订阅指定发布者的媒体流
