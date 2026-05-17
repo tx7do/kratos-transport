@@ -3,8 +3,10 @@ package webrtc
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -53,6 +55,8 @@ type Server struct {
 
 	sessionManager *SessionManager
 
+	sfuRouter *SFURouter
+
 	payloadType PayloadType
 
 	messageHandlers NetMessageHandlerMap
@@ -91,6 +95,8 @@ func NewServer(opts ...ServerOption) *Server {
 		messageHandlers: make(NetMessageHandlerMap),
 
 		sessionManager: NewSessionManager(nil),
+
+		sfuRouter: NewSFURouter(),
 
 		payloadType: PayloadTypeBinary,
 	}
@@ -349,10 +355,32 @@ func (s *Server) signalHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var offer webrtc.SessionDescription
-	if err := decodeSignalRequest(req, &offer); err != nil {
+	// 解析信令请求
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		_ = writeSignalError(res, err)
+		return
+	}
+	defer req.Body.Close()
+
+	var signalReq signalRequest
+	if err = json.Unmarshal(body, &signalReq); err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		_ = writeSignalError(res, err)
+		return
+	}
+
+	// 处理 ICE Candidate
+	if signalReq.Candidate != nil {
+		s.handleICECandidate(signalReq.Candidate, res)
+		return
+	}
+
+	// 处理 Offer
+	if signalReq.Offer == nil || signalReq.Offer.Type == 0 || signalReq.Offer.SDP == "" {
+		res.WriteHeader(http.StatusBadRequest)
+		_ = writeSignalError(res, errors.New("invalid offer"))
 		return
 	}
 
@@ -370,6 +398,15 @@ func (s *Server) signalHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	session := NewSession(s, pc, vars)
+
+	// 设置 ICE Candidate 回调
+	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+		if candidate == nil {
+			return
+		}
+		// 可以通过 WebSocket 或其他方式发送 candidate，这里暂不实现
+		LogDebugf("ICE candidate generated for session %s", session.SessionID())
+	})
 
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		switch state {
@@ -390,7 +427,19 @@ func (s *Server) signalHandler(res http.ResponseWriter, req *http.Request) {
 		})
 	})
 
-	if err = pc.SetRemoteDescription(offer); err != nil {
+	// 处理 incoming 媒体轨道
+	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+		LogInfof("received track: session=%s, kind=%s, codec=%s",
+			session.SessionID(), remote.Kind(), remote.Codec().MimeType)
+
+		// 添加到 SFU 路由器
+		mediaTrack := s.sfuRouter.AddTrack(session.SessionID(), remote, receiver)
+
+		// 通知其他客户端有新轨道可用（通过数据通道发送信令）
+		s.broadcastTrackAvailable(session.SessionID(), mediaTrack)
+	})
+
+	if err = pc.SetRemoteDescription(*signalReq.Offer); err != nil {
 		session.Close()
 		res.WriteHeader(http.StatusBadRequest)
 		_ = writeSignalError(res, err)
@@ -564,6 +613,15 @@ func (s *Server) getPayloadType() PayloadType {
 	return s.payloadType
 }
 
+// handleICECandidate 处理 ICE Candidate
+func (s *Server) handleICECandidate(candidate *webrtc.ICECandidateInit, res http.ResponseWriter) {
+	// TODO: 需要 session ID 来找到对应的 PeerConnection
+	// 这里简化处理，实际需要通过 WebSocket 或其他方式维护 session 映射
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte(`{"status":"ok"}`))
+	LogDebug("ICE candidate received")
+}
+
 func (s *Server) OnSessionAdded(session *Session) {
 	if s.socketConnectHandler != nil && session != nil {
 		s.socketConnectHandler(session.SessionID(), session.queries, true)
@@ -574,4 +632,129 @@ func (s *Server) OnSessionRemoved(session *Session) {
 	if s.socketConnectHandler != nil && session != nil {
 		s.socketConnectHandler(session.SessionID(), session.queries, false)
 	}
+
+	// 清理 SFU 轨道
+	if s.sfuRouter != nil {
+		s.sfuRouter.RemoveSessionTracks(session.SessionID())
+	}
+}
+
+// SubscribeToPublisher 订阅指定发布者的媒体流
+func (s *Server) SubscribeToPublisher(subscriberID SessionID, publisherID SessionID) error {
+	session := s.sessionManager.getSession(subscriberID)
+	if session == nil {
+		return errors.New("subscriber session not found")
+	}
+
+	pc := session.PeerConnection()
+	if pc == nil {
+		return errors.New("peer connection not found")
+	}
+
+	// 获取发布者的所有轨道
+	tracks := s.sfuRouter.GetPublisherTracks(publisherID)
+	if len(tracks) == 0 {
+		LogWarnf("no tracks available from publisher %s", publisherID)
+		return nil
+	}
+
+	// 为每个轨道创建本地轨道并添加到 PeerConnection
+	for _, mediaTrack := range tracks {
+		localTrack, err := s.sfuRouter.CreateLocalTrackForSubscriber(subscriberID, mediaTrack, pc)
+		if err != nil {
+			LogErrorf("create local track error: %s", err)
+			continue
+		}
+
+		// 发送 renegotation 信令
+		if err := s.sendRenegotiation(session, pc); err != nil {
+			LogErrorf("send renegotiation error: %s", err)
+		}
+
+		_ = localTrack // 保持引用
+	}
+
+	LogInfof("session %s subscribed to publisher %s (%d tracks)", subscriberID, publisherID, len(tracks))
+	return nil
+}
+
+// UnsubscribeFromPublisher 取消订阅
+func (s *Server) UnsubscribeFromPublisher(subscriberID SessionID, publisherID SessionID) {
+	s.sfuRouter.Unsubscribe(subscriberID, publisherID)
+	LogInfof("session %s unsubscribed from publisher %s", subscriberID, publisherID)
+}
+
+// broadcastTrackAvailable 广播轨道可用通知
+func (s *Server) broadcastTrackAvailable(publisherID SessionID, track *MediaTrack) {
+	// 构造信令消息
+	type TrackAvailableMsg struct {
+		Type        string `json:"type"`
+		PublisherID string `json:"publisher_id"`
+		TrackID     string `json:"track_id"`
+		Kind        string `json:"kind"`
+		Codec       string `json:"codec"`
+	}
+
+	msg := TrackAvailableMsg{
+		Type:        "track_available",
+		PublisherID: string(publisherID),
+		TrackID:     track.ID(),
+		Kind:        track.Kind().String(),
+		Codec:       track.Codec().MimeType,
+	}
+
+	payload, err := broker.Marshal(s.codec, msg)
+	if err != nil {
+		LogErrorf("marshal track available message error: %s", err)
+		return
+	}
+
+	// 发送给所有其他客户端
+	s.sessionManager.rangeSessions(func(sessionID SessionID, session *Session) bool {
+		if sessionID != publisherID {
+			// 通过数据通道发送信令
+			session.SendMessage(payload)
+		}
+		return true
+	})
+}
+
+// sendRenegotiation 发送重新协商信令
+func (s *Server) sendRenegotiation(session *Session, pc *webrtc.PeerConnection) error {
+	answer, err := pc.CreateAnswer(nil)
+	if err != nil {
+		return err
+	}
+
+	gatherDone := webrtc.GatheringCompletePromise(pc)
+	if err = pc.SetLocalDescription(answer); err != nil {
+		return err
+	}
+	<-gatherDone
+
+	local := pc.LocalDescription()
+	if local == nil {
+		return errors.New("local description is nil")
+	}
+
+	// 构造 renegotation 信令
+	type RenegotiationMsg struct {
+		Type      string                    `json:"type"`
+		Answer    webrtc.SessionDescription `json:"answer"`
+		SessionID SessionID                 `json:"session_id"`
+	}
+
+	msg := RenegotiationMsg{
+		Type:      "renegotiation",
+		Answer:    *local,
+		SessionID: session.SessionID(),
+	}
+
+	payload, err := broker.Marshal(s.codec, msg)
+	if err != nil {
+		return err
+	}
+
+	session.SendMessage(payload)
+	return nil
 }

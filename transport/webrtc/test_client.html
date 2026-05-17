@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WebRTC Test Client</title>
+  <title>WebRTC SFU Test Client</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 16px; line-height: 1.4; }
     .row { margin-bottom: 10px; }
@@ -13,48 +13,92 @@
     textarea { height: 100px; }
     #log { width: 100%; height: 260px; white-space: pre-wrap; }
     .buttons button { margin-right: 8px; }
+    video { width: 320px; height: 240px; border: 1px solid #ccc; margin: 5px; background: #000; }
+    .video-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .section { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 4px; }
+    h3 { margin-top: 0; color: #333; }
   </style>
 </head>
 <body>
-  <h2>Kratos WebRTC Test Client</h2>
+  <h2>Kratos WebRTC SFU Test Client</h2>
 
-  <div class="row">
-    <label for="signalUrl">Signal URL</label>
-    <input id="signalUrl" type="text" value="http://127.0.0.1:9999/signal" />
+  <div class="section">
+    <h3>🔧 Connection Settings</h3>
+    <div class="row">
+      <label for="signalUrl">Signal URL</label>
+      <input id="signalUrl" type="text" value="http://127.0.0.1:9999/signal" />
+    </div>
+
+    <div class="row">
+      <label for="authToken">Authorization</label>
+      <input id="authToken" type="text" placeholder="Bearer xxx (optional)" />
+    </div>
+
+    <div class="row">
+      <label for="dcLabel">DataChannel Label</label>
+      <input id="dcLabel" type="text" value="kratos" />
+    </div>
   </div>
 
-  <div class="row">
-    <label for="authToken">Authorization</label>
-    <input id="authToken" type="text" placeholder="Bearer xxx (optional)" />
+  <div class="section">
+    <h3>📹 Media Settings</h3>
+    <div class="row">
+      <label for="enableAudio">Enable Audio</label>
+      <input id="enableAudio" type="checkbox" checked />
+    </div>
+
+    <div class="row">
+      <label for="enableVideo">Enable Video</label>
+      <input id="enableVideo" type="checkbox" />
+    </div>
+
+    <div class="row">
+      <label for="audioDevice">Audio Device</label>
+      <select id="audioDevice"><option value="">Default</option></select>
+    </div>
+
+    <div class="row">
+      <label for="videoDevice">Video Device</label>
+      <select id="videoDevice"><option value="">Default</option></select>
+    </div>
   </div>
 
-  <div class="row">
-    <label for="dcLabel">DataChannel Label</label>
-    <input id="dcLabel" type="text" value="kratos" />
+  <div class="section">
+    <h3>💬 Data Channel Messages</h3>
+    <div class="row">
+      <label for="packetMode">Packet Mode</label>
+      <select id="packetMode">
+        <option value="binary" selected>binary (type[4 bytes LE] + payload)</option>
+        <option value="text">text ({"type":n,"payload":"..."})</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label for="messageType">Message Type</label>
+      <input id="messageType" type="number" value="1" />
+    </div>
+
+    <div class="row">
+      <label for="payload">Payload (JSON/Text)</label>
+      <textarea id="payload">{"type":1,"sender":"browser","message":"hello"}</textarea>
+    </div>
+
+    <div class="row buttons">
+      <button id="connectBtn">🔗 Connect</button>
+      <button id="disconnectBtn">❌ Disconnect</button>
+      <button id="sendBtn">📤 Send Message</button>
+    </div>
   </div>
 
-  <div class="row">
-    <label for="packetMode">Packet Mode</label>
-    <select id="packetMode">
-      <option value="binary" selected>binary (type[4 bytes LE] + payload)</option>
-      <option value="text">text ({"type":n,"payload":"..."})</option>
-    </select>
-  </div>
-
-  <div class="row">
-    <label for="messageType">Message Type</label>
-    <input id="messageType" type="number" value="1" />
-  </div>
-
-  <div class="row">
-    <label for="payload">Payload (JSON/Text)</label>
-    <textarea id="payload">{"type":1,"sender":"browser","message":"hello"}</textarea>
-  </div>
-
-  <div class="row buttons">
-    <button id="connectBtn">Connect</button>
-    <button id="disconnectBtn">Disconnect</button>
-    <button id="sendBtn">Send</button>
+  <div class="section">
+    <h3>🎥 Video Streams</h3>
+    <div class="row">
+      <label>Local Video</label>
+      <video id="localVideo" autoplay muted playsinline></video>
+    </div>
+    <div class="video-container" id="remoteVideos">
+      <!-- Remote videos will be added here dynamically -->
+    </div>
   </div>
 
   <div class="row">
@@ -65,6 +109,7 @@
   <script>
     let pc = null;
     let dc = null;
+    let localStream = null;
 
     const signalUrlEl = document.getElementById("signalUrl");
     const authTokenEl = document.getElementById("authToken");
@@ -73,10 +118,45 @@
     const messageTypeEl = document.getElementById("messageType");
     const payloadEl = document.getElementById("payload");
     const logEl = document.getElementById("log");
+    const enableAudioEl = document.getElementById("enableAudio");
+    const enableVideoEl = document.getElementById("enableVideo");
+    const audioDeviceEl = document.getElementById("audioDevice");
+    const videoDeviceEl = document.getElementById("videoDevice");
+    const localVideoEl = document.getElementById("localVideo");
+    const remoteVideosEl = document.getElementById("remoteVideos");
 
     document.getElementById("connectBtn").addEventListener("click", connect);
     document.getElementById("disconnectBtn").addEventListener("click", disconnect);
     document.getElementById("sendBtn").addEventListener("click", sendMessage);
+
+    // Enumerate media devices
+    async function enumerateDevices() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        const audioSelect = document.getElementById("audioDevice");
+        const videoSelect = document.getElementById("videoDevice");
+        
+        devices.forEach(device => {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.text = device.label || `${device.kind} (${device.deviceId.substring(0, 8)}...)`;
+          
+          if (device.kind === "audioinput") {
+            audioSelect.appendChild(option);
+          } else if (device.kind === "videoinput") {
+            videoSelect.appendChild(option);
+          }
+        });
+        
+        log("Media devices enumerated");
+      } catch (err) {
+        log(`Failed to enumerate devices: ${err.message}`);
+      }
+    }
+
+    // Initialize on load
+    enumerateDevices();
 
     function log(msg) {
       const time = new Date().toISOString();
@@ -119,7 +199,41 @@
       }
 
       try {
-        pc = new RTCPeerConnection({ iceServers: [] });
+        pc = new RTCPeerConnection({ 
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" }
+          ]
+        });
+
+        // Get local media stream
+        const constraints = {
+          audio: enableAudioEl.checked ? {
+            deviceId: audioDeviceEl.value ? { exact: audioDeviceEl.value } : undefined
+          } : false,
+          video: enableVideoEl.checked ? {
+            deviceId: videoDeviceEl.value ? { exact: videoDeviceEl.value } : undefined,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } : false
+        };
+
+        if (constraints.audio || constraints.video) {
+          try {
+            localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            localVideoEl.srcObject = localStream;
+            log(`Local media stream obtained: audio=${!!constraints.audio}, video=${!!constraints.video}`);
+            
+            // Add tracks to peer connection
+            localStream.getTracks().forEach(track => {
+              pc.addTrack(track, localStream);
+              log(`Added ${track.kind} track: ${track.label}`);
+            });
+          } catch (err) {
+            log(`Failed to get user media: ${err.message}`);
+            // Continue without media
+          }
+        }
+
         dc = pc.createDataChannel(dcLabelEl.value || "kratos");
 
         dc.onopen = () => log("data channel open");
@@ -146,8 +260,38 @@
           log(`recv binary packet type=${parsed.type} payload=${parsed.payload}`);
         };
 
+        // Handle remote tracks
+        pc.ontrack = (event) => {
+          log(`Received remote ${event.track.kind} track from ${event.streams[0]?.id}`);
+          
+          const stream = event.streams[0];
+          const videoId = `remote-video-${stream.id}`;
+          
+          // Check if video element already exists
+          let videoEl = document.getElementById(videoId);
+          if (!videoEl) {
+            videoEl = document.createElement("video");
+            videoEl.id = videoId;
+            videoEl.autoplay = true;
+            videoEl.playsInline = true;
+            videoEl.style.width = "320px";
+            videoEl.style.height = "240px";
+            videoEl.style.border = "1px solid #ccc";
+            videoEl.style.margin = "5px";
+            videoEl.style.background = "#000";
+            remoteVideosEl.appendChild(videoEl);
+            log(`Created video element for stream ${stream.id}`);
+          }
+          
+          videoEl.srcObject = stream;
+        };
+
         pc.oniceconnectionstatechange = () => {
           log(`ice state: ${pc.iceConnectionState}`);
+        };
+
+        pc.onconnectionstatechange = () => {
+          log(`connection state: ${pc.connectionState}`);
         };
 
         const offer = await pc.createOffer();
@@ -189,6 +333,13 @@
         if (pc) {
           pc.close();
         }
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          localStream = null;
+        }
+        // Clear video elements
+        localVideoEl.srcObject = null;
+        remoteVideosEl.innerHTML = '';
       } finally {
         dc = null;
         pc = null;

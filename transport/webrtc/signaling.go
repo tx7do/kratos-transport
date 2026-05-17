@@ -10,12 +10,16 @@ import (
 )
 
 type signalRequest struct {
-	Offer *webrtc.SessionDescription `json:"offer"`
+	Offer     *webrtc.SessionDescription `json:"offer,omitempty"`
+	Candidate *webrtc.ICECandidateInit   `json:"candidate,omitempty"`
+	Answer    *webrtc.SessionDescription `json:"answer,omitempty"`
 }
 
 type signalResponse struct {
-	Answer    webrtc.SessionDescription `json:"answer"`
-	SessionID SessionID                 `json:"session_id,omitempty"`
+	Answer      webrtc.SessionDescription `json:"answer,omitempty"`
+	SessionID   SessionID                 `json:"session_id,omitempty"`
+	Candidate   *webrtc.ICECandidateInit  `json:"candidate,omitempty"`
+	MessageType string                    `json:"message_type,omitempty"` // offer/answer/candidate/renegotiation
 }
 
 type signalError struct {

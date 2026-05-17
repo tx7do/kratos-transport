@@ -27,6 +27,9 @@ type Session struct {
 	lastReadMessageTime  time.Time // Last time the session received application data.
 	lastWriteMessageTime time.Time // Last time the session sent application data.
 
+	// 媒体轨道相关
+	localTracks map[string]*webrtc.TrackLocalStaticRTP
+
 	connMu     sync.RWMutex
 	done       chan struct{}
 	listenOnce sync.Once
@@ -50,12 +53,13 @@ func NewSession(hooks SessionHooks, pc *webrtc.PeerConnection, vars url.Values) 
 	}
 
 	return &Session{
-		id:      SessionID(id.NewGUIDv4(false)),
-		pc:      pc,
-		queries: vars,
-		send:    make(chan []byte, channelBufSize),
-		hooks:   hooks,
-		done:    make(chan struct{}),
+		id:          SessionID(id.NewGUIDv4(false)),
+		pc:          pc,
+		queries:     vars,
+		send:        make(chan []byte, channelBufSize),
+		hooks:       hooks,
+		done:        make(chan struct{}),
+		localTracks: make(map[string]*webrtc.TrackLocalStaticRTP),
 	}
 }
 

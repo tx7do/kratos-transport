@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	"github.com/pion/webrtc/v4"
@@ -183,5 +184,65 @@ func WithDataChannelLabel(label string) ServerOption {
 func WithAllowAnyDataChannelLabel(allow bool) ServerOption {
 	return func(s *Server) {
 		s.allowAnyDataLabel = allow
+	}
+}
+
+// WithMediaEnabled 启用媒体流支持
+func WithMediaEnabled(enabled bool) ServerOption {
+	return func(s *Server) {
+		if enabled && s.webrtcAPI == nil {
+			// 创建带媒体支持的 WebRTC API
+			settingEngine := webrtc.SettingEngine{}
+			settingEngine.SetICETimeouts(5*time.Second, 5*time.Second, 2*time.Second)
+
+			mediaEngine := &webrtc.MediaEngine{}
+
+			// 注册视频编解码器
+			if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+				RTPCodecCapability: webrtc.RTPCodecCapability{
+					MimeType:     webrtc.MimeTypeH264,
+					ClockRate:    90000,
+					Channels:     0,
+					SDPFmtpLine:  "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
+					RTCPFeedback: nil,
+				},
+				PayloadType: 96,
+			}, webrtc.RTPCodecTypeVideo); err != nil {
+				LogErrorf("register H264 codec error: %s", err)
+			}
+
+			if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+				RTPCodecCapability: webrtc.RTPCodecCapability{
+					MimeType:     webrtc.MimeTypeVP8,
+					ClockRate:    90000,
+					Channels:     0,
+					SDPFmtpLine:  "",
+					RTCPFeedback: nil,
+				},
+				PayloadType: 96,
+			}, webrtc.RTPCodecTypeVideo); err != nil {
+				LogErrorf("register VP8 codec error: %s", err)
+			}
+
+			// 注册音频编解码器
+			if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+				RTPCodecCapability: webrtc.RTPCodecCapability{
+					MimeType:     webrtc.MimeTypeOpus,
+					ClockRate:    48000,
+					Channels:     2,
+					SDPFmtpLine:  "minptime=10;useinbandfec=1",
+					RTCPFeedback: nil,
+				},
+				PayloadType: 111,
+			}, webrtc.RTPCodecTypeAudio); err != nil {
+				LogErrorf("register Opus codec error: %s", err)
+			}
+
+			api := webrtc.NewAPI(
+				webrtc.WithMediaEngine(mediaEngine),
+				webrtc.WithSettingEngine(settingEngine),
+			)
+			s.webrtcAPI = api
+		}
 	}
 }

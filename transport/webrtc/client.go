@@ -44,6 +44,10 @@ type Client struct {
 
 	handlerMu       sync.RWMutex
 	messageHandlers ClientMessageHandlerMap
+
+	// 媒体轨道相关
+	localTracks  map[string]*webrtc.TrackLocalStaticRTP
+	remoteTracks map[string]*webrtc.TrackRemote
 }
 
 func NewClient(opts ...ClientOption) *Client {
@@ -55,6 +59,8 @@ func NewClient(opts ...ClientOption) *Client {
 		connectTimeout:   10 * time.Second,
 		signalTimeout:    10 * time.Second,
 		messageHandlers:  make(ClientMessageHandlerMap),
+		localTracks:      make(map[string]*webrtc.TrackLocalStaticRTP),
+		remoteTracks:     make(map[string]*webrtc.TrackRemote),
 	}
 
 	for _, opt := range opts {
@@ -134,6 +140,18 @@ func (c *Client) Connect() error {
 		if err != nil && !isExpectedDataChannelCloseError(err) {
 			LogErrorf("client data channel error: %s", err)
 		}
+	})
+
+	// 处理 incoming 媒体轨道
+	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
+		LogInfof("received remote track: kind=%s, codec=%s", remote.Kind(), remote.Codec().MimeType)
+
+		c.pcMu.Lock()
+		c.remoteTracks[remote.ID()] = remote
+		c.pcMu.Unlock()
+
+		// 这里可以添加回调通知应用层有新的媒体轨道
+		// 例如: c.onRemoteTrack(remote, receiver)
 	})
 
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
@@ -354,4 +372,51 @@ func (c *Client) messageHandler(buf []byte) error {
 		return nil
 	}
 	return handler.Handler(payload)
+}
+
+// AddLocalTrack 添加本地媒体轨道（音频/视频）
+func (c *Client) AddLocalTrack(track *webrtc.TrackLocalStaticRTP) error {
+	c.pcMu.RLock()
+	pc := c.pc
+	c.pcMu.RUnlock()
+
+	if pc == nil {
+		return errors.New("peer connection not established")
+	}
+
+	if _, err := pc.AddTrack(track); err != nil {
+		return err
+	}
+
+	c.pcMu.Lock()
+	c.localTracks[track.ID()] = track
+	c.pcMu.Unlock()
+
+	LogInfof("added local track: %s", track.ID())
+	return nil
+}
+
+// RemoveLocalTrack 移除本地媒体轨道
+func (c *Client) RemoveLocalTrack(trackID string) {
+	c.pcMu.Lock()
+	defer c.pcMu.Unlock()
+
+	if _, ok := c.localTracks[trackID]; ok {
+		// TrackLocalStaticRTP 不需要手动关闭
+		// 从 PeerConnection 中移除轨道（如果需要）
+		delete(c.localTracks, trackID)
+		LogInfof("removed local track: %s", trackID)
+	}
+}
+
+// GetRemoteTracks 获取所有远程媒体轨道
+func (c *Client) GetRemoteTracks() map[string]*webrtc.TrackRemote {
+	c.pcMu.RLock()
+	defer c.pcMu.RUnlock()
+
+	result := make(map[string]*webrtc.TrackRemote)
+	for k, v := range c.remoteTracks {
+		result[k] = v
+	}
+	return result
 }
