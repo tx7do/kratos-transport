@@ -201,8 +201,18 @@
       try {
         pc = new RTCPeerConnection({ 
           iceServers: [
-            { urls: "stun:stun.l.google.com:19302" }
-          ]
+            // 优先使用国内 STUN 服务器
+            { urls: "stun:stun.miwifi.com" },
+            { urls: "stun:stun.qq.com" },
+            { urls: "stun:stun.bige0.com" },
+            // 备用 Google STUN
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" }
+          ],
+          // 优化 ICE 配置
+          iceCandidatePoolSize: 10,
+          bundlePolicy: 'max-bundle',
+          rtcpMuxPolicy: 'require'
         });
 
         // Get local media stream
@@ -236,9 +246,43 @@
 
         dc = pc.createDataChannel(dcLabelEl.value || "kratos");
 
-        dc.onopen = () => log("data channel open");
-        dc.onclose = () => log("data channel closed");
-        dc.onerror = (e) => log(`data channel error: ${e.message || e.type}`);
+        // Set up data channel event handlers
+        let dcOpenResolve, dcOpenReject;
+        let dcOpened = false;
+        const dcOpenPromise = new Promise((resolve, reject) => {
+          dcOpenResolve = resolve;
+          dcOpenReject = reject;
+        });
+
+        // Use a longer timeout (30 seconds) for DataChannel to open
+        const openTimeout = setTimeout(() => {
+          if (!dcOpened) {
+            log(`⚠ DataChannel still not open after 30s, but continuing anyway...`);
+            // Don't reject, just continue - the channel might open later
+          }
+        }, 30000);
+
+        dc.onopen = () => {
+          clearTimeout(openTimeout);
+          dcOpened = true;
+          log("✓ DataChannel opened");
+          dcOpenResolve();
+        };
+        
+        dc.onerror = (e) => {
+          if (!dcOpened) {
+            clearTimeout(openTimeout);
+            const errorMsg = `DataChannel error: ${e.error?.message || e.message || 'unknown'}`;
+            log(`✗ ${errorMsg}`);
+            dcOpenReject(new Error(errorMsg));
+          }
+        };
+
+        dc.onclose = () => {
+          if (dcOpened) {
+            log("DataChannel closed");
+          }
+        };
         dc.onmessage = (event) => {
           const mode = packetModeEl.value;
           if (typeof event.data === "string") {
@@ -287,28 +331,47 @@
         };
 
         pc.oniceconnectionstatechange = () => {
-          log(`ice state: ${pc.iceConnectionState}`);
+          log(`ICE state: ${pc.iceConnectionState}`);
         };
 
         pc.onconnectionstatechange = () => {
-          log(`connection state: ${pc.connectionState}`);
+          log(`Connection state: ${pc.connectionState}`);
+          if (pc.connectionState === 'failed') {
+            log('✗ Connection failed! Check network/firewall.');
+          }
+        };
+        
+        pc.onicegatheringstatechange = () => {
+          log(`ICE gathering: ${pc.iceGatheringState}`);
         };
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
+        
+        log("Waiting for ICE gathering to complete...");
         await waitIceGatheringComplete(pc);
+        log("✓ ICE gathering complete");
 
         const body = JSON.stringify({ offer: pc.localDescription });
+        log(`Sending offer to ${signalUrlEl.value.trim()}...`);
+        
         const headers = { "Content-Type": "application/json" };
         if (authTokenEl.value.trim() !== "") {
           headers["Authorization"] = authTokenEl.value.trim();
         }
 
-        const resp = await fetch(signalUrlEl.value.trim(), {
-          method: "POST",
-          headers,
-          body,
-        });
+        let resp;
+        try {
+          resp = await fetch(signalUrlEl.value.trim(), {
+            method: "POST",
+            headers,
+            body,
+          });
+          log(`✓ Received response: status=${resp.status}`);
+        } catch (fetchErr) {
+          log(`✗ Fetch failed: ${fetchErr.message}`);
+          throw new Error(`Failed to connect to server: ${fetchErr.message}. Is the server running?`);
+        }
 
         if (!resp.ok) {
           const text = await resp.text();
@@ -318,10 +381,40 @@
         const ansBody = await resp.json();
         const answer = ansBody.answer ? ansBody.answer : ansBody;
         await pc.setRemoteDescription(answer);
-        log("remote description set, signaling complete");
+        
+        // Wait for data channel to open after setting remote description
+        log("Waiting for DataChannel to open...");
+        try {
+          // Wait with a reasonable timeout, but don't fail hard if it takes longer
+          await Promise.race([
+            dcOpenPromise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 30000)
+            )
+          ]);
+          log("✓ Connection established successfully!");
+        } catch (err) {
+          // If timed out but DC eventually opens, that's okay
+          if (dc && dc.readyState === 'open') {
+            log("✓ DataChannel is now open (took longer than expected)");
+          } else {
+            log(`✗ DataChannel failed to open: ${err.message}`);
+            throw err;
+          }
+        }
       } catch (err) {
-        log(`connect failed: ${err.message || err}`);
-        disconnect();
+        log(`✗ Connect failed: ${err.message || err}`);
+        // 确保清理所有资源
+        if (pc) {
+          try {
+            pc.close();
+          } catch (e) {
+            // 忽略关闭错误
+          }
+        }
+        pc = null;
+        dc = null;
+        localStream = null;
       }
     }
 
@@ -376,13 +469,31 @@
       if (pcRef.iceGatheringState === "complete") {
         return Promise.resolve();
       }
+      
       return new Promise((resolve) => {
+        let resolved = false;
+        
         function onStateChange() {
           if (pcRef.iceGatheringState === "complete") {
             pcRef.removeEventListener("icegatheringstatechange", onStateChange);
-            resolve();
+            clearTimeout(timeout);
+            if (!resolved) {
+              resolved = true;
+              resolve();
+            }
           }
         }
+        
+        // Set a timeout to avoid waiting too long for STUN servers
+        const timeout = setTimeout(() => {
+          log(`⚠ ICE gathering timeout, proceeding with current candidates...`);
+          pcRef.removeEventListener("icegatheringstatechange", onStateChange);
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+        }, 5000); // 5 seconds max wait
+        
         pcRef.addEventListener("icegatheringstatechange", onStateChange);
       });
     }
