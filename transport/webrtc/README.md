@@ -167,7 +167,7 @@ client.AddLocalTrack(localTrack)
 运行示例：
 
 ```powershell
-Push-Location "D:\GoProject\kratos-transport\transport\webrtc"
+Push-Location "kratos-transport\transport\webrtc"
 go run ./cmd/test_client -signal "http://127.0.0.1:9999/signal" -type 1 -mode binary -payload '{"type":1,"sender":"go","message":"hello"}'
 Pop-Location
 ```

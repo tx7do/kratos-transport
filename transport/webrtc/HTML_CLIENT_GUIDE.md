@@ -17,7 +17,7 @@
 ### 1. 启动 SFU 服务器
 
 ```bash
-cd D:\GoProject\kratos-transport\transport\webrtc\cmd\sfu_server
+cd kratos-transport\transport\webrtc\cmd\sfu_server
 go run main.go
 ```
 
