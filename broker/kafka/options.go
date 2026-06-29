@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"hash"
 	"time"
 
@@ -286,9 +287,22 @@ func WithSubscribeAutoCreateTopic(topic string, numPartitions, replicationFactor
 	)
 }
 
+func GetSubscribeAutoCreateTopic(ctx context.Context) (string, int, int, bool) {
+	v, ok := ctx.Value(autoSubscribeCreateTopicKey{}).(*autoSubscribeCreateTopicValue)
+	if ok {
+		return v.Topic, v.NumPartitions, v.ReplicationFactor, true
+	}
+	return "", 0, 0, false
+}
+
 // WithDialerTimeout .
 func WithDialerTimeout(tm time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(dialerTimeoutKey{}, tm)
+}
+
+func GetDialerTimeout(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(dialerTimeoutKey{}).(time.Duration)
+	return v, ok
 }
 
 // WithRetries 设置消息重发的次数
@@ -296,9 +310,19 @@ func WithRetries(cnt int) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(subscribeRetriesCountKey{}, cnt)
 }
 
+func GetRetries(ctx context.Context) (int, bool) {
+	v, ok := ctx.Value(subscribeRetriesCountKey{}).(int)
+	return v, ok
+}
+
 // WithQueueCapacity .
 func WithQueueCapacity(cap int) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(queueCapacityKey{}, cap)
+}
+
+func GetQueueCapacity(ctx context.Context) (int, bool) {
+	v, ok := ctx.Value(queueCapacityKey{}).(int)
+	return v, ok
 }
 
 // WithMinBytes fetch.min.bytes
@@ -306,9 +330,19 @@ func WithMinBytes(bytes int) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(minBytesKey{}, bytes)
 }
 
+func GetMinBytes(ctx context.Context) (int, bool) {
+	v, ok := ctx.Value(minBytesKey{}).(int)
+	return v, ok
+}
+
 // WithMaxBytes .
 func WithMaxBytes(bytes int) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(maxBytesKey{}, bytes)
+}
+
+func GetMaxBytes(ctx context.Context) (int, bool) {
+	v, ok := ctx.Value(maxBytesKey{}).(int)
+	return v, ok
 }
 
 // WithMaxWait fetch.max.wait.ms
@@ -316,9 +350,19 @@ func WithMaxWait(time time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(maxWaitKey{}, time)
 }
 
+func GetMaxWait(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(maxWaitKey{}).(time.Duration)
+	return v, ok
+}
+
 // WithReadLagInterval .
 func WithReadLagInterval(interval time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(readLagIntervalKey{}, interval)
+}
+
+func GetReadLagInterval(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(readLagIntervalKey{}).(time.Duration)
+	return v, ok
 }
 
 // WithHeartbeatInterval .
@@ -326,9 +370,19 @@ func WithHeartbeatInterval(interval time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(heartbeatIntervalKey{}, interval)
 }
 
+func GetHeartbeatInterval(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(heartbeatIntervalKey{}).(time.Duration)
+	return v, ok
+}
+
 // WithCommitInterval .
 func WithCommitInterval(interval time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(commitIntervalKey{}, interval)
+}
+
+func GetCommitInterval(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(commitIntervalKey{}).(time.Duration)
+	return v, ok
 }
 
 // WithPartitionWatchInterval .
@@ -336,9 +390,19 @@ func WithPartitionWatchInterval(interval time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(partitionWatchIntervalKey{}, interval)
 }
 
+func GetPartitionWatchInterval(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(partitionWatchIntervalKey{}).(time.Duration)
+	return v, ok
+}
+
 // WithWatchPartitionChanges .
 func WithWatchPartitionChanges(enable bool) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(watchPartitionChangesKey{}, enable)
+}
+
+func GetWatchPartitionChanges(ctx context.Context) (bool, bool) {
+	v, ok := ctx.Value(watchPartitionChangesKey{}).(bool)
+	return v, ok
 }
 
 // WithSessionTimeout .
@@ -346,9 +410,19 @@ func WithSessionTimeout(timeout time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(sessionTimeoutKey{}, timeout)
 }
 
+func GetSessionTimeout(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(sessionTimeoutKey{}).(time.Duration)
+	return v, ok
+}
+
 // WithRebalanceTimeout .
 func WithRebalanceTimeout(timeout time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(rebalanceTimeoutKey{}, timeout)
+}
+
+func GetRebalanceTimeout(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(rebalanceTimeoutKey{}).(time.Duration)
+	return v, ok
 }
 
 // WithRetentionTime .
@@ -356,9 +430,19 @@ func WithRetentionTime(time time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(retentionTimeKey{}, time)
 }
 
+func GetRetentionTime(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(retentionTimeKey{}).(time.Duration)
+	return v, ok
+}
+
 // WithStartOffset .
 func WithStartOffset(offset int64) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(startOffsetKey{}, offset)
+}
+
+func GetStartOffset(ctx context.Context) (int64, bool) {
+	v, ok := ctx.Value(startOffsetKey{}).(int64)
+	return v, ok
 }
 
 // WithDialer .
@@ -366,26 +450,61 @@ func WithDialer(cfg *kafkaGo.Dialer) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(dialerConfigKey{}, cfg)
 }
 
+func GetDialer(ctx context.Context) (*kafkaGo.Dialer, bool) {
+	v, ok := ctx.Value(dialerConfigKey{}).(*kafkaGo.Dialer)
+	return v, ok
+}
+
 func WithPartition(partition int) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(partitionKey{}, partition)
+}
+
+func GetPartition(ctx context.Context) (int, bool) {
+	v, ok := ctx.Value(partitionKey{}).(int)
+	return v, ok
 }
 
 func WithReadBatchTimeout(tm time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(readBatchTimeoutKey{}, tm)
 }
 
+func GetReadBatchTimeout(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(readBatchTimeoutKey{}).(time.Duration)
+	return v, ok
+}
+
 func WithReadBackoffMin(tm time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(readBackoffMin{}, tm)
+}
+
+func GetReadBackoffMin(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(readBackoffMin{}).(time.Duration)
+	return v, ok
 }
 
 func WithReadBackoffMax(tm time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(readBackoffMax{}, tm)
 }
 
+func GetReadBackoffMax(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(readBackoffMax{}).(time.Duration)
+	return v, ok
+}
+
 func WithSubscribeBatchSize(batchSize int) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(subscribeBatchSizeKey{}, batchSize)
 }
 
+func GetSubscribeBatchSize(ctx context.Context) (int, bool) {
+	v, ok := ctx.Value(subscribeBatchSizeKey{}).(int)
+	return v, ok
+}
+
 func WithSubscribeBatchInterval(batchInterval time.Duration) broker.SubscribeOption {
 	return broker.SubscribeContextWithValue(subscribeBatchIntervalKey{}, batchInterval)
+}
+
+func GetSubscribeBatchInterval(ctx context.Context) (time.Duration, bool) {
+	v, ok := ctx.Value(subscribeBatchIntervalKey{}).(time.Duration)
+	return v, ok
 }

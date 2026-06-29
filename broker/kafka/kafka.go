@@ -580,8 +580,8 @@ func (b *kafkaBroker) Subscribe(
 
 	//LogInfof("topic: %s, group: %s, queue: %s", readerConfig.Topic, readerConfig.GroupID, options.Queue)
 
-	if value, ok := options.Context.Value(autoSubscribeCreateTopicKey{}).(*autoSubscribeCreateTopicValue); ok {
-		if err := CreateTopic(b.Address(), value.Topic, value.NumPartitions, value.ReplicationFactor); err != nil {
+	if topicName, numPartitions, replicationFactor, ok := GetSubscribeAutoCreateTopic(options.Context); ok {
+		if err := CreateTopic(b.Address(), topicName, numPartitions, replicationFactor); err != nil {
 			LogErrorf("create topic error: %s", err.Error())
 		}
 	}
@@ -590,67 +590,67 @@ func (b *kafkaBroker) Subscribe(
 		readerConfig.Dialer = kafkaGo.DefaultDialer
 	}
 
-	if value, ok := b.options.Context.Value(queueCapacityKey{}).(int); ok {
+	if value, ok := GetQueueCapacity(options.Context); ok {
 		readerConfig.QueueCapacity = value
 	}
-	if value, ok := b.options.Context.Value(minBytesKey{}).(int); ok {
+	if value, ok := GetMinBytes(options.Context); ok {
 		readerConfig.MinBytes = value
 	}
-	if value, ok := b.options.Context.Value(maxBytesKey{}).(int); ok {
+	if value, ok := GetMaxBytes(options.Context); ok {
 		readerConfig.MaxBytes = value
 	}
-	if value, ok := b.options.Context.Value(maxWaitKey{}).(time.Duration); ok {
+	if value, ok := GetMaxWait(options.Context); ok {
 		readerConfig.MaxWait = value
 	}
-	if value, ok := b.options.Context.Value(readLagIntervalKey{}).(time.Duration); ok {
+	if value, ok := GetReadLagInterval(options.Context); ok {
 		readerConfig.ReadLagInterval = value
 	}
-	if value, ok := b.options.Context.Value(heartbeatIntervalKey{}).(time.Duration); ok {
+	if value, ok := GetHeartbeatInterval(options.Context); ok {
 		readerConfig.HeartbeatInterval = value
 	}
-	if value, ok := b.options.Context.Value(commitIntervalKey{}).(time.Duration); ok {
+	if value, ok := GetCommitInterval(options.Context); ok {
 		readerConfig.CommitInterval = value
 	}
-	if value, ok := b.options.Context.Value(partitionWatchIntervalKey{}).(time.Duration); ok {
+	if value, ok := GetPartitionWatchInterval(options.Context); ok {
 		readerConfig.PartitionWatchInterval = value
 	}
-	if value, ok := b.options.Context.Value(watchPartitionChangesKey{}).(bool); ok {
+	if value, ok := GetWatchPartitionChanges(options.Context); ok {
 		readerConfig.WatchPartitionChanges = value
 	}
-	if value, ok := b.options.Context.Value(sessionTimeoutKey{}).(time.Duration); ok {
+	if value, ok := GetSessionTimeout(options.Context); ok {
 		readerConfig.SessionTimeout = value
 	}
-	if value, ok := b.options.Context.Value(rebalanceTimeoutKey{}).(time.Duration); ok {
+	if value, ok := GetRebalanceTimeout(options.Context); ok {
 		readerConfig.RebalanceTimeout = value
 	}
-	if value, ok := b.options.Context.Value(retentionTimeKey{}).(time.Duration); ok {
+	if value, ok := GetRetentionTime(options.Context); ok {
 		readerConfig.RetentionTime = value
 	}
-	if value, ok := b.options.Context.Value(startOffsetKey{}).(int64); ok {
+	if value, ok := GetStartOffset(options.Context); ok {
 		readerConfig.StartOffset = value
 	}
-	if value, ok := b.options.Context.Value(maxAttemptsKey{}).(int); ok {
+	if value, ok := options.Context.Value(maxAttemptsKey{}).(int); ok {
 		readerConfig.MaxAttempts = value
 	}
-	if value, ok := b.options.Context.Value(dialerConfigKey{}).(*kafkaGo.Dialer); ok {
+	if value, ok := GetDialer(options.Context); ok {
 		readerConfig.Dialer = value
 	}
-	if value, ok := b.options.Context.Value(dialerTimeoutKey{}).(time.Duration); ok {
+	if value, ok := GetDialerTimeout(options.Context); ok {
 		if readerConfig.Dialer != nil {
 			readerConfig.Dialer.Timeout = value
 		}
 	}
 
-	if value, ok := b.options.Context.Value(partitionKey{}).(int); ok {
+	if value, ok := GetPartition(options.Context); ok {
 		readerConfig.Partition = value
 	}
-	if value, ok := b.options.Context.Value(readBatchTimeoutKey{}).(time.Duration); ok {
+	if value, ok := GetReadBatchTimeout(options.Context); ok {
 		readerConfig.ReadBatchTimeout = value
 	}
-	if value, ok := b.options.Context.Value(readBackoffMin{}).(time.Duration); ok {
+	if value, ok := GetReadBackoffMin(options.Context); ok {
 		readerConfig.ReadBackoffMin = value
 	}
-	if value, ok := b.options.Context.Value(readBackoffMax{}).(time.Duration); ok {
+	if value, ok := GetReadBackoffMax(options.Context); ok {
 		readerConfig.ReadBackoffMax = value
 	}
 
@@ -660,10 +660,10 @@ func (b *kafkaBroker) Subscribe(
 
 	sub := newSubscriber(b, topic, options, readerConfig, handler, binder)
 
-	if value, ok := options.Context.Value(subscribeBatchSizeKey{}).(int); ok {
+	if value, ok := GetSubscribeBatchSize(options.Context); ok {
 		sub.batchSize = value
 	}
-	if value, ok := options.Context.Value(subscribeBatchIntervalKey{}).(time.Duration); ok {
+	if value, ok := GetSubscribeBatchInterval(options.Context); ok {
 		sub.batchInterval = value
 	}
 
