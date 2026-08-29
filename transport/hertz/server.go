@@ -9,6 +9,7 @@ import (
 	"time"
 
 	hertz "github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/cloudwego/hertz/pkg/common/config"
 
 	"github.com/go-kratos/kratos/v2/middleware"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
@@ -29,6 +30,7 @@ type Server struct {
 	timeout  time.Duration
 	addr     string
 	endpoint *url.URL
+	options  []config.Option // 透传给 hertz.Default 的引擎级配置项
 
 	err error
 
@@ -57,7 +59,10 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
-	s.Hertz = hertz.Default(hertz.WithHostPorts(s.addr), hertz.WithTLS(s.tlsConf))
+	s.Hertz = hertz.Default(append([]config.Option{
+		hertz.WithHostPorts(s.addr),
+		hertz.WithTLS(s.tlsConf),
+	}, s.options...)...)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
