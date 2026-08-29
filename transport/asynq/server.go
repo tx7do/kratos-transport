@@ -582,7 +582,10 @@ func (s *Server) NewPeriodicTask(cronSpec, typeName string, msg any, opts ...asy
 	return entryID, nil
 }
 
-// RemovePeriodicTask remove periodic task
+// RemovePeriodicTask remove periodic task by typeName.
+// When multiple periodic tasks share the same typeName, only the most
+// recently registered one can be removed this way; use RemovePeriodicTaskByID
+// to remove the others by the entryID returned by NewPeriodicTask.
 func (s *Server) RemovePeriodicTask(taskId string) error {
 	entryId := s.QueryPeriodicTaskEntryID(taskId)
 	if entryId == "" {
@@ -594,7 +597,26 @@ func (s *Server) RemovePeriodicTask(taskId string) error {
 		return err
 	}
 
-	s.removePeriodicTaskEntryID(entryId)
+	s.removePeriodicTaskEntryID(taskId)
+
+	return nil
+}
+
+// RemovePeriodicTaskByID remove periodic task by the entryID returned by
+// NewPeriodicTask. Unlike RemovePeriodicTask, which looks the entry up by
+// typeName, it is not affected by typeName collisions: multiple periodic
+// tasks registered with the same typeName can be removed independently.
+func (s *Server) RemovePeriodicTaskByID(entryId string) error {
+	if entryId == "" {
+		return errors.New("entryId cannot be empty")
+	}
+
+	if err := s.unregisterPeriodicTask(entryId); err != nil {
+		LogErrorf("[%s] dequeue periodic task failed: %s", entryId, err.Error())
+		return err
+	}
+
+	s.removePeriodicTaskEntryIDByEntryID(entryId)
 
 	return nil
 }
@@ -635,6 +657,19 @@ func (s *Server) removePeriodicTaskEntryID(taskId string) {
 	defer s.mtxEntryIDs.Unlock()
 
 	delete(s.entryIDs, taskId)
+}
+
+// removePeriodicTaskEntryIDByEntryID removes the map entry holding the given
+// entryID (the map is keyed by typeName, so the value must be looked up).
+func (s *Server) removePeriodicTaskEntryIDByEntryID(entryId string) {
+	s.mtxEntryIDs.Lock()
+	defer s.mtxEntryIDs.Unlock()
+
+	for taskId, id := range s.entryIDs {
+		if id == entryId {
+			delete(s.entryIDs, taskId)
+		}
+	}
 }
 
 func (s *Server) QueryPeriodicTaskEntryID(taskId string) string {

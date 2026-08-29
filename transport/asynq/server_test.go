@@ -311,3 +311,53 @@ func TestWaitResultTask(t *testing.T) {
 
 	t.Logf("Wait for task result...")
 }
+
+// TestPeriodicTaskSameTypeName verifies that multiple periodic tasks sharing
+// the same typeName are tracked and removable independently:
+//   - RemovePeriodicTaskByID removes any single entry by the entryID returned
+//     by NewPeriodicTask, even when its typeName was overwritten by a later
+//     registration;
+//   - RemovePeriodicTask (by typeName) removes the latest entry and actually
+//     cleans the entryIDs map (regression for the no-op cleanup bug).
+func TestPeriodicTaskSameTypeName(t *testing.T) {
+	srv := NewServer()
+	assert.Nil(t, srv.createAsynqScheduler())
+
+	const typeName = "test_periodic_same_typename"
+	task := asynq.NewTask(typeName, nil)
+
+	// two periodic tasks sharing the same typeName: the underlying scheduler
+	// holds two entries, while entryIDs keeps only the latest one.
+	id1, err := srv.scheduler.Register("*/5 * * * *", task)
+	assert.Nil(t, err)
+	srv.addPeriodicTaskEntryID(typeName, id1)
+
+	id2, err := srv.scheduler.Register("*/7 * * * *", task)
+	assert.Nil(t, err)
+	srv.addPeriodicTaskEntryID(typeName, id2)
+
+	assert.NotEqual(t, id1, id2)
+	assert.Equal(t, id2, srv.QueryPeriodicTaskEntryID(typeName))
+
+	// the overwritten entry is still firing in the scheduler and can only be
+	// removed via its entryID.
+	assert.Nil(t, srv.RemovePeriodicTaskByID(id1))
+	assert.NotNil(t, srv.scheduler.Unregister(id1)) // already unregistered
+	assert.Equal(t, id2, srv.QueryPeriodicTaskEntryID(typeName))
+
+	// removing by typeName works for the latest entry and cleans the map.
+	assert.Nil(t, srv.RemovePeriodicTask(typeName))
+	assert.Equal(t, "", srv.QueryPeriodicTaskEntryID(typeName))
+	assert.NotNil(t, srv.scheduler.Unregister(id2)) // already unregistered
+
+	// RemovePeriodicTaskByID also clears the map entry that holds the entryID.
+	id3, err := srv.scheduler.Register("*/9 * * * *", task)
+	assert.Nil(t, err)
+	srv.addPeriodicTaskEntryID(typeName, id3)
+	assert.Nil(t, srv.RemovePeriodicTaskByID(id3))
+	assert.Equal(t, "", srv.QueryPeriodicTaskEntryID(typeName))
+
+	// removing an unknown or empty entryID fails instead of silently succeeding.
+	assert.NotNil(t, srv.RemovePeriodicTaskByID("nonexistent-entry-id"))
+	assert.NotNil(t, srv.RemovePeriodicTaskByID(""))
+}
