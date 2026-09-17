@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	localBroker = "127.0.0.1:6379"
-	testTopic   = "test_topic"
+	localBroker   = "127.0.0.1:6379"
+	localPassword = "123456"
+	testTopic     = "test_topic"
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
@@ -36,6 +37,7 @@ func TestServer(t *testing.T) {
 	srv := NewServer(
 		WithAddress(localBroker),
 		WithCodec("json"),
+		WithPassword(localPassword),
 	)
 
 	err := RegisterSubscriber(srv,
@@ -71,6 +73,7 @@ func TestClient(t *testing.T) {
 		broker.WithAddress(localBroker),
 		broker.WithCodec("json"),
 		redis.WithReadTimeout(24*time.Hour),
+		redis.WithPassword(localPassword),
 	)
 
 	_ = b.Init()

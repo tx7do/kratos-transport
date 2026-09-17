@@ -99,6 +99,7 @@ func (b *streamBroker) Connect() error {
 				redis.DialConnectTimeout(b.commonOpts.ConnectTimeout),
 				redis.DialReadTimeout(redisOption.DefaultHealthCheckPeriod+b.commonOpts.ReadTimeout),
 				redis.DialWriteTimeout(b.commonOpts.WriteTimeout),
+				redis.DialPassword(b.commonOpts.Password),
 			)
 		},
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
