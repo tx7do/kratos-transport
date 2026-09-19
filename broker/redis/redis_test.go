@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	localBroker = "127.0.0.1:6379"
-	testTopic   = "test_topic"
+	localBroker   = "127.0.0.1:6379"
+	localPassword = ""
+	testTopic     = "test_topic"
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
@@ -37,6 +38,7 @@ func Test_Publish_WithRawData(t *testing.T) {
 	b := NewBroker(DriverTypePubSub,
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
+		WithPassword(localPassword),
 	)
 
 	_ = b.Init()
@@ -72,6 +74,7 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 
 	b := NewBroker(DriverTypePubSub,
 		broker.WithAddress(localBroker),
+		WithPassword(localPassword),
 	)
 	defer b.Disconnect()
 
@@ -98,6 +101,7 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 		broker.WithOptionContext(ctx),
 		broker.WithAddress(localBroker),
 		broker.WithCodec("json"),
+		WithPassword(localPassword),
 	)
 
 	_ = b.Init()
@@ -133,6 +137,7 @@ func Test_Subscribe_WithJsonCodec(t *testing.T) {
 	b := NewBroker(DriverTypePubSub,
 		broker.WithAddress(localBroker),
 		broker.WithCodec("json"),
+		WithPassword(localPassword),
 	)
 	defer b.Disconnect()
 

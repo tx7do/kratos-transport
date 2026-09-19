@@ -46,6 +46,7 @@ type CommonOptions struct {
 	ConnectTimeout time.Duration
 	ReadTimeout    time.Duration
 	WriteTimeout   time.Duration
+	Password       string
 }
 
 ///
@@ -138,6 +139,21 @@ func WithMaxActive(n int) broker.Option {
 			x.(*CommonOptions).MaxActive = n
 		} else {
 			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{MaxActive: n})
+		}
+	}
+}
+
+// WithPassword 密码
+func WithPassword(password string) broker.Option {
+	return func(o *broker.Options) {
+		if o.Context == nil {
+			o.Context = context.Background()
+		}
+		x := o.Context.Value(OptionsKey)
+		if x != nil {
+			x.(*CommonOptions).Password = password
+		} else {
+			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{Password: password})
 		}
 	}
 }

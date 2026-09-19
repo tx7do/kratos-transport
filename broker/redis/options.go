@@ -45,6 +45,11 @@ func WithMaxActive(n int) broker.Option {
 	return option.WithMaxActive(n)
 }
 
+// WithPassword 设置密码
+func WithPassword(password string) broker.Option {
+	return option.WithPassword(password)
+}
+
 // WithDefaultOptions 全部置为默认的配置
 func WithDefaultOptions() broker.Option {
 	return option.WithDefaultOptions()

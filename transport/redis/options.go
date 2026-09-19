@@ -83,6 +83,13 @@ func WithMaxActive(n int) ServerOption {
 	}
 }
 
+// WithPassword 设置密码
+func WithPassword(password string) ServerOption {
+	return func(s *Server) {
+		s.brokerOpts = append(s.brokerOpts, redis.WithPassword(password))
+	}
+}
+
 // WithDriverType sets the Redis driver type (PubSub or Stream).
 func WithDriverType(driverType redis.DriverType) ServerOption {
 	return func(s *Server) {
