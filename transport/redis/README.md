@@ -103,6 +103,29 @@ _ = redis.RegisterSubscriber(srv,
 )
 ```
 
+## 连接认证（密码）
+
+密码通过 `WithAddress` 的地址 URL userinfo 部分传入，PubSub 与 Stream 模式通用。
+
+| 场景 | 地址写法 |
+|------|----------|
+| 无密码 | `redis://127.0.0.1:6379/0` |
+| `requirepass`（默认用户） | `redis://:yourpassword@127.0.0.1:6379/0` |
+| Redis 6+ ACL 用户 | `redis://username:yourpassword@127.0.0.1:6379/0` |
+
+```go
+srv := redis.NewServer(
+    redis.WithAddress("redis://:yourpassword@127.0.0.1:6379/0"),
+    redis.WithCodec("json"),
+)
+```
+
+注意事项：
+
+- 必须使用带 scheme 的完整 URL（`redis://...`），裸地址 `127.0.0.1:6379` 无法携带密码。
+- 密码含 `@ : / # ?` 等特殊字符时需做 URL 转义（如 `p@ss` → `p%40ss`）。
+- 仅 `requirepass` 时用户名留空、保留冒号（`:yourpassword`）；无密码时不要写 `:`。
+
 ## 参考资料
 
 * [Redis 官方文档](https://redis.io/documentation)

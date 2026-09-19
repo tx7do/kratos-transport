@@ -113,6 +113,29 @@ func main() {
 | `redis.WithStreamCount(n)` | 每次读取的最大消息数 | 10 | SubscribeOption |
 | `redis.WithStreamMaxLen(n)` | XADD 时 MAXLEN 限制 | 0 (不限制) | PublishOption |
 
+## 连接认证（密码）
+
+底层使用 `redis.DialURL` 解析地址，密码通过地址（`redis.WithAddress`）的 URL userinfo 部分传入，Pub/Sub 与 Stream 两种模式通用。
+
+| 场景 | 地址写法 |
+|------|----------|
+| 无密码 | `redis://127.0.0.1:6379/0` |
+| `requirepass`（默认用户） | `redis://:yourpassword@127.0.0.1:6379/0` |
+| Redis 6+ ACL 用户 | `redis://username:yourpassword@127.0.0.1:6379/0` |
+
+```go
+b := redis.NewBroker(redis.DriverTypePubSub,
+    broker.WithAddress("redis://:yourpassword@127.0.0.1:6379/0"),
+    broker.WithCodec("json"),
+)
+```
+
+注意事项：
+
+- **必须使用带 scheme 的完整 URL**（`redis://...`）。裸地址 `127.0.0.1:6379` 会被补成 `redis://127.0.0.1:6379`，其中没有 userinfo，无法携带密码。
+- 密码含 `@ : / # ?` 等特殊字符时需做 URL 转义（如 `p@ss` → `p%40ss`），否则会被解析为分隔符。
+- 仅 `requirepass` 时用户名留空、保留冒号（`:yourpassword`）；无密码时不要写 `:`。
+
 ## Docker 部署开发环境
 
 ```shell
