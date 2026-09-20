@@ -41,6 +41,7 @@ func NewClient(opts ...func(*ClientOptions)) (*WorkflowClient, error) {
 		o(&options)
 	}
 
+	// 注意：ClientOptions.Context 当前未透传（SDK v1.42 的 client.Options 无对应字段）
 	c, err := client.NewClient(client.Options{
 		HostPort:  options.HostPort,
 		Namespace: options.Namespace,

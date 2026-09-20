@@ -380,6 +380,12 @@ func (wc *WorkflowClient) GetWorkflowLogs(ctx context.Context, name string, opts
 	}
 	defer resp.Body.Close()
 
+	// 非 2xx 不能把错误响应体当日志返回
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("get workflow logs failed: HTTP %d: %s", resp.StatusCode, string(data))
+	}
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("read logs error: %w", err)

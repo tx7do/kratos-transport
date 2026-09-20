@@ -275,6 +275,11 @@ func (b *nsqBroker) publish(ctx context.Context, topic string, msg *broker.Messa
 }
 
 func (b *nsqBroker) getProducer() *NSQ.Producer {
+	// Disconnect 持锁写 producers，这里加锁防数据竞争
+	// （publish 路径不持 b 的锁调用本方法，无死锁风险）
+	b.Lock()
+	defer b.Unlock()
+
 	producerLen := len(b.producers)
 	if producerLen == 0 {
 		return nil

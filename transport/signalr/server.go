@@ -71,6 +71,11 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if s.lis != nil {
+		// 已在监听：避免同一 listener 叠两个 accept 循环
+		return nil
+	}
+
 	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}

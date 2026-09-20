@@ -208,11 +208,14 @@ func (s *Server) Start(_ context.Context) error {
 		s.server = s.buildHTTPServer()
 	}
 
+	// 捕获局部引用：并发 Stop 置 nil 后这里不会 nil panic
+	srv := s.server
+
 	var err error
 	if s.tlsConf != nil {
-		err = s.server.ServeTLS(s.lis, "", "")
+		err = srv.ServeTLS(s.lis, "", "")
 	} else {
-		err = s.server.Serve(s.lis)
+		err = srv.Serve(s.lis)
 	}
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err

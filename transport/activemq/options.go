@@ -24,6 +24,7 @@ func WithAddress(addrs []string) ServerOption {
 	}
 }
 
+// WithTLSConfig 注意：对应 broker 驱动当前不消费 TLS 配置，透传不生效。
 func WithTLSConfig(c *tls.Config) ServerOption {
 	return func(s *Server) {
 		if c != nil {

@@ -64,7 +64,7 @@ func NewClient(opts ...ClientOption) *Client {
 	}
 
 	// 内置信令处理器：处理服务端下发的重协商 Offer（服务端新增下行轨道时）。
-	// 先于用户选项注册，用户不可覆盖
+	// 在用户 opts 之前注册：RegisterMessageHandler 先注册者优先，用户无法覆盖
 	c.RegisterMessageHandler(MsgTypeSignalRenegotiation,
 		func(payload MessagePayload) error {
 			return c.handleSignalRenegotiation(payload)
@@ -466,7 +466,15 @@ func (c *Client) handleSignalRenegotiation(payload MessagePayload) error {
 	}
 
 	if msg.Answer != nil {
-		return pc.SetRemoteDescription(*msg.Answer)
+		if err := pc.SetRemoteDescription(*msg.Answer); err != nil {
+			return err
+		}
+		gatherDone := webrtc.GatheringCompletePromise(pc)
+		select {
+		case <-gatherDone:
+		case <-time.After(3 * time.Second):
+		}
+		return nil
 	}
 
 	if msg.Offer != nil {

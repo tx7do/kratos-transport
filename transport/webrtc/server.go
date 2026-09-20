@@ -117,7 +117,9 @@ func (s *Server) init(opts ...ServerOption) error {
 		o(s)
 	}
 
-	// 内置信令处理器：处理客户端回传的重协商 Answer/Offer（先注册占位，用户不可覆盖）
+	// 内置信令处理器：处理客户端回传的重协商 Answer/Offer。
+	// 在用户 opts 应用之后注册：RegisterMessageHandler 先注册者优先，
+	// 因此用户无法覆盖内置信令处理（防误抢）
 	s.RegisterMessageHandler(MsgTypeSignalRenegotiation,
 		func(sessionId SessionID, payload MessagePayload) error {
 			return s.handleSignalRenegotiation(sessionId, payload)
@@ -815,7 +817,16 @@ func (s *Server) handleSignalRenegotiation(sessionId SessionID, payload MessageP
 	}
 
 	if msg.Answer != nil {
-		return pc.SetRemoteDescription(*msg.Answer)
+		if err := pc.SetRemoteDescription(*msg.Answer); err != nil {
+			return err
+		}
+		// Answer 路径与 Offer 路径对称：等 ICE 收敛后再继续（网络切换场景保证候选完整）
+		gatherDone := webrtc.GatheringCompletePromise(pc)
+		select {
+		case <-gatherDone:
+		case <-time.After(3 * time.Second):
+		}
+		return nil
 	}
 
 	if msg.Offer != nil {

@@ -66,6 +66,9 @@ func (c *Session) SendMessage(message []byte) {
 	case <-c.done:
 		return
 	case c.send <- message:
+	case <-time.After(5 * time.Second):
+		// 慢消费者（writePump 阻塞）不能无限拖住调用方/广播方
+		LogErrorf("session %s send buffer full, message dropped", c.SessionID())
 	}
 }
 

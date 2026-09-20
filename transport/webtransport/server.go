@@ -241,6 +241,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		sess.stream.CancelRead(0)
 		sess.stream.Close()
 	}
+	s.sessions = make(map[SessionID]*session)
 	s.sessionsMu.Unlock()
 
 	s.refCount.Wait()

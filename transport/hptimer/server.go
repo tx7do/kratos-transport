@@ -90,6 +90,11 @@ func (s *Server) Start(ctx context.Context) error {
 	s.hpTimer = NewHighPrecisionTimer(s.timerObserver)
 	s.hpTimer.Start()
 
+	// Stop 置 nil 后重建（keepalive 的 stopReq 闩锁不可复位）
+	if s.enableKeepalive && s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindHighPrecisionTimer))
+	}
+
 	// 启动 keepalive（grpc Serve 阻塞，必须放 goroutine，否则 AddTask 永远不可达）
 	if s.enableKeepalive && s.keepaliveServer != nil {
 		go func() {
@@ -161,6 +166,8 @@ func (s *Server) Stop(ctx context.Context) error {
 	// 停止心跳
 	if s.keepaliveServer != nil {
 		_ = s.keepaliveServer.Stop(ctx)
+		// keepalive 的 stopReq 闩锁不可复位，必须换新实例才能重启
+		s.keepaliveServer = nil
 	}
 
 	LogInfo("hptimer server stopped successfully")

@@ -231,7 +231,10 @@ func (s *Server) Broadcast(messageType NetMessageType, message NetMessagePayload
 }
 
 func (s *Server) Start(_ context.Context) error {
-	if s.running {
+	s.stateMu.Lock()
+	running := s.running
+	s.stateMu.Unlock()
+	if running {
 		return nil
 	}
 

@@ -102,6 +102,11 @@ func (s *Server) Start(ctx context.Context) error {
 	s.cronScheduler.Start()
 	s.started.Store(true)
 
+	// Stop 置 nil 后重建（keepalive 的 stopReq 闩锁不可复位）
+	if s.enableKeepalive && s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindCron))
+	}
+
 	// 启动 keepalive（grpc Serve 是阻塞调用，必须放 goroutine，否则 Start 永不返回）
 	if s.enableKeepalive && s.keepaliveServer != nil {
 		go func() {

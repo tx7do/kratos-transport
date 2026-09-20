@@ -133,6 +133,8 @@ func (s *Server) Stop(_ context.Context) error {
 
 	s.health.Shutdown()
 	s.GracefulStop()
+	// GracefulStop 后 grpc.Server 不可复用：置 nil 让 Start 重建（重启支持）
+	s.Server = nil
 	if s.lis != nil {
 		_ = s.lis.Close()
 		s.lis = nil
