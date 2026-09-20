@@ -392,9 +392,6 @@ kratos-transport/
 │   ├── exporter.go             # Multi-backend Exporter
 │   ├── tracer.go               # Trace inject / extract
 │   └── options.go              # Tracing configuration
-├── _example/                   # Example projects
-│   ├── broker/                 # Broker usage examples
-│   └── server/                 # Server usage examples
 ├── testing/                    # Testing utilities
 ├── script/                     # Helper scripts
 ├── Makefile                    # Build script
@@ -404,6 +401,8 @@ kratos-transport/
 ---
 
 ## Example Projects
+
+Usage examples for each module are written as built-in testable examples (`example_test.go` in each module directory). They are compile-checked by `go test` and shown in the API docs on [pkg.go.dev](https://pkg.go.dev/github.com/tx7do/kratos-transport).
 
 | Project | Description |
 |---------|-------------|

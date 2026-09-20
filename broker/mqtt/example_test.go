@@ -1,27 +1,15 @@
-package main
+package mqtt_test
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/mqtt"
 	api "github.com/tx7do/kratos-transport/testing/api/manual"
-)
-
-const (
-	EmqxBroker        = "tcp://broker.emqx.io:1883"
-	EmqxCnBroker      = "tcp://broker-cn.emqx.io:1883"
-	EclipseBroker     = "tcp://mqtt.eclipseprojects.io:1883"
-	MosquittoBroker   = "tcp://test.mosquitto.org:1883"
-	HiveMQBroker      = "tcp://broker.hivemq.com:1883"
-	LocalEmqxBroker   = "tcp://127.0.0.1:1883"
-	LocalRabbitBroker = "tcp://user:bitnami@127.0.0.1:1883"
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
@@ -31,6 +19,7 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
 
+// RegisterHygrothermographRawHandler 把裸字节流解码成强类型消息后转交给业务处理函数。
 func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		var msg api.Hygrothermograph
@@ -38,62 +27,47 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 		switch t := event.Message().Body.(type) {
 		case []byte:
 			if err := json.Unmarshal(t, &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		case string:
 			if err := json.Unmarshal([]byte(t), &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		default:
-			log.Error("unknown type Unmarshal failed: ", t)
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 
-		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
-			return err
-		}
-
-		return nil
+		return fnc(ctx, event.Topic(), event.Message().Headers, &msg)
 	}
 }
 
-func main() {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
+// ExampleNewBroker 演示连接 MQTT broker 并通配订阅主题。
+// 共享订阅可把 topic 换成 "$share/g1/topic/bobo/#" 或 "$queue/topic/bobo/#"。
+// 没有 Output 注释，go test 只编译不执行；实际运行需要本地 EMQX (tcp://127.0.0.1:1883)。
+func ExampleNewBroker() {
 	b := mqtt.NewBroker(
 		broker.WithCodec("json"),
-		broker.WithAddress(LocalEmqxBroker),
+		broker.WithAddress("tcp://127.0.0.1:1883"),
 		mqtt.WithCleanSession(false),
 		mqtt.WithAuth("user", "bitnami"),
 		mqtt.WithClientId("test-client-2"),
 	)
 
+	if err := b.Connect(); err != nil {
+		log.Error(err)
+		return
+	}
 	defer func(b broker.Broker) {
-		err := b.Disconnect()
-		if err != nil {
-
+		if err := b.Disconnect(); err != nil {
+			log.Error(err)
 		}
 	}(b)
 
-	if err := b.Connect(); err != nil {
-		fmt.Println(err)
-	}
-	defer b.Disconnect()
-
-	topic := "topic/bobo/#"
-	//topicSharedGroup := "$share/g1/topic/bobo/#"
-	//topicSharedQueue := "$queue/topic/bobo/#"
-
-	_, err := b.Subscribe(topic,
+	_, err := b.Subscribe("topic/bobo/#",
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
 	)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 	}
-
-	<-interrupt
 }

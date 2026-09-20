@@ -392,9 +392,6 @@ kratos-transport/
 │   ├── exporter.go             # 多后端 Exporter
 │   ├── tracer.go               # Trace 注入 / 提取
 │   └── options.go              # 追踪配置
-├── _example/                   # 示例工程
-│   ├── broker/                 # Broker 使用示例
-│   └── server/                 # Server 使用示例
 ├── testing/                    # 测试相关
 ├── script/                     # 辅助脚本
 ├── Makefile                    # 构建脚本
@@ -404,6 +401,8 @@ kratos-transport/
 ---
 
 ## 示例项目
+
+各模块的用法示例以内置 testable example 的形式编写（各模块目录下的 `example_test.go`），随 `go test` 编译校验，并展示在 [pkg.go.dev](https://pkg.go.dev/github.com/tx7do/kratos-transport) 对应 API 的文档中。
 
 | 项目                                                                | 说明                         |
 |-------------------------------------------------------------------|----------------------------|

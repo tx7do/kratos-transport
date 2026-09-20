@@ -33,11 +33,3 @@ bin/
 .vscode/
 .idea/
 *.swp
-
-# _example 下 go build 产生的可执行文件
-_example/**/kafka
-_example/**/mqtt
-_example/**/rabbitmq
-_example/**/redis
-_example/**/asynq
-_example/**/websocket

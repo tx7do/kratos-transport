@@ -1,22 +1,20 @@
-package main
+package kafka_test
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/broker/redis"
+	"github.com/tx7do/kratos-transport/broker/kafka"
 	api "github.com/tx7do/kratos-transport/testing/api/manual"
 )
 
 const (
-	localBroker = "127.0.0.1:6379"
-	testTopic   = "test_topic"
+	testBrokers = "localhost:9092"
+	testGroupId = "a-group"
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
@@ -26,6 +24,7 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
 
+// RegisterHygrothermographRawHandler 把裸字节流解码成强类型消息后转交给业务处理函数。
 func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		var msg api.Hygrothermograph
@@ -33,52 +32,36 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 		switch t := event.Message().Body.(type) {
 		case []byte:
 			if err := json.Unmarshal(t, &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		case string:
 			if err := json.Unmarshal([]byte(t), &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		default:
-			log.Error("unknown type Unmarshal failed: ", t)
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 
-		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
-			return err
-		}
-
-		return nil
+		return fnc(ctx, event.Topic(), event.Message().Headers, &msg)
 	}
 }
 
-func main() {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	b := redis.NewBroker(redis.DriverTypePubSub,
+// ExampleNewBroker 演示订阅 Kafka 主题并按消费组消费强类型消息。
+// 没有 Output 注释，go test 只编译不执行；实际运行需要本地 Kafka (localhost:9092)。
+func ExampleNewBroker() {
+	b := kafka.NewBroker(
+		broker.WithAddress(testBrokers),
 		broker.WithCodec("json"),
-		broker.WithAddress(localBroker),
 	)
 
 	_ = b.Init()
 
-	if err := b.Connect(); err != nil {
-		fmt.Println(err)
-	}
-	defer func(b broker.Broker) {
-		err := b.Disconnect()
-		if err != nil {
-			fmt.Println(err)
-		}
-	}(b)
-
-	_, _ = b.Subscribe(testTopic,
+	_, err := b.Subscribe("test_topic",
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
+		broker.WithSubscribeQueueName(testGroupId),
 	)
-
-	<-interrupt
+	if err != nil {
+		log.Error(err)
+	}
 }

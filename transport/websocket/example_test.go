@@ -1,4 +1,4 @@
-package main
+package websocket_test
 
 import (
 	"fmt"
@@ -10,11 +10,9 @@ import (
 	"github.com/tx7do/kratos-transport/transport/websocket"
 )
 
-var testServer *websocket.Server
+const MessageTypeChat websocket.NetMessageType = iota + 1
 
-const (
-	MessageTypeChat = iota + 1
-)
+var testServer *websocket.Server
 
 type ChatMessage struct {
 	Sender    string `json:"sender"`
@@ -22,7 +20,10 @@ type ChatMessage struct {
 	Message   string `json:"message"`
 }
 
-func main() {
+// ExampleNewServer 演示启动一个 WebSocket 聊天服务：
+// 收到客户端消息后广播给所有会话。
+// 没有 Output 注释，go test 只编译不执行。
+func ExampleNewServer() {
 	wsSrv := websocket.NewServer(
 		websocket.WithAddress(":8800"),
 		websocket.WithPath("/ws"),

@@ -392,9 +392,6 @@ kratos-transport/
 │   ├── exporter.go             # マルチバックエンドエクスポーター
 │   ├── tracer.go               # トレース注入/抽出
 │   └── options.go              # トレーシング設定
-├── _example/                   # サンプルプロジェクト
-│   ├── broker/                 # Broker 使用例
-│   └── server/                 # Server 使用例
 ├── testing/                    # テストユーティリティ
 ├── script/                     # 補助スクリプト
 ├── Makefile                    # ビルドスクリプト
@@ -404,6 +401,8 @@ kratos-transport/
 ---
 
 ## サンプルプロジェクト
+
+各モジュールの使用例は、組み込みの testable example として記述されています（各モジュール直下の `example_test.go`）。`go test` によるコンパイル検証が行われ、[pkg.go.dev](https://pkg.go.dev/github.com/tx7do/kratos-transport) の API ドキュメントにも表示されます。
 
 | プロジェクト | 説明 |
 |------------|------|

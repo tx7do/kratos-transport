@@ -1,32 +1,23 @@
-package main
+package redis_test
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-transport/broker"
-	"github.com/tx7do/kratos-transport/broker/kafka"
+	"github.com/tx7do/kratos-transport/broker/redis"
 	api "github.com/tx7do/kratos-transport/testing/api/manual"
 )
 
-const (
-	testBrokers = "localhost:9092"
-	testTopic   = "test_topic"
-	testGroupId = "a-group"
-)
-
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	redis.LogInfof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
 
+// RegisterHygrothermographRawHandler 把裸字节流解码成强类型消息后转交给业务处理函数。
 func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		var msg api.Hygrothermograph
@@ -34,46 +25,42 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 		switch t := event.Message().Body.(type) {
 		case []byte:
 			if err := json.Unmarshal(t, &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		case string:
 			if err := json.Unmarshal([]byte(t), &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		default:
-			log.Error("unknown type Unmarshal failed: ", t)
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 
-		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
-			return err
-		}
-
-		return nil
+		return fnc(ctx, event.Topic(), event.Message().Headers, &msg)
 	}
 }
 
-func main() {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	b := kafka.NewBroker(
-		broker.WithAddress(testBrokers),
+// ExampleNewBroker 演示通过 PubSub 驱动订阅主题并按强类型消费消息。
+// 没有 Output 注释，go test 只编译不执行；实际运行需要本地 Redis (127.0.0.1:6379)。
+func ExampleNewBroker() {
+	b := redis.NewBroker(redis.DriverTypePubSub,
 		broker.WithCodec("json"),
+		broker.WithAddress("127.0.0.1:6379"),
 	)
 
 	_ = b.Init()
 
-	_, err := b.Subscribe(testTopic,
+	if err := b.Connect(); err != nil {
+		redis.LogError(err)
+		return
+	}
+	defer func(b broker.Broker) {
+		if err := b.Disconnect(); err != nil {
+			redis.LogError(err)
+		}
+	}(b)
+
+	_, _ = b.Subscribe("test_topic",
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
 		api.HygrothermographCreator,
-		broker.WithSubscribeQueueName(testGroupId),
 	)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	<-interrupt
 }

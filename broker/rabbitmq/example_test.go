@@ -1,34 +1,31 @@
-package main
+package rabbitmq_test
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/rabbitmq"
 	api "github.com/tx7do/kratos-transport/testing/api/manual"
 )
 
 const (
-	testBroker = "amqp://user:bitnami@127.0.0.1:5672"
-
 	testExchange = "test_exchange"
 	testQueue    = "test_queue"
 	testRouting  = "test_routing_key"
 )
 
 func handleHygrothermograph(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error {
-	fmt.Printf("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
+	log.Infof("Topic %s, Headers: %+v, Payload: %+v\n", topic, headers, msg)
 	return nil
 }
 
 type HygrothermographHandler func(_ context.Context, topic string, headers broker.Headers, msg *api.Hygrothermograph) error
 
+// RegisterHygrothermographRawHandler 把裸字节流解码成强类型消息后转交给业务处理函数。
 func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Handler {
 	return func(ctx context.Context, event broker.Event) error {
 		var msg api.Hygrothermograph
@@ -36,34 +33,26 @@ func RegisterHygrothermographRawHandler(fnc HygrothermographHandler) broker.Hand
 		switch t := event.Message().Body.(type) {
 		case []byte:
 			if err := json.Unmarshal(t, &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		case string:
 			if err := json.Unmarshal([]byte(t), &msg); err != nil {
-				log.Error("json Unmarshal failed: ", err.Error())
-				return err
+				return fmt.Errorf("json unmarshal failed: %w", err)
 			}
 		default:
-			log.Error("unknown type Unmarshal failed: ", t)
 			return fmt.Errorf("unsupported type: %T", t)
 		}
 
-		if err := fnc(ctx, event.Topic(), event.Message().Headers, &msg); err != nil {
-			return err
-		}
-
-		return nil
+		return fnc(ctx, event.Topic(), event.Message().Headers, &msg)
 	}
 }
 
-func main() {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
+// ExampleNewBroker 演示声明交换器并按路由键订阅队列。
+// 没有 Output 注释，go test 只编译不执行；实际运行需要本地 RabbitMQ (amqp://127.0.0.1:5672)。
+func ExampleNewBroker() {
 	b := rabbitmq.NewBroker(
 		broker.WithCodec("json"),
-		broker.WithAddress(testBroker),
+		broker.WithAddress("amqp://user:bitnami@127.0.0.1:5672"),
 		rabbitmq.WithExchangeName(testExchange),
 		rabbitmq.WithDurableExchange(),
 	)
@@ -71,9 +60,14 @@ func main() {
 	_ = b.Init()
 
 	if err := b.Connect(); err != nil {
-		fmt.Println(err)
+		log.Error(err)
+		return
 	}
-	defer b.Disconnect()
+	defer func(b broker.Broker) {
+		if err := b.Disconnect(); err != nil {
+			log.Error(err)
+		}
+	}(b)
 
 	_, _ = b.Subscribe(testRouting,
 		RegisterHygrothermographRawHandler(handleHygrothermograph),
@@ -82,6 +76,4 @@ func main() {
 		// broker.WithDisableAutoAck(),
 		rabbitmq.WithDurableQueue(),
 	)
-
-	<-interrupt
 }
