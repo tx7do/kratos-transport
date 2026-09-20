@@ -1,8 +1,8 @@
 package nats
 
 import (
-	"strings"
 	natsGo "github.com/nats-io/nats.go"
+	"strings"
 
 	"github.com/tx7do/kratos-transport/broker"
 )

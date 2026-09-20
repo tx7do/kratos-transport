@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
@@ -677,8 +678,9 @@ func (s *Server) SubscribeToPublisher(subscriberID SessionID, publisherID Sessio
 		return errors.New("peer connection not found")
 	}
 
-	// 获取发布者的所有轨道
-	tracks := s.sfuRouter.GetPublisherTracks(publisherID)
+	// 记录订阅关系（否则 UnsubscribeFromPublisher 查表为空、退订是空操作），
+	// 并获取发布者的所有轨道
+	tracks := s.sfuRouter.Subscribe(subscriberID, publisherID)
 	if len(tracks) == 0 {
 		LogWarnf("no tracks available from publisher %s", publisherID)
 		return nil
@@ -762,7 +764,12 @@ func (s *Server) sendRenegotiation(session *Session, pc *webrtc.PeerConnection) 
 	if err = pc.SetLocalDescription(offer); err != nil {
 		return err
 	}
-	<-gatherDone
+	// PC 被关闭时 gathering promise 可能永不完成，加超时防 SubscribeToPublisher 无限阻塞
+	select {
+	case <-gatherDone:
+	case <-time.After(5 * time.Second):
+		LogWarn("ice gathering timeout, sending current local description")
+	}
 
 	local := pc.LocalDescription()
 	if local == nil {

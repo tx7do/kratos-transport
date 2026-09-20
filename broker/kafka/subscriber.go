@@ -149,7 +149,12 @@ func (s *subscriber) run() {
 func (s *subscriber) processBatchMessage() {
 	messageBuffer := make([]kafkaGo.Message, 0, s.batchSize)
 
-	ticker := time.NewTicker(s.batchInterval)
+	// 仅配 batchSize 未配 interval 时 interval 为 0，NewTicker(0) 直接 panic
+	interval := s.batchInterval
+	if interval <= 0 {
+		interval = 500 * time.Millisecond
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	// 退避参数

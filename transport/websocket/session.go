@@ -198,6 +198,16 @@ func (s *Session) readPump() {
 	defer s.wg.Done()
 	defer s.Close()
 
+	conn := s.Conn()
+	if s.readTimeout > 0 {
+		_ = conn.SetReadDeadline(time.Now().Add(s.readTimeout))
+		// gorilla 在内部消费 Ping/Pong 控制帧且不使 ReadMessage 返回，
+		// 必须用 PongHandler 顺延 deadline，否则仅心跳保活的连接会被误杀
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(s.readTimeout))
+		})
+	}
+
 	for {
 		select {
 		case <-s.done:

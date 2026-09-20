@@ -63,7 +63,8 @@ func (s *Server) allowedOrigin(origin string) bool {
 	}
 	for _, o := range s.allowedOrigins {
 		if o == "*" {
-			return true
+			// 通配符与凭据不能组合使用（等价于向任意站点开放凭据型跨域）
+			return !s.allowCredentials
 		}
 		if strings.EqualFold(o, origin) {
 			return true

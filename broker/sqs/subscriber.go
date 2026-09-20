@@ -1,9 +1,9 @@
 package sqs
 
 import (
-	"time"
 	"context"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
@@ -129,7 +129,12 @@ func (s *subscriber) processMessage(ctx context.Context, handler broker.Handler,
 		if binder != nil {
 			m.Body = binder()
 			if err := broker.Unmarshal(s.b.options.Codec, body, &m.Body); err != nil {
+				// 毒消息：通知 ErrorHandler；不 Ack 等 visibility 超时重投
 				LogErrorf("unmarshal message failed: %v", err)
+				p := &publication{topic: s.topic, msg: &m, sqsMsg: &sqsMsg, client: s.client, queueUrl: s.queueUrl, err: err}
+				if eh := s.b.options.ErrorHandler; eh != nil {
+					_ = eh(s.options.Context, p)
+				}
 				return
 			}
 		} else {

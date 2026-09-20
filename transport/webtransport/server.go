@@ -76,6 +76,19 @@ type session struct {
 	writeMu sync.Mutex
 }
 
+// writeWithTimeout 带写超时地向会话流写入一帧（QUIC 流在流控耗尽/对端不读时
+// Write 可能阻塞到连接级 MaxIdleTimeout，需要 deadline 兜底）
+func (s *Server) writeWithTimeout(sess *session, data []byte) error {
+	sess.writeMu.Lock()
+	defer sess.writeMu.Unlock()
+
+	if s.timeout > 0 {
+		_ = sess.stream.SetWriteDeadline(time.Now().Add(s.timeout))
+	}
+
+	return WriteFrame(sess.stream, data)
+}
+
 // SendRawData 向指定会话下行发送一帧原始数据
 func (s *Server) SendRawData(sessionId SessionID, data []byte) error {
 	s.sessionsMu.Lock()
@@ -86,10 +99,7 @@ func (s *Server) SendRawData(sessionId SessionID, data []byte) error {
 		return errors.New("session not found")
 	}
 
-	sess.writeMu.Lock()
-	defer sess.writeMu.Unlock()
-
-	return WriteFrame(sess.stream, data)
+	return s.writeWithTimeout(sess, data)
 }
 
 // BroadcastRawData 向所有在线会话下行发送一帧原始数据
@@ -103,10 +113,7 @@ func (s *Server) BroadcastRawData(data []byte) error {
 
 	var firstErr error
 	for _, sess := range sessions {
-		sess.writeMu.Lock()
-		err := WriteFrame(sess.stream, data)
-		sess.writeMu.Unlock()
-		if err != nil && firstErr == nil {
+		if err := s.writeWithTimeout(sess, data); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -226,6 +233,16 @@ func (s *Server) Stop(ctx context.Context) error {
 		LogWarnf("graceful shutdown failed, closing: %s", err.Error())
 		err = s.Server.Close()
 	}
+
+	// GOAWAY 对自定义帧协议的客户端无感知，必须主动关闭被劫持的流，
+	// 否则 refCount.Wait 会一直等客户端主动断开
+	s.sessionsMu.Lock()
+	for _, sess := range s.sessions {
+		sess.stream.CancelRead(0)
+		sess.stream.Close()
+	}
+	s.sessionsMu.Unlock()
+
 	s.refCount.Wait()
 
 	LogInfo("server stopped.")

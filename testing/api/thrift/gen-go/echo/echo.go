@@ -26,7 +26,7 @@ var _ = strings.Contains
 var _ = regexp.MatchString
 
 // Attributes:
-//  - Msg
+//   - Msg
 type Request struct {
 	Msg string `thrift:"Msg,1" db:"Msg" json:"Msg"`
 }
@@ -141,7 +141,7 @@ func (p *Request) Validate() error {
 }
 
 // Attributes:
-//  - Msg
+//   - Msg
 type Response struct {
 	Msg string `thrift:"Msg,1" db:"Msg" json:"Msg"`
 }
@@ -300,7 +300,7 @@ func (p *EchoServiceClient) SetLastResponseMeta_(meta thrift.ResponseMeta) {
 }
 
 // Parameters:
-//  - Req
+//   - Req
 func (p *EchoServiceClient) Echo(ctx context.Context, req *Request) (_r *Response, _err error) {
 	var _args0 EchoServiceEchoArgs
 	_args0.Req = req
@@ -318,7 +318,7 @@ func (p *EchoServiceClient) Echo(ctx context.Context, req *Request) (_r *Respons
 }
 
 // Parameters:
-//  - Req
+//   - Req
 func (p *EchoServiceClient) VisitOneway(ctx context.Context, req *Request) (_err error) {
 	var _args4 EchoServiceVisitOnewayArgs
 	_args4.Req = req
@@ -495,7 +495,7 @@ func (p *echoServiceProcessorVisitOneway) Process(ctx context.Context, seqId int
 // HELPER FUNCTIONS AND STRUCTURES
 
 // Attributes:
-//  - Req
+//   - Req
 type EchoServiceEchoArgs struct {
 	Req *Request `thrift:"req,1" db:"req" json:"req"`
 }
@@ -602,7 +602,7 @@ func (p *EchoServiceEchoArgs) String() string {
 }
 
 // Attributes:
-//  - Success
+//   - Success
 type EchoServiceEchoResult struct {
 	Success *Response `thrift:"success,0" db:"success" json:"success,omitempty"`
 }
@@ -711,7 +711,7 @@ func (p *EchoServiceEchoResult) String() string {
 }
 
 // Attributes:
-//  - Req
+//   - Req
 type EchoServiceVisitOnewayArgs struct {
 	Req *Request `thrift:"req,1" db:"req" json:"req"`
 }

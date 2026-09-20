@@ -141,12 +141,25 @@ func (s *subscriber) receiveLoop() error {
 				return
 			case <-ticker.C:
 				s.RLock()
-				conn := s.conn
+				addr := s.b.Address()
+				pool := s.b.pool
 				s.RUnlock()
-				if conn == nil {
+				if pool == nil {
 					return
 				}
-				if err := conn.Ping(""); err != nil {
+				// 用独立连接做健康检查：PubSubConn 的 Ping 内部会 Receive，
+				// 与接收循环并发会偷走 PUBLISH 响应帧（消息丢失 + 数据竞争）
+				checkConn, err := redis.DialURL(addr,
+					redis.DialConnectTimeout(redisOption.DefaultConnectTimeout),
+					redis.DialReadTimeout(3*time.Second),
+				)
+				if err != nil {
+					pingErr <- err
+					return
+				}
+				_, err = checkConn.Do("PING")
+				_ = checkConn.Close()
+				if err != nil {
 					pingErr <- err
 					return
 				}

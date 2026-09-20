@@ -199,15 +199,14 @@ func (b *rocketmqBroker) Connect() error {
 }
 
 func (b *rocketmqBroker) Disconnect() error {
-	b.RLock()
-	if !b.connected {
-		b.RUnlock()
-		return nil
-	}
-	b.RUnlock()
-
+	// 两段式检查（先 RLock 检查再 Lock 执行）存在 TOCTOU：
+	// 并发两次 Disconnect 会对已关闭的 done 再次 close 导致 panic，必须全程持锁复查
 	b.Lock()
 	defer b.Unlock()
+
+	if !b.connected {
+		return nil
+	}
 	close(b.done)
 
 	for _, p := range b.producers {
@@ -510,6 +509,12 @@ func (b *rocketmqBroker) run() {
 		// receive the message
 		var messages []*rmqClient.MessageView
 		if messages, err = b.consumer.Receive(ctx, b.maxMessageNum, b.invisibleDuration); err != nil {
+			// 断连等持续性错误下退避，避免空转打满 CPU 并轰炸服务端
+			select {
+			case <-b.done:
+				return
+			case <-time.After(b.receiveInterval):
+			}
 			continue
 		}
 

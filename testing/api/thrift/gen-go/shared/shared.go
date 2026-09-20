@@ -26,8 +26,8 @@ var _ = strings.Contains
 var _ = regexp.MatchString
 
 // Attributes:
-//  - Key
-//  - Value
+//   - Key
+//   - Value
 type SharedStruct struct {
 	Key   int32  `thrift:"key,1" db:"key" json:"key"`
 	Value string `thrift:"value,2" db:"value" json:"value"`
@@ -226,7 +226,7 @@ func (p *SharedServiceClient) SetLastResponseMeta_(meta thrift.ResponseMeta) {
 }
 
 // Parameters:
-//  - Key
+//   - Key
 func (p *SharedServiceClient) GetStruct(ctx context.Context, key int32) (_r *SharedStruct, _err error) {
 	var _args0 SharedServiceGetStructArgs
 	_args0.Key = key
@@ -385,7 +385,7 @@ func (p *sharedServiceProcessorGetStruct) Process(ctx context.Context, seqId int
 // HELPER FUNCTIONS AND STRUCTURES
 
 // Attributes:
-//  - Key
+//   - Key
 type SharedServiceGetStructArgs struct {
 	Key int32 `thrift:"key,1" db:"key" json:"key"`
 }
@@ -484,7 +484,7 @@ func (p *SharedServiceGetStructArgs) String() string {
 }
 
 // Attributes:
-//  - Success
+//   - Success
 type SharedServiceGetStructResult struct {
 	Success *SharedStruct `thrift:"success,0" db:"success" json:"success,omitempty"`
 }

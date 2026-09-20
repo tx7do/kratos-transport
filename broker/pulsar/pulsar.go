@@ -134,6 +134,7 @@ func (pb *pulsarBroker) Disconnect() error {
 	pb.subscribers.Clear()
 
 	pb.client.Close()
+	pb.client = nil // 置 nil：Connect 据此重建 client（否则重连拿到已关闭实例）
 
 	pb.connected = false
 	return nil

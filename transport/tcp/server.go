@@ -54,7 +54,9 @@ func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		network: "tcp",
 		address: ":0",
-		timeout: 1 * time.Second,
+		// timeout 同时作为会话空闲读写超时；默认关闭（0），避免误杀长连接，
+		// 需要回收半开连接时通过 WithTimeout 显式开启
+		timeout: 0,
 
 		messageHandlers: make(NetMessageHandlerMap),
 

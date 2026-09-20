@@ -61,6 +61,10 @@ func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
+
+	if s.enableKeepalive && s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindHighPrecisionTimer))
+	}
 }
 
 // Name returns the name of server
@@ -86,12 +90,13 @@ func (s *Server) Start(ctx context.Context) error {
 	s.hpTimer = NewHighPrecisionTimer(s.timerObserver)
 	s.hpTimer.Start()
 
-	// 启动 keepalive
+	// 启动 keepalive（grpc Serve 阻塞，必须放 goroutine，否则 AddTask 永远不可达）
 	if s.enableKeepalive && s.keepaliveServer != nil {
-		if err := s.keepaliveServer.Start(ctx); err != nil {
-			s.err = err
-			return err
-		}
+		go func() {
+			if err := s.keepaliveServer.Start(ctx); err != nil {
+				LogErrorf("keepalive server start failed: %s", err.Error())
+			}
+		}()
 	}
 
 	s.started.Store(true) // 启动成功后设置 started

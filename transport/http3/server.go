@@ -81,8 +81,8 @@ func (s *Server) init(opts ...ServerOption) {
 	s.Server.TLSConfig = s.tlsConf
 
 	s.router = mux.NewRouter().StrictSlash(s.strictSlash)
-	s.router.NotFoundHandler = http.DefaultServeMux
-	s.router.MethodNotAllowedHandler = http.DefaultServeMux
+	s.router.NotFoundHandler = http.NotFoundHandler()
+	s.router.MethodNotAllowedHandler = http.NotFoundHandler()
 
 	// Apply the request filter middleware (timeout control, transport injection)
 	handler := s.filter()(s.router)

@@ -80,7 +80,11 @@ func (s *subscriber) onMessage(ctx context.Context, msg *rmqClient.MessageView) 
 		outMessage.Body = s.binder()
 
 		if err := broker.Unmarshal(s.r.options.Codec, msg.GetBody(), &outMessage.Body); err != nil {
-			//LogError(err)
+			// 毒消息：通知 ErrorHandler
+			p := publication{topic: msg.GetTopic(), message: &outMessage, reader: s.reader, rmqMessage: msg, err: err}
+			if eh := s.r.options.ErrorHandler; eh != nil {
+				_ = eh(ctx, &p)
+			}
 			return err
 		}
 	} else {
@@ -98,6 +102,9 @@ func (s *subscriber) onMessage(ctx context.Context, msg *rmqClient.MessageView) 
 	}
 
 	if p.err = s.handler(ctx, &p); p.err != nil {
+		if eh := s.r.options.ErrorHandler; eh != nil {
+			_ = eh(ctx, &p)
+		}
 		return p.err
 	}
 

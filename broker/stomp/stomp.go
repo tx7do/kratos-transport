@@ -327,9 +327,13 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 				}
 
 				if msgErr = handler(ctx, p); msgErr != nil {
-					// 处理失败：不 ACK，记入 publication 与 span
+					// 处理失败：不 ACK，记入 publication 与 span；
+					// AckClientIndividual 模式补 Nack 触发重投（与 unmarshal 失败路径一致）
 					if eh := b.options.ErrorHandler; eh != nil {
 						_ = eh(ctx, p)
+					}
+					if !options.AutoAck {
+						_ = msg.Conn.Nack(msg)
 					}
 					p.err = msgErr
 					b.finishConsumerSpan(ctx, span, msgErr)

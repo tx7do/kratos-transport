@@ -12,8 +12,8 @@ import (
 type WorkflowWorker struct {
 	sync.RWMutex
 
-	client *WorkflowClient
-	worker worker.Worker
+	client  *WorkflowClient
+	worker  worker.Worker
 	opts    WorkerOptions
 	running bool
 	closed  bool

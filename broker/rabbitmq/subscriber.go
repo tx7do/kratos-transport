@@ -113,6 +113,14 @@ func (s *subscriber) resubscribe() {
 			return
 		}
 
+		// 首次消费已由 consumeOnce 同步完成；
+		// 这里必须先等【断线事件】再等【重连完成】。
+		// 旧实现直接等 waitConnection——Connect 成功时它已被 close，
+		// 会立即再 Consume 一次造成双消费者
+		select {
+		case <-s.r.conn.close:
+		}
+
 		select {
 		case <-s.r.conn.close:
 			return

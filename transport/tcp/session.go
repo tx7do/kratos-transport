@@ -1,9 +1,9 @@
 package tcp
 
 import (
-	"time"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/tx7do/go-utils/id"
 )

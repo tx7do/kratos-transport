@@ -100,7 +100,9 @@ func (s *Server) Stop(_ context.Context) error {
 	// 关闭 HTTP listener，否则 http.Serve 不会返回、端口不会释放
 	if s.lis != nil {
 		_ = s.lis.Close()
+		s.lis = nil
 	}
+	s.endpoint = nil
 	err := s.Server.Close()
 	s.err = nil
 
@@ -161,13 +163,20 @@ func (s *Server) init(opts ...ServerOption) {
 		s.checkOrigin = func(r *http.Request) bool { return true }
 	}
 
+	// 必须先应用 opts 再创建 server：
+	// Transport 的 CheckOrigin 在构造时捕获闭包，顺序反了会吞掉 WithCheckOrigin
+	for _, o := range opts {
+		o(s)
+	}
+
 	server := socketIo.NewServer(&engineio.Options{
 		Transports: []socketIoTransport.Transport{
 			&polling.Transport{
-				CheckOrigin: s.checkOrigin,
+				// 惰性解引用：Stop→Start 重建 server 或后续更换校验函数时仍生效
+				CheckOrigin: func(r *http.Request) bool { return s.checkOrigin(r) },
 			},
 			&websocket.Transport{
-				CheckOrigin: s.checkOrigin,
+				CheckOrigin: func(r *http.Request) bool { return s.checkOrigin(r) },
 			},
 		},
 	})
@@ -176,10 +185,6 @@ func (s *Server) init(opts ...ServerOption) {
 		return
 	}
 	s.Server = server
-
-	for _, o := range opts {
-		o(s)
-	}
 
 	s.router.Use(mux.CORSMethodMiddleware(s.router))
 

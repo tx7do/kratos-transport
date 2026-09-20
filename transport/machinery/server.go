@@ -223,10 +223,11 @@ func (s *Server) Start(ctx context.Context) error {
 
 	LogInfof("server started")
 
-	// worker 启动成功后再起 keepalive，失败路径上不会泄漏 goroutine
-	if s.keepaliveServer != nil {
+	// worker 启动成功后再起 keepalive，失败路径上不会泄漏 goroutine；
+	// 先捕获局部变量：Stop 会把字段置 nil，goroutine 内再解引用字段会 nil panic
+	if ka := s.keepaliveServer; ka != nil {
 		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil {
+			if err := ka.Start(ctx); err != nil {
 				LogErrorf("keepalive server start failed: %s", err.Error())
 			}
 		}()

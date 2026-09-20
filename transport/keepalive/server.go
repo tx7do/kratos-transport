@@ -80,8 +80,11 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(_ context.Context) error {
-	if s.stopReq.Load() {
-		return nil
+	// Stop→Start 支持：复位闩锁并重建 grpc.Server（GracefulStop 后不可复用）
+	s.stopReq.Store(false)
+	if s.Server == nil {
+		s.Server = grpc.NewServer(s.grpcOpts...)
+		grpc_health_v1.RegisterHealthServer(s.Server, s.health)
 	}
 
 	if s.started.Load() {
@@ -130,6 +133,11 @@ func (s *Server) Stop(_ context.Context) error {
 
 	s.health.Shutdown()
 	s.GracefulStop()
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+	}
+	s.endpoint = nil
 	s.err = nil
 
 	log.Infof("[%s] service stopped", s.serviceKind)

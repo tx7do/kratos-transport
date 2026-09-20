@@ -263,19 +263,18 @@ func (c *Client) SendRawData(data []byte) error {
 
 // run 在后台持续读取服务端下行的消息帧并分发。
 func (c *Client) run() {
-	for {
-		c.connMu.RLock()
-		stream := c.stream
-		c.connMu.RUnlock()
+	// 捕获本轮连接的 ctx：重连后旧循环读字段会拿到新 ctx，误判后误杀新连接
+	c.connMu.RLock()
+	stream := c.stream
+	c.connMu.RUnlock()
 
-		if stream == nil {
-			return
-		}
+	ctx := c.ctx
 
+	for stream != nil {
 		frame, err := ReadFrame(stream)
 		if err != nil {
 			select {
-			case <-c.ctx.Done():
+			case <-ctx.Done():
 				return
 			default:
 			}

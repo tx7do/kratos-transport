@@ -303,6 +303,16 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		}
 	}
 
+	// 同主题重复订阅：必须【先退旧再订新】。
+	// paho 对同一 topic 只保留一条 route（addRoute 替换旧回调），
+	// 若先订新再退旧，Unsubscribe 的 deleteRoute 会把新订阅一并删掉，
+	// 导致 broker 端无订阅、消息静默丢失
+	if old := m.subscribers.Get(topic); old != nil {
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
+
 	if err := m.doSubscribe(topic, qos, callback); err != nil {
 		return nil, err
 	}
@@ -315,12 +325,6 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		callback: callback,
 	}
 
-	if old := m.subscribers.Get(topic); old != nil {
-		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
-		if uerr := old.Unsubscribe(false); uerr != nil {
-			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
-		}
-	}
 	m.subscribers.Add(topic, sub)
 
 	return sub, nil

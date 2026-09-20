@@ -526,6 +526,12 @@ func (b *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 		return nil, err
 	}
 
+	if old := b.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			b.logger.Errorf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	b.subscribers.Add(topic, sub)
 
 	return sub, nil

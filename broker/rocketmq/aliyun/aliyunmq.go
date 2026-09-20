@@ -318,6 +318,9 @@ func (b *aliyunmqBroker) doConsume(sub *Subscriber) {
 
 							if err = broker.Unmarshal(b.options.Codec, []byte(msg.MessageBody), &m.Body); err != nil {
 								LogErrorf("unmarshal message failed: %v", err)
+								if eh := b.options.ErrorHandler; eh != nil {
+									_ = eh(ctx, p)
+								}
 								b.finishConsumerSpan(ctx, span, err)
 								continue
 							}
@@ -327,6 +330,9 @@ func (b *aliyunmqBroker) doConsume(sub *Subscriber) {
 
 						if err = sub.handler(ctx, p); err != nil {
 							LogErrorf("process message failed: %v", err)
+							if eh := b.options.ErrorHandler; eh != nil {
+								_ = eh(ctx, p)
+							}
 							b.finishConsumerSpan(ctx, span, err)
 							continue
 						}

@@ -26,8 +26,8 @@ var _ = strings.Contains
 var _ = regexp.MatchString
 
 // Attributes:
-//  - Humidity
-//  - Temperature
+//   - Humidity
+//   - Temperature
 type Hygrothermograph struct {
 	Humidity    *float64 `thrift:"Humidity,1" db:"Humidity" json:"Humidity,omitempty"`
 	Temperature *float64 `thrift:"Temperature,2" db:"Temperature" json:"Temperature,omitempty"`
@@ -467,7 +467,7 @@ func (p *HygrothermographServiceGetHygrothermographArgs) String() string {
 }
 
 // Attributes:
-//  - Success
+//   - Success
 type HygrothermographServiceGetHygrothermographResult struct {
 	Success *Hygrothermograph `thrift:"success,0" db:"success" json:"success,omitempty"`
 }

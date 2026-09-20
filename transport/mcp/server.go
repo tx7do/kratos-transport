@@ -153,6 +153,27 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	s.stopKeepaliveServer(ctx)
 
+	// 停掉 SSE/HTTP 服务本体：否则 Stop 后端口仍被占用，
+	// 再次 Start 会在同地址起第二个实例
+	s.mu.Lock()
+	sseServer := s.sseServer
+	httpServer := s.httpServer
+	s.sseServer = nil
+	s.httpServer = nil
+	s.setErrLocked(nil) // 清 sticky err，避免瞬时错误导致后续 Start 永久失败
+	s.mu.Unlock()
+
+	if sseServer != nil {
+		if err := sseServer.Shutdown(ctx); err != nil {
+			LogErrorf("sse server shutdown failed: %s", err.Error())
+		}
+	}
+	if httpServer != nil {
+		if err := httpServer.Shutdown(ctx); err != nil {
+			LogErrorf("http server shutdown failed: %s", err.Error())
+		}
+	}
+
 	s.mu.RLock()
 	err := s.err
 	s.mu.RUnlock()
@@ -163,7 +184,7 @@ func (s *Server) Stop(ctx context.Context) error {
 		LogInfo("server stopped.")
 	}
 
-	return s.err
+	return err
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
@@ -226,15 +247,21 @@ func (s *Server) startMCPServer() error {
 
 	case ServerTypeSSE:
 		sseServer := server.NewSSEServer(s.mcpServer)
+		// 保存句柄供 Stop 关闭（此前是局部变量，Stop 后端口仍在服务）
+		s.sseServer = sseServer
 		if err := sseServer.Start(s.serverAddr); err != nil {
-			log.Fatalf("Server failed to start: %v", err)
+			s.sseServer = nil
+			// 不能用 Fatalf：会 os.Exit 杀死整个 kratos 应用
+			log.Errorw("MCP server start failed", "err", err)
 			return errors.New("start MCP server: " + err.Error())
 		}
 
 	case ServerTypeHTTP:
 		httpServer := server.NewStreamableHTTPServer(s.mcpServer)
+		s.httpServer = httpServer
 		if err := httpServer.Start(s.serverAddr); err != nil {
-			log.Fatalf("Server failed to start: %v", err)
+			s.httpServer = nil
+			log.Errorw("MCP server start failed", "err", err)
 			return errors.New("start MCP server: " + err.Error())
 		}
 

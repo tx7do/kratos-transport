@@ -140,6 +140,14 @@ func (s *Server) Stop(ctx context.Context) error {
 	s.streamMgr.Clean()
 
 	err := s.Shutdown(ctx)
+
+	// Shutdown 后 http.Server 不可复用：重建实例并释放 listener，支持重启
+	s.rebuildHTTPServer()
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+	}
+	s.endpoint = nil
 	s.err = nil
 
 	LogInfo("server stopped.")
@@ -211,9 +219,14 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	s.router.StrictSlash(s.strictSlash)
-	s.router.NotFoundHandler = http.DefaultServeMux
-	s.router.MethodNotAllowedHandler = http.DefaultServeMux
+	s.router.NotFoundHandler = http.NotFoundHandler()
+	s.router.MethodNotAllowedHandler = http.NotFoundHandler()
 
+	s.rebuildHTTPServer()
+}
+
+// rebuildHTTPServer 重建被 Shutdown 毒化的 http.Server（重启支持）
+func (s *Server) rebuildHTTPServer() {
 	s.Server = &http.Server{
 		Handler:   s.router,
 		TLSConfig: s.tlsConf,

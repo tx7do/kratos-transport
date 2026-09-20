@@ -136,7 +136,12 @@ func (b *nsqBroker) Connect() error {
 		}
 
 		var cm *NSQ.Consumer
-		if cm, err = NSQ.NewConsumer(c.topic, channel, b.config); err != nil {
+		// 优先用订阅自身的 config（保留 WithMaxInFlight 等每订阅配置），nil 回退全局
+		subConfig := b.config
+		if c.config != nil {
+			subConfig = c.config
+		}
+		if cm, err = NSQ.NewConsumer(c.topic, channel, subConfig); err != nil {
 			return
 		}
 
@@ -372,19 +377,17 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 			if eh := b.options.ErrorHandler; eh != nil {
 				_ = eh(b.options.Context, p)
 			}
-			return errSub
-		}
-
-		// go-nsq 的 handler 循环在 handler 返回 nil 时已自动 Finish（AutoAck 场景），
-		// 这里再手动 Ack 会发送重复 FIN；仅在 handler 失败时显式 Finish 以终止重投
-		if p.err == nil {
+			// 处理失败即终止重投：显式 FIN 后必须返回 nil——
+			// 返回 err 会让 go-nsq 对已 FIN 的消息再发 REQ（协议错误）
+			if errFinish := p.Ack(); errFinish != nil {
+				LogErrorf("unable to commit msg: %v", errFinish)
+			}
 			return nil
 		}
-		if errSub = p.Ack(); errSub != nil {
-			LogErrorf("unable to commit msg: %v", errSub)
-		}
 
-		return p.err
+		// AutoAck=false 的成功路径：由 handler 自行通过 publication.Ack 决定；
+		// 未 ack 的消息由 in-flight 超时重投（标准手动语义）
+		return nil
 	})
 
 	c.AddConcurrentHandlers(h, concurrency)

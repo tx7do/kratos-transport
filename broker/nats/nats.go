@@ -434,7 +434,11 @@ func (b *natsBroker) request(ctx context.Context, topic string, msg *broker.Mess
 
 	b.finishProducerSpan(ctx, span, err)
 
-	return broker.NewMessage(res, broker.WithMsg(res)), err
+	if err != nil {
+		return nil, err
+	}
+
+	return broker.NewMessage(res, broker.WithMsg(res)), nil
 }
 
 func (b *natsBroker) onClose(_ *natsGo.Conn) {

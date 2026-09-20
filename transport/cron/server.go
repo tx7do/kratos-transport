@@ -163,6 +163,8 @@ func (s *Server) Stop(ctx context.Context) error {
 	// 停止 keepalive
 	if s.keepaliveServer != nil {
 		_ = s.keepaliveServer.Stop(ctx)
+		// keepalive 的 stopReq 闩锁不可复位，必须换新实例才能重启
+		s.keepaliveServer = nil
 	}
 
 	LogInfo("cron server stopped successfully")

@@ -104,9 +104,9 @@ func (s *Server) Start(ctx context.Context) error {
 	// 先置位再注册订阅：与 Stop 的交接由 doRegisterSubscriber 的 started 复查处理。
 	s.started.Store(true)
 
-	if s.keepaliveServer != nil {
+	if ka := s.keepaliveServer; ka != nil {
 		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil {
+			if err := ka.Start(ctx); err != nil {
 				LogErrorf("keepalive server start failed: %s", err.Error())
 			}
 		}()

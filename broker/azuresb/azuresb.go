@@ -1,12 +1,12 @@
 package azuresb
 
 import (
-	"time"
 	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
@@ -331,6 +331,10 @@ func (b *azureBroker) processMessage(ctx context.Context, receiver *azservicebus
 			m.Body = binder()
 			if err := broker.Unmarshal(b.options.Codec, sbMsg.Body, &m.Body); err != nil {
 				LogErrorf("unmarshal message failed: %v", err)
+				if eh := b.options.ErrorHandler; eh != nil {
+					p := &publication{topic: sub.topic, msg: &m, sbMsg: sbMsg, receiver: receiver, err: err}
+					_ = eh(ctx, p)
+				}
 				_ = receiver.AbandonMessage(ctx, sbMsg, nil)
 				return
 			}
