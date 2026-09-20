@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 
 	"github.com/go-kratos/kratos/v2/errors"
-	"github.com/go-kratos/kratos/v2/log"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
 	"google.golang.org/grpc"
@@ -106,7 +105,7 @@ func (s *Server) Start(_ context.Context) error {
 
 	s.health.Resume()
 
-	log.Infof("[%s] server listening on: %s", s.serviceKind, s.lis.Addr().String())
+	logInfof("[%s] server listening on: %s", s.serviceKind, s.lis.Addr().String())
 
 	// 捕获局部引用：并发 Stop 置空字段后这里不会 nil panic
 	srv := s.Server
@@ -130,7 +129,7 @@ func (s *Server) Stop(_ context.Context) error {
 		return nil
 	}
 
-	log.Infof("[%s] server stopping...", s.serviceKind)
+	logInfof("[%s] server stopping...", s.serviceKind)
 
 	s.started.Store(false)
 
@@ -145,7 +144,7 @@ func (s *Server) Stop(_ context.Context) error {
 	s.endpoint = nil
 	s.err = nil
 
-	log.Infof("[%s] service stopped", s.serviceKind)
+	logInfof("[%s] service stopped", s.serviceKind)
 
 	return nil
 }

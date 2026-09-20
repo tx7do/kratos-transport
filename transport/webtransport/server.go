@@ -62,7 +62,7 @@ type Server struct {
 	sessions   map[SessionID]*session
 
 	// stopped 标记 http3.Server 已被 Shutdown/Close（不可复用，重启需重建）
-	stopped bool
+	stopped atomic.Bool
 
 	// sessionIDGen 会话 ID 生成器。
 	// 不能用 h3 StreamID：QUIC StreamID 只在单条连接内唯一，
@@ -198,9 +198,9 @@ func (s *Server) Start(_ context.Context) error {
 	}
 
 	// Stop 后 http3.Server 已永久关闭，重启必须重建实例（配置沿用 init）
-	if s.stopped {
+	if s.stopped.Load() {
 		s.rebuildHTTPServer()
-		s.stopped = false
+		s.stopped.Store(false)
 	}
 
 	if err := s.listenAndEndpoint(); err != nil {
@@ -224,7 +224,7 @@ func (s *Server) Start(_ context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
-	s.stopped = true
+	s.stopped.Store(true)
 
 	if s.ctxCancel != nil {
 		s.ctxCancel()

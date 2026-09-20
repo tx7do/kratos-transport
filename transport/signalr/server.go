@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -48,7 +49,7 @@ type Server struct {
 	hub signalr.HubInterface
 
 	router  *http.ServeMux
-	running bool
+	running atomic.Bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -72,7 +73,7 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(_ context.Context) error {
-	if s.running {
+	if s.running.Load() {
 		// 已在监听：避免同一 listener 叠两个 accept 循环
 		return nil
 	}
@@ -104,7 +105,7 @@ func (s *Server) Start(_ context.Context) error {
 
 	handler := s.CORS(s.router)
 
-	s.running = true
+	s.running.Store(true)
 
 	var err error
 	if s.tlsConf != nil {
@@ -112,7 +113,7 @@ func (s *Server) Start(_ context.Context) error {
 	} else {
 		err = http.Serve(s.lis, handler)
 	}
-	s.running = false
+	s.running.Store(false)
 	// Stop 关闭 listener 后 Serve 返回 use of closed（非 ErrServerClosed），属正常停止
 	if err != nil && !errors.Is(err, http.ErrServerClosed) && !errors.Is(err, net.ErrClosed) {
 		return err
@@ -124,7 +125,7 @@ func (s *Server) Start(_ context.Context) error {
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping...")
 
-	s.running = false
+	s.running.Store(false)
 
 	var err error
 	if s.lis != nil {

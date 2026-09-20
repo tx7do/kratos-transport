@@ -13,8 +13,6 @@ import (
 	"os"
 	"time"
 	"unicode/utf8"
-
-	"github.com/go-kratos/kratos/v2/log"
 )
 
 // copied from https://github.com/gorilla/websocket
@@ -83,7 +81,7 @@ func NewTlsConfig(keyFile, certFile, caFile string) *tls.Config {
 
 	tlsCert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		log.Error("read pair file error:", err)
+		LogError("read pair file error:", err)
 		return nil
 	}
 
@@ -92,7 +90,7 @@ func NewTlsConfig(keyFile, certFile, caFile string) *tls.Config {
 	if caFile != "" {
 		cp, err := NewCertPool(caFile)
 		if err != nil {
-			log.Error("read cert file error:", err)
+			LogError("read cert file error:", err)
 			return nil
 		}
 
@@ -155,7 +153,7 @@ func generateLeafCert(ca *x509.Certificate, caPrivateKey *rsa.PrivateKey) (*x509
 func generateCertPool() *x509.CertPool {
 	ca, _, err := generateCA()
 	if err != nil {
-		log.Fatal("failed to generate CA certificate:", err)
+		LogFatal("failed to generate CA certificate:", err)
 		return nil
 	}
 	certPool := x509.NewCertPool()
@@ -166,12 +164,12 @@ func generateCertPool() *x509.CertPool {
 func generateTLSConfig(nextProto string) *tls.Config {
 	ca, caPrivateKey, err := generateCA()
 	if err != nil {
-		log.Fatal("failed to generate CA certificate:", err)
+		LogFatal("failed to generate CA certificate:", err)
 		return nil
 	}
 	leafCert, leafPrivateKey, err := generateLeafCert(ca, caPrivateKey)
 	if err != nil {
-		log.Fatal("failed to generate leaf certificate:", err)
+		LogFatal("failed to generate leaf certificate:", err)
 	}
 
 	return &tls.Config{

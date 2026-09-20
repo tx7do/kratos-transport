@@ -119,7 +119,8 @@ func (b *rabbitBroker) Disconnect() error {
 	b.subscribers.Clear()
 
 	ret := b.conn.Close()
-	b.wg.Wait()
+	// 注意：b.wg 从未 Add（旧实现的每消息计数已移除），
+	// 此处不再等待投递 goroutine——它们的退出由 deliveries channel 关闭保证
 
 	return ret
 }

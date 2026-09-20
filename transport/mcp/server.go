@@ -241,7 +241,7 @@ func (s *Server) startMCPServer() error {
 	switch s.serverType {
 	case ServerTypeStdio:
 		if err := server.ServeStdio(s.mcpServer); err != nil {
-			log.Errorw("MCP server start failed", "err", err)
+			LogErrorf("MCP server start failed: %s", err.Error())
 			return errors.New("start MCP server: " + err.Error())
 		}
 
@@ -252,7 +252,7 @@ func (s *Server) startMCPServer() error {
 		if err := sseServer.Start(s.serverAddr); err != nil {
 			s.sseServer = nil
 			// 不能用 Fatalf：会 os.Exit 杀死整个 kratos 应用
-			log.Errorw("MCP server start failed", "err", err)
+			LogErrorf("MCP server start failed: %s", err.Error())
 			return errors.New("start MCP server: " + err.Error())
 		}
 
@@ -261,7 +261,7 @@ func (s *Server) startMCPServer() error {
 		s.httpServer = httpServer
 		if err := httpServer.Start(s.serverAddr); err != nil {
 			s.httpServer = nil
-			log.Errorw("MCP server start failed", "err", err)
+			LogErrorf("MCP server start failed: %s", err.Error())
 			return errors.New("start MCP server: " + err.Error())
 		}
 

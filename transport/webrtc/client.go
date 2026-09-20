@@ -474,15 +474,8 @@ func (c *Client) handleSignalRenegotiation(payload MessagePayload) error {
 	}
 
 	if msg.Answer != nil {
-		if err := pc.SetRemoteDescription(*msg.Answer); err != nil {
-			return err
-		}
-		gatherDone := webrtc.GatheringCompletePromise(pc)
-		select {
-		case <-gatherDone:
-		case <-time.After(3 * time.Second):
-		}
-		return nil
+		// Answer 方向无需 gather：候选由对端 Offer 侧收集并携带
+		return pc.SetRemoteDescription(*msg.Answer)
 	}
 
 	if msg.Offer != nil {

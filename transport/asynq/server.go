@@ -510,6 +510,11 @@ func waitResult(intor *asynq.Inspector, info *asynq.TaskInfo) (*asynq.TaskInfo, 
 	for {
 		taskInfo, err := intor.GetTaskInfo(info.Queue, info.ID)
 		if err != nil {
+			// 默认 Retention=0 下任务成功即从 Redis 删除，
+			// ErrTaskNotFound 视为已完成
+			if errors.Is(err, asynq.ErrTaskNotFound) {
+				return taskInfo, nil
+			}
 			return nil, err
 		}
 
