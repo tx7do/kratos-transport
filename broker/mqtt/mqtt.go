@@ -136,6 +136,10 @@ func newClient(addrs []string, opts broker.Options, b *mqttBroker) paho.Client {
 func newBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
+	if l := broker.LoggerFromOptions(&options); l != nil {
+		SetLogger(l)
+	}
+
 	b := &mqttBroker{
 		options:     options,
 		addrs:       options.Addrs,

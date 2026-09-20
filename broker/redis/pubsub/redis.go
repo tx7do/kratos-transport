@@ -36,6 +36,10 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 
 	options := broker.NewOptionsAndApply(opts...)
 
+	if l := broker.LoggerFromOptions(&options); l != nil {
+		redisOption.SetLogger(l)
+	}
+
 	return &pubsubBroker{
 		options:     options,
 		commonOpts:  commonOpts,

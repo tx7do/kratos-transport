@@ -53,6 +53,10 @@ type aliyunmqBroker struct {
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
+
+	if l := broker.LoggerFromOptions(&options); l != nil {
+		SetLogger(l)
+	}
 	return &aliyunmqBroker{
 		producers:   make(map[string]aliyun.MQProducer),
 		options:     options,

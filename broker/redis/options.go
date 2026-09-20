@@ -3,6 +3,8 @@ package redis
 import (
 	"time"
 
+	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/tx7do/kratos-transport/broker"
 	"github.com/tx7do/kratos-transport/broker/redis/option"
 )
@@ -58,6 +60,11 @@ func WithDefaultOptions() broker.Option {
 ///
 /// logger 转发
 ///
+
+// SetLogger 注入库内部日志使用的 logger
+func SetLogger(l log.Logger) {
+	option.SetLogger(l)
+}
 
 func LogDebug(args ...any) {
 	option.LogDebug(args...)

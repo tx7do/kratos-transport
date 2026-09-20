@@ -3,6 +3,7 @@ package rocketmqClientGo
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/go-kratos/kratos/v2/log"
 )
@@ -10,6 +11,35 @@ import (
 const (
 	loggerKey = "[rocketmq] "
 )
+
+var (
+	libLoggerMu sync.RWMutex
+	libLogger   log.Logger
+)
+
+// SetLogger 注入库内部日志使用的 logger，传入 nil 恢复为 kratos 全局 logger。
+// 默认使用 kratos 全局 logger（无级别过滤），也可通过 broker.WithLogger 选项在构造时注入。
+// 注意：logger 为包级生效，后创建的 broker 会覆盖先注入的。
+func SetLogger(l log.Logger) {
+	libLoggerMu.Lock()
+	defer libLoggerMu.Unlock()
+	libLogger = l
+}
+
+func getLogger() log.Logger {
+	libLoggerMu.RLock()
+	defer libLoggerMu.RUnlock()
+	return libLogger
+}
+
+// logAt 经由注入的 logger 输出日志，未注入时退回 kratos 全局 logger
+func logAt(level log.Level, keyVals ...any) {
+	if l := getLogger(); l != nil {
+		_ = l.Log(level, keyVals...)
+		return
+	}
+	log.Log(level, keyVals...)
+}
 
 type logger struct {
 	level log.Level
@@ -29,7 +59,7 @@ func (l *logger) Log(level log.Level, msg string, fields map[string]any) {
 	}
 
 	keyVals := toKeyVals(fields)
-	log.Log(level, loggerKey+msg, keyVals)
+	logAt(level, loggerKey+msg, keyVals)
 }
 
 func (l *logger) Logf(level log.Level, format string, a ...any) {
@@ -38,7 +68,7 @@ func (l *logger) Logf(level log.Level, format string, a ...any) {
 	}
 	var keyVals []any
 	keyVals = append(keyVals, loggerKey)
-	log.Log(level, fmt.Sprintf(format, a...))
+	logAt(level, fmt.Sprintf(format, a...))
 }
 
 func (l *logger) Debug(msg string, fields map[string]any) {

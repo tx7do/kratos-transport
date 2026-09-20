@@ -66,6 +66,10 @@ type rocketmqBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	rocketmqOptions := broker.NewOptionsAndApply(opts...)
 
+	if l := broker.LoggerFromOptions(&rocketmqOptions); l != nil {
+		SetLogger(l)
+	}
+
 	return &rocketmqBroker{
 		options:           rocketmqOptions,
 		retryCount:        2,

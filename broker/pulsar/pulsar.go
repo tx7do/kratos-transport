@@ -48,6 +48,10 @@ type pulsarBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
+	if l := broker.LoggerFromOptions(&options); l != nil {
+		SetLogger(l)
+	}
+
 	b := &pulsarBroker{
 		options:     options,
 		producers:   make(map[string]pulsar.Producer),

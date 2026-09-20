@@ -42,6 +42,10 @@ type nsqBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
+	if l := broker.LoggerFromOptions(&options); l != nil {
+		SetLogger(l)
+	}
+
 	b := &nsqBroker{
 		options: options,
 		config:  NSQ.NewConfig(),

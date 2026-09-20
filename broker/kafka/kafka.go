@@ -50,6 +50,10 @@ type kafkaBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
+	if l := broker.LoggerFromOptions(&options); l != nil {
+		SetLogger(l)
+	}
+
 	b := &kafkaBroker{
 		readerConfig: kafkaGo.ReaderConfig{
 			WatchPartitionChanges: true,

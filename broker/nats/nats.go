@@ -54,6 +54,10 @@ type natsBroker struct {
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
+	if l := broker.LoggerFromOptions(&options); l != nil {
+		SetLogger(l)
+	}
+
 	b := &natsBroker{
 		options:     options,
 		subscribers: broker.NewSubscriberSyncMap(),
