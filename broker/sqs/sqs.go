@@ -32,14 +32,18 @@ type sqsBroker struct {
 	running bool
 
 	subscribers *broker.SubscriberSyncMap
+
+	queueUrlMu    sync.Mutex
+	queueUrlCache map[string]string
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
 	options := broker.NewOptionsAndApply(opts...)
 
 	b := &sqsBroker{
-		options:     options,
-		subscribers: broker.NewSubscriberSyncMap(),
+		options:       options,
+		subscribers:   broker.NewSubscriberSyncMap(),
+		queueUrlCache: make(map[string]string),
 	}
 
 	return b
@@ -311,12 +315,22 @@ func (b *sqsBroker) resolveQueueUrl(ctx context.Context, topic string) string {
 		}
 	}
 
-	// Try to get queue URL from SQS by topic name
+	// Try to get queue URL from SQS by topic name（按 topic 缓存，避免每次发布一次 API 调用）
+	b.queueUrlMu.Lock()
+	if cached, ok := b.queueUrlCache[topic]; ok {
+		b.queueUrlMu.Unlock()
+		return cached
+	}
+	b.queueUrlMu.Unlock()
+
 	if b.client != nil {
 		result, err := b.client.GetQueueUrl(context.Background(), &sqs.GetQueueUrlInput{
 			QueueName: &topic,
 		})
 		if err == nil && result.QueueUrl != nil {
+			b.queueUrlMu.Lock()
+			b.queueUrlCache[topic] = *result.QueueUrl
+			b.queueUrlMu.Unlock()
 			return *result.QueueUrl
 		}
 		LogWarnf("failed to get queue url for %s: %v", topic, err)

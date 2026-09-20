@@ -14,8 +14,9 @@ type WorkflowWorker struct {
 
 	client *WorkflowClient
 	worker worker.Worker
-	opts   WorkerOptions
-	closed bool
+	opts    WorkerOptions
+	running bool
+	closed  bool
 }
 
 // NewWorker creates and returns a new WorkflowWorker.
@@ -57,9 +58,15 @@ func (ww *WorkflowWorker) Start() error {
 		return fmt.Errorf("worker is already stopped")
 	}
 
+	if ww.running {
+		return fmt.Errorf("worker is already started")
+	}
+
 	if err := ww.worker.Start(); err != nil {
 		return fmt.Errorf("failed to start temporal worker for task queue %s: %w", ww.opts.TaskQueue, err)
 	}
+
+	ww.running = true
 
 	LogInfof("started temporal worker for task queue: %s", ww.opts.TaskQueue)
 
@@ -105,7 +112,7 @@ func (ww *WorkflowWorker) TaskQueue() string {
 func (ww *WorkflowWorker) IsRunning() bool {
 	ww.RLock()
 	defer ww.RUnlock()
-	return !ww.closed
+	return ww.running && !ww.closed
 }
 
 // processMessageActivity is a built-in activity that wraps a handler function.

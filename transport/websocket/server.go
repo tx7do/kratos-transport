@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
@@ -57,6 +58,7 @@ type Server struct {
 	running   bool
 	stateMu   sync.RWMutex
 	handlerMu sync.RWMutex
+	timeout   time.Duration
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -380,6 +382,7 @@ func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	session := NewSession(s, conn, vars)
+	session.readTimeout = s.timeout
 	s.sessionManager.addSession(session)
 	session.Listen()
 }

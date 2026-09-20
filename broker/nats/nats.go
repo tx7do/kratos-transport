@@ -310,7 +310,12 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		if binder != nil {
 			if b.options.Codec.Name() == kProto.Name {
-				m.Body = binder().(proto.Message)
+				if pm, pmOK := binder().(proto.Message); pmOK {
+					m.Body = pm
+				} else {
+					// binder 未返回 proto.Message：退回原始字节，避免断言 panic
+					m.Body = msg.Data
+				}
 			} else {
 				m.Body = binder()
 			}
@@ -433,6 +438,9 @@ func (b *natsBroker) request(ctx context.Context, topic string, msg *broker.Mess
 }
 
 func (b *natsBroker) onClose(_ *natsGo.Conn) {
+	if !b.drain {
+		return
+	}
 	b.closeCh <- nil
 }
 
@@ -443,6 +451,10 @@ func (b *natsBroker) onAsyncError(_ *natsGo.Conn, _ *natsGo.Subscription, err er
 }
 
 func (b *natsBroker) onDisconnectedError(_ *natsGo.Conn, err error) {
+	if !b.drain {
+		// 普通瞬断由 SDK 自动重连，不上报（避免缓冲被刷满阻塞回调 goroutine）
+		return
+	}
 	b.closeCh <- err
 }
 

@@ -145,3 +145,10 @@ func WithSocketRawDataHandler(h SocketRawDataHandler) ServerOption {
 		}
 	}
 }
+
+// WithTimeout 设置会话空闲读超时；超时未收到任何消息即断开会话。0 表示不启用。
+func WithTimeout(timeout time.Duration) ServerOption {
+	return func(s *Server) {
+		s.timeout = timeout
+	}
+}

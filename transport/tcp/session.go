@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"time"
 	"net"
 	"sync"
 
@@ -19,6 +20,10 @@ type Session struct {
 	hooks SessionHooks
 
 	send chan []byte
+
+	// idleTimeout 单次读/写操作的超时；0 表示不设置（默认）。
+	// 由 Server 的 WithTimeout 接线，用于回收半开连接与卡死的对端
+	idleTimeout time.Duration
 
 	connMu     sync.RWMutex
 	done       chan struct{}
@@ -120,6 +125,10 @@ func (s *Session) writePump() {
 			if conn == nil {
 				return
 			}
+			if s.idleTimeout > 0 {
+				_ = conn.SetWriteDeadline(time.Now().Add(s.idleTimeout))
+			}
+
 			// 写入带长度前缀的帧，保证对端能正确分包
 			if err := WriteFrame(conn, msg); err != nil {
 				select {
@@ -148,6 +157,11 @@ func (s *Session) readPump() {
 		conn := s.Conn()
 		if conn == nil {
 			return
+		}
+
+		if s.idleTimeout > 0 {
+			// 空闲超时：超时未收到任何字节即断开，回收半开连接
+			_ = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
 		}
 
 		// 按帧读取，解决 TCP 粘包/拆包问题

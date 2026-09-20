@@ -23,8 +23,9 @@ type Session struct {
 
 	hooks SessionHooks
 
-	lastReadMessageTime  time.Time // 最后一次读取消息的时间
-	lastWriteMessageTime time.Time // 最后一次发送消息的时间
+	// readTimeout 空闲读超时；0 表示不设置（默认）。由 Server 的 WithTimeout 接线，
+	// 用于回收半开连接；每收到一条消息自动顺延
+	readTimeout time.Duration
 
 	connMu     sync.RWMutex
 	done       chan struct{}
@@ -172,8 +173,6 @@ func (s *Session) writePump() {
 
 		case msg := <-s.send:
 
-			s.lastWriteMessageTime = time.Now()
-
 			var err error
 			switch s.hooks.getPayloadType() {
 			case PayloadTypeBinary:
@@ -211,6 +210,10 @@ func (s *Session) readPump() {
 			return
 		}
 
+		if s.readTimeout > 0 {
+			_ = conn.SetReadDeadline(time.Now().Add(s.readTimeout))
+		}
+
 		messageType, data, err := conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
@@ -218,8 +221,6 @@ func (s *Session) readPump() {
 			}
 			return
 		}
-
-		s.lastReadMessageTime = time.Now()
 
 		switch messageType {
 		case ws.CloseMessage:

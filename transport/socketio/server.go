@@ -42,7 +42,8 @@ type Server struct {
 	err   error
 	codec encoding.Codec
 
-	router *mux.Router
+	router      *mux.Router
+	checkOrigin func(*http.Request) bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -155,13 +156,18 @@ func (s *Server) RegisterEventHandler(namespace, event string, f any) {
 }
 
 func (s *Server) init(opts ...ServerOption) {
+	// 默认沿用旧行为（放行所有 Origin）；生产环境应通过 WithCheckOrigin 收紧
+	if s.checkOrigin == nil {
+		s.checkOrigin = func(r *http.Request) bool { return true }
+	}
+
 	server := socketIo.NewServer(&engineio.Options{
 		Transports: []socketIoTransport.Transport{
 			&polling.Transport{
-				CheckOrigin: func(r *http.Request) bool { return true },
+				CheckOrigin: s.checkOrigin,
 			},
 			&websocket.Transport{
-				CheckOrigin: func(r *http.Request) bool { return true },
+				CheckOrigin: s.checkOrigin,
 			},
 		},
 	})

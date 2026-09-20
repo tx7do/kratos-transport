@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"strings"
 	natsGo "github.com/nats-io/nats.go"
 
 	"github.com/tx7do/kratos-transport/broker"
@@ -30,8 +31,10 @@ func (p *publication) RawMessage() any {
 func (p *publication) Ack() error {
 	if p.m != nil {
 		if msg, ok := p.m.Msg.(*natsGo.Msg); ok {
-			// Only Ack JetStream messages (they have a reply subject for acking)
-			if msg.Reply != "" {
+			// 仅 JetStream 消息可 Ack：其回执主题固定为 $JS.ACK.* 前缀。
+			// core NATS 的 request-reply 消息也有 Reply 主题，
+			// 误 Ack 会向响应方发送垃圾帧
+			if strings.HasPrefix(msg.Reply, "$JS.ACK.") {
 				return msg.Ack()
 			}
 		}

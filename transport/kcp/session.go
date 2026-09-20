@@ -2,6 +2,7 @@ package kcp
 
 import (
 	"sync"
+	"time"
 
 	"github.com/tx7do/go-utils/id"
 	"github.com/xtaci/kcp-go/v5"
@@ -19,15 +20,18 @@ type SessionHooks interface {
 }
 
 type Session struct {
-	id         SessionID
-	conn       *kcp.UDPSession
-	connMu     sync.RWMutex
-	send       chan []byte
-	done       chan struct{}
-	listenOnce sync.Once
-	closeOnce  sync.Once
-	wg         sync.WaitGroup
-	hooks      SessionHooks
+	id     SessionID
+	conn   *kcp.UDPSession
+	connMu sync.RWMutex
+	send   chan []byte
+	done   chan struct{}
+
+	// idleTimeout 单次读/写操作的超时；0 表示不设置（默认）
+	idleTimeout time.Duration
+	listenOnce  sync.Once
+	closeOnce   sync.Once
+	wg          sync.WaitGroup
+	hooks       SessionHooks
 }
 
 func NewSession(conn *kcp.UDPSession, hooks SessionHooks) *Session {
@@ -118,6 +122,10 @@ func (c *Session) writePump() {
 				return
 			}
 			// 写入带长度前缀的帧，保证对端能正确分包
+			if c.idleTimeout > 0 {
+				_ = conn.SetWriteDeadline(time.Now().Add(c.idleTimeout))
+			}
+
 			if err := WriteFrame(conn, msg); err != nil {
 				select {
 				case <-c.done:
@@ -145,6 +153,10 @@ func (c *Session) readPump() {
 		conn := c.Conn()
 		if conn == nil {
 			return
+		}
+
+		if c.idleTimeout > 0 {
+			_ = conn.SetReadDeadline(time.Now().Add(c.idleTimeout))
 		}
 
 		// 按帧读取，解决粘包/拆包问题

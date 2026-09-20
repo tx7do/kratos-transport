@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -57,6 +58,46 @@ func (s *subscriber) Unsubscribe(removeFromManager bool) error {
 	}
 
 	return err
+}
+
+// consumeOnce 同步执行一次队列声明/绑定并开始消费。
+// 首次订阅必须同步完成：否则 Subscribe 返回后队列尚未绑定，
+// 此时向 exchange 投递的消息会因无匹配绑定而直接丢弃。
+func (s *subscriber) consumeOnce() error {
+	s.r.mtx.Lock()
+	defer s.r.mtx.Unlock()
+
+	if !s.r.conn.connected {
+		return errors.New("rabbitmq: not connected")
+	}
+
+	ch, sub, err := s.r.conn.Consume(
+		s.exchangeName,
+		s.options.Queue,
+		s.topic,
+		s.headers,
+		s.queueArgs,
+		s.options.AutoAck,
+		s.durableQueue,
+		s.autoDelete,
+	)
+	if err != nil {
+		return err
+	}
+
+	s.Lock()
+	s.ch = ch
+	s.Unlock()
+
+	go func() {
+		for d := range sub {
+			s.r.wg.Add(1)
+			s.fn(d)
+			s.r.wg.Done()
+		}
+	}()
+
+	return nil
 }
 
 func (s *subscriber) resubscribe() {

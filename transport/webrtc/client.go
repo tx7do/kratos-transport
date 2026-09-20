@@ -63,6 +63,17 @@ func NewClient(opts ...ClientOption) *Client {
 		remoteTracks:     make(map[string]*webrtc.TrackRemote),
 	}
 
+	// 内置信令处理器：处理服务端下发的重协商 Offer（服务端新增下行轨道时）。
+	// 先于用户选项注册，用户不可覆盖
+	c.RegisterMessageHandler(MsgTypeSignalRenegotiation,
+		func(payload MessagePayload) error {
+			return c.handleSignalRenegotiation(payload)
+		},
+		func() any {
+			return &SignalRenegotiationMsg{}
+		},
+	)
+
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -392,7 +403,89 @@ func (c *Client) AddLocalTrack(track *webrtc.TrackLocalStaticRTP) error {
 	c.localTracks[track.ID()] = track
 	c.pcMu.Unlock()
 
+	// 客户端是初始 offer 方：加轨后必须重新 offer，否则轨道不会真正协商发送
+	if err := c.negotiate(); err != nil {
+		return err
+	}
+
 	LogInfof("added local track: %s", track.ID())
+	return nil
+}
+
+// negotiate 发起重协商：创建 Offer 发送给服务端，等待服务端经内置信令通道回填 Answer
+func (c *Client) negotiate() error {
+	c.pcMu.RLock()
+	pc := c.pc
+	c.pcMu.RUnlock()
+
+	if pc == nil {
+		return errors.New("peer connection not established")
+	}
+
+	offer, err := pc.CreateOffer(nil)
+	if err != nil {
+		return err
+	}
+
+	gatherDone := webrtc.GatheringCompletePromise(pc)
+	if err = pc.SetLocalDescription(offer); err != nil {
+		return err
+	}
+	select {
+	case <-gatherDone:
+	case <-time.After(c.signalTimeout):
+		return errors.New("ice gathering timeout")
+	}
+
+	local := pc.LocalDescription()
+	if local == nil {
+		return errors.New("local description is nil")
+	}
+
+	return c.SendMessage(MsgTypeSignalRenegotiation, SignalRenegotiationMsg{
+		Type:  "renegotiation",
+		Offer: local,
+	})
+}
+
+// handleSignalRenegotiation 处理服务端下发的重协商信令：
+// - 携带 Offer：应用为远端描述并回 Answer（服务端新增下行轨道）
+// - 携带 Answer：应用为远端描述（服务端确认客户端上行的 Offer）
+func (c *Client) handleSignalRenegotiation(payload MessagePayload) error {
+	msg, ok := payload.(*SignalRenegotiationMsg)
+	if !ok || msg == nil {
+		return errors.New("invalid renegotiation payload")
+	}
+
+	c.pcMu.RLock()
+	pc := c.pc
+	c.pcMu.RUnlock()
+
+	if pc == nil {
+		return errors.New("peer connection not established")
+	}
+
+	if msg.Answer != nil {
+		return pc.SetRemoteDescription(*msg.Answer)
+	}
+
+	if msg.Offer != nil {
+		if err := pc.SetRemoteDescription(*msg.Offer); err != nil {
+			return err
+		}
+		answer, err := pc.CreateAnswer(nil)
+		if err != nil {
+			return err
+		}
+		if err = pc.SetLocalDescription(answer); err != nil {
+			return err
+		}
+		return c.SendMessage(MsgTypeSignalRenegotiation, SignalRenegotiationMsg{
+			Type:   "renegotiation",
+			Answer: &answer,
+		})
+	}
+
 	return nil
 }
 

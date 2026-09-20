@@ -92,6 +92,23 @@ func (r *SFURouter) RemoveSessionTracks(sessionID SessionID) {
 	// 清理该会话的订阅
 	delete(r.subscriptions, sessionID)
 
+	// 清理其它会话订阅表里指向该会话轨道的残留记录
+	for subscriberID, subTracks := range r.subscriptions {
+		var remaining []string
+		for _, tid := range subTracks {
+			if _, stillExists := r.tracks[sessionID][tid]; stillExists {
+				remaining = append(remaining, tid)
+			}
+		}
+		if len(remaining) != len(subTracks) {
+			if len(remaining) == 0 {
+				delete(r.subscriptions, subscriberID)
+			} else {
+				r.subscriptions[subscriberID] = remaining
+			}
+		}
+	}
+
 	LogInfof("removed all tracks for session: %s", sessionID)
 }
 

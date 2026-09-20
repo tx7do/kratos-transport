@@ -142,6 +142,10 @@ func (b *nsqBroker) Connect() error {
 
 		if c.handlerFunc != nil {
 			cm.AddConcurrentHandlers(c.handlerFunc, c.concurrency)
+		} else if c.needsHandler {
+			// Subscribe 先于 Connect 登记的订阅：此处补建 handler
+			c.buildHandler(cm)
+			cm.AddConcurrentHandlers(c.handlerFunc, c.concurrency)
 		}
 
 		c.consumer = cm
@@ -304,6 +308,31 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 		channel = uuid.New().String() + "#ephemeral"
 	}
 
+	// 未启动时只登记订阅（handler 在 Connect 里统一建 consumer 并连接），
+	// 避免先 Subscribe 后 Connect 时产生两个 consumer，旧的泄漏
+	if !b.running {
+		sub := &subscriber{
+			n:            b,
+			options:      options,
+			topic:        topic,
+			needsHandler: true,
+			binder:       binder,
+			handler:      handler,
+			config:       &config,
+			concurrency:  concurrency,
+		}
+
+		if old := b.subscribers.Get(topic); old != nil {
+			// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+			if uerr := old.Unsubscribe(false); uerr != nil {
+				LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+			}
+		}
+		b.subscribers.Add(topic, sub)
+
+		return sub, nil
+	}
+
 	c, err := NSQ.NewConsumer(topic, channel, &config)
 	if err != nil {
 		return nil, err
@@ -346,10 +375,13 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 			return errSub
 		}
 
-		if options.AutoAck {
-			if errSub = p.Ack(); errSub != nil {
-				LogErrorf("unable to commit msg: %v", errSub)
-			}
+		// go-nsq 的 handler 循环在 handler 返回 nil 时已自动 Finish（AutoAck 场景），
+		// 这里再手动 Ack 会发送重复 FIN；仅在 handler 失败时显式 Finish 以终止重投
+		if p.err == nil {
+			return nil
+		}
+		if errSub = p.Ack(); errSub != nil {
+			LogErrorf("unable to commit msg: %v", errSub)
 		}
 
 		return p.err

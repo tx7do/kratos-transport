@@ -151,6 +151,16 @@ func (b *gcpBroker) Publish(ctx context.Context, topic string, msg *broker.Messa
 }
 
 func (b *gcpBroker) internalPublish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
+	publishOpts := broker.NewPublishOptions(opts...)
+	// WithPublishTimeout 接线：为本次发布加超时
+	if publishOpts.Context.Value(publishTimeoutKey{}) != nil {
+		if d, ok := publishOpts.Context.Value(publishTimeoutKey{}).(time.Duration); ok && d > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, d)
+			defer cancel()
+		}
+	}
+
 	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return err

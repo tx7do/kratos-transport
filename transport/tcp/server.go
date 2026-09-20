@@ -386,6 +386,7 @@ func (s *Server) doAccept() {
 		}
 
 		session := NewSession(conn, s)
+		session.idleTimeout = s.timeout
 		s.sessionManager.addSession(session)
 		session.Listen()
 	}

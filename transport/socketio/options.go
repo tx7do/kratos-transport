@@ -2,6 +2,7 @@ package socketio
 
 import (
 	"crypto/tls"
+	"net/http"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	socketIo "github.com/googollee/go-socket.io"
@@ -64,3 +65,10 @@ func WithEventHandler(namespace, event string, f any) ServerOption {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// WithCheckOrigin 自定义 Origin 校验（默认放行所有 Origin）。
+func WithCheckOrigin(fn func(r *http.Request) bool) ServerOption {
+	return func(s *Server) {
+		s.checkOrigin = fn
+	}
+}

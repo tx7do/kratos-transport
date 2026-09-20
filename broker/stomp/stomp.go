@@ -169,11 +169,12 @@ func (b *stompBroker) Connect() error {
 func (b *stompBroker) Disconnect() error {
 	var err error
 
+	// 先退订（UNSUBSCRIBE 帧需要连接可用），再断开连接
+	b.subscribers.Clear()
+
 	if b.stompConn != nil {
 		err = b.stompConn.Disconnect()
 	}
-
-	b.subscribers.Clear()
 
 	return err
 }
@@ -335,7 +336,9 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					return
 				}
 
-				if options.AutoAck || ackSuccess {
+				// AckAuto 模式由 STOMP 服务端自动确认，显式 ACK 反而可能被 broker 拒绝；
+				// 仅 AckClientIndividual（ackSuccess）时需要显式 ACK
+				if ackSuccess {
 					msgErr = msg.Conn.Ack(msg)
 					p.err = msgErr
 				}

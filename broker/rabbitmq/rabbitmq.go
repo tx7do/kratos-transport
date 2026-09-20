@@ -372,6 +372,12 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	}
 	b.subscribers.Add(routingKey, sub)
 
+	// 首次消费同步完成（队列声明/绑定就绪后才返回），
+	// 避免"Subscribe 返回即发布、消息因未绑定而丢失"的时序窗口
+	if err := sub.consumeOnce(); err != nil {
+		return nil, err
+	}
+
 	go sub.resubscribe()
 
 	return sub, nil

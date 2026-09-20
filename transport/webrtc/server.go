@@ -116,10 +116,17 @@ func (s *Server) init(opts ...ServerOption) error {
 		o(s)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc(s.path, s.signalHandler)
+	// 内置信令处理器：处理客户端回传的重协商 Answer/Offer（先注册占位，用户不可覆盖）
+	s.RegisterMessageHandler(MsgTypeSignalRenegotiation,
+		func(sessionId SessionID, payload MessagePayload) error {
+			return s.handleSignalRenegotiation(sessionId, payload)
+		},
+		func() any {
+			return &SignalRenegotiationMsg{}
+		},
+	)
 
-	s.Server = &http.Server{TLSConfig: s.tlsConf, Handler: mux}
+	s.rebuildHTTPServer()
 
 	if s.netPacketMarshaler == nil {
 		s.netPacketMarshaler = s.defaultMarshalNetPacket
@@ -131,6 +138,8 @@ func (s *Server) init(opts ...ServerOption) error {
 	if s.socketRawDataHandler == nil {
 		s.socketRawDataHandler = s.defaultHandleSocketRawData
 	}
+
+	// rebuildHTTPServer 重建被 Shutdown 毒化的 http.Server（重启支持）
 
 	if s.codec == nil {
 		s.codec = encoding.GetCodec("json")
@@ -355,7 +364,8 @@ func (s *Server) signalHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// 解析信令请求
+	// 解析信令请求（限制请求体大小，防止无限制读取）
+	req.Body = http.MaxBytesReader(res, req.Body, 1<<20)
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
@@ -596,6 +606,14 @@ func (s *Server) Stop(ctx context.Context) error {
 	err := s.Shutdown(ctx)
 	s.sessionManager.closeAllAndWait()
 
+	// 重建 http.Server 并释放 listener/endpoint，支持 Stop→Start 重启
+	s.rebuildHTTPServer()
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+	}
+	s.endpoint = nil
+
 	s.stateMu.Lock()
 	s.err = nil
 	s.running = false
@@ -667,6 +685,7 @@ func (s *Server) SubscribeToPublisher(subscriberID SessionID, publisherID Sessio
 	}
 
 	// 为每个轨道创建本地轨道并添加到 PeerConnection
+	added := 0
 	for _, mediaTrack := range tracks {
 		localTrack, err := s.sfuRouter.CreateLocalTrackForSubscriber(subscriberID, mediaTrack, pc)
 		if err != nil {
@@ -674,15 +693,19 @@ func (s *Server) SubscribeToPublisher(subscriberID SessionID, publisherID Sessio
 			continue
 		}
 
-		// 发送 renegotation 信令
+		_ = localTrack // 保持引用
+		added++
+	}
+
+	// 全部轨道加完后再统一发一次重协商 Offer（服务端作为 offer 方，
+	// stable 状态下 CreateAnswer 是非法的，这正是旧实现失败的原因）
+	if added > 0 {
 		if err := s.sendRenegotiation(session, pc); err != nil {
 			LogErrorf("send renegotiation error: %s", err)
 		}
-
-		_ = localTrack // 保持引用
 	}
 
-	LogInfof("session %s subscribed to publisher %s (%d tracks)", subscriberID, publisherID, len(tracks))
+	LogInfof("session subscribed to publisher %s (%d tracks)", subscriberID, len(tracks))
 	return nil
 }
 
@@ -693,17 +716,10 @@ func (s *Server) UnsubscribeFromPublisher(subscriberID SessionID, publisherID Se
 }
 
 // broadcastTrackAvailable 广播轨道可用通知
+// 信令经 BinaryNetPacket（MsgTypeSignalTrackAvailable）封包，
+// 客户端按标准消息分发即可接收（此前裸 JSON 无法通过客户端解析）
 func (s *Server) broadcastTrackAvailable(publisherID SessionID, track *MediaTrack) {
-	// 构造信令消息
-	type TrackAvailableMsg struct {
-		Type        string `json:"type"`
-		PublisherID string `json:"publisher_id"`
-		TrackID     string `json:"track_id"`
-		Kind        string `json:"kind"`
-		Codec       string `json:"codec"`
-	}
-
-	msg := TrackAvailableMsg{
+	msg := SignalTrackAvailableMsg{
 		Type:        "track_available",
 		PublisherID: string(publisherID),
 		TrackID:     track.ID(),
@@ -717,25 +733,33 @@ func (s *Server) broadcastTrackAvailable(publisherID SessionID, track *MediaTrac
 		return
 	}
 
+	pkt, err := (&BinaryNetPacket{Type: MsgTypeSignalTrackAvailable, Payload: payload}).Marshal()
+	if err != nil {
+		LogErrorf("marshal track available packet error: %s", err)
+		return
+	}
+
 	// 发送给所有其他客户端
 	s.sessionManager.rangeSessions(func(sessionID SessionID, session *Session) bool {
 		if sessionID != publisherID {
 			// 通过数据通道发送信令
-			session.SendMessage(payload)
+			session.SendMessage(pkt)
 		}
 		return true
 	})
 }
 
-// sendRenegotiation 发送重新协商信令
+// sendRenegotiation 发送重新协商信令（服务端作为 offer 方）：
+// 旧实现在 stable 状态调 CreateAnswer（pion 语义非法，必返回 ErrInvalidState），
+// 且裸 JSON 不经过客户端的 BinaryNetPacket 分发，订阅链路端到端不通
 func (s *Server) sendRenegotiation(session *Session, pc *webrtc.PeerConnection) error {
-	answer, err := pc.CreateAnswer(nil)
+	offer, err := pc.CreateOffer(nil)
 	if err != nil {
 		return err
 	}
 
 	gatherDone := webrtc.GatheringCompletePromise(pc)
-	if err = pc.SetLocalDescription(answer); err != nil {
+	if err = pc.SetLocalDescription(offer); err != nil {
 		return err
 	}
 	<-gatherDone
@@ -745,17 +769,10 @@ func (s *Server) sendRenegotiation(session *Session, pc *webrtc.PeerConnection) 
 		return errors.New("local description is nil")
 	}
 
-	// 构造 renegotation 信令
-	type RenegotiationMsg struct {
-		Type      string                    `json:"type"`
-		Answer    webrtc.SessionDescription `json:"answer"`
-		SessionID SessionID                 `json:"session_id"`
-	}
-
-	msg := RenegotiationMsg{
+	msg := SignalRenegotiationMsg{
 		Type:      "renegotiation",
-		Answer:    *local,
 		SessionID: session.SessionID(),
+		Offer:     local,
 	}
 
 	payload, err := broker.Marshal(s.codec, msg)
@@ -763,6 +780,72 @@ func (s *Server) sendRenegotiation(session *Session, pc *webrtc.PeerConnection) 
 		return err
 	}
 
-	session.SendMessage(payload)
+	pkt, err := (&BinaryNetPacket{Type: MsgTypeSignalRenegotiation, Payload: payload}).Marshal()
+	if err != nil {
+		return err
+	}
+
+	session.SendMessage(pkt)
 	return nil
+}
+
+// handleSignalRenegotiation 处理客户端回传的重协商信令（内置，不可被用户覆盖）：
+// - 携带 Answer：应用为远端描述（客户端确认服务端下行的 Offer）
+// - 携带 Offer：客户端要新增上行轨道，服务端应答
+func (s *Server) handleSignalRenegotiation(sessionId SessionID, payload MessagePayload) error {
+	msg, ok := payload.(*SignalRenegotiationMsg)
+	if !ok || msg == nil {
+		return errors.New("invalid renegotiation payload")
+	}
+
+	session := s.sessionManager.getSession(sessionId)
+	if session == nil {
+		return errors.New("session not found")
+	}
+	pc := session.PeerConnection()
+	if pc == nil {
+		return errors.New("peer connection not found")
+	}
+
+	if msg.Answer != nil {
+		return pc.SetRemoteDescription(*msg.Answer)
+	}
+
+	if msg.Offer != nil {
+		if err := pc.SetRemoteDescription(*msg.Offer); err != nil {
+			return err
+		}
+		answer, err := pc.CreateAnswer(nil)
+		if err != nil {
+			return err
+		}
+		if err = pc.SetLocalDescription(answer); err != nil {
+			return err
+		}
+
+		reply := SignalRenegotiationMsg{
+			Type:      "renegotiation",
+			SessionID: sessionId,
+			Answer:    &answer,
+		}
+		raw, err := broker.Marshal(s.codec, reply)
+		if err != nil {
+			return err
+		}
+		pkt, err := (&BinaryNetPacket{Type: MsgTypeSignalRenegotiation, Payload: raw}).Marshal()
+		if err != nil {
+			return err
+		}
+		session.SendMessage(pkt)
+	}
+
+	return nil
+}
+
+// rebuildHTTPServer 重建内嵌的 http.Server（Shutdown 后不可复用，重启时需要新实例）
+func (s *Server) rebuildHTTPServer() {
+	mux := http.NewServeMux()
+	mux.HandleFunc(s.path, s.signalHandler)
+
+	s.Server = &http.Server{TLSConfig: s.tlsConf, Handler: mux}
 }

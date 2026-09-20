@@ -214,6 +214,12 @@ func RegisterSubscriber[T any](
 			default:
 				return fmt.Errorf("unsupported type: expected %s, got %T", expectedType, event.Message().Body)
 			}
+
+			// 手动 ack 模式（disableAutoAck）：typed handler 拿不到 Event，
+			// 约定为处理成功即提交 offset；失败不提交，等重投
+			if disableAutoAck {
+				return event.Ack()
+			}
 			return nil
 		},
 		func() any {

@@ -94,6 +94,12 @@ func (sm *SessionManager) addSession(session *Session) {
 		return
 	}
 
+	// DataChannel OnOpen 与连接关闭可能交错（add-after-close）：
+	// 已关闭的会话不再入表，否则会永久残留
+	if session.IsClosed() {
+		return
+	}
+
 	if _, loaded := sm.sessions.LoadOrStore(session.SessionID(), session); loaded {
 		return
 	}

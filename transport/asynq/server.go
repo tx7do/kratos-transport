@@ -519,7 +519,7 @@ func waitResult(intor *asynq.Inspector, info *asynq.TaskInfo) (*asynq.TaskInfo, 
 		case asynq.TaskStateArchived:
 			return nil, fmt.Errorf("task state is %s", taskInfo.State.String())
 		case asynq.TaskStateRetry:
-			return nil, fmt.Errorf("task state is %s", taskInfo.State.String())
+			// 重试是任务推进的中间态，继续轮询直到最终态（完成/归档/超时）
 		}
 
 		if time.Now().After(deadline) {

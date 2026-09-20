@@ -24,9 +24,6 @@ type Session struct {
 	send  chan []byte
 	hooks SessionHooks
 
-	lastReadMessageTime  time.Time // Last time the session received application data.
-	lastWriteMessageTime time.Time // Last time the session sent application data.
-
 	// 媒体轨道相关
 	localTracks map[string]*webrtc.TrackLocalStaticRTP
 
@@ -103,7 +100,6 @@ func (s *Session) BindDataChannel(dc *webrtc.DataChannel, onOpen func()) {
 	})
 
 	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-		s.lastReadMessageTime = time.Now()
 		if s.hooks == nil {
 			return
 		}
@@ -139,6 +135,9 @@ func (s *Session) SendMessage(message []byte) {
 	case <-s.done:
 		return
 	case s.send <- message:
+	case <-time.After(5 * time.Second):
+		// 慢消费者（writePump 阻塞）不能无限拖住调用方/广播方
+		LogErrorf("session %s send buffer full, message dropped", s.SessionID())
 	}
 }
 
@@ -151,6 +150,16 @@ func (s *Session) Close() {
 			s.hooks.removeSession(s)
 		}
 	})
+}
+
+// IsClosed 返回会话是否已关闭
+func (s *Session) IsClosed() bool {
+	select {
+	case <-s.done:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Session) Listen() {
@@ -194,8 +203,6 @@ func (s *Session) writePump() {
 		case <-s.done:
 			return
 		case msg := <-s.send:
-			s.lastWriteMessageTime = time.Now()
-
 			dc := s.DataChannel()
 			if dc == nil {
 				return

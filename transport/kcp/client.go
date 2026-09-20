@@ -63,11 +63,10 @@ func (c *Client) init(opts ...ClientOption) {
 
 	addr := c.url
 
-	prefix := "udp://"
+	// 仅在缺失时补 udp:// 前缀（原先两分支相同，已带前缀时会拼出 udp://udp://…）
 	if !strings.HasPrefix(addr, "udp://") {
-		prefix = "udp://"
+		addr = "udp://" + addr
 	}
-	addr = prefix + addr
 
 	c.endpoint, _ = url.Parse(addr)
 }

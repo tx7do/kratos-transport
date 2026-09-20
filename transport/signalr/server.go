@@ -107,7 +107,13 @@ func (s *Server) Start(_ context.Context) error {
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping...")
 
-	err := s.lis.Close()
+	var err error
+	if s.lis != nil {
+		err = s.lis.Close()
+	}
+	// 释放 listener 与 endpoint：下一次 Start 通过 listenAndEndpoint 重新监听（重启支持）
+	s.lis = nil
+	s.endpoint = nil
 	s.err = nil
 
 	LogInfo("server stopped.")

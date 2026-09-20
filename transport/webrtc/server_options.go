@@ -197,7 +197,7 @@ func WithMediaEnabled(enabled bool) ServerOption {
 
 			mediaEngine := &webrtc.MediaEngine{}
 
-			// 注册视频编解码器
+			// 注册视频编解码器（H264 与 VP8 不能共用同一 PayloadType，否则 SDP 协商歧义）
 			if err := mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
 				RTPCodecCapability: webrtc.RTPCodecCapability{
 					MimeType:     webrtc.MimeTypeH264,
@@ -206,7 +206,7 @@ func WithMediaEnabled(enabled bool) ServerOption {
 					SDPFmtpLine:  "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
 					RTCPFeedback: nil,
 				},
-				PayloadType: 96,
+				PayloadType: 99,
 			}, webrtc.RTPCodecTypeVideo); err != nil {
 				LogErrorf("register H264 codec error: %s", err)
 			}

@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +26,8 @@ var (
 
 type Server struct {
 	*gin.Engine
-	server *http.Server
+	server      *http.Server
+	httpHandler http.Handler
 
 	tlsConf *tls.Config
 	timeout time.Duration
@@ -36,6 +38,9 @@ type Server struct {
 	lis      net.Listener
 
 	err error
+
+	stateMu sync.RWMutex
+	serving bool
 
 	filters []kHttp.FilterFunc
 	ms      []middleware.Middleware
@@ -67,6 +72,7 @@ func (s *Server) init(opts ...ServerOption) {
 
 	s.installMiddlewares()
 
+	s.httpHandler = s.buildHandlerChain()
 	s.server = s.buildHTTPServer()
 }
 
@@ -128,16 +134,22 @@ func (s *Server) installMiddlewares() {
 
 // buildHTTPServer 创建 http.Server，并把 kratos 的 Filter 包裹在引擎之外。
 func (s *Server) buildHTTPServer() *http.Server {
+	s.httpHandler = s.buildHandlerChain()
+
+	return &http.Server{
+		Addr:      s.address,
+		Handler:   s.httpHandler,
+		TLSConfig: s.tlsConf,
+	}
+}
+
+// buildHandlerChain 组装引擎 + kratos Filter 链
+func (s *Server) buildHandlerChain() http.Handler {
 	var handler http.Handler = s.Engine
 	for i := len(s.filters) - 1; i >= 0; i-- {
 		handler = s.filters[i](handler)
 	}
-
-	return &http.Server{
-		Addr:      s.address,
-		Handler:   handler,
-		TLSConfig: s.tlsConf,
-	}
+	return handler
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
@@ -171,6 +183,20 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) Start(_ context.Context) error {
+	s.stateMu.Lock()
+	if s.serving {
+		s.stateMu.Unlock()
+		return nil
+	}
+	s.serving = true
+	s.stateMu.Unlock()
+
+	defer func() {
+		s.stateMu.Lock()
+		s.serving = false
+		s.stateMu.Unlock()
+	}()
+
 	if err := s.listenAndEndpoint(); err != nil {
 		return err
 	}
@@ -220,5 +246,6 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	s.Engine.ServeHTTP(res, req)
+	// 与 Start 的监听路径一致：经过 kratos Filter 链
+	s.httpHandler.ServeHTTP(res, req)
 }

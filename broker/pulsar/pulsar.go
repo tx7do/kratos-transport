@@ -75,60 +75,11 @@ func (pb *pulsarBroker) Options() broker.Options {
 func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	pb.options.Apply(opts...)
 
-	pulsarOptions := pulsar.ClientOptions{
-		URL:               defaultAddr,
-		OperationTimeout:  30 * time.Second,
-		ConnectionTimeout: 30 * time.Second,
-	}
-
-	if v, ok := pb.options.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
-		pulsarOptions.ConnectionTimeout = v
-	}
-	if v, ok := pb.options.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
-		pulsarOptions.OperationTimeout = v
-	}
-	if v, ok := pb.options.Context.Value(listenerNameKey{}).(string); ok {
-		pulsarOptions.ListenerName = v
-	}
-	if v, ok := pb.options.Context.Value(maxConnectionsPerBrokerKey{}).(int); ok {
-		pulsarOptions.MaxConnectionsPerBroker = v
-	}
-	if v, ok := pb.options.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
-		pulsarOptions.CustomMetricsLabels = v
-	}
-
-	var enableTLS = false
-	if v, ok := pb.options.Context.Value(tlsKey{}).(tlsConfig); ok {
-		pulsarOptions.TLSTrustCertsFilePath = v.CaCertsPath
-		if v.ClientCertPath != "" && v.ClientKeyPath != "" {
-			pulsarOptions.Authentication = pulsar.NewAuthenticationTLS(v.ClientCertPath, v.ClientKeyPath)
-		}
-		pulsarOptions.TLSAllowInsecureConnection = v.AllowInsecureConnection
-		pulsarOptions.TLSValidateHostname = v.ValidateHostname
-
-		enableTLS = true
-	}
-
-	var cAddrs []string
-	for _, addr := range pb.options.Addrs {
-		if len(addr) == 0 {
-			continue
-		}
-		addr = refitUrl(addr, enableTLS)
-		cAddrs = append(cAddrs, addr)
-	}
-	if len(cAddrs) == 0 {
-		cAddrs = []string{defaultAddr}
-	}
-	pb.options.Addrs = cAddrs
-	pulsarOptions.URL = cAddrs[0]
-
-	var err error
-	pb.client, err = pulsar.NewClient(pulsarOptions)
+	client, err := pb.newClient()
 	if err != nil {
-		LogErrorf("Could not instantiate Pulsar client: %v", err)
 		return err
 	}
+	pb.client = client
 
 	if len(pb.options.Tracings) > 0 {
 		pb.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, pb.options.Tracings...)
@@ -145,6 +96,17 @@ func (pb *pulsarBroker) Connect() error {
 		return nil
 	}
 	pb.RUnlock()
+
+	// Disconnect 会关闭 client；重连时重建，而不是只翻标志位
+	if pb.client == nil {
+		client, err := pb.newClient()
+		if err != nil {
+			return err
+		}
+		pb.Lock()
+		pb.client = client
+		pb.Unlock()
+	}
 
 	pb.Lock()
 	pb.connected = true
@@ -533,4 +495,63 @@ func (pb *pulsarBroker) finishConsumerSpan(ctx context.Context, span trace.Span,
 	}
 
 	pb.consumerTracer.End(ctx, span, err)
+}
+
+// newClient 组装 ClientOptions 并创建 Pulsar 客户端。
+// 独立成函数：Connect 时可复用（Disconnect 关闭 client 后支持重连）。
+func (pb *pulsarBroker) newClient() (pulsar.Client, error) {
+	pulsarOptions := pulsar.ClientOptions{
+		URL:               defaultAddr,
+		OperationTimeout:  30 * time.Second,
+		ConnectionTimeout: 30 * time.Second,
+	}
+
+	if v, ok := pb.options.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
+		pulsarOptions.ConnectionTimeout = v
+	}
+	if v, ok := pb.options.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
+		pulsarOptions.OperationTimeout = v
+	}
+	if v, ok := pb.options.Context.Value(listenerNameKey{}).(string); ok {
+		pulsarOptions.ListenerName = v
+	}
+	if v, ok := pb.options.Context.Value(maxConnectionsPerBrokerKey{}).(int); ok {
+		pulsarOptions.MaxConnectionsPerBroker = v
+	}
+	if v, ok := pb.options.Context.Value(customMetricsLabelsKey{}).(map[string]string); ok {
+		pulsarOptions.CustomMetricsLabels = v
+	}
+
+	var enableTLS = false
+	if v, ok := pb.options.Context.Value(tlsKey{}).(tlsConfig); ok {
+		pulsarOptions.TLSTrustCertsFilePath = v.CaCertsPath
+		if v.ClientCertPath != "" && v.ClientKeyPath != "" {
+			pulsarOptions.Authentication = pulsar.NewAuthenticationTLS(v.ClientCertPath, v.ClientKeyPath)
+		}
+		pulsarOptions.TLSAllowInsecureConnection = v.AllowInsecureConnection
+		pulsarOptions.TLSValidateHostname = v.ValidateHostname
+
+		enableTLS = true
+	}
+
+	var cAddrs []string
+	for _, addr := range pb.options.Addrs {
+		if len(addr) == 0 {
+			continue
+		}
+		addr = refitUrl(addr, enableTLS)
+		cAddrs = append(cAddrs, addr)
+	}
+	if len(cAddrs) == 0 {
+		cAddrs = []string{defaultAddr}
+	}
+	pb.options.Addrs = cAddrs
+	pulsarOptions.URL = cAddrs[0]
+
+	client, err := pulsar.NewClient(pulsarOptions)
+	if err != nil {
+		LogErrorf("Could not instantiate Pulsar client: %v", err)
+		return nil, err
+	}
+	return client, nil
 }
