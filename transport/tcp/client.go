@@ -22,8 +22,9 @@ type ClientHandlerData struct {
 type ClientMessageHandlerMap map[NetMessageType]ClientHandlerData
 
 type Client struct {
-	connMu sync.RWMutex
-	conn   net.Conn
+	connMu  sync.RWMutex
+	writeMu sync.Mutex
+	conn    net.Conn
 
 	url      string
 	endpoint *url.URL
@@ -132,6 +133,10 @@ func (c *Client) SendRawData(message []byte) error {
 		return errors.New("client is not connected")
 	}
 
+	// 写锁串行化：并发发送时单帧 Write 交错会破坏帧流
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
 	// 写入带长度前缀的帧，与服务端分包逻辑对应
 	if err := WriteFrame(conn, message); err != nil {
 		return err
@@ -142,12 +147,15 @@ func (c *Client) SendRawData(message []byte) error {
 func (c *Client) SendMessage(messageType int, message any) error {
 	var msg NetPacket
 	msg.Type = NetMessageType(messageType)
-	msg.Payload, _ = broker.Marshal(c.codec, message)
 
-	var err error
+	payload, err := broker.Marshal(c.codec, message)
+	if err != nil {
+		return err
+	}
+	msg.Payload = payload
 
-	var buff []byte
-	if buff, err = msg.Marshal(); err != nil {
+	buff, err := msg.Marshal()
+	if err != nil {
 		return err
 	}
 
@@ -155,13 +163,24 @@ func (c *Client) SendMessage(messageType int, message any) error {
 }
 
 func (c *Client) run() {
-	defer c.Disconnect()
+	// 只关闭本次连接：旧读循环收敛时不应误杀用户新建的连接
+	c.connMu.RLock()
+	conn := c.conn
+	c.connMu.RUnlock()
+	defer func() {
+		c.connMu.Lock()
+		if c.conn == conn {
+			c.conn = nil
+		}
+		c.connMu.Unlock()
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				LogErrorf("disconnect error: %s", err.Error())
+			}
+		}
+	}()
 
 	for {
-		c.connMu.RLock()
-		conn := c.conn
-		c.connMu.RUnlock()
-
 		if conn == nil {
 			return
 		}

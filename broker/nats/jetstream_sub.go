@@ -161,7 +161,16 @@ func (b *jetStreamBroker) pullLoop(sub *natsGo.Subscription, handler func(*natsG
 
 		msgs, err := sub.Fetch(batchSize)
 		if err != nil {
-			if errors.Is(err, natsGo.ErrTimeout) || errors.Is(err, natsGo.ErrConnectionClosed) {
+			if errors.Is(err, natsGo.ErrTimeout) {
+				continue
+			}
+			if errors.Is(err, natsGo.ErrConnectionClosed) {
+				// 连接断开时 Fetch 立即失败，退避避免热循环
+				select {
+				case <-jsSub.options.Context.Done():
+					return
+				case <-time.After(time.Second):
+				}
 				continue
 			}
 			if jsSub.IsClosed() {

@@ -323,7 +323,14 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 			m.Body = binder()
 
 			if errSub = broker.Unmarshal(b.options.Codec, nm.Body, &m.Body); errSub != nil {
-				return errSub
+				// 毒消息：通知 ErrorHandler 并 Finish，避免无限 Requeue 后被丢弃且无感知
+				LogErrorf("unmarshal message failed: %v", errSub)
+				p := &publication{topic: topic, nsqMsg: nm, msg: &m, err: errSub}
+				if eh := b.options.ErrorHandler; eh != nil {
+					_ = eh(b.options.Context, p)
+				}
+				nm.Finish()
+				return nil
 			}
 		} else {
 			m.Body = nm.Body
@@ -368,6 +375,12 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 		concurrency: concurrency,
 	}
 
+	if old := b.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	b.subscribers.Add(topic, sub)
 
 	return sub, nil

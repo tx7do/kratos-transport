@@ -208,12 +208,9 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	if s.keepaliveServer != nil {
-		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil {
-				LogErrorf("keepalive server start failed: %s", err.Error())
-			}
-		}()
+	if s.keepaliveServer == nil {
+		// Stop 置 nil 后重启时重建，否则 keepalive/Endpoint 永久失效
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindMachinery))
 	}
 
 	if err := s.startWorker(
@@ -225,6 +222,15 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	LogInfof("server started")
+
+	// worker 启动成功后再起 keepalive，失败路径上不会泄漏 goroutine
+	if s.keepaliveServer != nil {
+		go func() {
+			if err := s.keepaliveServer.Start(ctx); err != nil {
+				LogErrorf("keepalive server start failed: %s", err.Error())
+			}
+		}()
+	}
 
 	s.baseCtx = ctx
 	s.started.Store(true)
@@ -378,8 +384,9 @@ func (s *Server) startWorker(consumerTag string, concurrency int, queue string) 
 
 	})
 
-	// worker 退出时（Quit → StopConsuming 收敛完成）会向 errChan 恰好发送一次最终错误
-	errChan := make(chan error, 1)
+	// worker 退出时向 errChan 发送最终错误；cap 2 兜底 NoUnixSignals=false 时
+	// 信号路径可能的额外发送，避免发送 goroutine 永久阻塞
+	errChan := make(chan error, 2)
 
 	worker.LaunchAsync(errChan)
 
@@ -401,8 +408,9 @@ func (s *Server) newTask(ctx context.Context, cronSpec, lockName, typeName strin
 	var err error
 
 	var span trace.Span
-	ctx, span = s.startProducerSpan(context.Background(), signature)
-	defer s.finishProducerSpan(ctx, span, err)
+	// 使用调用方 ctx：保留取消语义与 tracing 关联
+	ctx, span = s.startProducerSpan(ctx, signature)
+	defer func() { s.finishProducerSpan(ctx, span, err) }()
 
 	if len(cronSpec) > 0 {
 		err = s.machineryServer.RegisterPeriodicTask(cronSpec, lockName, signature)

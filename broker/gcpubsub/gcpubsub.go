@@ -23,6 +23,9 @@ type gcpBroker struct {
 	running bool
 
 	subscribers *broker.SubscriberSyncMap
+
+	publishersMu sync.Mutex
+	publishers   map[string]*pubsub.Publisher
 }
 
 func NewBroker(opts ...broker.Option) broker.Broker {
@@ -30,6 +33,7 @@ func NewBroker(opts ...broker.Option) broker.Broker {
 
 	b := &gcpBroker{
 		options:     options,
+		publishers:  make(map[string]*pubsub.Publisher),
 		subscribers: broker.NewSubscriberSyncMap(),
 	}
 
@@ -104,6 +108,13 @@ func (b *gcpBroker) Connect() error {
 }
 
 func (b *gcpBroker) Disconnect() error {
+	b.publishersMu.Lock()
+	for _, p := range b.publishers {
+		p.Stop()
+	}
+	b.publishers = make(map[string]*pubsub.Publisher)
+	b.publishersMu.Unlock()
+
 	b.Lock()
 	defer b.Unlock()
 
@@ -167,7 +178,18 @@ func (b *gcpBroker) publish(ctx context.Context, topic string, msg *broker.Messa
 		o(&options)
 	}
 
-	t := client.Publisher(topic)
+	b.publishersMu.Lock()
+	if b.publishers == nil {
+		b.publishers = make(map[string]*pubsub.Publisher)
+	}
+	t, ok := b.publishers[topic]
+	if !ok {
+		// Publisher 携带后台 bundler goroutine，必须复用并在 Disconnect 时 Stop，
+		// 否则每次发布都泄漏一组 goroutine
+		t = client.Publisher(topic)
+		b.publishers[topic] = t
+	}
+	b.publishersMu.Unlock()
 
 	pubsubMsg := &pubsub.Message{
 		Data: msg.BodyBytes(),
@@ -248,6 +270,12 @@ func (b *gcpBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 	go b.receive(recvCtx, client, subscriptionName, receiveSettings, handler, binder, options, sub)
 
+	if old := b.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	b.subscribers.Add(topic, sub)
 
 	return sub, nil
@@ -268,66 +296,76 @@ func (b *gcpBroker) receive(ctx context.Context, client *pubsub.Client, subscrip
 	}()
 
 	err := subClient.Receive(subCtx, func(receiveCtx context.Context, msg *pubsub.Message) {
-		var m broker.Message
-
-		// Extract headers from message attributes
-		if msg.Attributes != nil {
-			m.Headers = make(broker.Headers)
-			for k, v := range msg.Attributes {
-				m.Headers[k] = v
-			}
-		}
-
-		// Extract body
-		if len(msg.Data) > 0 {
-			if binder != nil {
-				m.Body = binder()
-				if err := broker.Unmarshal(b.options.Codec, msg.Data, &m.Body); err != nil {
-					LogErrorf("unmarshal message failed: %v", err)
-					msg.Nack()
-					return
-				}
-			} else {
-				m.Body = msg.Data
-			}
-		}
-
-		p := &publication{
-			topic:  sub.topic,
-			msg:    &m,
-			gcpMsg: msg,
-			ack:    msg.Ack,
-		}
-
-		if err := handler(receiveCtx, p); err != nil {
-			p.err = err
-			LogErrorf("handle message failed: %v", err)
-			if eh := b.options.ErrorHandler; eh != nil {
-				_ = eh(receiveCtx, p)
-			}
-			return
-		}
-
-		if options.AutoAck {
-			if err := p.Ack(); err != nil {
-				LogErrorf("unable to ack msg: %v", err)
-			}
-		}
+		handlePubSubMessage(receiveCtx, b, msg, handler, binder, options, sub)
 	})
 
-	if err != nil {
+	// 致命错误（订阅被删、权限问题等）后不能静默死亡：
+	// 带退避循环重试，直到订阅被显式关闭或上下文取消（不用递归，避免长故障下栈增长）
+	for err != nil {
 		if subCtx.Err() != nil {
 			// context cancelled, normal exit
 			return
 		}
-		// 致命错误（订阅被删、权限问题等）后不能静默死亡：
-		// 带退避重试，直到订阅被显式关闭或上下文取消
 		LogErrorf("receive message error: %v, retrying in 5s...", err)
 		select {
 		case <-subCtx.Done():
 			return
 		case <-time.After(5 * time.Second):
-			b.receive(subCtx, client, subscriptionName, receiveSettings, handler, binder, options, sub)
+		}
+		err = subClient.Receive(subCtx, func(receiveCtx context.Context, msg *pubsub.Message) {
+			handlePubSubMessage(receiveCtx, b, msg, handler, binder, options, sub)
+		})
+	}
+}
+
+// handlePubSubMessage 单条消息的处理逻辑（从 receive 的闭包提取，供重试循环复用）
+func handlePubSubMessage(receiveCtx context.Context, b *gcpBroker, msg *pubsub.Message,
+	handler broker.Handler, binder broker.Binder,
+	options broker.SubscribeOptions, sub *subscriber) {
+
+	var m broker.Message
+
+	// Extract headers from message attributes
+	if msg.Attributes != nil {
+		m.Headers = make(broker.Headers)
+		for k, v := range msg.Attributes {
+			m.Headers[k] = v
+		}
+	}
+
+	// Extract body
+	if len(msg.Data) > 0 {
+		if binder != nil {
+			m.Body = binder()
+			if err := broker.Unmarshal(b.options.Codec, msg.Data, &m.Body); err != nil {
+				LogErrorf("unmarshal message failed: %v", err)
+				msg.Nack()
+				return
+			}
+		} else {
+			m.Body = msg.Data
+		}
+	}
+
+	p := &publication{
+		topic:  sub.topic,
+		msg:    &m,
+		gcpMsg: msg,
+		ack:    msg.Ack,
+	}
+
+	if err := handler(receiveCtx, p); err != nil {
+		p.err = err
+		LogErrorf("handle message failed: %v", err)
+		if eh := b.options.ErrorHandler; eh != nil {
+			_ = eh(receiveCtx, p)
+		}
+		return
+	}
+
+	if options.AutoAck {
+		if err := p.Ack(); err != nil {
+			LogErrorf("unable to ack msg: %v", err)
 		}
 	}
 }

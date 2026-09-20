@@ -39,6 +39,8 @@ type Server struct {
 
 	keepaliveServer *keepalive.Server
 	mcpServer       *server.MCPServer
+	sseServer       *server.SSEServer
+	httpServer      *server.StreamableHTTPServer
 	endpoint        *url.URL
 
 	mcpOpts []server.ServerOption
@@ -294,4 +296,9 @@ func (s *Server) setErr(err error) {
 	s.mu.Lock()
 	s.err = errors.Join(s.err, err)
 	s.mu.Unlock()
+}
+
+// setErrLocked 在已持锁情况下设置/清空错误（nil 清空 sticky err，避免 Start 永久失败）
+func (s *Server) setErrLocked(err error) {
+	s.err = err
 }

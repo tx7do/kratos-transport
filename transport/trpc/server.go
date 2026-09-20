@@ -96,6 +96,12 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(_ context.Context) error {
+	if s.Server == nil {
+		// 未 Start 过（或已停止）：无资源可清理
+		s.err = nil
+		return nil
+	}
+
 	LogInfo("server stopping...")
 
 	err := s.Server.Close(nil)

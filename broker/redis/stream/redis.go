@@ -246,6 +246,12 @@ func (b *streamBroker) Subscribe(topic string, handler broker.Handler, binder br
 		options:   subOpts,
 	}
 
+		if old := b.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			redisOption.LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	b.subscribers.Add(topic, sub)
 
 	go sub.recv()

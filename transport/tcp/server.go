@@ -241,15 +241,21 @@ func (s *Server) Start(_ context.Context) error {
 
 	go s.doAccept()
 
+	s.stateMu.Lock()
 	s.running = true
+	s.stateMu.Unlock()
 
 	return nil
 }
 
 func (s *Server) Stop(_ context.Context) error {
+	s.stateMu.Lock()
 	if !s.running {
+		s.stateMu.Unlock()
 		return nil
 	}
+	s.running = false
+	s.stateMu.Unlock()
 
 	LogInfo("server stopping ...")
 
@@ -259,9 +265,18 @@ func (s *Server) Stop(_ context.Context) error {
 		err = s.lis.Close()
 		s.lis = nil
 	}
-	s.err = nil
 
-	s.running = false
+	// 关闭全部会话：不关的话每连接读写 goroutine 在 Stop 后继续存活
+	if s.sessionManager != nil {
+		s.sessionManager.rangeSessions(func(_ SessionID, session *Session) bool {
+			if session != nil {
+				session.Close()
+			}
+			return true
+		})
+	}
+
+	s.err = nil
 
 	LogInfo("server stopped")
 
@@ -355,7 +370,7 @@ func (s *Server) doAccept() {
 			return
 		}
 
-		conn, err := s.lis.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			s.stateMu.RLock()
 			running = s.running

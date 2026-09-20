@@ -364,6 +364,12 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 		sub.queueArgs = val
 	}
 
+	if old := b.subscribers.Get(routingKey); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", routingKey, uerr)
+		}
+	}
 	b.subscribers.Add(routingKey, sub)
 
 	go sub.resubscribe()

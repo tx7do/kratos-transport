@@ -82,10 +82,10 @@ func (pb *pulsarBroker) Init(opts ...broker.Option) error {
 	}
 
 	if v, ok := pb.options.Context.Value(connectionTimeoutKey{}).(time.Duration); ok {
-		pulsarOptions.OperationTimeout = v
+		pulsarOptions.ConnectionTimeout = v
 	}
 	if v, ok := pb.options.Context.Value(operationTimeoutKey{}).(time.Duration); ok {
-		pulsarOptions.ConnectionTimeout = v
+		pulsarOptions.OperationTimeout = v
 	}
 	if v, ok := pb.options.Context.Value(listenerNameKey{}).(string); ok {
 		pulsarOptions.ListenerName = v
@@ -167,6 +167,7 @@ func (pb *pulsarBroker) Disconnect() error {
 	for _, p := range pb.producers {
 		p.Close()
 	}
+	pb.producers = make(map[string]pulsar.Producer)
 
 	pb.subscribers.Clear()
 
@@ -312,6 +313,9 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg *broker.M
 				pb.Lock()
 				pb.producers[topic] = producer
 				pb.Unlock()
+			} else {
+				// 重试仍失败：关闭临时 producer，避免泄漏
+				producer.Close()
 			}
 		}
 	}
@@ -400,19 +404,26 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 	}
 
 	go func() {
-		var err error
-		var m broker.Message
 		for cm := range channel {
+			// 每条消息独立 Message：复用会让异步持有 publication 的 handler 读到被覆盖的数据
+			m := broker.Message{
+				Headers: cm.Properties(),
+			}
 			p := &publication{topic: cm.Topic(), reader: sub.reader, msg: &m, pulsarMsg: &cm.Message, ctx: options.Context}
-			m.Headers = cm.Properties()
 
 			ctx, span := pb.startConsumerSpan(sub.options.Context, &cm)
 
 			if binder != nil {
 				m.Body = binder()
 
-				if err = broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
+				if err := broker.Unmarshal(pb.options.Codec, cm.Payload(), &m.Body); err != nil {
+					// 反序列化失败：Nack 触发重投并通知 ErrorHandler
 					LogErrorf("unmarshal message failed: %v", err)
+					p.err = err
+					if eh := pb.options.ErrorHandler; eh != nil {
+						_ = eh(ctx, p)
+					}
+					p.nack()
 					pb.finishConsumerSpan(ctx, span, err)
 					continue
 				}
@@ -420,27 +431,35 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 				m.Body = cm.Payload()
 			}
 
-			if err = sub.handler(ctx, p); err != nil {
+			if err := sub.handler(ctx, p); err != nil {
+				// 处理失败：Nack 重投（原先不 Ack 不 Nack，默认配置下消息会永久滞留丢失）
 				p.err = err
 				LogErrorf("handle message failed: %v", err)
 				if eh := pb.options.ErrorHandler; eh != nil {
 					_ = eh(ctx, p)
 				}
+				p.nack()
 				pb.finishConsumerSpan(ctx, span, err)
 				continue
 			}
 
 			if sub.options.AutoAck {
-				if err = p.Ack(); err != nil {
+				if err := p.Ack(); err != nil {
 					p.err = err
 					LogErrorf("unable to commit msg: %v", err)
 				}
 			}
 
-			pb.finishConsumerSpan(ctx, span, err)
+			pb.finishConsumerSpan(ctx, span, nil)
 		}
 	}()
 
+	if old := pb.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	pb.subscribers.Add(topic, sub)
 
 	return sub, nil

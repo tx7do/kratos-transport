@@ -365,6 +365,12 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 	subs.s = sub
 
+	if old := b.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	b.subscribers.Add(topic, subs)
 
 	return subs, nil
@@ -400,7 +406,11 @@ func (b *natsBroker) request(ctx context.Context, topic string, msg *broker.Mess
 	m := natsGo.NewMsg(topic)
 	m.Data = msg.BodyBytes()
 
+	// 标准 RequestOptions.Timeout 优先（WithRequestTimeout），专有 key 作为兜底
 	var timeout = time.Second * 2
+	if options.Timeout > 0 {
+		timeout = options.Timeout
+	}
 	if v, ok := options.Context.Value(requestTimeoutKey{}).(time.Duration); ok && v > 0 {
 		timeout = v
 	}

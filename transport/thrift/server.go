@@ -95,6 +95,10 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if s.processor == nil {
+		return errors.New("thrift processor is nil (use WithProcessor)")
+	}
+
 	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}
@@ -108,10 +112,14 @@ func (s *Server) Start(_ context.Context) error {
 		return ErrInvalidProtocol
 	}
 
-	cfg := &thrift.TConfiguration{
-		TLSConfig: &tls.Config{
+	// TLS：用户通过 WithTLSConfig 提供的配置优先；未提供时才回退默认（向后兼容）
+	cfg := &thrift.TConfiguration{}
+	if s.tlsConf != nil {
+		cfg.TLSConfig = s.tlsConf
+	} else {
+		cfg.TLSConfig = &tls.Config{
 			InsecureSkipVerify: true,
-		},
+		}
 	}
 
 	transportFactory := createTransportFactory(cfg, s.buffered, s.framed, s.bufferSize)

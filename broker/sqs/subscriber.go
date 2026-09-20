@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"time"
 	"context"
 	"sync"
 
@@ -89,6 +90,12 @@ func (s *subscriber) recv(ctx context.Context, handler broker.Handler, binder br
 				return
 			}
 			LogErrorf("receive message failed: %v", err)
+			// 持续性错误（队列不存在/权限等）下退避，避免热循环打爆 API
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+			}
 			continue
 		}
 

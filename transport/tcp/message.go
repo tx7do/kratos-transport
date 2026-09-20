@@ -68,8 +68,12 @@ func ReadFrame(conn net.Conn) ([]byte, error) {
 	}
 
 	size := byteOrder.Uint32(hdr)
-	if size == 0 || size > maxFrameSize {
+	if size > maxFrameSize {
 		return nil, errors.New("invalid frame size")
+	}
+	if size == 0 {
+		// 与 WriteFrame 对称：空 payload 合法，不再视为致命协议错误
+		return []byte{}, nil
 	}
 
 	payload := make([]byte, size)

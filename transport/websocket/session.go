@@ -127,7 +127,7 @@ func (s *Session) sendPingMessage(message string) error {
 	if conn == nil {
 		return nil
 	}
-	return conn.WriteMessage(ws.PingMessage, []byte(message))
+	return conn.WriteControl(ws.PingMessage, []byte(message), time.Now().Add(5*time.Second))
 }
 
 func (s *Session) sendPongMessage(message string) error {
@@ -137,7 +137,8 @@ func (s *Session) sendPongMessage(message string) error {
 	if conn == nil {
 		return nil
 	}
-	return conn.WriteMessage(ws.PongMessage, []byte(message))
+	// gorilla 单写者约束：控制帧必须走 WriteControl，与 writePump 的数据帧并发安全
+	return conn.WriteControl(ws.PongMessage, []byte(message), time.Now().Add(5*time.Second))
 }
 
 func (s *Session) sendTextMessage(message string) error {

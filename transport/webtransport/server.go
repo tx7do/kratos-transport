@@ -50,6 +50,7 @@ type Server struct {
 
 	running atomic.Bool
 
+	handlersMu      sync.RWMutex
 	messageHandlers MessageHandlerMap
 	connectHandler  ConnectHandler
 	codec           encoding.Codec
@@ -59,6 +60,11 @@ type Server struct {
 	// sessions 在线的流会话表，用于服务端下行发送
 	sessionsMu sync.Mutex
 	sessions   map[SessionID]*session
+
+	// sessionIDGen 会话 ID 生成器。
+	// 不能用 h3 StreamID：QUIC StreamID 只在单条连接内唯一，
+	// 多客户端的首条流恒为 0，会互相覆盖会话表
+	sessionIDGen atomic.Uint64
 }
 
 // session 封装一条被劫持的 HTTP/3 双向流
@@ -188,6 +194,7 @@ func (s *Server) Start(_ context.Context) error {
 	}
 
 	if err := s.listenAndEndpoint(); err != nil {
+		s.running.Store(false)
 		return err
 	}
 
@@ -196,6 +203,7 @@ func (s *Server) Start(_ context.Context) error {
 	if err := s.ListenAndServe(); err != nil {
 		if !errors.Is(err, http.ErrServerClosed) {
 			LogErrorf("start server failed: %s", err.Error())
+			s.running.Store(false)
 			return err
 		}
 	}
@@ -226,6 +234,9 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) RegisterMessageHandler(messageType MessageType, handler MessageHandler, binder Binder) {
+	s.handlersMu.Lock()
+	defer s.handlersMu.Unlock()
+
 	if _, ok := s.messageHandlers[messageType]; ok {
 		return
 	}
@@ -236,6 +247,9 @@ func (s *Server) RegisterMessageHandler(messageType MessageType, handler Message
 }
 
 func (s *Server) DeregisterMessageHandler(messageType MessageType) {
+	s.handlersMu.Lock()
+	defer s.handlersMu.Unlock()
+
 	delete(s.messageHandlers, messageType)
 }
 
@@ -263,7 +277,9 @@ func (s *Server) messageHandler(sessionId SessionID, buf []byte) error {
 		return err
 	}
 
+	s.handlersMu.RLock()
 	handlerData, ok := s.messageHandlers[msg.Type]
+	s.handlersMu.RUnlock()
 	if !ok {
 		LogError("message type not found:", msg.Type)
 		return errors.New("message handler not found")
@@ -324,8 +340,8 @@ func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 
 	stream := hijacker.HTTPStream()
 
-	// Generate session ID from stream ID
-	sessionId := SessionID(stream.StreamID())
+	// Generate session ID：连接内唯一的自增 ID
+	sessionId := SessionID(s.sessionIDGen.Add(1))
 
 	sess := &session{id: sessionId, stream: stream}
 	s.sessionsMu.Lock()

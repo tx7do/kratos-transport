@@ -285,6 +285,9 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 			if err := broker.Unmarshal(m.options.Codec, mq.Payload(), &msg.Body); err != nil {
 				p.err = err
 				LogError("unmarshal message failed:", err)
+				if eh := m.options.ErrorHandler; eh != nil {
+					_ = eh(context.Background(), p)
+				}
 				return
 			}
 		} else {
@@ -312,6 +315,12 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		callback: callback,
 	}
 
+	if old := m.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	m.subscribers.Add(topic, sub)
 
 	return sub, nil

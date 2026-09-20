@@ -83,14 +83,6 @@ func (s *Server) Start(ctx context.Context) error {
 		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindGCPPubSub))
 	}
 
-	if s.keepaliveServer != nil && s.enableKeepalive {
-		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil {
-				LogErrorf("keepalive server start failed: %s", err.Error())
-			}
-		}()
-	}
-
 	if s.err = s.Init(); s.err != nil {
 		LogErrorf("init broker failed: [%s]", s.err.Error())
 		return s.err
@@ -103,12 +95,24 @@ func (s *Server) Start(ctx context.Context) error {
 
 	LogInfof("server listening on: %s", s.Address())
 
+	// Connect 成功后才置 started 并启动 keepalive：
+	// 避免连接失败路径上 keepalive goroutine 泄漏（Stop 会因未启动而早退）。
+	// 先置位再注册订阅：与 Stop 的交接由 doRegisterSubscriber 的 started 复查处理。
+	s.started.Store(true)
+
+	if s.keepaliveServer != nil && s.enableKeepalive {
+		go func() {
+			if err := s.keepaliveServer.Start(ctx); err != nil {
+				LogErrorf("keepalive server start failed: %s", err.Error())
+			}
+		}()
+	}
+
 	if s.err = s.doRegisterSubscriberMap(); s.err != nil {
 		return s.err
 	}
 
 	s.baseCtx = ctx
-	s.started.Store(true)
 
 	return nil
 }

@@ -33,7 +33,13 @@ func (s *subscriber) onMessage(channel string, data []byte) error {
 		m.Body = s.binder()
 
 		if err := broker.Unmarshal(s.b.options.Codec, data, &m.Body); err != nil {
-			return err
+			// 毒消息：通知 ErrorHandler（PUBLISH 无重投语义，只能丢弃）
+			redisOption.LogErrorf("unmarshal message failed: %v", err)
+			p := publication{topic: channel, message: &m, err: err}
+			if eh := s.b.options.ErrorHandler; eh != nil {
+				_ = eh(s.options.Context, &p)
+			}
+			return nil
 		}
 	} else {
 		m.Body = data

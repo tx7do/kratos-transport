@@ -92,22 +92,35 @@ func (s *Server) installMiddlewares() {
 				pathTemplate: c.FullPath(),
 			}
 			tr.reqHeader = headerCarrier(c.Request.Header)
+			// 预分配响应头载体：中间件写 ReplyHeader 时避免 nil map 赋值 panic
+			tr.replyHeader = headerCarrier(http.Header{})
 
 			ctx := kratosTransport.NewServerContext(c.Request.Context(), tr)
 
 			// 终端 handler：继续执行 gin 后续链路（路由 handler 等）
+			invoked := false
 			handler := middleware.Handler(func(ctx context.Context, req any) (any, error) {
+				invoked = true
 				c.Next()
 				return nil, nil
 			})
 
 			_, err := m(handler)(ctx, c.Request)
-			if err != nil {
-				_ = c.Error(err)
-				// 中断且尚未写响应时，用错误编码器输出
-				if c.IsAborted() && !c.Writer.Written() {
+
+			// 中间件未放行（拒绝型：返回错误或静默吞掉请求）：
+			// gin 的 handler 循环在中间件返回后会继续推进，
+			// 必须显式 Abort 才能真正拦下路由 handler
+			if !invoked {
+				c.Abort()
+				if err != nil && !c.Writer.Written() {
+					_ = c.Error(err)
 					s.ene(c.Writer, c.Request, err)
 				}
+				return
+			}
+
+			if err != nil {
+				_ = c.Error(err)
 			}
 		})
 	}
@@ -183,6 +196,10 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
+	if s.server == nil {
+		return nil
+	}
+
 	LogInfo("server stopping...")
 
 	err := s.server.Shutdown(ctx)

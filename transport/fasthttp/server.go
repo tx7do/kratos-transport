@@ -131,6 +131,13 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	// 带超时的优雅关闭：ctx 取消/超时后返回，避免活跃连接拖住关闭流程
 	err := s.Server.ShutdownWithContext(ctx)
+
+	// 释放 listener：fasthttp 对已关闭 listener 重新 Serve 会报错，重启需重建
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+	}
+	s.endpoint = nil
 	s.err = nil
 
 	LogInfo("server stopped.")

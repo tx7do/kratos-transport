@@ -35,6 +35,14 @@ func (p *publication) Ack() error {
 	return p.reader.Ack(*p.pulsarMsg)
 }
 
+// nack 请求服务端重投消息（处理/反序列化失败时调用）
+func (p *publication) nack() {
+	if p.reader == nil {
+		return
+	}
+	p.reader.Nack(*p.pulsarMsg)
+}
+
 func (p *publication) Error() error {
 	return p.err
 }

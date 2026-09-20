@@ -79,12 +79,22 @@ func (s *Server) init(opts ...ServerOption) {
 	}
 
 	s.router = mux.NewRouter().StrictSlash(s.strictSlash)
-	s.router.NotFoundHandler = http.DefaultServeMux
-	s.router.MethodNotAllowedHandler = http.DefaultServeMux
+	// 未匹配请求显式 404：指向 DefaultServeMux 会把 /debug/pprof 等全局路由暴露出去
+	s.router.NotFoundHandler = http.NotFoundHandler()
+	s.router.MethodNotAllowedHandler = http.NotFoundHandler()
 
 	// Apply the request filter middleware (timeout control, transport injection)
 	handler := s.filter()(s.router)
 
+	s.Server = &http.Server{
+		TLSConfig: s.tlsConf,
+		Handler:   kHttp.FilterChain(s.filters...)(handler),
+	}
+}
+
+// rebuildServer 重建被 Shutdown 毒化的 http.Server（重启支持）
+func (s *Server) rebuildServer() {
+	handler := s.filter()(s.router)
 	s.Server = &http.Server{
 		TLSConfig: s.tlsConf,
 		Handler:   kHttp.FilterChain(s.filters...)(handler),
@@ -148,9 +158,21 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
+	if s.Server == nil {
+		return nil
+	}
+
 	LogInfo("server stopping...")
 
 	err := s.Shutdown(ctx)
+
+	// Shutdown 后 http.Server 不可复用：重建实例并释放 listener，支持 Stop→Start
+	s.rebuildServer()
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+	}
+	s.endpoint = nil
 	s.err = nil
 
 	LogInfo("server stopped.")

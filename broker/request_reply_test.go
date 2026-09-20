@@ -114,13 +114,11 @@ func TestGenericRequestCorrelation(t *testing.T) {
 	b := newInMemBroker()
 
 	// 应答方：只回应带 Reply-To 的消息，并原样回传 Correlation-ID
-	seen := make(chan *Message, 8)
 	handler := func(ctx context.Context, event Event) error {
 		req := event.Message()
 		if req == nil {
 			return nil
 		}
-		seen <- req
 		return ReplyTo(ctx, b, req, "ack")
 	}
 	if _, err := b.Subscribe("req.topic", handler, nil); err != nil {
@@ -135,7 +133,6 @@ func TestGenericRequestCorrelation(t *testing.T) {
 	if reply.Body != "ack" {
 		t.Fatalf("unexpected body: %v", reply.Body)
 	}
-	_ = seen
 }
 
 func TestGenericRequestTimeout(t *testing.T) {

@@ -1,6 +1,7 @@
 package azuresb
 
 import (
+	"time"
 	"context"
 	"errors"
 	"fmt"
@@ -260,6 +261,12 @@ func (b *azureBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 	go b.receive(subCtx, receiver, handler, binder, options, sub)
 
+	if old := b.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	b.subscribers.Add(topic, sub)
 
 	return sub, nil
@@ -287,6 +294,12 @@ func (b *azureBroker) receive(ctx context.Context, receiver *azservicebus.Receiv
 				return
 			}
 			LogErrorf("receive messages error: %v", err)
+			// 持续性错误（实体删除/配额等）下退避，避免热循环打服务
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+			}
 			continue
 		}
 

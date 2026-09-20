@@ -48,7 +48,8 @@ type Server struct {
 	router      *mux.Router
 	strictSlash bool
 
-	stopped bool
+	stopped     bool
+	everStarted bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -126,6 +127,8 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
+	s.everStarted = true
+
 	LogInfof("server listening on: %s", s.Addr)
 
 	if err := s.ListenAndServe(); err != nil {
@@ -139,9 +142,11 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	LogInfo("server stopping...")
+	if s.everStarted {
+		s.stopped = true
+	}
 
-	s.stopped = true
+	LogInfo("server stopping...")
 
 	// 优先优雅关闭（发 GOAWAY、等待在途请求），
 	// ctx 取消或超时后降级为硬关闭

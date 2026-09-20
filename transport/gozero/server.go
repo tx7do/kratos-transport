@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync/atomic"
 
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
 
@@ -29,7 +30,7 @@ type Server struct {
 	err error
 
 	endpoint *url.URL
-	started  bool
+	started  atomic.Bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -77,7 +78,7 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) Start(_ context.Context) error {
-	if s.started {
+	if s.started.Load() {
 		return nil
 	}
 
@@ -95,7 +96,7 @@ func (s *Server) Start(_ context.Context) error {
 	}
 	_ = probe.Close()
 
-	s.started = true
+	s.started.Store(true)
 	s.Server.Start()
 
 	return nil
@@ -104,7 +105,7 @@ func (s *Server) Start(_ context.Context) error {
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping...")
 
-	s.started = false
+	s.started.Store(false)
 	s.Server.Stop()
 	s.err = nil
 

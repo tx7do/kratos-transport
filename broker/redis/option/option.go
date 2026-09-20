@@ -124,15 +124,8 @@ func WithMaxActive(n int) broker.Option {
 // WithPassword 密码
 func WithPassword(password string) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		x := o.Context.Value(OptionsKey)
-		if x != nil {
-			x.(*CommonOptions).Password = password
-		} else {
-			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{Password: password})
-		}
+		// 走统一入口：单独设置密码时也保留其余默认值（零值结构会导致连接池配置丢失）
+		commonOptions(o).Password = password
 	}
 }
 

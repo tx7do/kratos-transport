@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -35,7 +36,9 @@ type Client struct {
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
-	runOnce   sync.Once
+
+	handlersMu sync.RWMutex
+	running    atomic.Bool
 
 	timeout time.Duration
 	tlsConf *tls.Config
@@ -97,6 +100,17 @@ func (c *Client) init(opts ...ClientOption) {
 
 // Connect 建立 QUIC/HTTP3 连接，发送 WebTransport CONNECT 请求并升级为双向消息流。
 func (c *Client) Connect() error {
+	c.connMu.RLock()
+	connected := c.stream != nil
+	c.connMu.RUnlock()
+	if connected {
+		return nil
+	}
+
+	// 每次 Connect 使用全新的 ctx：Disconnect 会取消旧 ctx，
+	// 不重建的话重连时 DialAddr 会立即 context canceled
+	c.ctx, c.ctxCancel = context.WithCancel(context.Background())
+
 	u, err := url.Parse(c.url)
 	if err != nil {
 		return err
@@ -118,6 +132,13 @@ func (c *Client) Connect() error {
 	if err != nil {
 		return fmt.Errorf("dial quic server %s failed: %w", addr, err)
 	}
+	// 握手半程失败时回收 QUIC 连接，避免悬挂到 idle 超时
+	defer func() {
+		if conn != nil {
+			_ = conn.CloseWithError(0, "connect failed")
+			conn = nil
+		}
+	}()
 
 	h3conn := c.transport.NewClientConn(conn)
 
@@ -155,10 +176,9 @@ func (c *Client) Connect() error {
 	c.h3conn = h3conn
 	c.stream = str
 	c.connMu.Unlock()
+	conn = nil // 已接管，握手失败的回收 defer 不应触发
 
-	c.runOnce.Do(func() {
-		go c.run()
-	})
+	go c.run()
 
 	LogInfof("client connected to: %s", c.url)
 
@@ -184,12 +204,16 @@ func (c *Client) Disconnect() error {
 		_ = conn.CloseWithError(0, "client closed")
 	}
 
+	c.running.Store(false)
 	c.ctxCancel()
 
 	return nil
 }
 
 func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientMessageHandler, binder Binder) {
+	c.handlersMu.Lock()
+	defer c.handlersMu.Unlock()
+
 	if _, ok := c.messageHandlers[messageType]; ok {
 		return
 	}
@@ -198,6 +222,9 @@ func (c *Client) RegisterMessageHandler(messageType MessageType, handler ClientM
 }
 
 func (c *Client) DeregisterMessageHandler(messageType MessageType) {
+	c.handlersMu.Lock()
+	defer c.handlersMu.Unlock()
+
 	delete(c.messageHandlers, messageType)
 }
 
@@ -286,7 +313,9 @@ func (c *Client) messageHandler(buf []byte) error {
 		return err
 	}
 
+	c.handlersMu.RLock()
 	handlerData, ok := c.messageHandlers[msg.Type]
+	c.handlersMu.RUnlock()
 	if !ok {
 		LogError("message type not found:", msg.Type)
 		return errors.New("message handler not found")

@@ -71,8 +71,11 @@ func GenericRequest(ctx context.Context, b Broker, topic string, msg *Message, o
 			return nil
 		}
 		m := event.Message()
-		// 只接受与本请求关联的响应
-		if m.GetHeader(HeaderCorrelationID) != msg.ID {
+		// 关联校验：响应携带 Correlation-ID 时必须匹配；
+		// 未携带（部分驱动如 mqtt/redis 发布时不保留 header）时接受——
+		// 自动生成的回复主题是本请求独占的，此时不会串扰；
+		// 但用 WithReplyTopic 指定共享回复主题时，无头驱动无法区分响应归属
+		if cid := m.GetHeader(HeaderCorrelationID); cid != "" && cid != msg.ID {
 			return nil
 		}
 		select {
@@ -82,12 +85,18 @@ func GenericRequest(ctx context.Context, b Broker, topic string, msg *Message, o
 		return nil
 	}
 
-	sub, err := b.Subscribe(replyTopic, handler, nil, WithSubscribeAutoAck(true))
+	// 用回复主题名作为订阅队列/消费组，保证每次 Request 的回复订阅相互独立
+	// （rocketmq v2 等驱动对同名消费组二次注册会直接报错）
+	sub, err := b.Subscribe(replyTopic, handler, nil,
+		WithSubscribeAutoAck(true),
+		WithSubscribeQueueName(replyTopic),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("subscribe reply topic %s failed: %w", replyTopic, err)
 	}
 	defer func() {
-		_ = sub.Unsubscribe(false)
+		// removeFromManager=true：同时从驱动的订阅管理表移除，避免表无限增长
+		_ = sub.Unsubscribe(true)
 	}()
 
 	if err = b.Publish(ctx, topic, msg); err != nil {
@@ -98,7 +107,7 @@ func GenericRequest(ctx context.Context, b Broker, topic string, msg *Message, o
 	case reply := <-replyCh:
 		return reply, nil
 	case <-ctx.Done():
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) && options.Timeout > 0 {
 			return nil, fmt.Errorf("request timeout after %s", options.Timeout)
 		}
 		return nil, ctx.Err()

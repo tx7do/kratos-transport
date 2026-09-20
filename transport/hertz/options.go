@@ -25,36 +25,44 @@ func WithAddress(addr string) ServerOption {
 	}
 }
 
+// WithTimeout 预留选项：hertz 自带超时配置（WithServerOptions 透传），
+// 该选项当前不参与请求处理。
 func WithTimeout(timeout time.Duration) ServerOption {
 	return func(s *Server) {
 		s.timeout = timeout
 	}
 }
 
+// WithMiddleware 预留选项：kratos 中间件适配层尚未接入 hertz，
+// 当前不参与请求处理（可用 s.Hertz.Use 注入 hertz 原生中间件）。
 func WithMiddleware(m ...middleware.Middleware) ServerOption {
 	return func(o *Server) {
 		o.ms = m
 	}
 }
 
+// hFilter 预留选项：当前不参与请求处理。
 func WithFilter(filters ...kHttp.FilterFunc) ServerOption {
 	return func(o *Server) {
 		o.filters = filters
 	}
 }
 
+// hRequestDecoder 预留选项：当前不参与请求处理。
 func WithRequestDecoder(dec kHttp.DecodeRequestFunc) ServerOption {
 	return func(o *Server) {
 		o.dec = dec
 	}
 }
 
+// hResponseEncoder 预留选项：当前不参与请求处理。
 func WithResponseEncoder(en kHttp.EncodeResponseFunc) ServerOption {
 	return func(o *Server) {
 		o.enc = en
 	}
 }
 
+// hErrorEncoder 预留选项：当前不参与请求处理。
 func WithErrorEncoder(en kHttp.EncodeErrorFunc) ServerOption {
 	return func(o *Server) {
 		o.ene = en

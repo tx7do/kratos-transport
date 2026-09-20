@@ -85,14 +85,6 @@ func (s *Server) Start(ctx context.Context) error {
 		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindRocketMQ))
 	}
 
-	if s.keepaliveServer != nil {
-		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil {
-				LogErrorf("keepalive server start failed: %s", err.Error())
-			}
-		}()
-	}
-
 	if s.err = s.Init(); s.err != nil {
 		LogErrorf("init broker failed: [%s]", s.err.Error())
 		return s.err
@@ -105,12 +97,24 @@ func (s *Server) Start(ctx context.Context) error {
 
 	LogInfof("server listening on: %s", s.Address())
 
+	// Connect 成功后才置 started 并启动 keepalive：
+	// 避免连接失败路径上 keepalive goroutine 泄漏（Stop 会因未启动而早退）。
+	// 先置位再注册订阅：与 Stop 的交接由 doRegisterSubscriber 的 started 复查处理。
+	s.started.Store(true)
+
+	if s.keepaliveServer != nil {
+		go func() {
+			if err := s.keepaliveServer.Start(ctx); err != nil {
+				LogErrorf("keepalive server start failed: %s", err.Error())
+			}
+		}()
+	}
+
 	if s.err = s.doRegisterSubscriberMap(); s.err != nil {
 		return s.err
 	}
 
 	s.baseCtx = ctx
-	s.started.Store(true)
 
 	return nil
 }
@@ -136,7 +140,8 @@ func (s *Server) Stop(ctx context.Context) error {
 		_ = v.Unsubscribe(false)
 	}
 
-	// 保留 subscriberOpts，下一次 Start 会通过 doRegisterSubscriberMap 重新注册
+	// 保留 subscriberOpts（含启动后的注册参数，见 doRegisterSubscriber），
+	// 下一次 Start 会通过 doRegisterSubscriberMap 重新注册全部订阅
 
 	err := s.Disconnect()
 	s.err = nil
@@ -217,15 +222,33 @@ func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, bind
 		return err
 	}
 
+	var old broker.Subscriber
+	exists := false
+	started := false
+
 	s.Lock()
-	old, exists := s.subscribers[topic]
-	s.subscribers[topic] = sub
+	started = s.started.Load()
+	if started {
+		old, exists = s.subscribers[topic]
+		s.subscribers[topic] = sub
+	}
+	// 记录注册参数：Stop 后保留在缓存表中，Start→Stop→Start 时重新注册
+	s.subscriberOpts[topic] = &transport.SubscribeOption{Handler: handler, Binder: binder, SubscribeOptions: opts}
 	s.Unlock()
+
+	if !started {
+		// 与 Stop 竞态：服务已停止，新建的订阅立即退订，等待下次 Start 重新注册
+		LogWarnf("server stopped, subscription for '%s' deferred to next start", topic)
+		_ = sub.Unsubscribe(false)
+		return nil
+	}
 
 	if exists {
 		// 旧订阅先退订，避免旧订阅继续消费造成泄漏
-		LogWarnf("subscriber for topic '%s' already exists, unsubscribing the old one", topic)
-		_ = old.Unsubscribe(false)
+		LogWarnf("subscriber for '%s' already exists, unsubscribing the old one", topic)
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogErrorf("unsubscribe old subscriber for '%s' failed: %s", topic, uerr.Error())
+		}
 	}
 	return nil
 }

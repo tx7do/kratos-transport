@@ -72,6 +72,11 @@ func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
+
+	if s.enableKeepalive && s.keepaliveServer == nil {
+		// enableKeepalive 默认 true，但此前从未创建实例，Endpoint() 永久报错
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindCron))
+	}
 }
 
 // Name returns the name of server
@@ -97,12 +102,13 @@ func (s *Server) Start(ctx context.Context) error {
 	s.cronScheduler.Start()
 	s.started.Store(true)
 
-	// 启动 keepalive
+	// 启动 keepalive（grpc Serve 是阻塞调用，必须放 goroutine，否则 Start 永不返回）
 	if s.enableKeepalive && s.keepaliveServer != nil {
-		if err := s.keepaliveServer.Start(ctx); err != nil {
-			s.err = err
-			return err
-		}
+		go func() {
+			if err := s.keepaliveServer.Start(ctx); err != nil {
+				LogErrorf("keepalive server start failed: %s", err.Error())
+			}
+		}()
 	}
 
 	LogInfo("cron server started successfully")

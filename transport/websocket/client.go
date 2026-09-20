@@ -179,11 +179,12 @@ func (c *Client) SendMessage(messageType NetMessageType, message any) error {
 }
 
 func (c *Client) sendPingMessage(message string) error {
-	return c.conn.WriteMessage(ws.PingMessage, []byte(message))
+	// gorilla 单写者约束：控制帧必须走 WriteControl
+	return c.conn.WriteControl(ws.PingMessage, []byte(message), time.Now().Add(5*time.Second))
 }
 
 func (c *Client) sendPongMessage(message string) error {
-	return c.conn.WriteMessage(ws.PongMessage, []byte(message))
+	return c.conn.WriteControl(ws.PongMessage, []byte(message), time.Now().Add(5*time.Second))
 }
 
 func (c *Client) sendTextMessage(message string) error {

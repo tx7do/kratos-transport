@@ -36,6 +36,13 @@ func (s *subscriber) onMessage(msgID string, data []byte) error {
 		m.Body = s.binder()
 
 		if err := broker.Unmarshal(s.b.options.Codec, data, &m.Body); err != nil {
+			// 毒消息：通知 ErrorHandler（消息滞留 PEL，等待人工/后续恢复机制处理）
+			redisOption.LogErrorf("unmarshal message failed: %v", err)
+			if eh := s.b.options.ErrorHandler; eh != nil {
+				mm := broker.Message{Body: nil}
+				p := publication{topic: s.topic, message: &mm, err: err}
+				_ = eh(s.options.Context, &p)
+			}
 			return err
 		}
 	} else {

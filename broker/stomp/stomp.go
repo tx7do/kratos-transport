@@ -309,8 +309,15 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 					m.Body = binder()
 
 					if msgErr = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); msgErr != nil {
+						// 毒消息：Nack（AckClientIndividual 模式下不 Nack 会一直挂起）
 						p.err = msgErr
 						LogError(msgErr)
+						if eh := b.options.ErrorHandler; eh != nil {
+							_ = eh(ctx, p)
+						}
+						if !options.AutoAck {
+							_ = msg.Conn.Nack(msg)
+						}
 						b.finishConsumerSpan(ctx, span, msgErr)
 						return
 					}
@@ -345,6 +352,12 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 		options: options,
 	}
 
+	if old := b.subscribers.Get(topic); old != nil {
+		// 同主题重复订阅：先退订旧订阅，避免旧订阅继续消费（泄漏 + 重复消费）
+		if uerr := old.Unsubscribe(false); uerr != nil {
+			LogWarnf("unsubscribe old subscriber for topic %q failed: %v", topic, uerr)
+		}
+	}
 	b.subscribers.Add(topic, subs)
 
 	return subs, nil

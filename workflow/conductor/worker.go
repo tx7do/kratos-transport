@@ -84,14 +84,20 @@ func (wc *WorkflowClient) StartWorkerWithConfig(config WorkerConfig, handler Tas
 	return tw, nil
 }
 
-// Stop marks the task worker as stopped.
-// Note: The Conductor Go SDK TaskRunner does not expose a direct Stop method.
-// The worker will stop when the process exits.
+// Stop 停止任务 worker：调用 SDK 的 Shutdown 触发该任务类型的轮询 goroutine 收敛。
 func (tw *TaskWorker) Stop() {
 	tw.mu.Lock()
 	defer tw.mu.Unlock()
+
+	if tw.stopped {
+		return
+	}
+
+	// SDK 提供 Shutdown(taskName)（配合 WaitWorkers 优雅收敛），此前注释称无停止 API 为误
+	tw.taskRunner.Shutdown(tw.config.TaskType)
 	tw.stopped = true
-	LogInfof("worker for task type %s marked as stopped", tw.config.TaskType)
+
+	LogInfof("worker for task type %s stopped", tw.config.TaskType)
 }
 
 // TaskType returns the task type this worker is polling for.
