@@ -94,7 +94,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 
 	for ev := range sub.connection {
-		if len(ev.Data) == 0 && len(ev.Comment) == 0 {
+		// 仅当事件完全为空（显式关闭哨兵）才断流；
+		// 只带 Retry/ID 的元数据事件是合法载荷，此前会误断客户端
+		if len(ev.Data) == 0 && len(ev.Comment) == 0 && len(ev.Retry) == 0 && len(ev.ID) == 0 && len(ev.Event) == 0 {
 			break
 		}
 

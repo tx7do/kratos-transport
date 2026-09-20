@@ -45,11 +45,18 @@ func (s *StreamManager) Exist(streamId StreamID) bool {
 	return stream != nil
 }
 
+// Range 对全部流执行回调。先快照再在锁外遍历：
+// 回调里可能向流的事件通道阻塞发送（慢订阅者），持锁会拖死所有
+// Get/Add/CreateStream 调用
 func (s *StreamManager) Range(fn func(*Stream)) {
 	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
+	streams := make([]*Stream, 0, len(s.streams))
 	for _, v := range s.streams {
+		streams = append(streams, v)
+	}
+	s.mtx.Unlock()
+
+	for _, v := range streams {
 		fn(v)
 	}
 }
@@ -59,13 +66,12 @@ func (s *StreamManager) Add(stream *Stream) {
 		return
 	}
 
-	if s.Exist(stream.StreamID()) {
-		return
-	}
-
-	//LogInfo("add stream: ", stream.StreamID())
+	// Exist 检查与写入合并进同一临界区，消除 TOCTOU（双写覆盖 → 孤儿流泄漏）
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
+	if _, ok := s.streams[stream.StreamID()]; ok {
+		return
+	}
 	s.streams[stream.StreamID()] = stream
 }
 

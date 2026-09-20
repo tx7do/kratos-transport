@@ -1,6 +1,7 @@
 package http3
 
 import (
+	"sync/atomic"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -48,8 +49,8 @@ type Server struct {
 	router      *mux.Router
 	strictSlash bool
 
-	stopped     bool
-	everStarted bool
+	stopped     atomic.Bool
+	everStarted atomic.Bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -117,7 +118,7 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	if s.stopped {
+	if s.stopped.Load() {
 		// quic-go 的 http3.Server 一旦 Close/Shutdown 便永久失效，
 		// 静默重启只会得到“假启动”，这里显式报错
 		return errors.New("http3 server cannot be restarted after Stop; create a new server instance")
@@ -127,7 +128,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return s.err
 	}
 
-	s.everStarted = true
+	s.everStarted.Store(true)
 
 	LogInfof("server listening on: %s", s.Addr)
 
@@ -142,8 +143,8 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	if s.everStarted {
-		s.stopped = true
+	if s.everStarted.Load() {
+		s.stopped.Store(true)
 	}
 
 	LogInfo("server stopping...")

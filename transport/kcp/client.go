@@ -24,9 +24,10 @@ type ClientHandlerData struct {
 type ClientMessageHandlerMap map[NetMessageType]ClientHandlerData
 
 type Client struct {
-	connMu  sync.RWMutex
-	writeMu sync.Mutex
-	conn    *kcp.UDPSession
+	connMu    sync.RWMutex
+	writeMu   sync.Mutex
+	handlerMu sync.RWMutex
+	conn      *kcp.UDPSession
 
 	url      string
 	endpoint *url.URL
@@ -79,7 +80,10 @@ func (c *Client) Connect() error {
 	LogInfof("connecting to %s", c.endpoint.String())
 
 	block := NewBlockCryptFromPassword(c.blockCryptPassword, c.blockCryptSalt)
-	conn, err := kcp.DialWithOptions(c.url, block, c.dataShards, c.parityShards)
+
+	// kcp-go 不接受 scheme 前缀；用户传 udp://host:port 时剥离后再拨
+	dialAddr := strings.TrimPrefix(c.url, "udp://")
+	conn, err := kcp.DialWithOptions(dialAddr, block, c.dataShards, c.parityShards)
 	if err != nil {
 		LogErrorf("cant connect to server: %s", err.Error())
 		return err
@@ -108,6 +112,9 @@ func (c *Client) Disconnect() {
 }
 
 func (c *Client) RegisterMessageHandler(messageType NetMessageType, handler ClientMessageHandler, binder Creator) {
+	c.handlerMu.Lock()
+	defer c.handlerMu.Unlock()
+
 	if _, ok := c.messageHandlers[messageType]; ok {
 		return
 	}
@@ -134,6 +141,8 @@ func RegisterClientMessageHandler[T any](cli *Client, messageType NetMessageType
 }
 
 func (c *Client) DeregisterMessageHandler(messageType NetMessageType) {
+	c.handlerMu.Lock()
+	defer c.handlerMu.Unlock()
 	delete(c.messageHandlers, messageType)
 }
 
@@ -228,7 +237,9 @@ func (c *Client) messageHandler(buf []byte) error {
 		return err
 	}
 
+	c.handlerMu.RLock()
 	handlerData, ok := c.messageHandlers[msg.Type]
+	c.handlerMu.RUnlock()
 	if !ok {
 		LogError("message type not found:", msg.Type)
 		return errors.New("message handler not found")

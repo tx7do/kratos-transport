@@ -382,10 +382,19 @@ func (s *Server) CreateStream(streamId StreamID) *Stream {
 
 // process applies server-side event transformations before delivery.
 func (s *Server) process(event *Event) *Event {
-	if s.encodeBase64 {
-		event.encodeBase64()
+	// 同一 Event 指针可能分发给多个 stream，原地编码会导致
+	// 第 2 个及以后的流收到双重 base64 数据，必须返回副本
+	clone := *event
+	// 时间戳在分发阶段统一赋值：
+	// 此前只在 EventLog.Add（autoReplay 路径）里赋，eventTTL + autoReplay=false
+	// 或纯 Comment 事件会因零值时间戳被 TTL 过滤全部丢弃
+	if clone.timestamp.IsZero() {
+		clone.timestamp = time.Now()
 	}
-	return event
+	if s.encodeBase64 {
+		clone.encodeBase64()
+	}
+	return &clone
 }
 
 // marshalEvent converts an arbitrary payload into an Event.

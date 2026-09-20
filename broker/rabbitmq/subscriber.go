@@ -90,10 +90,10 @@ func (s *subscriber) consumeOnce() error {
 	s.Unlock()
 
 	go func() {
+		// deliveries channel 随连接关闭而关闭，无需逐消息计数
+		// （每消息 wg.Add 与 Disconnect 的 wg.Wait 并发违反 WaitGroup 契约）
 		for d := range sub {
-			s.r.wg.Add(1)
 			s.fn(d)
-			s.r.wg.Done()
 		}
 	}()
 

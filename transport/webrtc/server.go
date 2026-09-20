@@ -113,9 +113,6 @@ func NewServer(opts ...ServerOption) *Server {
 }
 
 func (s *Server) init(opts ...ServerOption) error {
-	for _, o := range opts {
-		o(s)
-	}
 
 	// 内置信令处理器：处理客户端回传的重协商 Answer/Offer。
 	// 在用户 opts 应用之后注册：RegisterMessageHandler 先注册者优先，
@@ -128,6 +125,10 @@ func (s *Server) init(opts ...ServerOption) error {
 			return &SignalRenegotiationMsg{}
 		},
 	)
+
+	for _, o := range opts {
+		o(s)
+	}
 
 	s.rebuildHTTPServer()
 
@@ -817,16 +818,8 @@ func (s *Server) handleSignalRenegotiation(sessionId SessionID, payload MessageP
 	}
 
 	if msg.Answer != nil {
-		if err := pc.SetRemoteDescription(*msg.Answer); err != nil {
-			return err
-		}
-		// Answer 路径与 Offer 路径对称：等 ICE 收敛后再继续（网络切换场景保证候选完整）
-		gatherDone := webrtc.GatheringCompletePromise(pc)
-		select {
-		case <-gatherDone:
-		case <-time.After(3 * time.Second):
-		}
-		return nil
+		// Answer 方向无需 gather：候选由对端 Offer 侧收集并携带
+		return pc.SetRemoteDescription(*msg.Answer)
 	}
 
 	if msg.Offer != nil {
@@ -837,8 +830,15 @@ func (s *Server) handleSignalRenegotiation(sessionId SessionID, payload MessageP
 		if err != nil {
 			return err
 		}
+		gatherDone := webrtc.GatheringCompletePromise(pc)
 		if err = pc.SetLocalDescription(answer); err != nil {
 			return err
+		}
+		// 信令通道无 trickle，必须等 ICE 收敛把候选装进 SDP
+		select {
+		case <-gatherDone:
+		case <-time.After(5 * time.Second):
+			LogWarn("ice gathering timeout, sending current local description")
 		}
 
 		reply := SignalRenegotiationMsg{

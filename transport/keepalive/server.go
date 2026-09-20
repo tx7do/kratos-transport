@@ -108,7 +108,10 @@ func (s *Server) Start(_ context.Context) error {
 
 	log.Infof("[%s] server listening on: %s", s.serviceKind, s.lis.Addr().String())
 
-	if s.err = s.Serve(s.lis); s.err != nil &&
+	// 捕获局部引用：并发 Stop 置空字段后这里不会 nil panic
+	srv := s.Server
+
+	if s.err = srv.Serve(s.lis); s.err != nil &&
 		!errors.Is(s.err, http.ErrServerClosed) &&
 		!errors.Is(s.err, grpc.ErrServerStopped) {
 		s.started.Store(false)

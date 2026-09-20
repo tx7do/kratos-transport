@@ -375,6 +375,8 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 	// 首次消费同步完成（队列声明/绑定就绪后才返回），
 	// 避免"Subscribe 返回即发布、消息因未绑定而丢失"的时序窗口
 	if err := sub.consumeOnce(); err != nil {
+		// 失败时摘除已登记的订阅条目，避免死条目残留
+		b.subscribers.RemoveOnly(routingKey)
 		return nil, err
 	}
 

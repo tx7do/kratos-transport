@@ -136,6 +136,11 @@ func (s *Server) Endpoint() (*url.URL, error) {
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	if s.lis != nil {
+		// 已在监听：避免同一 listener 叠两个 accept 循环
+		return nil
+	}
+
 	if err := s.listenAndEndpoint(); err != nil {
 		return err
 	}

@@ -9,6 +9,10 @@ import (
 
 type EventLog []*Event
 
+// maxEventLogSize 单流事件日志上限：防止 autoReplay 日志无界增长（内存泄漏）。
+// 超限后丢弃最旧事件（Last-Event-ID 重放窗口随之缩小，属预期取舍）
+const maxEventLogSize = 1024
+
 func (e *EventLog) Add(ev *Event) {
 	if !ev.hasContent() {
 		return
@@ -17,6 +21,10 @@ func (e *EventLog) Add(ev *Event) {
 	ev.ID = []byte(newEventID())
 	ev.timestamp = time.Now()
 	*e = append(*e, ev)
+
+	if n := len(*e); n > maxEventLogSize {
+		*e = (*e)[n-maxEventLogSize:]
+	}
 }
 
 func (e *EventLog) Clear() {
@@ -25,7 +33,7 @@ func (e *EventLog) Clear() {
 
 func (e *EventLog) Replay(s *Subscriber) {
 	for i := 0; i < len(*e); i++ {
-		if string((*e)[i].ID) >= s.eventId {
+		if string((*e)[i].ID) > s.eventId {
 			s.connection <- (*e)[i]
 		}
 	}

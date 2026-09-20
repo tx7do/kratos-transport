@@ -297,19 +297,27 @@ func (s *Server) newKeepaliveServer() {
 }
 
 func (s *Server) startKeepaliveServer(ctx context.Context) {
-	if s.keepaliveServer != nil {
-		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-				s.setErr(errors.New("keepalive server start failed: " + err.Error()))
-				LogErrorf("keepalive server start failed, err: %v", err)
-			}
-		}()
+	// Stop 置 nil 后重建（keepalive 的 stopReq 闩锁不可复位）
+	if s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindMCP))
 	}
+
+	go func() {
+		if err := s.keepaliveServer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			s.mu.Lock()
+			s.err = errors.Join(s.err, errors.New("keepalive server start failed: "+err.Error()))
+			s.mu.Unlock()
+			LogErrorf("keepalive server start failed, err: %v", err)
+		}
+	}()
 }
 
 func (s *Server) stopKeepaliveServer(ctx context.Context) {
 	if s.keepaliveServer != nil {
-		if s.err = s.keepaliveServer.Stop(ctx); s.err != nil {
+		s.mu.Lock()
+		s.err = s.keepaliveServer.Stop(ctx)
+		s.mu.Unlock()
+		if s.err != nil {
 			LogError("keepalive server stop failed", s.err)
 		}
 		s.keepaliveServer = nil

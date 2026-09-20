@@ -3,6 +3,7 @@ package nsq
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -126,9 +127,14 @@ func (b *nsqBroker) Connect() error {
 	}
 	b.producers = producers
 
-	var err error
+	var errs []error
 	b.subscribers.Foreach(func(topic string, sub broker.Subscriber) {
 		c := sub.(*subscriber)
+
+		// 已退订（closed）的订阅不重建 consumer
+		if c.IsClosed() {
+			return
+		}
 
 		channel := c.options.Queue
 		if len(channel) == 0 {
@@ -141,7 +147,9 @@ func (b *nsqBroker) Connect() error {
 		if c.config != nil {
 			subConfig = c.config
 		}
-		if cm, err = NSQ.NewConsumer(c.topic, channel, subConfig); err != nil {
+		cm, cerr := NSQ.NewConsumer(c.topic, channel, subConfig)
+		if cerr != nil {
+			errs = append(errs, fmt.Errorf("topic %s: %w", topic, cerr))
 			return
 		}
 
@@ -158,15 +166,15 @@ func (b *nsqBroker) Connect() error {
 		if len(b.lookupAddrs) > 0 {
 			_ = c.consumer.ConnectToNSQLookupds(b.lookupAddrs)
 		} else {
-			if err = c.consumer.ConnectToNSQDs(b.addrs); err != nil {
+			if cerr := c.consumer.ConnectToNSQDs(b.addrs); cerr != nil {
+				errs = append(errs, fmt.Errorf("topic %s: %w", topic, cerr))
 				return
 			}
 		}
 	})
-	// Foreach 闭包内的 return 只结束当次迭代：
-	// 这里显式检查 err，避免订阅重连失败仍把服务标记为已启动
-	if err != nil {
-		return err
+	// 汇总全部失败订阅（不再被后续成功掩盖），避免服务假启动
+	if joinErr := errors.Join(errs...); joinErr != nil {
+		return joinErr
 	}
 
 	b.running = true

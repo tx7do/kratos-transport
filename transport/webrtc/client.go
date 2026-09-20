@@ -167,8 +167,11 @@ func (c *Client) Connect() error {
 
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		switch state {
-		case webrtc.PeerConnectionStateClosed, webrtc.PeerConnectionStateFailed, webrtc.PeerConnectionStateDisconnected:
+		case webrtc.PeerConnectionStateClosed, webrtc.PeerConnectionStateFailed:
 			_ = c.Disconnect()
+		case webrtc.PeerConnectionStateDisconnected:
+			// 瞬时态：ICE 可能自愈恢复 Connected，不做永久断开
+			LogWarn("peer connection disconnected, waiting for ICE recovery")
 		}
 	})
 
@@ -360,6 +363,11 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 	handler, ok := c.messageHandlers[messageType]
 	c.handlerMu.RUnlock()
 	if !ok {
+		// 内置广播类型无 handler 时静默（服务端每次发布轨道都会广播，
+		// 未订阅该通知属正常场景，刷 error 日志是噪音）
+		if messageType == MsgTypeSignalTrackAvailable {
+			return nil, nil, nil
+		}
 		return nil, nil, fmt.Errorf("message handler not found: %d", messageType)
 	}
 
@@ -485,8 +493,15 @@ func (c *Client) handleSignalRenegotiation(payload MessagePayload) error {
 		if err != nil {
 			return err
 		}
+		// 信令通道无 trickle，等 ICE 收敛把候选装进 SDP
+		gatherDone := webrtc.GatheringCompletePromise(pc)
 		if err = pc.SetLocalDescription(answer); err != nil {
 			return err
+		}
+		select {
+		case <-gatherDone:
+		case <-time.After(c.signalTimeout):
+			LogWarn("ice gathering timeout, sending current local description")
 		}
 		return c.SendMessage(MsgTypeSignalRenegotiation, SignalRenegotiationMsg{
 			Type:   "renegotiation",

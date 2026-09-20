@@ -75,6 +75,12 @@ func (ht *HighPrecisionTimer) Start() {
 	}
 	ht.running = true
 
+	// Stop 会 cancel ctx 且不可逆；直用引擎的 Stop→Start 场景需重建，
+	// 否则 run 循环首行 ctx 检查直接退出，任务静默不触发
+	if ht.ctx.Err() != nil {
+		ht.ctx, ht.cancel = context.WithCancel(context.Background())
+	}
+
 	ht.wg.Add(1)
 	go ht.run() // 启动主循环
 

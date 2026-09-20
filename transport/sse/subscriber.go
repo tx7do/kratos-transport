@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type Subscriber struct {
@@ -16,9 +17,16 @@ type Subscriber struct {
 }
 
 func (s *Subscriber) close() {
-	s.quit <- s
+	// stream run 循环退出后 deregister 无人消费，非阻塞发送防 goroutine 永久阻塞
+	select {
+	case s.quit <- s:
+	default:
+	}
 	if s.removed != nil {
-		<-s.removed
+		select {
+		case <-s.removed:
+		case <-time.After(time.Second):
+		}
 	}
 }
 

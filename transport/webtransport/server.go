@@ -61,6 +61,9 @@ type Server struct {
 	sessionsMu sync.Mutex
 	sessions   map[SessionID]*session
 
+	// stopped 标记 http3.Server 已被 Shutdown/Close（不可复用，重启需重建）
+	stopped bool
+
 	// sessionIDGen 会话 ID 生成器。
 	// 不能用 h3 StreamID：QUIC StreamID 只在单条连接内唯一，
 	// 多客户端的首条流恒为 0，会互相覆盖会话表
@@ -138,13 +141,7 @@ func NewServer(opts ...ServerOption) *Server {
 func (s *Server) init(opts ...ServerOption) {
 	const idleTimeout = 30 * time.Second
 
-	s.Server = &http3.Server{
-		Addr: ":443",
-		QUICConfig: &quic.Config{
-			MaxIdleTimeout:  idleTimeout,
-			KeepAlivePeriod: idleTimeout / 2,
-		},
-	}
+	s.rebuildHTTPServer()
 
 	for _, o := range opts {
 		o(s)
@@ -200,6 +197,12 @@ func (s *Server) Start(_ context.Context) error {
 		return nil
 	}
 
+	// Stop 后 http3.Server 已永久关闭，重启必须重建实例（配置沿用 init）
+	if s.stopped {
+		s.rebuildHTTPServer()
+		s.stopped = false
+	}
+
 	if err := s.listenAndEndpoint(); err != nil {
 		s.running.Store(false)
 		return err
@@ -220,6 +223,8 @@ func (s *Server) Start(_ context.Context) error {
 
 func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
+
+	s.stopped = true
 
 	if s.ctxCancel != nil {
 		s.ctxCancel()
@@ -407,5 +412,36 @@ func (s *Server) serveSession(sessionId SessionID, stream *http3.Stream) {
 		if err := s.messageHandler(sessionId, frame); err != nil {
 			LogErrorf("session %d: message handler error: %s", sessionId, err)
 		}
+	}
+}
+
+// rebuildHTTPServer 重建内嵌的 http3.Server（Shutdown/Close 后不可复用，重启支持）
+func (s *Server) rebuildHTTPServer() {
+	const idleTimeout = 30 * time.Second
+
+	s.Server = &http3.Server{
+		Addr: ":443",
+		QUICConfig: &quic.Config{
+			MaxIdleTimeout:  idleTimeout,
+			KeepAlivePeriod: idleTimeout / 2,
+		},
+	}
+
+	if s.tlsConf != nil {
+		s.Server.TLSConfig = s.tlsConf
+	}
+	if s.timeout == 0 {
+		s.timeout = 5 * time.Second
+	}
+	if s.Server.AdditionalSettings == nil {
+		s.Server.AdditionalSettings = make(map[uint64]uint64)
+	}
+	s.Server.AdditionalSettings[settingsEnableWebtransport] = 1
+
+	if s.mux != nil && s.path != "" {
+		s.mux.HandleFunc(s.path, s.addHandler)
+	}
+	if s.Server.Handler == nil {
+		s.Server.Handler = s.mux
 	}
 }

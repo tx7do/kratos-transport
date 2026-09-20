@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/go-kratos/kratos/v2/encoding"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
@@ -44,6 +45,50 @@ type Server struct {
 
 	router      *mux.Router
 	checkOrigin func(*http.Request) bool
+
+	// handler 记录：socket.io Server Close 后不可复用，
+	// 重启重建实例时按记录重放全部 handler 注册
+	handlersMu    sync.Mutex
+	Registrations []handlerRegistration
+	closed        bool
+}
+
+type handlerRegistration struct {
+	kind      string // connect / disconnect / error / event
+	namespace string
+	event     string
+	f         any
+}
+
+// createServer 用当前配置构造 socket.io 实例并重放已登记的 handler
+func (s *Server) createServer() *socketIo.Server {
+	server := socketIo.NewServer(&engineio.Options{
+		Transports: []socketIoTransport.Transport{
+			&polling.Transport{
+				CheckOrigin: func(r *http.Request) bool { return s.checkOrigin(r) },
+			},
+			&websocket.Transport{
+				CheckOrigin: func(r *http.Request) bool { return s.checkOrigin(r) },
+			},
+		},
+	})
+
+	s.handlersMu.Lock()
+	for _, reg := range s.Registrations {
+		switch reg.kind {
+		case "connect":
+			server.OnConnect(reg.namespace, reg.f.(func(socketIo.Conn) error))
+		case "disconnect":
+			server.OnDisconnect(reg.namespace, reg.f.(func(socketIo.Conn, string)))
+		case "error":
+			server.OnError(reg.namespace, reg.f.(func(socketIo.Conn, error)))
+		case "event":
+			server.OnEvent(reg.namespace, reg.event, reg.f)
+		}
+	}
+	s.handlersMu.Unlock()
+
+	return server
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -74,6 +119,14 @@ func (s *Server) Start(_ context.Context) error {
 
 	LogInfof("server listening on: %s", s.address)
 
+	// Close 后的 socket.io Server 不可复用（connChan 已关闭，新握手会
+	// send-on-closed-channel panic）：重启时重建实例并重放 handler 注册
+	if s.closed {
+		s.Server = s.createServer()
+		s.router.Handle(s.path, s.Server)
+		s.closed = false
+	}
+
 	go func() {
 		if err := s.Server.Serve(); err != nil {
 			LogErrorf("socketio serve error: %s", err.Error())
@@ -103,6 +156,7 @@ func (s *Server) Stop(_ context.Context) error {
 		s.lis = nil
 	}
 	s.endpoint = nil
+	s.closed = true
 	err := s.Server.Close()
 	s.err = nil
 
@@ -142,19 +196,29 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) RegisterConnectHandler(namespace string, f func(socketIo.Conn) error) {
+	s.recordHandler("connect", namespace, "", f)
 	s.Server.OnConnect(namespace, f)
 }
 
 func (s *Server) RegisterDisconnectHandler(namespace string, f func(socketIo.Conn, string)) {
+	s.recordHandler("disconnect", namespace, "", f)
 	s.Server.OnDisconnect(namespace, f)
 }
 
 func (s *Server) RegisterErrorHandler(namespace string, f func(socketIo.Conn, error)) {
+	s.recordHandler("error", namespace, "", f)
 	s.Server.OnError(namespace, f)
 }
 
 func (s *Server) RegisterEventHandler(namespace, event string, f any) {
+	s.recordHandler("event", namespace, event, f)
 	s.Server.OnEvent(namespace, event, f)
+}
+
+func (s *Server) recordHandler(kind, namespace, event string, f any) {
+	s.handlersMu.Lock()
+	defer s.handlersMu.Unlock()
+	s.Registrations = append(s.Registrations, handlerRegistration{kind: kind, namespace: namespace, event: event, f: f})
 }
 
 func (s *Server) init(opts ...ServerOption) {
@@ -169,24 +233,13 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
-	server := socketIo.NewServer(&engineio.Options{
-		Transports: []socketIoTransport.Transport{
-			&polling.Transport{
-				// 惰性解引用：Stop→Start 重建 server 或后续更换校验函数时仍生效
-				CheckOrigin: func(r *http.Request) bool { return s.checkOrigin(r) },
-			},
-			&websocket.Transport{
-				CheckOrigin: func(r *http.Request) bool { return s.checkOrigin(r) },
-			},
-		},
-	})
-	if server == nil {
+	s.Server = s.createServer()
+	if s.Server == nil {
 		s.err = errors.New("create socket.io server failed")
 		return
 	}
-	s.Server = server
 
 	s.router.Use(mux.CORSMethodMiddleware(s.router))
 
-	s.router.Handle(s.path, server)
+	s.router.Handle(s.path, s.Server)
 }

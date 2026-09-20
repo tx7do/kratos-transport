@@ -47,7 +47,8 @@ type Server struct {
 
 	hub signalr.HubInterface
 
-	router *http.ServeMux
+	router  *http.ServeMux
+	running bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -71,9 +72,16 @@ func (s *Server) Name() string {
 }
 
 func (s *Server) Start(_ context.Context) error {
-	if s.lis != nil {
+	if s.running {
 		// 已在监听：避免同一 listener 叠两个 accept 循环
 		return nil
+	}
+
+	// Endpoint() 可能已预创建 lis，Start 前先释放以获得干净的监听
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+		s.endpoint = nil
 	}
 
 	if s.err = s.listenAndEndpoint(); s.err != nil {
@@ -96,12 +104,15 @@ func (s *Server) Start(_ context.Context) error {
 
 	handler := s.CORS(s.router)
 
+	s.running = true
+
 	var err error
 	if s.tlsConf != nil {
 		err = http.ServeTLS(s.lis, handler, "", "")
 	} else {
 		err = http.Serve(s.lis, handler)
 	}
+	s.running = false
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -111,6 +122,8 @@ func (s *Server) Start(_ context.Context) error {
 
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping...")
+
+	s.running = false
 
 	var err error
 	if s.lis != nil {
