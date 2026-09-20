@@ -841,10 +841,13 @@ func (s *Server) handleSignalRenegotiation(sessionId SessionID, payload MessageP
 			LogWarn("ice gathering timeout, sending current local description")
 		}
 
+		// gather 完成后取 pc.LocalDescription()（包含收集到的 ICE 候选）
+		local := pc.LocalDescription()
+
 		reply := SignalRenegotiationMsg{
 			Type:      "renegotiation",
 			SessionID: sessionId,
-			Answer:    &answer,
+			Answer:    local,
 		}
 		raw, err := broker.Marshal(s.codec, reply)
 		if err != nil {

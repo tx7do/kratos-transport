@@ -74,7 +74,9 @@ func (c *Client) Connect() error {
 		LogErrorf("%s [%v]", err.Error(), resp)
 		return err
 	}
+	c.connMu.Lock()
 	c.conn = conn
+	c.connMu.Unlock()
 
 	go c.run()
 
@@ -82,15 +84,22 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Disconnect() {
-	if c.conn != nil {
-		if err := c.conn.Close(); err != nil {
+	c.connMu.Lock()
+	conn := c.conn
+	c.conn = nil
+	c.connMu.Unlock()
+
+	if conn != nil {
+		if err := conn.Close(); err != nil {
 			LogErrorf("disconnect error: %s", err.Error())
 		}
-		c.conn = nil
 	}
 }
 
 func (c *Client) RegisterMessageHandler(messageType NetMessageType, handler ClientMessageHandler, binder Creator) {
+	c.handlerMu.Lock()
+	defer c.handlerMu.Unlock()
+
 	if _, ok := c.messageHandlers[messageType]; ok {
 		return
 	}
@@ -117,6 +126,8 @@ func RegisterClientMessageHandler[T any](cli *Client, messageType NetMessageType
 }
 
 func (c *Client) DeregisterMessageHandler(messageType NetMessageType) {
+	c.handlerMu.Lock()
+	defer c.handlerMu.Unlock()
 	delete(c.messageHandlers, messageType)
 }
 
@@ -184,27 +195,64 @@ func (c *Client) SendMessage(messageType NetMessageType, message any) error {
 }
 
 func (c *Client) sendPingMessage(message string) error {
+	c.connMu.RLock()
+	conn := c.conn
+	c.connMu.RUnlock()
+	if conn == nil {
+		return errors.New("websocket: client is not connected")
+	}
 	// gorilla 单写者约束：控制帧必须走 WriteControl
-	return c.conn.WriteControl(ws.PingMessage, []byte(message), time.Now().Add(5*time.Second))
+	return conn.WriteControl(ws.PingMessage, []byte(message), time.Now().Add(5*time.Second))
 }
 
 func (c *Client) sendPongMessage(message string) error {
-	return c.conn.WriteControl(ws.PongMessage, []byte(message), time.Now().Add(5*time.Second))
+	c.connMu.RLock()
+	conn := c.conn
+	c.connMu.RUnlock()
+	if conn == nil {
+		return errors.New("websocket: client is not connected")
+	}
+	return conn.WriteControl(ws.PongMessage, []byte(message), time.Now().Add(5*time.Second))
 }
 
 func (c *Client) sendTextMessage(message string) error {
-	return c.conn.WriteMessage(ws.TextMessage, []byte(message))
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	c.connMu.RLock()
+	conn := c.conn
+	c.connMu.RUnlock()
+	if conn == nil {
+		return errors.New("websocket: client is not connected")
+	}
+	return conn.WriteMessage(ws.TextMessage, []byte(message))
 }
 
 func (c *Client) sendBinaryMessage(message []byte) error {
-	return c.conn.WriteMessage(ws.BinaryMessage, message)
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	c.connMu.RLock()
+	conn := c.conn
+	c.connMu.RUnlock()
+	if conn == nil {
+		return errors.New("websocket: client is not connected")
+	}
+	return conn.WriteMessage(ws.BinaryMessage, message)
 }
 
 func (c *Client) run() {
 	defer c.Disconnect()
 
 	for {
-		messageType, data, err := c.conn.ReadMessage()
+		c.connMu.RLock()
+		conn := c.conn
+		c.connMu.RUnlock()
+		if conn == nil {
+			return
+		}
+
+		messageType, data, err := conn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseNormalClosure, ws.CloseGoingAway, ws.CloseAbnormalClosure) {
 				LogErrorf("read message error: %v", err)
@@ -212,27 +260,11 @@ func (c *Client) run() {
 			return
 		}
 
+		// gorilla ReadMessage 不返回控制帧（内部处理），
+		// 只有 Data 帧会到这里
 		switch messageType {
-		case ws.CloseMessage:
-			return
-
-		case ws.BinaryMessage:
+		case ws.BinaryMessage, ws.TextMessage:
 			_ = c.messageHandler(data)
-			break
-
-		case ws.TextMessage:
-			_ = c.messageHandler(data)
-			break
-
-		case ws.PingMessage:
-			if err := c.sendPongMessage(""); err != nil {
-				LogError("write pong message error: ", err)
-				return
-			}
-			break
-
-		case ws.PongMessage:
-			break
 		}
 
 	}

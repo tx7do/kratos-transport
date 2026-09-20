@@ -53,7 +53,7 @@ func NewServer(opts ...ServerOption) *Server {
 	srv := &Server{
 		network:     "tcp",
 		address:     ":0",
-		timeout:     1 * time.Second,
+		timeout:     0, // 默认不限制（GraphQL subscription 需要长连接）
 		strictSlash: true,
 		dec:         kHttp.DefaultRequestDecoder,
 		enc:         kHttp.DefaultResponseEncoder,
@@ -136,9 +136,11 @@ func (s *Server) Endpoint() (*url.URL, error) {
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	// Endpoint() 可能已预创建 lis，Start 前先释放以获得干净的监听
 	if s.lis != nil {
-		// 已在监听：避免同一 listener 叠两个 accept 循环
-		return nil
+		_ = s.lis.Close()
+		s.lis = nil
+		s.endpoint = nil
 	}
 
 	if err := s.listenAndEndpoint(); err != nil {

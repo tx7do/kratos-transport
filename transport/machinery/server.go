@@ -3,6 +3,7 @@ package machinery
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"sync"
 	"sync/atomic"
@@ -148,7 +149,9 @@ func (s *Server) init(opts ...ServerOption) {
 
 	s.installLogger()
 
-	s.createMachineryServer()
+	if err := s.createMachineryServer(); err != nil {
+		s.err = err
+	}
 }
 
 func (s *Server) Name() string {
@@ -288,7 +291,7 @@ func (s *Server) installLogger() {
 	machineryLog.SetFatal(newLogger(log.LevelFatal))
 }
 
-func (s *Server) createMachineryServer() {
+func (s *Server) createMachineryServer() error {
 	var broker ifaceBroker.Broker
 	var backend ifaceBackend.Backend
 	var lock ifaceLock.Lock
@@ -348,6 +351,12 @@ func (s *Server) createMachineryServer() {
 		}
 	}
 
+	// 用户显式配置了 broker 但创建失败时，不应静默降级为 eager
+	// （eager = 进程内同步执行，任务零持久化零重试，机器故障即任务丢失）
+	if s.cfg.Broker != "" && broker == nil {
+		return fmt.Errorf("broker address %q is configured but no broker was created (check brokerType)", s.cfg.Broker)
+	}
+
 	if broker == nil {
 		broker = eagerBroker.New()
 	}
@@ -359,6 +368,7 @@ func (s *Server) createMachineryServer() {
 	}
 
 	s.machineryServer = machinery.NewServer(s.cfg, broker, backend, lock)
+	return nil
 }
 
 func (s *Server) registerTask(name string, handler any) error {

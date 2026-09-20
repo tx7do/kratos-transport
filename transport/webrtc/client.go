@@ -503,9 +503,13 @@ func (c *Client) handleSignalRenegotiation(payload MessagePayload) error {
 		case <-time.After(c.signalTimeout):
 			LogWarn("ice gathering timeout, sending current local description")
 		}
+
+		// gather 完成后取 pc.LocalDescription()（包含收集到的 ICE 候选）
+		local := pc.LocalDescription()
+
 		return c.SendMessage(MsgTypeSignalRenegotiation, SignalRenegotiationMsg{
 			Type:   "renegotiation",
-			Answer: &answer,
+			Answer: local,
 		})
 	}
 
