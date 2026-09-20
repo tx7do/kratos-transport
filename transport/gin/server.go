@@ -204,12 +204,13 @@ func (s *Server) Start(_ context.Context) error {
 	LogInfof("server listening on: %s", s.address)
 
 	// Stop 之后的 http.Server 已永久关闭，重启时必须换新的实例
+	// （持有 stateMu 重建并捕获局部引用，防并发 Stop 置 nil 后 panic）
+	s.stateMu.Lock()
 	if s.server == nil {
 		s.server = s.buildHTTPServer()
 	}
-
-	// 捕获局部引用：并发 Stop 置 nil 后这里不会 nil panic
 	srv := s.server
+	s.stateMu.Unlock()
 
 	var err error
 	if s.tlsConf != nil {
@@ -225,13 +226,18 @@ func (s *Server) Start(_ context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
+	s.stateMu.Lock()
 	if s.server == nil {
+		s.stateMu.Unlock()
 		return nil
 	}
+	srv := s.server
+	s.server = nil
+	s.stateMu.Unlock()
 
 	LogInfo("server stopping...")
 
-	err := s.server.Shutdown(ctx)
+	err := srv.Shutdown(ctx)
 
 	// Shutdown 后 http.Server 不可复用；同时释放 listener 与 endpoint，
 	// 使下一次 Start 能重新监听（重启支持）

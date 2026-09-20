@@ -108,9 +108,9 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	// 启动 keepalive（grpc Serve 是阻塞调用，必须放 goroutine，否则 Start 永不返回）
-	if s.enableKeepalive && s.keepaliveServer != nil {
+	if ka := s.keepaliveServer; s.enableKeepalive && ka != nil {
 		go func() {
-			if err := s.keepaliveServer.Start(ctx); err != nil {
+			if err := ka.Start(ctx); err != nil {
 				LogErrorf("keepalive server start failed: %s", err.Error())
 			}
 		}()

@@ -121,9 +121,9 @@ func (s *Server) Start(_ context.Context) error {
 
 	// Close 后的 socket.io Server 不可复用（connChan 已关闭，新握手会
 	// send-on-closed-channel panic）：重启时重建实例并重放 handler 注册
+	// （路由上的委托 handler 会自动转发到新实例）
 	if s.closed {
 		s.Server = s.createServer()
-		s.router.Handle(s.path, s.Server)
 		s.closed = false
 	}
 
@@ -241,5 +241,10 @@ func (s *Server) init(opts ...ServerOption) {
 
 	s.router.Use(mux.CORSMethodMiddleware(s.router))
 
-	s.router.Handle(s.path, s.Server)
+	// 委托 handler：始终转发到当前 s.Server。
+	// gorilla mux 的首条匹配路由生效且重复 Handle 不会覆盖旧路由，
+	// 直接注册实例会导致重启后请求仍路由到已关闭的旧 server
+	s.router.Handle(s.path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.Server.ServeHTTP(w, r)
+	}))
 }

@@ -103,10 +103,6 @@ func (s *Server) Start(_ context.Context) error {
 		return s.err
 	}
 
-	if s.err != nil {
-		return s.err
-	}
-
 	protocolFactory := createProtocolFactory(s.protocol)
 	if protocolFactory == nil {
 		return ErrInvalidProtocol

@@ -302,14 +302,17 @@ func (s *Server) startKeepaliveServer(ctx context.Context) {
 		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindMCP))
 	}
 
-	go func() {
-		if err := s.keepaliveServer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			s.mu.Lock()
-			s.err = errors.Join(s.err, errors.New("keepalive server start failed: "+err.Error()))
-			s.mu.Unlock()
-			LogErrorf("keepalive server start failed, err: %v", err)
-		}
-	}()
+	// 捕获局部引用：并发 Stop 置 nil 后 goroutine 内不会 nil panic
+	if ka := s.keepaliveServer; ka != nil {
+		go func() {
+			if err := ka.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				s.mu.Lock()
+				s.err = errors.Join(s.err, errors.New("keepalive server start failed: "+err.Error()))
+				s.mu.Unlock()
+				LogErrorf("keepalive server start failed, err: %v", err)
+			}
+		}()
+	}
 }
 
 func (s *Server) stopKeepaliveServer(ctx context.Context) {

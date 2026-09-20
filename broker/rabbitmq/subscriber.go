@@ -160,9 +160,7 @@ func (s *subscriber) resubscribe() {
 			continue
 		}
 		for d := range sub {
-			s.r.wg.Add(1)
 			s.fn(d)
-			s.r.wg.Done()
 		}
 	}
 }

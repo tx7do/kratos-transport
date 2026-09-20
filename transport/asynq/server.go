@@ -713,6 +713,11 @@ func (s *Server) Start(ctx context.Context) error {
 		return err
 	}
 
+	// Stop 置 nil 后重建（keepalive 的 stopReq 闩锁不可复位）
+	if s.enableKeepalive && s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindAsynq))
+	}
+
 	keepaliveSrv := s.keepaliveServer
 
 	if keepaliveSrv != nil {

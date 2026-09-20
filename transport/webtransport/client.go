@@ -279,7 +279,15 @@ func (c *Client) run() {
 			default:
 			}
 			LogErrorf("read message error: %v", err)
-			_ = c.Disconnect()
+
+			// 仅当当前连接仍是出错的那条时才整体断开；
+			// 用户已重连（c.stream 换新）时旧循环直接退出，避免误杀新连接
+			c.connMu.RLock()
+			same := c.stream == stream
+			c.connMu.RUnlock()
+			if same {
+				_ = c.Disconnect()
+			}
 			return
 		}
 

@@ -17,17 +17,22 @@ type Subscriber struct {
 }
 
 func (s *Subscriber) close() {
-	// stream run 循环退出后 deregister 无人消费，非阻塞发送防 goroutine 永久阻塞
-	select {
-	case s.quit <- s:
-	default:
-	}
-	if s.removed != nil {
+	// 优先非阻塞投递；run 循环忙时（Replay 慢订阅者/分发中）退避重试，
+	// 避免 stream 退出窗口内静默丢失退订（订阅者残留、连接僵尸）
+	for attempt := 0; attempt < 20; attempt++ {
 		select {
-		case <-s.removed:
-		case <-time.After(time.Second):
+		case <-time.After(50 * time.Millisecond):
+		case s.quit <- s:
+			if s.removed != nil {
+				select {
+				case <-s.removed:
+				case <-time.After(time.Second):
+				}
+			}
+			return
 		}
 	}
+	// 多轮重试仍失败：stream run 循环已确认退出，直接放弃登记
 }
 
 func (s *Subscriber) HeaderValue(key string) string {

@@ -97,6 +97,9 @@ func (b *jetStreamBroker) publish(ctx context.Context, topic string, msg *broker
 ///////////////////////////////////////////////////////////////////////////////
 
 func (b *jetStreamBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
+	if msg == nil {
+		return nil, broker.ErrRequestMessageNil
+	}
 	b.RLock()
 	defer b.RUnlock()
 

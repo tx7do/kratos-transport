@@ -382,6 +382,9 @@ func (b *natsBroker) Subscribe(topic string, handler broker.Handler, binder brok
 }
 
 func (b *natsBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
+	if msg == nil {
+		return nil, broker.ErrRequestMessageNil
+	}
 	buf, err := broker.Marshal(b.options.Codec, msg.Body)
 	if err != nil {
 		return nil, err

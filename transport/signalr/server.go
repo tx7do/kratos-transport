@@ -113,7 +113,8 @@ func (s *Server) Start(_ context.Context) error {
 		err = http.Serve(s.lis, handler)
 	}
 	s.running = false
-	if !errors.Is(err, http.ErrServerClosed) {
+	// Stop 关闭 listener 后 Serve 返回 use of closed（非 ErrServerClosed），属正常停止
+	if err != nil && !errors.Is(err, http.ErrServerClosed) && !errors.Is(err, net.ErrClosed) {
 		return err
 	}
 

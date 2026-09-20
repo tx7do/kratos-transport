@@ -415,9 +415,19 @@ func (s *Server) serveSession(sessionId SessionID, stream *http3.Stream) {
 	}
 }
 
-// rebuildHTTPServer 重建内嵌的 http3.Server（Shutdown/Close 后不可复用，重启支持）
+// rebuildHTTPServer 重建内嵌的 http3.Server（Shutdown/Close 后不可复用，重启支持）。
+// 保留旧实例上的 Addr/QUICConfig/Handler 等运行期配置，避免重启后监听地址与
+// QUIC 参数静默回退默认值
 func (s *Server) rebuildHTTPServer() {
 	const idleTimeout = 30 * time.Second
+
+	// 保留旧实例配置（首次调用时为 nil，走默认）
+	oldAddr, oldQUIC, oldHandler := "", (*quic.Config)(nil), http.Handler(nil)
+	if s.Server != nil {
+		oldAddr = s.Server.Addr
+		oldQUIC = s.Server.QUICConfig
+		oldHandler = s.Server.Handler
+	}
 
 	s.Server = &http3.Server{
 		Addr: ":443",
@@ -425,6 +435,16 @@ func (s *Server) rebuildHTTPServer() {
 			MaxIdleTimeout:  idleTimeout,
 			KeepAlivePeriod: idleTimeout / 2,
 		},
+	}
+
+	if oldAddr != "" && oldAddr != ":443" {
+		s.Server.Addr = oldAddr
+	}
+	if oldQUIC != nil {
+		s.Server.QUICConfig = oldQUIC
+	}
+	if oldHandler != nil {
+		s.Server.Handler = oldHandler
 	}
 
 	if s.tlsConf != nil {
@@ -438,9 +458,8 @@ func (s *Server) rebuildHTTPServer() {
 	}
 	s.Server.AdditionalSettings[settingsEnableWebtransport] = 1
 
-	if s.mux != nil && s.path != "" {
-		s.mux.HandleFunc(s.path, s.addHandler)
-	}
+	// 注意：不在 rebuild 里重复注册 mux 路由——
+	// http.ServeMux 对同一 pattern 二次注册会 panic，路由在 init 时已注册
 	if s.Server.Handler == nil {
 		s.Server.Handler = s.mux
 	}

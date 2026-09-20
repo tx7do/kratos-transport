@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -23,6 +24,10 @@ type ClientMessageHandlerMap map[NetMessageType]*ClientHandlerData
 
 type Client struct {
 	conn *ws.Conn
+
+	connMu    sync.RWMutex
+	writeMu   sync.Mutex
+	handlerMu sync.RWMutex
 
 	url      string
 	endpoint *url.URL
@@ -245,8 +250,9 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 			return nil, nil, err
 		}
 
-		var ok bool
-		handler, ok = c.messageHandlers[msg.Type]
+		c.handlerMu.RLock()
+		handler, ok := c.messageHandlers[msg.Type]
+		c.handlerMu.RUnlock()
 		if !ok {
 			LogError("message handler not found:", msg.Type)
 			return nil, nil, errors.New("message handler not found")

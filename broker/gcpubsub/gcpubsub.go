@@ -370,6 +370,8 @@ func handlePubSubMessage(receiveCtx context.Context, b *gcpBroker, msg *pubsub.M
 		if eh := b.options.ErrorHandler; eh != nil {
 			_ = eh(receiveCtx, p)
 		}
+		// 与 unmarshal 失败路径一致：Nack 触发重投
+		msg.Nack()
 		return
 	}
 
