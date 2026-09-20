@@ -105,19 +105,15 @@ func (s *subscriber) buildHandler(cm *nsq.Consumer) {
 			if eh := b.options.ErrorHandler; eh != nil {
 				_ = eh(b.options.Context, p)
 			}
-			return errSub
-		}
-
-		// go-nsq 的 handler 循环在 handler 返回 nil 时已自动 Finish（AutoAck 场景），
-		// 这里再手动 Ack 会发送重复 FIN；仅在 handler 失败时显式 Finish 以终止重投
-		if p.err == nil {
+			// 处理失败即终止重投：显式 FIN 后必须返回 nil——
+			// 返回 err 会让 go-nsq 对已 FIN 的消息再发 REQ（协议错误）
+			if errFinish := p.Ack(); errFinish != nil {
+				LogErrorf("unable to commit msg: %v", errFinish)
+			}
 			return nil
 		}
-		if errSub = p.Ack(); errSub != nil {
-			LogErrorf("unable to commit msg: %v", errSub)
-		}
 
-		return p.err
+		return nil
 	})
 
 	s.handlerFunc = h

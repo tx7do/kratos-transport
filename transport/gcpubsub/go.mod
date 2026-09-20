@@ -15,6 +15,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/tx7do/kratos-transport/broker v1.3.3
 	github.com/tx7do/kratos-transport/broker/gcpubsub v1.3.1
+	github.com/tx7do/kratos-transport/testing v0.0.0-00010101000000-000000000000
 	github.com/tx7do/kratos-transport/transport v1.3.4
 	github.com/tx7do/kratos-transport/transport/keepalive v1.3.4
 	go.opentelemetry.io/otel v1.43.0

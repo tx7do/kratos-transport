@@ -283,7 +283,8 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 		}
 
 		c.handlerMu.RLock()
-		handler, ok := c.messageHandlers[msg.Type]
+		var ok bool
+		handler, ok = c.messageHandlers[msg.Type]
 		c.handlerMu.RUnlock()
 		if !ok {
 			LogError("message handler not found:", msg.Type)
@@ -301,8 +302,6 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 			payload = msg.Payload
 		}
 
-		//LogDebug(string(msg.Payload))
-
 	case PayloadTypeText:
 		var msg TextNetPacket
 		if err := msg.Unmarshal(buf); err != nil {
@@ -310,8 +309,10 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 			return nil, nil, err
 		}
 
+		c.handlerMu.RLock()
 		var ok bool
 		handler, ok = c.messageHandlers[msg.Type]
+		c.handlerMu.RUnlock()
 		if !ok {
 			LogError("message handler not found:", msg.Type)
 			return nil, nil, errors.New("message handler not found")
@@ -327,8 +328,6 @@ func (c *Client) unmarshalMessage(buf []byte) (*ClientHandlerData, MessagePayloa
 		} else {
 			payload = msg.Payload
 		}
-
-		//LogDebug(string(msg.Payload))
 	}
 
 	return handler, payload, nil

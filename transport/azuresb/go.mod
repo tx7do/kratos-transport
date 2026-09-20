@@ -15,6 +15,7 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/tx7do/kratos-transport/broker v1.3.3
 	github.com/tx7do/kratos-transport/broker/azuresb v1.3.1
+	github.com/tx7do/kratos-transport/testing v0.0.0-00010101000000-000000000000
 	github.com/tx7do/kratos-transport/transport v1.3.4
 	github.com/tx7do/kratos-transport/transport/keepalive v1.3.4
 	go.opentelemetry.io/otel v1.43.0
@@ -43,6 +44,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260427160629-7cedc36a6bc4 // indirect

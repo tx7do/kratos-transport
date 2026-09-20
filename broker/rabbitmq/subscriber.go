@@ -60,10 +60,10 @@ func (s *subscriber) Unsubscribe(removeFromManager bool) error {
 	return err
 }
 
-// consumeOnce 同步执行一次队列声明/绑定并开始消费。
+// declareAndBind 同步声明队列并绑定到 exchange。
 // 首次订阅必须同步完成：否则 Subscribe 返回后队列尚未绑定，
 // 此时向 exchange 投递的消息会因无匹配绑定而直接丢弃。
-func (s *subscriber) consumeOnce() error {
+func (s *subscriber) declareAndBind() error {
 	s.r.mtx.Lock()
 	defer s.r.mtx.Unlock()
 
@@ -71,35 +71,10 @@ func (s *subscriber) consumeOnce() error {
 		return errors.New("rabbitmq: not connected")
 	}
 
-	ch, sub, err := s.r.conn.Consume(
-		s.exchangeName,
-		s.options.Queue,
-		s.topic,
-		s.headers,
-		s.queueArgs,
-		s.options.AutoAck,
-		s.durableQueue,
-		s.autoDelete,
-	)
-	if err != nil {
-		return err
-	}
-
-	s.Lock()
-	s.ch = ch
-	s.Unlock()
-
-	go func() {
-		// deliveries channel 随连接关闭而关闭，无需逐消息计数
-		// （每消息 wg.Add 与 Disconnect 的 wg.Wait 并发违反 WaitGroup 契约）
-		for d := range sub {
-			s.fn(d)
-		}
-	}()
-
-	return nil
+	return s.r.conn.DeclarePublishQueue(s.exchangeName, s.options.Queue, s.topic, s.headers, s.queueArgs, s.durableQueue, s.autoDelete)
 }
 
+// resubscribe 消费消息并处理断线重连（原始模式，无双消费者风险）
 func (s *subscriber) resubscribe() {
 	minResubscribeDelay := defaultMinResubscribeDelay
 	maxResubscribeDelay := defaultMaxResubscribeDelay
@@ -107,18 +82,8 @@ func (s *subscriber) resubscribe() {
 	reSubscribeDelay := defaultResubscribeDelay
 
 	for {
-		closed := s.IsClosed()
-		if closed {
-			// we are unsubscribed, showdown routine
+		if s.IsClosed() {
 			return
-		}
-
-		// 首次消费已由 consumeOnce 同步完成；
-		// 这里必须先等【断线事件】再等【重连完成】。
-		// 旧实现直接等 waitConnection——Connect 成功时它已被 close，
-		// 会立即再 Consume 一次造成双消费者
-		select {
-		case <-s.r.conn.close:
 		}
 
 		select {

@@ -372,6 +372,9 @@ func (s *Server) createMachineryServer() error {
 }
 
 func (s *Server) registerTask(name string, handler any) error {
+	if s.machineryServer == nil {
+		return errors.New("machinery server not initialized (broker creation may have failed)")
+	}
 	if err := s.machineryServer.RegisterTask(name, handler); err != nil {
 		return err
 	}
