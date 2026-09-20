@@ -199,7 +199,7 @@ func (s *subscriber) receiveLoop() error {
 			}
 
 		case redis.Pong:
-			redisOption.LogDebug("pong")
+			// 心跳 PONG 帧是正常保活行为，静默处理，避免周期性日志噪音（issue #133）
 		}
 	}
 }
