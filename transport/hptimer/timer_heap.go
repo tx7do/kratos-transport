@@ -4,7 +4,13 @@ package hptimer
 type timerHeap []*TimerTask
 
 func (h timerHeap) Len() int           { return len(h) }
-func (h timerHeap) Less(i, j int) bool { return h[i].At.Before(h[j].At) }
+func (h timerHeap) Less(i, j int) bool {
+	if !h[i].At.Equal(h[j].At) {
+		return h[i].At.Before(h[j].At)
+	}
+	// 同一触发时间：优先级数值小的先执行
+	return h[i].Priority < h[j].Priority
+}
 func (h timerHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
 func (h *timerHeap) Push(x interface{}) {

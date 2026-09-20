@@ -12,7 +12,7 @@ import (
 
 func TestTransport_Kind(t *testing.T) {
 	o := &Transport{}
-	if !reflect.DeepEqual(KindWebsocket, o.Kind()) {
+	if KindWebsocket != o.Kind() {
 		t.Errorf("expect %v, got %v", KindWebsocket, o.Kind())
 	}
 }

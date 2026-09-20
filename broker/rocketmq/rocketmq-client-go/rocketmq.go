@@ -131,6 +131,8 @@ func (b *rocketmqBroker) Init(opts ...broker.Option) error {
 		b.logger.level = v
 	}
 
+	rocketmqOption.WarnUnsupportedKeysOnce("v2", b.options.Context, rocketmqOption.V2UnsupportedBrokerKeys())
+
 	if len(b.options.Tracings) > 0 {
 		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
 		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
@@ -300,7 +302,7 @@ func (b *rocketmqBroker) createConsumer(options *broker.SubscribeOptions) (rocke
 }
 
 func (b *rocketmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *rocketmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -353,10 +355,16 @@ func (b *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.
 
 	rMsg := primitive.NewMessage(topic, msg.BodyBytes())
 
+	if msg.Key != "" {
+		// 保留标准 Message.Key 语义，映射到 RocketMQ keys
+		rMsg.WithKeys([]string{msg.Key})
+	}
+
 	if len(msg.Headers) > 0 {
 		rMsg.WithProperties(msg.Headers)
 	}
 
+	rocketmqOption.WarnUnsupportedKeysOnce("v2", options.Context, rocketmqOption.V2UnsupportedPublishKeys())
 	if v, ok := options.Context.Value(rocketmqOption.CompressKey{}).(bool); ok {
 		rMsg.Compress = v
 	}
@@ -439,6 +447,7 @@ func (b *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 	if len(b.options.SubscriberMiddlewares) > 0 {
 		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
 	}
+	rocketmqOption.WarnUnsupportedKeysOnce("v2", options.Context, rocketmqOption.V2UnsupportedSubscribeKeys())
 
 	c, err := b.createConsumer(&options)
 	if err != nil {
@@ -446,6 +455,7 @@ func (b *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 	}
 
 	sub := &subscriber{
+		r:       b,
 		options: options,
 		topic:   topic,
 		handler: handler,
@@ -482,6 +492,9 @@ func (b *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 
 				if errSub = sub.handler(newCtx, p); errSub != nil {
 					b.logger.Errorf("process message failed: %v", errSub)
+					if eh := b.options.ErrorHandler; eh != nil {
+						_ = eh(newCtx, p)
+					}
 					b.finishConsumerSpan(newCtx, span, errSub)
 					hasError = true
 					continue
@@ -512,6 +525,8 @@ func (b *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 		b.logger.Errorf("%s", err.Error())
 		return nil, err
 	}
+
+	b.subscribers.Add(topic, sub)
 
 	return sub, nil
 }

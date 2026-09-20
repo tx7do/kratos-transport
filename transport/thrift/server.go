@@ -23,6 +23,7 @@ var (
 var (
 	ErrInvalidProtocol  = errors.New("invalid protocol")
 	ErrInvalidTransport = errors.New("invalid transport")
+	ErrInvalidEndpoint  = errors.New("invalid endpoint")
 )
 
 type Server struct {

@@ -179,7 +179,7 @@ func (b *stompBroker) Disconnect() error {
 }
 
 func (b *stompBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *stompBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -302,31 +302,38 @@ func (b *stompBroker) Subscribe(topic string, handler broker.Handler, binder bro
 
 				ctx, span := b.startConsumerSpan(options.Context, msg)
 
+				// 每条消息独立 err，避免并发消费共享外层变量
+				var msgErr error
+
 				if binder != nil {
 					m.Body = binder()
 
-					if err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); err != nil {
-						p.err = err
-						LogError(err)
-						b.finishConsumerSpan(ctx, span, p.err)
+					if msgErr = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); msgErr != nil {
+						p.err = msgErr
+						LogError(msgErr)
+						b.finishConsumerSpan(ctx, span, msgErr)
 						return
 					}
 				} else {
 					m.Body = msg.Body
 				}
 
-				if err = handler(ctx, p); p.err != nil {
-					p.err = err
-					b.finishConsumerSpan(ctx, span, p.err)
+				if msgErr = handler(ctx, p); msgErr != nil {
+					// 处理失败：不 ACK，记入 publication 与 span
+					if eh := b.options.ErrorHandler; eh != nil {
+						_ = eh(ctx, p)
+					}
+					p.err = msgErr
+					b.finishConsumerSpan(ctx, span, msgErr)
 					return
 				}
 
 				if options.AutoAck || ackSuccess {
-					err = msg.Conn.Ack(msg)
-					p.err = err
+					msgErr = msg.Conn.Ack(msg)
+					p.err = msgErr
 				}
 
-				b.finishConsumerSpan(ctx, span, err)
+				b.finishConsumerSpan(ctx, span, msgErr)
 			}(msg)
 		}
 	}()

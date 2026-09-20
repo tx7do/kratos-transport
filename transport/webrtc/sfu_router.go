@@ -97,8 +97,9 @@ func (r *SFURouter) RemoveSessionTracks(sessionID SessionID) {
 
 // Subscribe 订阅指定会话的媒体轨道
 func (r *SFURouter) Subscribe(subscriberID SessionID, publisherID SessionID) []*MediaTrack {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	// 需要写入 subscriptions，必须持写锁
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	var subscribedTracks []*MediaTrack
 

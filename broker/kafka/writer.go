@@ -101,7 +101,9 @@ func (w *Writer) Close() {
 		_ = writer.Close()
 	}
 	w.Writer = nil
-	w.Writers = nil
+	// 重建空 map 而不是置 nil：Disconnect 之后仍可能调用 Publish，
+	// 对 nil map 写入会直接 panic
+	w.Writers = make(map[string]*kafkaGo.Writer)
 }
 
 // CreateProducer create kafka-go Writer

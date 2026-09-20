@@ -129,11 +129,13 @@ func (c *Client) DeregisterMessageHandler(messageType NetMessageType) {
 }
 
 func (c *Client) SendRawData(message []byte) error {
-	if c.conn == nil {
+	conn := c.conn
+	if conn == nil {
 		return errors.New("client is not connected")
 	}
 
-	if _, err := c.conn.Write(message); err != nil {
+	// 写入带长度前缀的帧，与服务端分包逻辑对应
+	if err := WriteFrame(conn, message); err != nil {
 		return err
 	}
 	return nil
@@ -157,26 +159,28 @@ func (c *Client) SendMessage(messageType int, message any) error {
 func (c *Client) run() {
 	defer c.Disconnect()
 
-	buf := make([]byte, 102400)
-
-	var err error
-	var readLen int
-
 	for {
-		if readLen, err = c.conn.Read(buf); err != nil {
+		conn := c.conn
+		if conn == nil {
+			return
+		}
+
+		// 按帧读取，与服务端分包逻辑对应
+		frame, err := ReadFrame(conn)
+		if err != nil {
 			LogErrorf("read message error: %v", err)
 			return
 		}
 
 		if c.rawMessageHandler != nil {
-			if err := c.rawMessageHandler(buf[:readLen]); err != nil {
+			if err := c.rawMessageHandler(frame); err != nil {
 				LogErrorf("raw data handler exception: %s", err)
 				continue
 			}
 			continue
 		}
 
-		if err = c.messageHandler(buf[:readLen]); err != nil {
+		if err = c.messageHandler(frame); err != nil {
 			LogErrorf("process message error: %v", err)
 		}
 	}

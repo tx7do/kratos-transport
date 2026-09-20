@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -62,7 +63,10 @@ type Server struct {
 	err     error
 
 	machineryServer *machinery.Server
-	cfg             *config.Config
+	worker          *machinery.Worker
+	workerErrChan   chan error
+
+	cfg *config.Config
 
 	brokerOption   brokerOption
 	backendOption  backendOption
@@ -84,6 +88,9 @@ func NewServer(opts ...ServerOption) *Server {
 		cfg: &config.Config{
 			DefaultQueue:    "kratos_machinery_queue",
 			ResultsExpireIn: 3600,
+
+			// 进程信号由 kratos 应用统一处理，worker 不自行捕获 SIGINT/SIGTERM
+			NoUnixSignals: true,
 
 			AMQP: &config.AMQPConfig{},
 			SQS:  &config.SQSConfig{},
@@ -203,17 +210,17 @@ func (s *Server) Start(ctx context.Context) error {
 
 	if s.keepaliveServer != nil {
 		go func() {
-			if s.err = s.keepaliveServer.Start(ctx); s.err != nil {
-				LogErrorf("keepalive server start failed: %s", s.err.Error())
+			if err := s.keepaliveServer.Start(ctx); err != nil {
+				LogErrorf("keepalive server start failed: %s", err.Error())
 			}
 		}()
 	}
 
-	if err := s.newWorker(
+	if err := s.startWorker(
 		s.consumerOption.consumerTag,
 		s.consumerOption.concurrency,
 		s.consumerOption.queue,
-	); err != nil && !errors.Is(err, machinery.ErrWorkerQuitGracefully) {
+	); err != nil {
 		return err
 	}
 
@@ -230,15 +237,35 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	s.started.Store(false)
 
-	s.machineryServer = nil
-	s.err = nil
+	if s.worker != nil {
+		// 通知 worker 退出消费循环
+		s.worker.Quit()
+
+		// 等待 worker 消费循环收敛，超时则放弃等待
+		if s.workerErrChan != nil {
+			select {
+			case err := <-s.workerErrChan:
+				if err != nil && !errors.Is(err, machinery.ErrWorkerQuitGracefully) {
+					LogErrorf("worker exited with error: %s", err.Error())
+				}
+			case <-ctx.Done():
+				LogWarn("wait worker stop timeout")
+			case <-time.After(10 * time.Second):
+				LogWarn("wait worker stop timeout")
+			}
+		}
+		s.worker = nil
+		s.workerErrChan = nil
+	}
 
 	if s.keepaliveServer != nil {
 		if err := s.keepaliveServer.Stop(ctx); err != nil {
-			LogError("keepalive server stop failed", s.err)
+			LogError("keepalive server stop failed", err)
 		}
 		s.keepaliveServer = nil
 	}
+
+	s.err = nil
 
 	LogInfo("server stopped.")
 
@@ -334,7 +361,14 @@ func (s *Server) registerTask(name string, handler any) error {
 	return nil
 }
 
-func (s *Server) newWorker(consumerTag string, concurrency int, queue string) error {
+// startWorker 以非阻塞方式启动 worker。
+// machinery 的 worker.Launch() 会阻塞到 worker 退出，不能在 Start 里同步调用，
+// 否则 Start 永不返回。
+func (s *Server) startWorker(consumerTag string, concurrency int, queue string) error {
+	if s.machineryServer == nil {
+		return errors.New("machinery server is nil")
+	}
+
 	worker := s.machineryServer.NewCustomQueueWorker(consumerTag, concurrency, queue)
 	if worker == nil {
 		return errors.New("create worker failed")
@@ -344,7 +378,15 @@ func (s *Server) newWorker(consumerTag string, concurrency int, queue string) er
 
 	})
 
-	return worker.Launch()
+	// worker 退出时（Quit → StopConsuming 收敛完成）会向 errChan 恰好发送一次最终错误
+	errChan := make(chan error, 1)
+
+	worker.LaunchAsync(errChan)
+
+	s.worker = worker
+	s.workerErrChan = errChan
+
+	return nil
 }
 
 func (s *Server) newTask(ctx context.Context, cronSpec, lockName, typeName string, opts ...TaskOption) error {

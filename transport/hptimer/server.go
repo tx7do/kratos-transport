@@ -126,23 +126,31 @@ func (s *Server) Stop(ctx context.Context) error {
 		s.cancel()
 	}
 
-	// 2. 优雅停止定时器引擎
-	stopCtx, stopCancel := context.WithTimeout(ctx, 10*time.Second)
-	defer stopCancel()
-
-	wait := make(chan struct{})
-	go func() {
+	// 2. 停止定时器引擎
+	// WithGracefullyShutdown(false) 时跳过排空等待，立即停止
+	if !s.gracefullyShutdown {
 		if s.hpTimer != nil {
 			s.hpTimer.Stop()
 		}
-		close(wait)
-	}()
+		LogInfo("high precision timer stopped (immediate)")
+	} else {
+		stopCtx, stopCancel := context.WithTimeout(ctx, 10*time.Second)
+		defer stopCancel()
 
-	select {
-	case <-wait:
-		LogInfo("high precision timer stopped gracefully")
-	case <-stopCtx.Done():
-		LogWarn("hptimer shutdown timeout, force stop")
+		wait := make(chan struct{})
+		go func() {
+			if s.hpTimer != nil {
+				s.hpTimer.Stop()
+			}
+			close(wait)
+		}()
+
+		select {
+		case <-wait:
+			LogInfo("high precision timer stopped gracefully")
+		case <-stopCtx.Done():
+			LogWarn("hptimer shutdown timeout, force stop")
+		}
 	}
 
 	// 停止心跳

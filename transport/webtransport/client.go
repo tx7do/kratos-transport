@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -26,8 +27,15 @@ type ClientMessageHandlerMap map[MessageType]ClientHandlerData
 type Client struct {
 	transport *http3.Transport
 
+	connMu  sync.RWMutex
+	conn    *quic.Conn
+	h3conn  *http3.ClientConn
+	stream  *http3.RequestStream
+	writeMu sync.Mutex
+
 	ctx       context.Context
 	ctxCancel context.CancelFunc
+	runOnce   sync.Once
 
 	timeout time.Duration
 	tlsConf *tls.Config
@@ -59,12 +67,16 @@ func (c *Client) init(opts ...ClientOption) {
 	if timeout == 0 {
 		timeout = 5 * time.Second
 	}
+	c.timeout = timeout
 
 	if c.tlsConf == nil {
 		c.tlsConf = &tls.Config{
-			RootCAs:            generateCertPool(),
 			InsecureSkipVerify: true,
 		}
+	}
+	// QUIC 强制要求 ALPN
+	if len(c.tlsConf.NextProtos) == 0 {
+		c.tlsConf.NextProtos = []string{alpnQuicTransport}
 	}
 	c.transport.TLSClientConfig = c.tlsConf
 
@@ -73,6 +85,7 @@ func (c *Client) init(opts ...ClientOption) {
 	if c.transport.AdditionalSettings == nil {
 		c.transport.AdditionalSettings = make(map[uint64]uint64)
 	}
+	c.transport.AdditionalSettings[settingsEnableWebtransport] = 1
 
 	if c.transport.QUICConfig == nil {
 		c.transport.QUICConfig = &quic.Config{}
@@ -82,23 +95,70 @@ func (c *Client) init(opts ...ClientOption) {
 	}
 }
 
+// Connect 建立 QUIC/HTTP3 连接，发送 WebTransport CONNECT 请求并升级为双向消息流。
 func (c *Client) Connect() error {
-	req, err := c.newWebTransportRequest()
+	u, err := url.Parse(c.url)
 	if err != nil {
 		return err
 	}
 
-	rsp, err := c.transport.RoundTripOpt(req,
-		http3.RoundTripOpt{
-			OnlyCachedConn: true,
-		},
-	)
+	addr := u.Host
+	if u.Port() == "" {
+		addr += ":443"
+	}
+
+	tlsConf := c.tlsConf.Clone()
+
+	quicConfig := c.transport.QUICConfig
+	if quicConfig == nil {
+		quicConfig = &quic.Config{}
+	}
+
+	conn, err := quic.DialAddr(c.ctx, addr, tlsConf, quicConfig)
+	if err != nil {
+		return fmt.Errorf("dial quic server %s failed: %w", addr, err)
+	}
+
+	h3conn := c.transport.NewClientConn(conn)
+
+	// 等待服务端 SETTINGS，确认 WebTransport 支持
+	select {
+	case <-h3conn.ReceivedSettings():
+	case <-time.After(c.timeout):
+		return errors.New("timeout waiting for server settings")
+	}
+
+	str, err := h3conn.OpenRequestStream(c.ctx)
+	if err != nil {
+		return fmt.Errorf("open request stream failed: %w", err)
+	}
+
+	req, err := c.newWebTransportRequest(u)
 	if err != nil {
 		return err
+	}
+
+	if err := str.SendRequestHeader(req); err != nil {
+		return fmt.Errorf("send connect request failed: %w", err)
+	}
+
+	rsp, err := str.ReadResponse()
+	if err != nil {
+		return fmt.Errorf("read connect response failed: %w", err)
 	}
 	if rsp.StatusCode < 200 || rsp.StatusCode >= 300 {
 		return fmt.Errorf("received status %d", rsp.StatusCode)
 	}
+
+	c.connMu.Lock()
+	c.conn = conn
+	c.h3conn = h3conn
+	c.stream = str
+	c.connMu.Unlock()
+
+	c.runOnce.Do(func() {
+		go c.run()
+	})
 
 	LogInfof("client connected to: %s", c.url)
 
@@ -107,6 +167,25 @@ func (c *Client) Connect() error {
 
 func (c *Client) Disconnect() error {
 	LogInfo("client stopping")
+
+	c.connMu.Lock()
+	stream := c.stream
+	conn := c.conn
+	c.stream = nil
+	c.conn = nil
+	c.h3conn = nil
+	c.connMu.Unlock()
+
+	if stream != nil {
+		stream.CancelRead(0)
+		_ = stream.Close()
+	}
+	if conn != nil {
+		_ = conn.CloseWithError(0, "client closed")
+	}
+
+	c.ctxCancel()
+
 	return nil
 }
 
@@ -125,43 +204,79 @@ func (c *Client) DeregisterMessageHandler(messageType MessageType) {
 func (c *Client) SendMessage(messageType int, message any) error {
 	var msg Message
 	msg.Type = MessageType(messageType)
-	msg.Body, _ = broker.Marshal(c.codec, message)
+
+	body, err := broker.Marshal(c.codec, message)
+	if err != nil {
+		return err
+	}
+	msg.Body = body
 
 	buff, err := msg.Marshal()
 	if err != nil {
 		return err
 	}
 
-	if err := c.SendRawData(buff); err != nil {
-		return err
-	}
-
-	return nil
+	return c.SendRawData(buff)
 }
 
 func (c *Client) SendRawData(data []byte) error {
-	return nil
-}
+	c.connMu.RLock()
+	stream := c.stream
+	c.connMu.RUnlock()
 
-func (c *Client) newWebTransportRequest() (*http.Request, error) {
-	u, err := url.Parse(c.url)
-	if err != nil {
-		return nil, err
+	if stream == nil {
+		return errors.New("client is not connected")
 	}
 
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	return WriteFrame(stream, data)
+}
+
+// run 在后台持续读取服务端下行的消息帧并分发。
+func (c *Client) run() {
+	for {
+		c.connMu.RLock()
+		stream := c.stream
+		c.connMu.RUnlock()
+
+		if stream == nil {
+			return
+		}
+
+		frame, err := ReadFrame(stream)
+		if err != nil {
+			select {
+			case <-c.ctx.Done():
+				return
+			default:
+			}
+			LogErrorf("read message error: %v", err)
+			_ = c.Disconnect()
+			return
+		}
+
+		if err = c.messageHandler(frame); err != nil {
+			LogErrorf("process message error: %v", err)
+		}
+	}
+}
+
+func (c *Client) newWebTransportRequest(u *url.URL) (*http.Request, error) {
 	hdr := make(http.Header)
 	hdr.Add(webTransportDraftOfferHeaderKey, "1")
 
 	req := &http.Request{
 		Method: http.MethodConnect,
 		Header: hdr,
-		Proto:  "webtransport",
+		Proto:  protocolHeader,
 		Host:   u.Host,
 		URL:    u,
 	}
 	req = req.WithContext(c.ctx)
 
-	return req, err
+	return req, nil
 }
 
 func (c *Client) messageHandler(buf []byte) error {

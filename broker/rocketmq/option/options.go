@@ -8,6 +8,34 @@ import (
 	"github.com/tx7do/kratos-transport/broker"
 )
 
+// 选项-驱动支持矩阵（✓=支持，✗=忽略并告警）：
+//
+//	Option                    | aliyun | v2 | v5
+//	--------------------------|--------|----|----
+//	WithNameServer            | ✓(HTTP)| ✓  | ✓
+//	WithNameServerDomain      | ✓(HTTP)| ✗  | ✓(Endpoint)
+//	WithAccessKey/Secret/Token| ✓      | ✓  | ✓
+//	WithCredentials           | ✓      | ✓  | ✓
+//	WithRetryCount            | ✗      | ✓  | ✗
+//	WithNamespace             | ✓      | ✓  | ✓
+//	WithInstanceName          | ✓      | ✓  | 部分(仅span)
+//	WithGroupName             | ✓      | ✓  | ✓
+//	WithEnableTrace           | ✗      | ✓  | ✗
+//	WithLoggerLevel           | ✗      | ✗  | ✓
+//	WithSubscriptionExpressions| ✗     | ✗  | ✓
+//	WithAwaitDuration 等 v5 消费项 | ✗ | ✗  | ✓
+//	WithTag/WithKeys/WithProperties | ✓ | ✓ | ✓
+//	WithCompress/WithBatch    | ✗      | ✓  | ✗
+//	WithDelayTimeLevel        | ✗      | ✓  | ✗
+//	WithDeliveryTimestamp     | ✓      | ✗  | ✓
+//	WithShardingKey           | ✓      | ✓  | ✗
+//	WithMessageGroup          | ✗      | ✗  | ✓
+//	WithSendAsync/SendWithTransaction | ✗ | ✗ | ✓
+//	WithSubscriptionFilterExpression | ✗ | ✗ | ✓
+//	WithConsumerModel         | ✗      | ✓  | ✗
+//
+// 不支持的选项不会报错，但会打一次性告警（见 compat.go）。
+
 ///
 /// Option
 ///

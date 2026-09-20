@@ -1,6 +1,7 @@
 package kcp
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/xtaci/kcp-go/v5"
@@ -11,11 +12,14 @@ func TestSessionManager(t *testing.T) {
 	session := NewSession(conn, nil)
 	id := session.SessionID()
 
-	sm := NewSessionManager()
+	sm := NewSessionManager(nil)
 
+	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
-		go func() { sm.addSession(session, nil) }()
-		go func() { sm.removeSession(session, nil) }()
-		go func() { sm.getSession(id) }()
+		wg.Add(3)
+		go func() { defer wg.Done(); sm.addSession(session) }()
+		go func() { defer wg.Done(); sm.removeSession(session) }()
+		go func() { defer wg.Done(); sm.getSession(id) }()
 	}
+	wg.Wait()
 }

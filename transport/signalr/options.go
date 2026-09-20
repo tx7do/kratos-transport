@@ -65,3 +65,12 @@ func WithHub(hub signalr.HubInterface) ServerOption {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// WithAllowedOrigins 配置 CORS 允许的 Origin 白名单；"*" 表示全部放行。
+// 默认（未配置）不返回任何 CORS 头，仅同源可用。
+func WithAllowedOrigins(origins []string, allowCredentials bool) ServerOption {
+	return func(s *Server) {
+		s.allowedOrigins = origins
+		s.allowCredentials = allowCredentials
+	}
+}

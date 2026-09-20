@@ -75,10 +75,14 @@ github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8Hm
 github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFFd8Hwg//Y=
 github.com/kataras/blocks v0.0.12 h1:2OnEYFcLtYPjyEMhyDk1pdHm+b75hay5uobuPTacnIc=
 github.com/kataras/blocks v0.0.12/go.mod h1:CtCOQ+YDdd0NJTMW019YPV9D+q6dWO2b9d2cSRgifpk=
+github.com/kataras/golog v0.1.11 h1:dGkcCVsIpqiAMWTlebn/ZULHxFvfG4K43LF1cNWSh20=
+github.com/kataras/golog v0.1.11/go.mod h1:mAkt1vbPowFUuUGvexyQ5NFW6djEgGyxQBIARJ0AH4A=
 github.com/kataras/golog v0.1.15 h1:gDNOENbbn+6me98UW1f9Cs5MRUlAkabnNvmgLFM58Xw=
 github.com/kataras/golog v0.1.15/go.mod h1:Ozu1TDa+OKC7fFe7OG64In71yLxjda+6kPl+Rg3v1hA=
 github.com/kataras/iris/v12 v12.2.11 h1:sGgo43rMPfzDft8rjVhPs6L3qDJy3TbBrMD/zGL1pzk=
 github.com/kataras/iris/v12 v12.2.11/go.mod h1:uMAeX8OqG9vqdhyrIPv8Lajo/wXTtAF43wchP9WHt2w=
+github.com/kataras/pio v0.0.13 h1:x0rXVX0fviDTXOOLOmr4MUxOabu1InVSTu5itF8CXCM=
+github.com/kataras/pio v0.0.13/go.mod h1:k3HNuSw+eJ8Pm2lA4lRhg3DiCjVgHlP8hmXApSej3oM=
 github.com/kataras/pio v0.0.14 h1:VGBHOmhwrMMrZeuRqoSfOrFwG+v1JxQge8N50DhmRYQ=
 github.com/kataras/pio v0.0.14/go.mod h1:ZIlcw5+5Zyb/kOlU7X4uosZ8dbnXmA4GcGKt1XyyTY0=
 github.com/kataras/sitemap v0.0.6 h1:w71CRMMKYMJh6LR2wTgnk5hSgjVNB9KL60n5e2KHvLY=

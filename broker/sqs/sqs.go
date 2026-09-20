@@ -146,7 +146,7 @@ func (b *sqsBroker) Disconnect() error {
 }
 
 func (b *sqsBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *sqsBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -275,7 +275,12 @@ func (b *sqsBroker) Subscribe(topic string, handler broker.Handler, binder broke
 		client:   b.client,
 	}
 
-	go sub.recv(handler, binder, recvOpts{
+	// 在启动 goroutine 之前创建并登记 cancel，
+	// 避免「Subscribe 后立刻 Unsubscribe」时 cancel 尚未赋值导致消费循环无法停止
+	recvCtx, cancel := context.WithCancel(options.Context)
+	sub.cancel = cancel
+
+	go sub.recv(recvCtx, handler, binder, recvOpts{
 		visibilityTimeout: visibilityTimeout,
 		waitTimeSeconds:   waitTimeSeconds,
 		maxMessages:       maxMessages,

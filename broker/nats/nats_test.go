@@ -158,6 +158,10 @@ func handleHygrothermograph(_ context.Context, topic string, headers broker.Head
 }
 
 func Test_Publish_WithRawData(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -195,6 +199,10 @@ func Test_Publish_WithRawData(t *testing.T) {
 }
 
 func Test_Subscribe_WithRawData(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -215,6 +223,10 @@ func Test_Subscribe_WithRawData(t *testing.T) {
 }
 
 func Test_Publish_WithJsonCodec(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -252,6 +264,10 @@ func Test_Publish_WithJsonCodec(t *testing.T) {
 }
 
 func Test_Subscribe_WithJsonCodec(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -300,6 +316,10 @@ func createTracerProvider(exporterName, serviceName string) broker.Option {
 }
 
 func Test_Publish_WithTracer(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -338,6 +358,10 @@ func Test_Publish_WithTracer(t *testing.T) {
 }
 
 func Test_Subscribe_WithTracer(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -360,6 +384,10 @@ func Test_Subscribe_WithTracer(t *testing.T) {
 }
 
 func Test_Request_WithTracer(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
@@ -406,6 +434,10 @@ func Test_Request_WithTracer(t *testing.T) {
 }
 
 func Test_ResponseSubscribe_WithTracer(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 

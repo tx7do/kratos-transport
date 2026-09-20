@@ -27,16 +27,22 @@ func NewTracer(kind trace.SpanKind, spanName string, opts ...Option) *Tracer {
 	for _, o := range opts {
 		o(&op)
 	}
+
+	// 优先使用注入的 provider 创建 tracer；
+	// 全局 provider 的设置只作为兼容行为保留（旧版本依赖它让 otel.Tracer 生效）。
+	var tracer trace.Tracer
 	if op.tracerProvider != nil {
 		otel.SetTracerProvider(op.tracerProvider)
+		tracer = op.tracerProvider.Tracer(op.tracerName)
+	} else {
+		tracer = otel.Tracer(op.tracerName)
 	}
 	op.spanName = spanName
 
 	switch kind {
-	case trace.SpanKindProducer, trace.SpanKindConsumer:
-		return &Tracer{tracer: otel.Tracer(op.tracerName), opt: &op}
-	case trace.SpanKindServer, trace.SpanKindClient:
-		return &Tracer{tracer: otel.Tracer(op.tracerName), opt: &op}
+	case trace.SpanKindProducer, trace.SpanKindConsumer,
+		trace.SpanKindServer, trace.SpanKindClient:
+		return &Tracer{tracer: tracer, opt: &op}
 	default:
 		panic(fmt.Sprintf("unsupported span kind: %v", kind))
 	}

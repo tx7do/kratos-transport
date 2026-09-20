@@ -1,7 +1,7 @@
 package iris
 
 import (
-	"context"
+	stdcontext "context"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kataras/iris/v12"
+	iriscontext "github.com/kataras/iris/v12/context"
 
 	"github.com/go-kratos/kratos/v2/errors"
 	kratosTransport "github.com/go-kratos/kratos/v2/transport"
@@ -48,6 +49,16 @@ func (s *Server) init(opts ...ServerOption) {
 	for _, o := range opts {
 		o(s)
 	}
+
+	if s.timeout > 0 {
+		s.Application.Use(func(ctx *iriscontext.Context) {
+			req := ctx.Request()
+			newCtx, cancel := stdcontext.WithDeadline(req.Context(), time.Now().Add(s.timeout))
+			defer cancel()
+			ctx.ResetRequest(req.WithContext(newCtx))
+			ctx.Next()
+		})
+	}
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {
@@ -80,7 +91,7 @@ func (s *Server) Name() string {
 	return KindIris
 }
 
-func (s *Server) Start(_ context.Context) error {
+func (s *Server) Start(_ stdcontext.Context) error {
 	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}
@@ -100,7 +111,7 @@ func (s *Server) Start(_ context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(ctx context.Context) error {
+func (s *Server) Stop(ctx stdcontext.Context) error {
 	LogInfo("server stopping...")
 
 	err := s.Application.Shutdown(ctx)

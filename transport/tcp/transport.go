@@ -69,27 +69,47 @@ func SetOperation(ctx context.Context, op string) {
 	}
 }
 
-type headerCarrier struct{}
+// headerCarrier is a map-backed kratos header carrier.
+type headerCarrier struct {
+	h http.Header
+}
+
+func (hc *headerCarrier) init() {
+	if hc.h == nil {
+		hc.h = make(http.Header)
+	}
+}
 
 // Get returns the value associated with the passed key.
-func (hc headerCarrier) Get(_ string) string {
-	return ""
+func (hc *headerCarrier) Get(key string) string {
+	hc.init()
+	return hc.h.Get(key)
 }
 
 // Set stores the key-value pair.
-func (hc headerCarrier) Set(_, _ string) {
+func (hc *headerCarrier) Set(key, value string) {
+	hc.init()
+	hc.h.Set(key, value)
 }
 
 // Keys lists the keys stored in this carrier.
-func (hc headerCarrier) Keys() []string {
-	return []string{}
+func (hc *headerCarrier) Keys() []string {
+	hc.init()
+	keys := make([]string, 0, len(hc.h))
+	for k := range hc.h {
+		keys = append(keys, k)
+	}
+	return keys
 }
 
 // Add append value to key-values pair.
-func (hc headerCarrier) Add(_ string, _ string) {
+func (hc *headerCarrier) Add(key, value string) {
+	hc.init()
+	hc.h.Add(key, value)
 }
 
 // Values returns a slice of values associated with the passed key.
-func (hc headerCarrier) Values(_ string) []string {
-	return []string{}
+func (hc *headerCarrier) Values(key string) []string {
+	hc.init()
+	return hc.h.Values(key)
 }

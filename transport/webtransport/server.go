@@ -48,11 +48,63 @@ type Server struct {
 	ctxCancel context.CancelFunc
 	refCount  sync.WaitGroup
 
+	running atomic.Bool
+
 	messageHandlers MessageHandlerMap
 	connectHandler  ConnectHandler
 	codec           encoding.Codec
 
 	sessionCount atomic.Int64
+
+	// sessions 在线的流会话表，用于服务端下行发送
+	sessionsMu sync.Mutex
+	sessions   map[SessionID]*session
+}
+
+// session 封装一条被劫持的 HTTP/3 双向流
+type session struct {
+	id SessionID
+	// stream 被服务端劫持的 HTTP/3 流，读用于上行、写用于下行
+	stream *http3.Stream
+	// writeMu 单写者：串行化下行帧写入
+	writeMu sync.Mutex
+}
+
+// SendRawData 向指定会话下行发送一帧原始数据
+func (s *Server) SendRawData(sessionId SessionID, data []byte) error {
+	s.sessionsMu.Lock()
+	sess, ok := s.sessions[sessionId]
+	s.sessionsMu.Unlock()
+
+	if !ok {
+		return errors.New("session not found")
+	}
+
+	sess.writeMu.Lock()
+	defer sess.writeMu.Unlock()
+
+	return WriteFrame(sess.stream, data)
+}
+
+// BroadcastRawData 向所有在线会话下行发送一帧原始数据
+func (s *Server) BroadcastRawData(data []byte) error {
+	s.sessionsMu.Lock()
+	sessions := make([]*session, 0, len(s.sessions))
+	for _, sess := range s.sessions {
+		sessions = append(sessions, sess)
+	}
+	s.sessionsMu.Unlock()
+
+	var firstErr error
+	for _, sess := range sessions {
+		sess.writeMu.Lock()
+		err := WriteFrame(sess.stream, data)
+		sess.writeMu.Unlock()
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -63,6 +115,7 @@ func NewServer(opts ...ServerOption) *Server {
 		mux:       http.NewServeMux(),
 
 		messageHandlers: make(MessageHandlerMap),
+		sessions:        make(map[SessionID]*session),
 		codec:           encoding.GetCodec("json"),
 	}
 	srv.init(opts...)
@@ -130,6 +183,10 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if !s.running.CompareAndSwap(false, true) {
+		return nil
+	}
+
 	if err := s.listenAndEndpoint(); err != nil {
 		return err
 	}
@@ -146,14 +203,21 @@ func (s *Server) Start(_ context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(_ context.Context) error {
+func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
 	if s.ctxCancel != nil {
 		s.ctxCancel()
 	}
 
-	err := s.Server.Close()
+	// 先尝试优雅关闭（等待在途请求），失败或超时则硬关闭
+	s.running.Store(false)
+
+	err := s.Server.Shutdown(ctx)
+	if err != nil {
+		LogWarnf("graceful shutdown failed, closing: %s", err.Error())
+		err = s.Server.Close()
+	}
 	s.refCount.Wait()
 
 	LogInfo("server stopped.")
@@ -242,8 +306,13 @@ func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Accept the session by sending 200 OK
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	w.(http.Flusher).Flush()
+	flusher.Flush()
 
 	// Hijack the HTTP/3 stream for bidirectional communication
 	hijacker, ok := w.(http3.HTTPStreamer)
@@ -258,6 +327,11 @@ func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	// Generate session ID from stream ID
 	sessionId := SessionID(stream.StreamID())
 
+	sess := &session{id: sessionId, stream: stream}
+	s.sessionsMu.Lock()
+	s.sessions[sessionId] = sess
+	s.sessionsMu.Unlock()
+
 	s.sessionCount.Add(1)
 
 	// Notify connect handler
@@ -269,6 +343,9 @@ func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer s.refCount.Done()
 		defer func() {
+			s.sessionsMu.Lock()
+			delete(s.sessions, sessionId)
+			s.sessionsMu.Unlock()
 			s.sessionCount.Add(-1)
 			if s.connectHandler != nil {
 				s.connectHandler(sessionId, false)
@@ -282,39 +359,18 @@ func (s *Server) addHandler(w http.ResponseWriter, r *http.Request) {
 // serveSession reads messages from the hijacked stream and dispatches them
 // to the registered message handlers.
 func (s *Server) serveSession(sessionId SessionID, stream *http3.Stream) {
-	buf := make([]byte, 4096)
-
 	for {
-		// Read message length (4 bytes, little-endian uint32)
-		var sizeBuf [4]byte
-		if _, err := io.ReadFull(stream, sizeBuf[:]); err != nil {
+		// 按帧读取上行消息（4 字节小端长度前缀 + payload）
+		frame, err := ReadFrame(stream)
+		if err != nil {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
-				LogErrorf("session %d: read size error: %s", sessionId, err)
-			}
-			return
-		}
-
-		// Decode message length
-		msgLen := uint(sizeBuf[0]) | uint(sizeBuf[1])<<8 | uint(sizeBuf[2])<<16 | uint(sizeBuf[3])<<24
-		if msgLen == 0 {
-			continue
-		}
-
-		// Grow buffer if needed
-		if uint(cap(buf)) < msgLen {
-			buf = make([]byte, msgLen)
-		}
-		data := buf[:msgLen]
-
-		if _, err := io.ReadFull(stream, data); err != nil {
-			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
-				LogErrorf("session %d: read data error: %s", sessionId, err)
+				LogErrorf("session %d: read error: %s", sessionId, err)
 			}
 			return
 		}
 
 		// Dispatch to message handler
-		if err := s.messageHandler(sessionId, data); err != nil {
+		if err := s.messageHandler(sessionId, frame); err != nil {
 			LogErrorf("session %d: message handler error: %s", sessionId, err)
 		}
 	}

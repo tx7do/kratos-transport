@@ -114,7 +114,7 @@ func (b *azureBroker) Disconnect() error {
 }
 
 func (b *azureBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *azureBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -336,6 +336,9 @@ func (b *azureBroker) processMessage(ctx context.Context, receiver *azservicebus
 	if err := handler(ctx, p); err != nil {
 		p.err = err
 		LogErrorf("handle message failed: %v", err)
+		if eh := b.options.ErrorHandler; eh != nil {
+			_ = eh(ctx, p)
+		}
 		_ = receiver.AbandonMessage(ctx, sbMsg, nil)
 		return
 	}

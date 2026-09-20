@@ -60,32 +60,37 @@ func (b *pubsubBroker) Init(opts ...broker.Option) error {
 		return errors.New("redis: cannot init while connected")
 	}
 
-	var addr string
-
-	if len(b.options.Addrs) == 0 || b.options.Addrs[0] == "" {
-		addr = defaultBroker
-	} else {
-		addr = b.options.Addrs[0]
-
-		if !strings.HasPrefix(addr, "redis://") {
-			addr = "redis://" + addr
-		}
-	}
-
-	b.addr = addr
-
 	b.options.Apply(opts...)
 
-	if v, ok := b.options.Context.Value(redisOption.OptionsKey).(*redisOption.CommonOptions); ok {
+	if v, ok := b.options.Context.Value(redisOption.OptionsKey).(*redisOption.CommonOptions); ok && v != nil {
 		b.commonOpts = v
 	}
 
+	b.addr = normalizeAddr(b.options.Addrs)
+
 	return nil
+}
+
+func normalizeAddr(addressList []string) string {
+	if len(addressList) == 0 || addressList[0] == "" {
+		return defaultBroker
+	}
+
+	addr := addressList[0]
+	if !strings.HasPrefix(addr, "redis://") {
+		addr = "redis://" + addr
+	}
+
+	return addr
 }
 
 func (b *pubsubBroker) Connect() error {
 	if b.pool != nil {
 		return nil
+	}
+
+	if b.addr == "" {
+		b.addr = normalizeAddr(b.options.Addrs)
 	}
 
 	b.pool = &redis.Pool{
@@ -114,6 +119,10 @@ func (b *pubsubBroker) Connect() error {
 }
 
 func (b *pubsubBroker) Disconnect() error {
+	if b.pool == nil {
+		return nil
+	}
+
 	err := b.pool.Close()
 	b.pool = nil
 	b.addr = ""
@@ -124,7 +133,7 @@ func (b *pubsubBroker) Disconnect() error {
 }
 
 func (b *pubsubBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *pubsubBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -150,6 +159,9 @@ func (b *pubsubBroker) internalPublish(ctx context.Context, topic string, msg *b
 }
 
 func (b *pubsubBroker) publish(_ context.Context, topic string, msg *broker.Message, _ ...broker.PublishOption) error {
+	if b.pool == nil {
+		return errors.New("redis: not connected")
+	}
 	conn := b.pool.Get()
 	_, err := redis.Int(conn.Do("PUBLISH", topic, msg.BodyBytes()))
 	_ = conn.Close()
@@ -157,6 +169,10 @@ func (b *pubsubBroker) publish(_ context.Context, topic string, msg *broker.Mess
 }
 
 func (b *pubsubBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	if b.pool == nil {
+		return nil, errors.New("redis: not connected")
+	}
+
 	options := broker.SubscribeOptions{
 		Context: context.Background(),
 	}

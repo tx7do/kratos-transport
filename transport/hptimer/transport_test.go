@@ -7,7 +7,7 @@ import (
 
 func TestTransport_Kind(t *testing.T) {
 	o := &Transport{}
-	if !reflect.DeepEqual(KindHighPrecisionTimer, o.Kind()) {
+	if KindHighPrecisionTimer != o.Kind() {
 		t.Errorf("expect %v, got %v", KindHighPrecisionTimer, o.Kind())
 	}
 }

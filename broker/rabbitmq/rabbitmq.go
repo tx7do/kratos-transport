@@ -121,7 +121,7 @@ func (b *rabbitBroker) Disconnect() error {
 }
 
 func (b *rabbitBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *rabbitBroker) Publish(ctx context.Context, routingKey string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -295,13 +295,28 @@ func (b *rabbitBroker) Subscribe(routingKey string, handler broker.Handler, bind
 			m.Body = binder()
 
 			if p.err = broker.Unmarshal(b.options.Codec, msg.Body, &m.Body); p.err != nil {
+				// 反序列化失败：跳过 handler（避免拿到零值 Body 继续处理），
+				// 走统一的错误/Nack 路径
 				LogErrorf("unmarshal message failed: %v", p.err)
+				if eh := b.options.ErrorHandler; eh != nil {
+					_ = eh(ctx, p)
+				}
+				if !options.AutoAck {
+					_ = msg.Nack(false, requeueOnError)
+				}
+				b.finishConsumerSpan(ctx, span, p.err)
+				return
 			}
 		} else {
 			m.Body = msg.Body
 		}
 
 		p.err = handler(ctx, p)
+		if p.err != nil {
+			if eh := b.options.ErrorHandler; eh != nil {
+				_ = eh(ctx, p)
+			}
+		}
 		if p.err == nil && ackSuccess && !options.AutoAck {
 			_ = msg.Ack(false)
 		} else if p.err != nil && !options.AutoAck {

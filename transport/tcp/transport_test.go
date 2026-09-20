@@ -11,7 +11,7 @@ import (
 
 func TestTransport_Kind(t *testing.T) {
 	o := &Transport{}
-	if !reflect.DeepEqual(KindTcp, o.Kind()) {
+	if KindTcp != o.Kind() {
 		t.Errorf("expect %v, got %v", KindTcp, o.Kind())
 	}
 }

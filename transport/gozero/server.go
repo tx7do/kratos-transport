@@ -3,6 +3,7 @@ package gozero
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -28,6 +29,7 @@ type Server struct {
 	err error
 
 	endpoint *url.URL
+	started  bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -63,20 +65,37 @@ func (s *Server) Endpoint() (*url.URL, error) {
 
 func (s *Server) listenAndEndpoint() error {
 	if s.endpoint == nil {
-		ip, _ := transport.GetLocalIP()
-		host := ip + ":" + fmt.Sprint(s.cfg.Port)
-		s.endpoint = transport.NewRegistryEndpoint(KindGoZero, host)
+		host := s.cfg.Host
+		if host == "" || host == "0.0.0.0" {
+			ip, _ := transport.GetLocalIP()
+			host = ip
+		}
+		addr := host + ":" + fmt.Sprint(s.cfg.Port)
+		s.endpoint = transport.NewRegistryEndpoint(KindGoZero, addr)
 	}
 	return nil
 }
 
 func (s *Server) Start(_ context.Context) error {
+	if s.started {
+		return nil
+	}
+
 	if err := s.listenAndEndpoint(); err != nil {
 		return err
 	}
 
 	LogInfof("server listening on: %d", s.cfg.Port)
 
+	// go-zero 的 rest.Server 对监听冲突等错误会直接 panic，
+	// 提前占位检测以给出可读的错误而非崩溃
+	probe, probeErr := net.Listen("tcp", fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port))
+	if probeErr != nil {
+		return probeErr
+	}
+	_ = probe.Close()
+
+	s.started = true
 	s.Server.Start()
 
 	return nil
@@ -85,6 +104,7 @@ func (s *Server) Start(_ context.Context) error {
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping...")
 
+	s.started = false
 	s.Server.Stop()
 	s.err = nil
 

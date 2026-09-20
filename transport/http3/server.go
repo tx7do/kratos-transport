@@ -47,6 +47,8 @@ type Server struct {
 
 	router      *mux.Router
 	strictSlash bool
+
+	stopped bool
 }
 
 func NewServer(opts ...ServerOption) *Server {
@@ -114,6 +116,12 @@ func (s *Server) listenAndEndpoint() error {
 }
 
 func (s *Server) Start(ctx context.Context) error {
+	if s.stopped {
+		// quic-go 的 http3.Server 一旦 Close/Shutdown 便永久失效，
+		// 静默重启只会得到“假启动”，这里显式报错
+		return errors.New("http3 server cannot be restarted after Stop; create a new server instance")
+	}
+
 	if s.err = s.listenAndEndpoint(); s.err != nil {
 		return s.err
 	}
@@ -133,7 +141,15 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
-	err := s.Close()
+	s.stopped = true
+
+	// 优先优雅关闭（发 GOAWAY、等待在途请求），
+	// ctx 取消或超时后降级为硬关闭
+	err := s.Shutdown(ctx)
+	if err != nil {
+		LogWarnf("graceful shutdown failed, closing: %s", err.Error())
+		err = s.Close()
+	}
 	s.err = nil
 
 	LogInfo("server stopped.")

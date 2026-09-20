@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net"
+	"runtime"
 	"testing"
 )
 
@@ -9,6 +10,10 @@ func TestGetIPAddressByInterfaceName(t *testing.T) {
 	// 创建一个虚拟网络接口名称用于测试
 	// 请根据实际环境替换为有效的网络接口名称
 	interfaceName := "lo" // Linux下的回环接口名称，Windows可能需要替换为 "Loopback Pseudo-Interface 1"
+	// macOS 的回环接口名为 lo0
+	if runtime.GOOS == "darwin" {
+		interfaceName = "lo0"
+	}
 
 	ip, err := GetIPAddressByInterfaceName(interfaceName)
 	if err != nil {

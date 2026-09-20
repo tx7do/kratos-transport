@@ -112,6 +112,8 @@ func (b *aliyunmqBroker) Init(opts ...broker.Option) error {
 		b.groupName = v
 	}
 
+	rocketmqOption.WarnUnsupportedKeysOnce("aliyun", b.options.Context, rocketmqOption.AliyunUnsupportedBrokerKeys())
+
 	if len(b.options.Tracings) > 0 {
 		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
 		b.consumerTracer = tracing.NewTracer(trace.SpanKindConsumer, SpanNameConsumer, b.options.Tracings...)
@@ -157,7 +159,7 @@ func (b *aliyunmqBroker) Disconnect() error {
 }
 
 func (b *aliyunmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *aliyunmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -216,8 +218,11 @@ func (b *aliyunmqBroker) publish(ctx context.Context, topic string, msg *broker.
 	if v, ok := options.Context.Value(rocketmqOption.PropertiesKey{}).(map[string]string); ok {
 		aMsg.Properties = v
 	}
-	if v, ok := options.Context.Value(rocketmqOption.DelayTimeLevelKey{}).(int); ok {
-		aMsg.StartDeliverTime = int64(v)
+	// StartDeliverTime 是绝对毫秒时间戳：用 WithDeliveryTimestamp 传递定时时间；
+	// WithDelayTimeLevel 是延迟级别语义，无法映射到该字段，命中时告警
+	rocketmqOption.WarnUnsupportedKeysOnce("aliyun", options.Context, rocketmqOption.AliyunUnsupportedPublishKeys())
+	if v, ok := options.Context.Value(rocketmqOption.DeliveryTimestampKey{}).(time.Time); ok && !v.IsZero() {
+		aMsg.StartDeliverTime = v.UnixMilli()
 	}
 	if v, ok := options.Context.Value(rocketmqOption.TagsKey{}).(string); ok {
 		aMsg.MessageTag = v

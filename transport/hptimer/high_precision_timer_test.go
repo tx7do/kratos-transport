@@ -577,26 +577,19 @@ func TestHighPrecisionTimer_ConcurrentSafety(t *testing.T) {
 
 	taskCount := 1000
 	var wg sync.WaitGroup
-	wg.Add(taskCount * 2)
+	wg.Add(taskCount)
 
-	// 并发添加任务
+	// 每个 goroutine 内先添加后删除（配对执行）：
+	// 若 Add 与 Remove 完全并发，Remove 可能先于 Add 执行，断言「全部移除」天然不稳定
 	for i := 0; i < taskCount; i++ {
 		go func(idx int) {
 			defer wg.Done()
 			taskID := TimerTaskID(fmt.Sprintf("concurrent_safe_%d", idx))
 			ht.AddTask(&TimerTask{
 				ID:       taskID,
-				At:       time.Now().Add(10 * time.Millisecond),
+				At:       time.Now().Add(1 * time.Hour), // 远期触发，避免与删除竞态
 				Callback: func(ctx context.Context) error { return nil },
 			})
-		}(i)
-	}
-
-	// 并发删除任务
-	for i := 0; i < taskCount; i++ {
-		go func(idx int) {
-			defer wg.Done()
-			taskID := TimerTaskID(fmt.Sprintf("concurrent_safe_%d", idx))
 			ht.RemoveTask(taskID)
 		}(i)
 	}

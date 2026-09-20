@@ -167,10 +167,13 @@ func (b *rocketmqBroker) Init(opts ...broker.Option) error {
 		case log.LevelInfo:
 			strLevel = "info"
 		default:
-			panic("unhandled default case")
+			// 未知级别回退到 info，而不是 panic
+			strLevel = "info"
 		}
 		_ = os.Setenv(rmqClient.CLIENT_LOG_LEVEL, strLevel)
 	}
+
+	rocketmqOption.WarnUnsupportedKeysOnce("v5", b.options.Context, rocketmqOption.V5UnsupportedBrokerKeys())
 
 	if len(b.options.Tracings) > 0 {
 		b.producerTracer = tracing.NewTracer(trace.SpanKindProducer, SpanNameProducer, b.options.Tracings...)
@@ -224,7 +227,7 @@ func (b *rocketmqBroker) Disconnect() error {
 }
 
 func (b *rocketmqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *rocketmqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -290,6 +293,7 @@ func (b *rocketmqBroker) publish(ctx context.Context, topic string, msg *broker.
 	if v, ok := rocketmqOptions.Context.Value(rocketmqOption.KeysKey{}).([]string); ok {
 		rMsg.SetKeys(v...)
 	}
+	rocketmqOption.WarnUnsupportedKeysOnce("v5", rocketmqOptions.Context, rocketmqOption.V5UnsupportedPublishKeys())
 	if v, ok := rocketmqOptions.Context.Value(rocketmqOption.DeliveryTimestampKey{}).(time.Time); ok {
 		rMsg.SetDelayTimestamp(v)
 	}
@@ -389,6 +393,7 @@ func (b *rocketmqBroker) Subscribe(topic string, handler broker.Handler, binder 
 	if len(b.options.SubscriberMiddlewares) > 0 {
 		handler = broker.ChainSubscriberMiddleware(handler, b.options.SubscriberMiddlewares)
 	}
+	rocketmqOption.WarnUnsupportedKeysOnce("v5", rocketmqOptions.Context, rocketmqOption.V5UnsupportedSubscribeKeys())
 
 	if b.consumer == nil {
 		c, err := b.createConsumer(rocketmqOptions)

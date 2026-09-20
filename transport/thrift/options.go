@@ -51,6 +51,13 @@ func WithDiscovery(d registry.Discovery) ClientOption {
 	}
 }
 
+// WithClientServiceName 配置服务发现时的服务名（配合 WithDiscovery 使用）。
+func WithClientServiceName(name string) ClientOption {
+	return func(o *clientOptions) {
+		o.serviceName = name
+	}
+}
+
 // WithEndpoint with client endpoint.
 func WithEndpoint(endpoint string) ClientOption {
 	return func(o *clientOptions) {

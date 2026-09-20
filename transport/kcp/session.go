@@ -117,8 +117,8 @@ func (c *Session) writePump() {
 			if conn == nil {
 				return
 			}
-			var err error
-			if _, err = conn.Write(msg); err != nil {
+			// 写入带长度前缀的帧，保证对端能正确分包
+			if err := WriteFrame(conn, msg); err != nil {
 				select {
 				case <-c.done:
 					return
@@ -135,10 +135,6 @@ func (c *Session) readPump() {
 	defer c.wg.Done()
 	defer c.Close()
 
-	buf := make([]byte, recvBufferSize)
-	var err error
-	var readLen int
-
 	for {
 		select {
 		case <-c.done:
@@ -151,7 +147,9 @@ func (c *Session) readPump() {
 			return
 		}
 
-		if readLen, err = conn.Read(buf); err != nil {
+		// 按帧读取，解决粘包/拆包问题
+		frame, err := ReadFrame(conn)
+		if err != nil {
 			select {
 			case <-c.done:
 				return
@@ -165,7 +163,7 @@ func (c *Session) readPump() {
 			continue
 		}
 
-		if err = c.hooks.handleSocketRawData(c.SessionID(), buf[:readLen]); err != nil {
+		if err = c.hooks.handleSocketRawData(c.SessionID(), frame); err != nil {
 			LogErrorf("process message error: %v", err)
 		}
 	}

@@ -48,18 +48,22 @@ func WithFilter(filters ...kHttp.FilterFunc) ServerOption {
 	}
 }
 
+// WithRequestDecoder 预留选项：请求解码需要与路由的目标类型绑定，
+// gin 路由由用户自行处理参数解析，该选项当前不参与请求处理。
 func WithRequestDecoder(dec kHttp.DecodeRequestFunc) ServerOption {
 	return func(s *Server) {
 		s.dec = dec
 	}
 }
 
+// WithResponseEncoder 预留选项：响应编码由 gin 路由自行完成，该选项当前不参与响应处理。
 func WithResponseEncoder(en kHttp.EncodeResponseFunc) ServerOption {
 	return func(s *Server) {
 		s.enc = en
 	}
 }
 
+// WithErrorEncoder 错误编码器：kratos 中间件链返回错误且尚未写响应时，用它输出错误响应。
 func WithErrorEncoder(en kHttp.EncodeErrorFunc) ServerOption {
 	return func(s *Server) {
 		s.ene = en

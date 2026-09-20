@@ -380,6 +380,7 @@ func (s *Server) wsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	session := NewSession(s, conn, vars)
+	s.sessionManager.addSession(session)
 	session.Listen()
 }
 
@@ -460,6 +461,18 @@ func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
 	err := s.Shutdown(ctx)
+
+	// http.Server.Shutdown 不会关闭已升级为 websocket 的 hijacked 连接，
+	// 需要显式关闭所有会话，否则每连接 goroutine 在 Stop 后继续存活
+	if s.sessionManager != nil {
+		s.sessionManager.rangeSessions(func(_ SessionID, session *Session) bool {
+			if session != nil {
+				session.Close()
+			}
+			return true
+		})
+	}
+
 	s.err = nil
 
 	LogInfo("server stopped.")

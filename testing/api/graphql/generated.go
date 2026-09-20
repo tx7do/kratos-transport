@@ -46,12 +46,12 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Hygrothermograph struct {
-		Humidity    func(childComplexity int) int
-		Temperature func(childComplexity int) int
+		Humidity    func(ctx context.Context, childComplexity int) int
+		Temperature func(ctx context.Context, childComplexity int) int
 	}
 
 	Query struct {
-		Hygrothermograph func(childComplexity int) int
+		Hygrothermograph func(ctx context.Context, childComplexity int) int
 	}
 }
 
@@ -73,7 +73,7 @@ func (e *executableSchema) Schema() *ast.Schema {
 	return parsedSchema
 }
 
-func (e *executableSchema) Complexity(typeName, field string, childComplexity int, rawArgs map[string]any) (int, bool) {
+func (e *executableSchema) Complexity(ctx context.Context, typeName, field string, childComplexity int, rawArgs map[string]any) (int, bool) {
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
@@ -83,21 +83,21 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Hygrothermograph.Humidity(childComplexity), true
+		return e.complexity.Hygrothermograph.Humidity(ctx, childComplexity), true
 
 	case "Hygrothermograph.temperature":
 		if e.complexity.Hygrothermograph.Temperature == nil {
 			break
 		}
 
-		return e.complexity.Hygrothermograph.Temperature(childComplexity), true
+		return e.complexity.Hygrothermograph.Temperature(ctx, childComplexity), true
 
 	case "Query.hygrothermograph":
 		if e.complexity.Query.Hygrothermograph == nil {
 			break
 		}
 
-		return e.complexity.Query.Hygrothermograph(childComplexity), true
+		return e.complexity.Query.Hygrothermograph(ctx, childComplexity), true
 
 	}
 	return 0, false

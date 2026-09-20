@@ -199,7 +199,7 @@ func (m *mqttBroker) Disconnect() error {
 }
 
 func (m *mqttBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, m, topic, msg, opts...)
 }
 
 func (m *mqttBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -294,6 +294,9 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 		if err := handler(context.Background(), p); err != nil {
 			p.err = err
 			LogError("handle message failed:", err)
+			if eh := m.options.ErrorHandler; eh != nil {
+				_ = eh(context.Background(), p)
+			}
 		}
 	}
 

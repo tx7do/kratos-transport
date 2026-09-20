@@ -59,10 +59,14 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
-	s.Hertz = hertz.Default(append([]config.Option{
-		hertz.WithHostPorts(s.addr),
-		hertz.WithTLS(s.tlsConf),
-	}, s.options...)...)
+	hertzOpts := []config.Option{hertz.WithHostPorts(s.addr)}
+	// WithTLS 即使传 nil 也会切换传输器实现，禁用默认的 netpoll；
+	// 因此仅在用户确实配置了 TLS 时才透传
+	if s.tlsConf != nil {
+		hertzOpts = append(hertzOpts, hertz.WithTLS(s.tlsConf))
+	}
+	hertzOpts = append(hertzOpts, s.options...)
+	s.Hertz = hertz.Default(hertzOpts...)
 }
 
 func (s *Server) Endpoint() (*url.URL, error) {

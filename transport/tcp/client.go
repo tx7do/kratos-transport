@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/encoding"
@@ -21,7 +22,8 @@ type ClientHandlerData struct {
 type ClientMessageHandlerMap map[NetMessageType]ClientHandlerData
 
 type Client struct {
-	conn net.Conn
+	connMu sync.RWMutex
+	conn   net.Conn
 
 	url      string
 	endpoint *url.URL
@@ -69,7 +71,9 @@ func (c *Client) Connect() error {
 		return err
 	}
 
+	c.connMu.Lock()
 	c.conn = conn
+	c.connMu.Unlock()
 
 	go c.run()
 
@@ -77,11 +81,15 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) Disconnect() {
-	if c.conn != nil {
-		if err := c.conn.Close(); err != nil {
+	c.connMu.Lock()
+	conn := c.conn
+	c.conn = nil
+	c.connMu.Unlock()
+
+	if conn != nil {
+		if err := conn.Close(); err != nil {
 			LogErrorf("disconnect error: %s", err.Error())
 		}
-		c.conn = nil
 	}
 }
 
@@ -116,11 +124,16 @@ func (c *Client) DeregisterMessageHandler(messageType NetMessageType) {
 }
 
 func (c *Client) SendRawData(message []byte) error {
-	if c.conn == nil {
+	c.connMu.RLock()
+	conn := c.conn
+	c.connMu.RUnlock()
+
+	if conn == nil {
 		return errors.New("client is not connected")
 	}
 
-	if _, err := c.conn.Write(message); err != nil {
+	// 写入带长度前缀的帧，与服务端分包逻辑对应
+	if err := WriteFrame(conn, message); err != nil {
 		return err
 	}
 	return nil
@@ -144,26 +157,31 @@ func (c *Client) SendMessage(messageType int, message any) error {
 func (c *Client) run() {
 	defer c.Disconnect()
 
-	buf := make([]byte, 102400)
-
-	var err error
-	var readLen int
-
 	for {
-		if readLen, err = c.conn.Read(buf); err != nil {
+		c.connMu.RLock()
+		conn := c.conn
+		c.connMu.RUnlock()
+
+		if conn == nil {
+			return
+		}
+
+		// 按帧读取，与服务端分包逻辑对应
+		frame, err := ReadFrame(conn)
+		if err != nil {
 			LogErrorf("read message error: %v", err)
 			return
 		}
 
 		if c.rawMessageHandler != nil {
-			if err := c.rawMessageHandler(buf[:readLen]); err != nil {
+			if err := c.rawMessageHandler(frame); err != nil {
 				LogErrorf("raw data handler exception: %s", err)
 				continue
 			}
 			continue
 		}
 
-		if err = c.messageHandler(buf[:readLen]); err != nil {
+		if err = c.messageHandler(frame); err != nil {
 			LogErrorf("process message error: %v", err)
 		}
 	}

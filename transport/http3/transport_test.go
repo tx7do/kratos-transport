@@ -12,7 +12,7 @@ import (
 
 func TestTransport_Kind(t *testing.T) {
 	o := &Transport{}
-	if !reflect.DeepEqual(KindHTTP3, o.Kind()) {
+	if KindHTTP3 != o.Kind() {
 		t.Errorf("expect %v, got %v", KindHTTP3, o.Kind())
 	}
 }

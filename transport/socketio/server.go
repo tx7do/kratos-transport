@@ -75,7 +75,7 @@ func (s *Server) Start(_ context.Context) error {
 
 	go func() {
 		if err := s.Server.Serve(); err != nil {
-			LogFatalf("socketio listen error: %s\n", err)
+			LogErrorf("socketio serve error: %s", err.Error())
 		}
 	}()
 
@@ -96,7 +96,10 @@ func (s *Server) Start(_ context.Context) error {
 func (s *Server) Stop(_ context.Context) error {
 	LogInfo("server stopping...")
 
-	//_ = s.lis.Close()
+	// 关闭 HTTP listener，否则 http.Serve 不会返回、端口不会释放
+	if s.lis != nil {
+		_ = s.lis.Close()
+	}
 	err := s.Server.Close()
 	s.err = nil
 

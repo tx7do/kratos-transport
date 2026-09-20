@@ -338,8 +338,8 @@ func (b *kafkaBroker) initPublishOption(writer *kafkaGo.Writer, options broker.P
 }
 
 // Request sends a request and waits for a response
-func (b *kafkaBroker) Request(_ context.Context, _ string, _ *broker.Message, _ ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+func (b *kafkaBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 // Publish publishes a message to a topic

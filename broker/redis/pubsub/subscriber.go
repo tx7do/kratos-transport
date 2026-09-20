@@ -45,6 +45,9 @@ func (s *subscriber) onMessage(channel string, data []byte) error {
 	}
 
 	if p.err = s.handler(s.options.Context, &p); p.err != nil {
+		if eh := s.b.options.ErrorHandler; eh != nil {
+			_ = eh(s.options.Context, &p)
+		}
 		return p.err
 	}
 

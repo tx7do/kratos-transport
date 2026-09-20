@@ -242,6 +242,9 @@ func (r *rabbitConnection) Close() error {
 	default:
 		close(r.close)
 		r.connected = false
+		// 重建 waitConnection：connect() 成功后会对它 close，
+		// 不重建的话 Disconnect→Connect 会对已关闭 channel 再次 close 触发 panic
+		r.waitConnection = make(chan struct{})
 	}
 
 	if r.Connection == nil {

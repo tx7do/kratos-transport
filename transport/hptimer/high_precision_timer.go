@@ -119,8 +119,12 @@ func (ht *HighPrecisionTimer) AddTask(task *TimerTask) TimerTaskID {
 	defer ht.mu.Unlock()
 
 	// 校验入参
-	if !ht.running || task == nil || task.ID == "" {
-		LogWarnf("添加任务失败：引擎未运行/任务为空/ID为空，任务ID：%s", task.ID)
+	if task == nil {
+		LogWarn("添加任务失败：任务为空")
+		return ""
+	}
+	if !ht.running || task.ID == "" {
+		LogWarnf("添加任务失败：引擎未运行/ID为空，任务ID：%s", task.ID)
 		return ""
 	}
 

@@ -65,9 +65,64 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
-	s.server = &http.Server{
+	s.installMiddlewares()
+
+	s.server = s.buildHTTPServer()
+}
+
+// installMiddlewares 把 kratos 风格的选项接线到 gin 引擎：
+// WithTimeout → 请求级 deadline；WithMiddleware → kratos 中间件适配；
+// WithFilter → 以 http 中间件形式包裹整个引擎（在 buildHTTPServer 时生效）。
+func (s *Server) installMiddlewares() {
+	if s.timeout > 0 {
+		s.Engine.Use(func(c *gin.Context) {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), s.timeout)
+			defer cancel()
+			c.Request = c.Request.WithContext(ctx)
+			c.Next()
+		})
+	}
+
+	for _, mw := range s.ms {
+		m := mw
+		s.Engine.Use(func(c *gin.Context) {
+			tr := &Transport{
+				operation:    c.FullPath(),
+				request:      c.Request,
+				pathTemplate: c.FullPath(),
+			}
+			tr.reqHeader = headerCarrier(c.Request.Header)
+
+			ctx := kratosTransport.NewServerContext(c.Request.Context(), tr)
+
+			// 终端 handler：继续执行 gin 后续链路（路由 handler 等）
+			handler := middleware.Handler(func(ctx context.Context, req any) (any, error) {
+				c.Next()
+				return nil, nil
+			})
+
+			_, err := m(handler)(ctx, c.Request)
+			if err != nil {
+				_ = c.Error(err)
+				// 中断且尚未写响应时，用错误编码器输出
+				if c.IsAborted() && !c.Writer.Written() {
+					s.ene(c.Writer, c.Request, err)
+				}
+			}
+		})
+	}
+}
+
+// buildHTTPServer 创建 http.Server，并把 kratos 的 Filter 包裹在引擎之外。
+func (s *Server) buildHTTPServer() *http.Server {
+	var handler http.Handler = s.Engine
+	for i := len(s.filters) - 1; i >= 0; i-- {
+		handler = s.filters[i](handler)
+	}
+
+	return &http.Server{
 		Addr:      s.address,
-		Handler:   s.Engine,
+		Handler:   handler,
 		TLSConfig: s.tlsConf,
 	}
 }
@@ -109,6 +164,11 @@ func (s *Server) Start(_ context.Context) error {
 
 	LogInfof("server listening on: %s", s.address)
 
+	// Stop 之后的 http.Server 已永久关闭，重启时必须换新的实例
+	if s.server == nil {
+		s.server = s.buildHTTPServer()
+	}
+
 	var err error
 	if s.tlsConf != nil {
 		err = s.server.ServeTLS(s.lis, "", "")
@@ -126,6 +186,15 @@ func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
 	err := s.server.Shutdown(ctx)
+
+	// Shutdown 后 http.Server 不可复用；同时释放 listener 与 endpoint，
+	// 使下一次 Start 能重新监听（重启支持）
+	s.server = nil
+	if s.lis != nil {
+		_ = s.lis.Close()
+		s.lis = nil
+	}
+	s.endpoint = nil
 	s.err = nil
 
 	LogInfo("server stopped.")

@@ -53,93 +53,71 @@ type CommonOptions struct {
 /// Option
 ///
 
+// defaultCommonOptions 返回填好默认值的连接池配置。
+// 各 With* 首次触发时以此为基础，避免只带单字段的零值结构覆盖掉其余默认值。
+func defaultCommonOptions() *CommonOptions {
+	return &CommonOptions{
+		MaxIdle:        DefaultMaxIdle,
+		MaxActive:      DefaultMaxActive,
+		IdleTimeout:    DefaultIdleTimeout,
+		ConnectTimeout: DefaultConnectTimeout,
+		ReadTimeout:    DefaultReadTimeout,
+		WriteTimeout:   DefaultWriteTimeout,
+	}
+}
+
+// commonOptions 取出（或创建）挂在 broker Options.Context 上的连接池配置
+func commonOptions(o *broker.Options) *CommonOptions {
+	if o.Context == nil {
+		o.Context = context.Background()
+	}
+	if x, ok := o.Context.Value(OptionsKey).(*CommonOptions); ok && x != nil {
+		return x
+	}
+	opts := defaultCommonOptions()
+	o.Context = context.WithValue(o.Context, OptionsKey, opts)
+	return opts
+}
+
 // WithConnectTimeout 连接Redis超时时间
 func WithConnectTimeout(d time.Duration) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		x := o.Context.Value(OptionsKey)
-		if x != nil {
-			x.(*CommonOptions).ConnectTimeout = d
-		} else {
-			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{ConnectTimeout: d})
-		}
+		commonOptions(o).ConnectTimeout = d
 	}
 }
 
 // WithReadTimeout 从Redis读取数据超时时间
 func WithReadTimeout(d time.Duration) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		x := o.Context.Value(OptionsKey)
-		if x != nil {
-			x.(*CommonOptions).ReadTimeout = d
-		} else {
-			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{ReadTimeout: d})
-		}
+		commonOptions(o).ReadTimeout = d
 	}
 }
 
 // WithWriteTimeout 向Redis写入数据超时时间
 func WithWriteTimeout(d time.Duration) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		x := o.Context.Value(OptionsKey)
-		if x != nil {
-			x.(*CommonOptions).WriteTimeout = d
-		} else {
-			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{WriteTimeout: d})
-		}
+		commonOptions(o).WriteTimeout = d
 	}
 }
 
 // WithIdleTimeout 最大的空闲连接等待时间，超过此时间后，空闲连接将被关闭。如果设置成0，空闲连接将不会被关闭。应该设置一个比redis服务端超时时间更短的时间。
 func WithIdleTimeout(d time.Duration) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		x := o.Context.Value(OptionsKey)
-		if x != nil {
-			x.(*CommonOptions).IdleTimeout = d
-		} else {
-			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{IdleTimeout: d})
-		}
+		commonOptions(o).IdleTimeout = d
 	}
 }
 
 // WithMaxIdle 最大的空闲连接数，表示即使没有redis连接时依然可以保持N个空闲的连接，而不被清除，随时处于待命状态。
 func WithMaxIdle(n int) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		x := o.Context.Value(OptionsKey)
-		if x != nil {
-			x.(*CommonOptions).MaxIdle = n
-		} else {
-			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{MaxIdle: n})
-		}
+		commonOptions(o).MaxIdle = n
 	}
 }
 
 // WithMaxActive 最大的连接数，表示同时最多有N个连接。0表示不限制。
 func WithMaxActive(n int) broker.Option {
 	return func(o *broker.Options) {
-		if o.Context == nil {
-			o.Context = context.Background()
-		}
-		x := o.Context.Value(OptionsKey)
-		if x != nil {
-			x.(*CommonOptions).MaxActive = n
-		} else {
-			o.Context = context.WithValue(o.Context, OptionsKey, &CommonOptions{MaxActive: n})
-		}
+		commonOptions(o).MaxActive = n
 	}
 }
 
@@ -164,16 +142,7 @@ func WithDefaultOptions() broker.Option {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}
-		opts := &CommonOptions{
-			MaxIdle:        DefaultMaxIdle,
-			MaxActive:      DefaultMaxActive,
-			IdleTimeout:    DefaultIdleTimeout,
-			ConnectTimeout: DefaultConnectTimeout,
-			ReadTimeout:    DefaultReadTimeout,
-			WriteTimeout:   DefaultWriteTimeout,
-		}
-
-		o.Context = context.WithValue(o.Context, OptionsKey, opts)
+		o.Context = context.WithValue(o.Context, OptionsKey, defaultCommonOptions())
 	}
 }
 

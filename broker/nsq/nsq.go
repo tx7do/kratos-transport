@@ -154,6 +154,11 @@ func (b *nsqBroker) Connect() error {
 			}
 		}
 	})
+	// Foreach 闭包内的 return 只结束当次迭代：
+	// 这里显式检查 err，避免订阅重连失败仍把服务标记为已启动
+	if err != nil {
+		return err
+	}
 
 	b.running = true
 
@@ -196,7 +201,7 @@ func (b *nsqBroker) Disconnect() error {
 }
 
 func (b *nsqBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *nsqBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -328,6 +333,9 @@ func (b *nsqBroker) Subscribe(topic string, handler broker.Handler, binder broke
 
 		if errSub = handler(b.options.Context, p); errSub != nil {
 			p.err = errSub
+			if eh := b.options.ErrorHandler; eh != nil {
+				_ = eh(b.options.Context, p)
+			}
 			return errSub
 		}
 

@@ -177,7 +177,7 @@ func (pb *pulsarBroker) Disconnect() error {
 }
 
 func (pb *pulsarBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, pb, topic, msg, opts...)
 }
 
 func (pb *pulsarBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -293,7 +293,7 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg *broker.M
 
 	var err error
 	var messageId pulsar.MessageID
-	messageId, err = producer.Send(pb.options.Context, &pulsarMsg)
+	messageId, err = producer.Send(ctx, &pulsarMsg)
 	if err != nil {
 		LogErrorf("send message error: %s\n", err)
 		switch cached {
@@ -308,7 +308,7 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg *broker.M
 			if err != nil {
 				break
 			}
-			if _, err = producer.Send(pb.options.Context, &pulsarMsg); err == nil {
+			if _, err = producer.Send(ctx, &pulsarMsg); err == nil {
 				pb.Lock()
 				pb.producers[topic] = producer
 				pb.Unlock()
@@ -327,6 +327,10 @@ func (pb *pulsarBroker) publish(ctx context.Context, topic string, msg *broker.M
 }
 
 func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) (broker.Subscriber, error) {
+	if pb.client == nil {
+		return nil, errors.New("pulsar: not initialized (call Init first)")
+	}
+
 	options := broker.SubscribeOptions{
 		Context: context.Background(),
 		AutoAck: true,
@@ -341,9 +345,13 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 	}
 
 	pulsarOptions := pulsar.ConsumerOptions{
-		Topic:            topic,
-		SubscriptionName: "my-subscription",
+		Topic: topic,
+		// 优先级：WithSubscriptionName > SubscribeOptions.Queue（标准选项）> 默认值
+		SubscriptionName: options.Queue,
 		Type:             pulsar.Shared,
+	}
+	if pulsarOptions.SubscriptionName == "" {
+		pulsarOptions.SubscriptionName = "my-subscription"
 	}
 
 	channel := make(chan pulsar.ConsumerMessage, 100)
@@ -415,6 +423,9 @@ func (pb *pulsarBroker) Subscribe(topic string, handler broker.Handler, binder b
 			if err = sub.handler(ctx, p); err != nil {
 				p.err = err
 				LogErrorf("handle message failed: %v", err)
+				if eh := pb.options.ErrorHandler; eh != nil {
+					_ = eh(ctx, p)
+				}
 				pb.finishConsumerSpan(ctx, span, err)
 				continue
 			}

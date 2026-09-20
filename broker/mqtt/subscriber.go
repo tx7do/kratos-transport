@@ -1,7 +1,9 @@
 package mqtt
 
 import (
+	"errors"
 	"sync"
+	"time"
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 	"github.com/tx7do/kratos-transport/broker"
@@ -42,7 +44,12 @@ func (s *subscriber) Unsubscribe(removeFromManager bool) error {
 
 	if s.m != nil && s.m.client != nil {
 		token := s.m.client.Unsubscribe(s.topic)
-		err = token.Error()
+		// 等待命令完成后再读错误，否则可能在错误未设置时漏报失败
+		if !token.WaitTimeout(10 * time.Second) {
+			err = errors.New("mqtt unsubscribe timeout")
+		} else {
+			err = token.Error()
+		}
 	}
 
 	s.closed = true

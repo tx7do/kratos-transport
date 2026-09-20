@@ -81,6 +81,12 @@ func WithEndpoint(url string) ClientOption {
 	}
 }
 
+func WithClientTimeout(timeout time.Duration) ClientOption {
+	return func(o *Client) {
+		o.timeout = timeout
+	}
+}
+
 func WithClientCodec(c string) ClientOption {
 	return func(o *Client) {
 		o.codec = encoding.GetCodec(c)

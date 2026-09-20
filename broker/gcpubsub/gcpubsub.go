@@ -10,6 +10,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/tx7do/kratos-transport/broker"
+	"time"
 )
 
 type gcpBroker struct {
@@ -125,7 +126,7 @@ func (b *gcpBroker) Disconnect() error {
 }
 
 func (b *gcpBroker) Request(ctx context.Context, topic string, msg *broker.Message, opts ...broker.RequestOption) (*broker.Message, error) {
-	return nil, errors.New("not implemented")
+	return broker.GenericRequest(ctx, b, topic, msg, opts...)
 }
 
 func (b *gcpBroker) Publish(ctx context.Context, topic string, msg *broker.Message, opts ...broker.PublishOption) error {
@@ -183,6 +184,8 @@ func (b *gcpBroker) publish(ctx context.Context, topic string, msg *broker.Messa
 	if options.Context != nil {
 		if v, ok := options.Context.Value(publishOrderingKey{}).(string); ok && v != "" {
 			pubsubMsg.OrderingKey = v
+			// 库要求显式开启，否则带 OrderingKey 的发布必然失败
+			t.EnableMessageOrdering = true
 		}
 	}
 
@@ -238,7 +241,12 @@ func (b *gcpBroker) Subscribe(topic string, handler broker.Handler, binder broke
 		b:       b,
 	}
 
-	go b.receive(options.Context, client, subscriptionName, receiveSettings, handler, binder, options, sub)
+	// 在启动 goroutine 之前创建并登记 cancel，
+	// 避免「Subscribe 后立刻 Unsubscribe」时 cancel 尚未赋值导致 Receive 无法停止
+	recvCtx, cancel := context.WithCancel(options.Context)
+	sub.cancel = cancel
+
+	go b.receive(recvCtx, client, subscriptionName, receiveSettings, handler, binder, options, sub)
 
 	b.subscribers.Add(topic, sub)
 
@@ -253,9 +261,7 @@ func (b *gcpBroker) receive(ctx context.Context, client *pubsub.Client, subscrip
 	subClient.ReceiveSettings = receiveSettings
 
 	subCtx, cancel := context.WithCancel(ctx)
-	sub.Lock()
-	sub.cancel = cancel
-	sub.Unlock()
+	defer cancel()
 
 	defer func() {
 		LogInfof("subscriber stopped, topic: %s, subscription: %s", sub.topic, subscriptionName)
@@ -296,6 +302,9 @@ func (b *gcpBroker) receive(ctx context.Context, client *pubsub.Client, subscrip
 		if err := handler(receiveCtx, p); err != nil {
 			p.err = err
 			LogErrorf("handle message failed: %v", err)
+			if eh := b.options.ErrorHandler; eh != nil {
+				_ = eh(receiveCtx, p)
+			}
 			return
 		}
 
@@ -311,6 +320,14 @@ func (b *gcpBroker) receive(ctx context.Context, client *pubsub.Client, subscrip
 			// context cancelled, normal exit
 			return
 		}
-		LogErrorf("receive message error: %v", err)
+		// 致命错误（订阅被删、权限问题等）后不能静默死亡：
+		// 带退避重试，直到订阅被显式关闭或上下文取消
+		LogErrorf("receive message error: %v, retrying in 5s...", err)
+		select {
+		case <-subCtx.Done():
+			return
+		case <-time.After(5 * time.Second):
+			b.receive(subCtx, client, subscriptionName, receiveSettings, handler, binder, options, sub)
+		}
 	}
 }

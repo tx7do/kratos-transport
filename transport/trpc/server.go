@@ -31,7 +31,9 @@ type Server struct {
 }
 
 func NewServer(opts ...ServerOption) *Server {
-	srv := &Server{}
+	srv := &Server{
+		address: ":8972", // trpc 默认端口
+	}
 
 	srv.init(opts...)
 

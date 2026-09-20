@@ -112,6 +112,10 @@ func (s *Server) listenAndEndpoint() error {
 		if err != nil {
 			return err
 		}
+		// 配置了 TLS 时用 TLS listener 包裹，否则配置形同虚设
+		if s.tlsConf != nil {
+			lis = tls.NewListener(lis, s.tlsConf)
+		}
 		s.lis = lis
 	}
 

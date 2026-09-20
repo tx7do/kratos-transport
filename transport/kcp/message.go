@@ -3,10 +3,20 @@ package kcp
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"io"
+	"net"
 )
 
 type NetMessageType uint32
 type NetMessagePayload any
+
+const (
+	// frameLengthSize 帧长度前缀字节数
+	frameLengthSize = 4
+	// maxFrameSize 单帧最大字节数，超过视为协议错误
+	maxFrameSize = 32 << 20
+)
 
 type NetPacket struct {
 	Type    NetMessageType
@@ -33,4 +43,39 @@ func (m *NetPacket) Unmarshal(buf []byte) error {
 	m.Payload = network.Bytes()
 
 	return nil
+}
+
+// WriteFrame 写入一帧：4 字节长度前缀 + payload。
+// KCP 是字节流，不加分帧前缀的话，对端无法区分包边界（粘包/拆包）。
+func WriteFrame(conn net.Conn, payload []byte) error {
+	if len(payload) > maxFrameSize {
+		return errors.New("frame too large")
+	}
+
+	buf := make([]byte, frameLengthSize+len(payload))
+	byteOrder.PutUint32(buf, uint32(len(payload)))
+	copy(buf[frameLengthSize:], payload)
+
+	_, err := conn.Write(buf)
+	return err
+}
+
+// ReadFrame 读取一帧，返回去掉长度前缀的 payload。
+func ReadFrame(conn net.Conn) ([]byte, error) {
+	hdr := make([]byte, frameLengthSize)
+	if _, err := io.ReadFull(conn, hdr); err != nil {
+		return nil, err
+	}
+
+	size := byteOrder.Uint32(hdr)
+	if size == 0 || size > maxFrameSize {
+		return nil, errors.New("invalid frame size")
+	}
+
+	payload := make([]byte, size)
+	if _, err := io.ReadFull(conn, payload); err != nil {
+		return nil, err
+	}
+
+	return payload, nil
 }

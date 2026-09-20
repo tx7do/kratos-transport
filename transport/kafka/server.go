@@ -78,6 +78,10 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
+	if s.keepaliveServer == nil {
+		s.keepaliveServer = keepalive.NewServer(keepalive.WithServiceKind(KindKafka))
+	}
+
 	if s.keepaliveServer != nil {
 		go func() {
 			if err := s.keepaliveServer.Start(ctx); err != nil {
@@ -109,19 +113,28 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	if s.started.Load() == false {
+	if !s.started.Load() {
+		// 允许 Start 失败后重试：清掉残留的错误状态
+		s.err = nil
 		return nil
 	}
 
 	LogInfo("server stopping...")
 
-	for _, v := range s.subscribers {
+	s.started.Store(false)
+
+	// 持锁快照订阅表，避免与并发的 RegisterSubscriber 竞争
+	s.Lock()
+	subs := s.subscribers
+	s.subscribers = make(broker.SubscriberMap)
+	s.Unlock()
+
+	for _, v := range subs {
 		_ = v.Unsubscribe(false)
 	}
-	s.subscribers = make(broker.SubscriberMap)
-	s.subscriberOpts = make(transport.SubscribeOptionMap)
 
-	s.started.Store(false)
+	// 保留 subscriberOpts，下一次 Start 会通过 doRegisterSubscriberMap 重新注册
+
 	err := s.Disconnect()
 	s.err = nil
 
@@ -144,8 +157,6 @@ func (s *Server) Stop(ctx context.Context) error {
 // @param handler 订阅者的处理函数
 func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, disableAutoAck bool, handler broker.Handler, binder broker.Binder, opts ...broker.SubscribeOption) error {
 	s.Lock()
-	defer s.Unlock()
-
 	//var subscribeOptions []broker.SubscribeOption
 	opts = append(opts, broker.WithSubscribeQueueName(queue))
 	if disableAutoAck {
@@ -154,13 +165,16 @@ func (s *Server) RegisterSubscriber(ctx context.Context, topic, queue string, di
 
 	// context必须要插入到头部，否则后续传入的配置会被覆盖掉。
 	opts = append([]broker.SubscribeOption{broker.WithSubscribeContext(ctx)}, opts...)
-
-	if s.started.Load() {
-		return s.doRegisterSubscriber(topic, handler, binder, opts...)
-	} else {
+	started := s.started.Load()
+	if !started {
 		s.subscriberOpts[topic] = &transport.SubscribeOption{Handler: handler, Binder: binder, SubscribeOptions: opts}
+		s.Unlock()
+		return nil
 	}
-	return nil
+	s.Unlock()
+
+	// 订阅动作放在锁外执行，避免 broker 阻塞拖住整个注册面
+	return s.doRegisterSubscriber(topic, handler, binder, opts...)
 }
 
 func RegisterSubscriber[T any](
@@ -176,13 +190,24 @@ func RegisterSubscriber[T any](
 		queue,
 		disableAutoAck,
 		func(ctx context.Context, event broker.Event) error {
+			if event == nil || event.Message() == nil || event.Message().Body == nil {
+				return fmt.Errorf("event or message body is nil")
+			}
+
+			var zero T
+			expectedType := fmt.Sprintf("%T", &zero)
+
 			switch t := event.Message().Body.(type) {
 			case *T:
 				if err := handler(ctx, event.Topic(), event.Message().Headers, t); err != nil {
 					return err
 				}
+			case T:
+				if err := handler(ctx, event.Topic(), event.Message().Headers, &t); err != nil {
+					return err
+				}
 			default:
-				return fmt.Errorf("unsupported type: %T", t)
+				return fmt.Errorf("unsupported type: expected %s, got %T", expectedType, event.Message().Body)
 			}
 			return nil
 		},
@@ -200,22 +225,33 @@ func (s *Server) doRegisterSubscriber(topic string, handler broker.Handler, bind
 		return err
 	}
 
-	if _, exists := s.subscribers[topic]; exists {
-		LogWarnf("subscriber for topic '%s' already exists, overwriting", topic)
-	}
+	s.Lock()
+	old, exists := s.subscribers[topic]
 	s.subscribers[topic] = sub
+	s.Unlock()
+
+	if exists {
+		// 旧订阅先退订，避免旧订阅继续消费造成泄漏
+		LogWarnf("subscriber for topic '%s' already exists, unsubscribing the old one", topic)
+		_ = old.Unsubscribe(false)
+	}
 	return nil
 }
 
 func (s *Server) doRegisterSubscriberMap() error {
+	// 持锁取出并清空缓存表，避免与并发的 RegisterSubscriber 竞争
+	s.Lock()
+	optsMap := s.subscriberOpts
+	s.subscriberOpts = make(transport.SubscribeOptionMap)
+	s.Unlock()
+
 	var errs []error
-	for topic, opt := range s.subscriberOpts {
+	for topic, opt := range optsMap {
 		if err := s.doRegisterSubscriber(topic, opt.Handler, opt.Binder, opt.SubscribeOptions...); err != nil {
 			LogErrorf("register subscriber failed, topic: %s, error: %s", topic, err.Error())
 			errs = append(errs, err)
 		}
 	}
-	s.subscriberOpts = make(transport.SubscribeOptionMap)
 	return errors.Join(errs...)
 }
 

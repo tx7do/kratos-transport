@@ -42,6 +42,9 @@ type Server struct {
 	err   error
 	codec encoding.Codec
 
+	allowedOrigins   []string
+	allowCredentials bool
+
 	hub signalr.HubInterface
 
 	router *http.ServeMux
@@ -151,13 +154,21 @@ func (s *Server) init(opts ...ServerOption) {
 		o(s)
 	}
 
-	server, err := signalr.NewServer(context.Background(),
+	options := []func(signalr.Party) error{
 		signalr.Logger(&logger{}, s.debug),
 		//signalr.HubFactory(s.createHub),
-		signalr.SimpleHubFactory(s.hub),
 		signalr.KeepAliveInterval(s.keepAliveInterval),
 		signalr.ChanReceiveTimeout(s.chanReceiveTimeout),
 		signalr.StreamBufferCapacity(s.streamBufferCapacity),
+	}
+
+	// 未传 WithHub 时 SimpleHubFactory(nil) 会在库内反射解引用直接 panic
+	if s.hub != nil {
+		options = append(options, signalr.SimpleHubFactory(s.hub))
+	}
+
+	server, err := signalr.NewServer(context.Background(),
+		options...,
 	)
 	if err != nil {
 		s.err = err

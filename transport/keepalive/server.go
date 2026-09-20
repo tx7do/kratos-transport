@@ -105,7 +105,9 @@ func (s *Server) Start(_ context.Context) error {
 
 	log.Infof("[%s] server listening on: %s", s.serviceKind, s.lis.Addr().String())
 
-	if s.err = s.Serve(s.lis); !errors.Is(s.err, http.ErrServerClosed) {
+	if s.err = s.Serve(s.lis); s.err != nil &&
+		!errors.Is(s.err, http.ErrServerClosed) &&
+		!errors.Is(s.err, grpc.ErrServerStopped) {
 		s.started.Store(false)
 		return s.err
 	}

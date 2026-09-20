@@ -57,8 +57,3 @@ func WithErrorEncoder(en kHttp.EncodeErrorFunc) ServerOption {
 		o.ene = en
 	}
 }
-
-func WithStrictSlash(strictSlash bool) ServerOption {
-	return func(o *Server) {
-	}
-}

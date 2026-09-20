@@ -218,11 +218,12 @@ func (b *jetStreamBroker) setOption(opts ...broker.Option) {
 	if b.options.TLSConfig == nil {
 		b.options.TLSConfig = b.natsOpts.TLSConfig
 	}
-	b.setAddrs(b.options.Addrs)
+	b.options.Addrs = b.setAddrs(b.options.Addrs)
 
 	if b.options.Context.Value(drainConnectionKey{}) != nil {
 		b.drain = true
-		b.closeCh = make(chan error)
+		// 有缓冲：closeCh 没有读取方，无缓冲会让回调与持锁的 Disconnect 永久阻塞
+		b.closeCh = make(chan error, 8)
 		b.natsOpts.ClosedCB = b.onClose
 		b.natsOpts.AsyncErrorCB = b.onAsyncError
 		b.natsOpts.DisconnectedErrCB = b.onDisconnectedError

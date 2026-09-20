@@ -59,12 +59,7 @@ func (s *subscriber) IsClosed() bool {
 }
 
 // recv is the main receive loop for SQS messages using long polling.
-func (s *subscriber) recv(handler broker.Handler, binder broker.Binder, opts recvOpts) {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.Lock()
-	s.cancel = cancel
-	s.Unlock()
-
+func (s *subscriber) recv(ctx context.Context, handler broker.Handler, binder broker.Binder, opts recvOpts) {
 	defer func() {
 		LogInfof("subscriber stopped, topic: %s", s.topic)
 	}()
@@ -146,6 +141,9 @@ func (s *subscriber) processMessage(ctx context.Context, handler broker.Handler,
 	if err := handler(ctx, p); err != nil {
 		p.err = err
 		LogErrorf("handle message failed: %v", err)
+		if eh := s.b.options.ErrorHandler; eh != nil {
+			_ = eh(ctx, p)
+		}
 		return
 	}
 

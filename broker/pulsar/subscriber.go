@@ -38,16 +38,20 @@ func (s *subscriber) Unsubscribe(removeFromManager bool) error {
 	s.Lock()
 	defer s.Unlock()
 
-	close(s.channel)
+	if s.closed {
+		return nil
+	}
 
+	s.closed = true
+
+	// 先停掉消费者再关 channel，避免客户端投递 goroutine 向已关闭的 channel 发送
 	var err error
-
 	if s.reader != nil {
 		err = s.reader.Unsubscribe()
 		s.reader.Close()
 	}
 
-	s.closed = true
+	close(s.channel)
 
 	if s.r != nil && s.r.subscribers != nil && removeFromManager {
 		_ = s.r.subscribers.RemoveOnly(s.topic)

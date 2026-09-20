@@ -126,10 +126,11 @@ func (s *Server) Start(_ context.Context) error {
 	return nil
 }
 
-func (s *Server) Stop(_ context.Context) error {
+func (s *Server) Stop(ctx context.Context) error {
 	LogInfo("server stopping...")
 
-	err := s.Server.Shutdown()
+	// 带超时的优雅关闭：ctx 取消/超时后返回，避免活跃连接拖住关闭流程
+	err := s.Server.ShutdownWithContext(ctx)
 	s.err = nil
 
 	LogInfo("server stopped.")

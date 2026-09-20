@@ -31,17 +31,24 @@ func RegisterSubscriber[S SubscriberRegistrar, T any](
 		queue,
 		disableAutoAck,
 		func(ctx context.Context, event broker.Event) error {
-			if event == nil {
-				return fmt.Errorf("event is nil")
+			if event == nil || event.Message() == nil || event.Message().Body == nil {
+				return fmt.Errorf("event or message body is nil")
 			}
+
+			var zero T
+			expectedType := fmt.Sprintf("%T", &zero)
 
 			switch t := event.Message().Body.(type) {
 			case *T:
 				if err := handler(ctx, event.Topic(), event.Message().Headers, t); err != nil {
 					return err
 				}
+			case T:
+				if err := handler(ctx, event.Topic(), event.Message().Headers, &t); err != nil {
+					return err
+				}
 			default:
-				return fmt.Errorf("unsupported type: %T", t)
+				return fmt.Errorf("unsupported type: expected %s, got %T", expectedType, event.Message().Body)
 			}
 			return nil
 		},

@@ -17,6 +17,10 @@ func handleClientChatMessage(message *ChatMessage) error {
 }
 
 func TestClient(t *testing.T) {
+	if !itIntegration {
+		t.Skip("integration test; set KRATOS_IT=1 to enable")
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 

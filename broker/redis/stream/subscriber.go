@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -50,6 +51,9 @@ func (s *subscriber) onMessage(msgID string, data []byte) error {
 	}
 
 	if p.err = s.handler(s.options.Context, &p); p.err != nil {
+		if eh := s.b.options.ErrorHandler; eh != nil {
+			_ = eh(s.options.Context, &p)
+		}
 		return p.err
 	}
 
@@ -86,8 +90,10 @@ func (s *subscriber) recv() {
 		}
 
 		// 重连后确保消费组存在
-		if reErr := s.b.ensureGroup(s.topic, s.group); reErr != nil {
-			redisOption.LogWarnf("re-ensure group: %v", reErr)
+		if s.b.pool != nil {
+			if reErr := s.b.ensureGroup(s.topic, s.group); reErr != nil {
+				redisOption.LogWarnf("re-ensure group: %v", reErr)
+			}
 		}
 
 		if reconnectDelay < maxReconnectDelay {
@@ -110,6 +116,9 @@ func (s *subscriber) receiveLoop() error {
 		}
 
 		// XREADGROUP GROUP group consumer BLOCK timeout COUNT count STREAMS stream >
+		if s.b.pool == nil {
+			return errors.New("redis-stream: broker disconnected")
+		}
 		conn := s.b.pool.Get()
 
 		reply, err := conn.Do("XREADGROUP",

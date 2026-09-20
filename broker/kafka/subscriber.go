@@ -275,10 +275,13 @@ func (s *subscriber) handleMessage(km kafkaGo.Message) bool {
 	ctx, span = s.b.startConsumerSpan(context.Background(), &km)
 
 	bm := &broker.Message{
+		ID:        string(km.Key),
 		Headers:   kafkaHeaderToMap(km.Headers),
 		Body:      nil,
+		Key:       string(km.Key),
 		Partition: km.Partition,
 		Offset:    km.Offset,
+		Msg:       km,
 	}
 
 	if s.binder != nil {
@@ -297,6 +300,9 @@ func (s *subscriber) handleMessage(km kafkaGo.Message) bool {
 
 	if err = s.handler(ctx, pub); err != nil {
 		LogErrorf("handle message failed: %v", err)
+		if eh := s.b.options.ErrorHandler; eh != nil {
+			_ = eh(ctx, pub)
+		}
 		s.b.finishConsumerSpan(ctx, span, err)
 		return true
 	}
