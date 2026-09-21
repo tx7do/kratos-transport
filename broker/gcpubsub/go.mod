@@ -12,8 +12,8 @@ require (
 	cloud.google.com/go/pubsub/v2 v2.6.0
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport/broker v1.3.3
-	github.com/tx7do/kratos-transport/testing v0.0.0-00010101000000-000000000000
+	github.com/tx7do/kratos-transport/broker v1.4.1
+	github.com/tx7do/kratos-transport/testing v1.1.3
 	google.golang.org/api v0.277.0
 )
 
@@ -35,7 +35,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/tx7do/kratos-transport/tracing v1.1.2 // indirect
+	github.com/tx7do/kratos-transport/tracing v1.2.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.68.0 // indirect

@@ -14,8 +14,8 @@ require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/pion/webrtc/v4 v4.2.12
 	github.com/tx7do/go-utils/id v0.0.6
-	github.com/tx7do/kratos-transport/broker v1.3.3
-	github.com/tx7do/kratos-transport/transport v1.3.4
+	github.com/tx7do/kratos-transport/broker v1.4.1
+	github.com/tx7do/kratos-transport/transport v1.4.1
 )
 
 require (
@@ -47,7 +47,7 @@ require (
 	github.com/segmentio/ksuid v1.0.4 // indirect
 	github.com/sony/sonyflake v1.3.0 // indirect
 	github.com/tx7do/go-utils v1.1.40 // indirect
-	github.com/tx7do/kratos-transport/tracing v1.1.2 // indirect
+	github.com/tx7do/kratos-transport/tracing v1.2.0 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.6.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

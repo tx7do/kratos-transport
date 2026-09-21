@@ -7,7 +7,7 @@ replace github.com/tx7do/kratos-transport/tracing => ../../tracing
 require (
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tx7do/kratos-transport/tracing v1.1.2
+	github.com/tx7do/kratos-transport/tracing v1.2.0
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/trace v1.43.0
 	go.temporal.io/api v1.62.9
