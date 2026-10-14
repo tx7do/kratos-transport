@@ -43,7 +43,9 @@ type Server struct {
 	httpServer      *server.StreamableHTTPServer
 	endpoint        *url.URL
 
-	mcpOpts []server.ServerOption
+	mcpOpts  []server.ServerOption
+	httpOpts []server.StreamableHTTPOption
+	sseOpts  []server.SSEOption
 
 	serverType ServerType
 	serverAddr string
@@ -246,7 +248,7 @@ func (s *Server) startMCPServer() error {
 		}
 
 	case ServerTypeSSE:
-		sseServer := server.NewSSEServer(s.mcpServer)
+		sseServer := server.NewSSEServer(s.mcpServer, s.sseOpts...)
 		// 保存句柄供 Stop 关闭（此前是局部变量，Stop 后端口仍在服务）
 		s.sseServer = sseServer
 		if err := sseServer.Start(s.serverAddr); err != nil {
@@ -257,7 +259,7 @@ func (s *Server) startMCPServer() error {
 		}
 
 	case ServerTypeHTTP:
-		httpServer := server.NewStreamableHTTPServer(s.mcpServer)
+		httpServer := server.NewStreamableHTTPServer(s.mcpServer, s.httpOpts...)
 		s.httpServer = httpServer
 		if err := httpServer.Start(s.serverAddr); err != nil {
 			s.httpServer = nil

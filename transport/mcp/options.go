@@ -42,3 +42,18 @@ func WithMCPServeAddress(addr string) ServerOption {
 		s.serverAddr = addr
 	}
 }
+
+// WithMCPHTTPServerOptions 透传 StreamableHTTP 服务选项（如 WithHTTPContextFunc
+// 鉴权注入、WithRecovery 等）。仅 ServerTypeHTTP 生效。
+func WithMCPHTTPServerOptions(opts ...server.StreamableHTTPOption) ServerOption {
+	return func(s *Server) {
+		s.httpOpts = append(s.httpOpts, opts...)
+	}
+}
+
+// WithMCPSSEServerOptions 透传 SSE 服务选项。仅 ServerTypeSSE 生效。
+func WithMCPSSEServerOptions(opts ...server.SSEOption) ServerOption {
+	return func(s *Server) {
+		s.sseOpts = append(s.sseOpts, opts...)
+	}
+}
