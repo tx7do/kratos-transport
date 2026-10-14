@@ -41,7 +41,9 @@ type Server struct {
 	mcpServer       *server.MCPServer
 	endpoint        *url.URL
 
-	mcpOpts []server.ServerOption
+	mcpOpts  []server.ServerOption
+	httpOpts []server.StreamableHTTPOption
+	sseOpts  []server.SSEOption
 
 	serverType ServerType
 	serverAddr string
@@ -223,14 +225,14 @@ func (s *Server) startMCPServer() error {
 		}
 
 	case ServerTypeSSE:
-		sseServer := server.NewSSEServer(s.mcpServer)
+		sseServer := server.NewSSEServer(s.mcpServer, s.sseOpts...)
 		if err := sseServer.Start(s.serverAddr); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 			return errors.New("start MCP server: " + err.Error())
 		}
 
 	case ServerTypeHTTP:
-		httpServer := server.NewStreamableHTTPServer(s.mcpServer)
+		httpServer := server.NewStreamableHTTPServer(s.mcpServer, s.httpOpts...)
 		if err := httpServer.Start(s.serverAddr); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 			return errors.New("start MCP server: " + err.Error())
